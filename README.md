@@ -6,11 +6,11 @@ The publications examined (proof approaches) are selected with respect to the fo
 3. "feasibility" of modeling in proof assistants, and 
 4. the claimed result of the relation of P to NP (equivalent/indifferent/unprovable).
 
-*Expected results*: Researchers who deal with the question should be given extended possibilities to subject their ideas and arguments to a mechanical, and thus objective/independent, examination (before publication). Independently of it the P/NP question serves thus as "study object", whose investigation is to advance the possibilities of mechanical proof verification, as an aid, simplification and objectification of scientific Peer reviews. 
+**Expected results**: Researchers who deal with the question should be given extended possibilities to subject their ideas and arguments to a mechanical, and thus objective/independent, examination (before publication). Independently of it the P/NP question serves thus as "study object", whose investigation is to advance the possibilities of mechanical proof verification, as an aid, simplification and objectification of scientific Peer reviews. 
 
-*What the project can offer*: The project shall bring "help for self-help" to accomplish an independent and objective verification of one's own ideas. In this respect computers offer attractive advantages, because:
+**What the project can offer**: The project shall bring "help for self-help" to accomplish an independent and objective verification of one's own ideas. In this respect computers offer attractive advantages, because:
 * A computer cannot be convinced by authority, reputation or academic affiliation
 * and he is unbiased, without vanity and free from own interests or preferences for arguments, proof techniques, or the similar.
 The aim is to objectify and verify formal arguments, especially since scientific peer review may not always be available to laypersons, amateurs, or people from outside the field.
 
-*What we cannot offer*: We do not do scientific peer reviews of any submissions, or act as a publication organ. Likewise, we would not confirm the scientific correctness ourselves, as this would be the task of the computer. We merely support you on the way to this goal. 
+**What we cannot offer**: We do not do scientific peer reviews of any submissions, or act as a publication organ. Likewise, we would not confirm the scientific correctness ourselves, as this would be the task of the computer. We merely support you on the way to this goal. 
