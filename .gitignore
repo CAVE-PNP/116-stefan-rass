@@ -1,0 +1,10 @@
+## isabelle
+
+# ignore backup (?) files
+# seems to follow isabelle procedure,
+# see https://isabelle-dev.sketis.net/source/isabelle/browse/default/.hgignore
+# "*~" seems to general, specify .thy for now
+*.thy~
+
+# ignore temporary files (Isabelle/jEdit stores unsaved changes this way)
+\#*.thy\#
