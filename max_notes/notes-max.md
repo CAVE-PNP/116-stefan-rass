@@ -14,34 +14,34 @@ help prevent small scale manipulations from being necessary.
 
 ## Contents
 
-* [Notes PNP](#notes-pnp)
-  * [Contents](#contents)
-  * [Isabelle](#isabelle)
-    * [Getting Started](#getting-started)
-    * [Structure (work in progress)](#structure-work-in-progress)
-    * [Versions](#versions)
-    * [IDEs](#ides)
-    * [Proof methods (work in progress)](#proof-methods-work-in-progress)
-    * [General](#general)
-  * [Coq](#coq)
-    * [Coq IDEs](#coq-ides)
-  * [Comparison](#comparison)
-    * [Coq Overview](#coq-overview)
-    * [Isabelle Overview](#isabelle-overview)
-    * [Editors and Environments](#editors-and-environments)
-    * [Readability of Proofs](#readability-of-proofs)
-    * [Automation and Tools](#automation-and-tools)
-  * [Proofs](#proofs)
-    * [Barriers](#barriers)
-    * [more](#more)
-  * [Ongoing Work](#ongoing-work)
-  * [Sources and Literature](#sources-and-literature)
-    * [Isabelle/HOL related](#isabellehol-related)
-    * [Coq related](#coq-related)
-    * [General Quotes](#general-quotes)
-  * [Additional reading](#additional-reading)
-    * [Comparison of proof assistants](#comparison-of-proof-assistants)
-    * [Inspecting solver steps](#inspecting-solver-steps)
+- [Notes PNP](#notes-pnp)
+  - [Contents](#contents)
+  - [Isabelle](#isabelle)
+    - [Getting Started](#getting-started)
+    - [Structure (work in progress)](#structure-work-in-progress)
+    - [Versions](#versions)
+    - [IDEs](#ides)
+    - [Proof methods (work in progress)](#proof-methods-work-in-progress)
+    - [General](#general)
+  - [Coq](#coq)
+    - [Coq IDEs](#coq-ides)
+  - [Comparison](#comparison)
+    - [Coq Overview](#coq-overview)
+    - [Isabelle Overview](#isabelle-overview)
+    - [Editors and Environments](#editors-and-environments)
+    - [Readability of Proofs](#readability-of-proofs)
+    - [Automation and Tools](#automation-and-tools)
+  - [Proofs](#proofs)
+    - [Barriers](#barriers)
+    - [more](#more)
+  - [Ongoing Work](#ongoing-work)
+  - [Sources and Literature](#sources-and-literature)
+    - [Isabelle/HOL related](#isabellehol-related)
+    - [Coq related](#coq-related)
+    - [General Quotes](#general-quotes)
+  - [Additional reading](#additional-reading)
+    - [Comparison of proof assistants](#comparison-of-proof-assistants)
+    - [Inspecting solver steps](#inspecting-solver-steps)
 
 ## Isabelle
 
@@ -61,20 +61,20 @@ and Isabelle/ML is the use of ML in the Isabelle environment.
 
 Notable components:
 
-* Isabelle/Pure: logical framework, the "kernel" of Isabelle
-  * the "assembly" of Isabelle; basically only supports natural deduction,
+- Isabelle/Pure: logical framework, the "kernel" of Isabelle
+  - the "assembly" of Isabelle; basically only supports natural deduction,
     everything else (including advanced tactics) is just a layer of abstraction
     constructing terms for Isabelle/Pure
-  * written in [Standard ML](https://standardml.org)
+  - written in [Standard ML](https://standardml.org)
     (SML '97, Isabelle uses the [PolyML](https://www.polyml.org/) implementation)
-* [Isabelle/HOL](https://isabelle.in.tum.de/doc/logics.pdf):
+- [Isabelle/HOL](https://isabelle.in.tum.de/doc/logics.pdf):
   formalization of higher order logic
-* [Isabelle/Isar](https://isabelle.in.tum.de/library/Doc/Implementation/implementation.pdf)
+- [Isabelle/Isar](https://isabelle.in.tum.de/library/Doc/Implementation/implementation.pdf)
   abstracts ML commands in an effort to create more readable proofs
-  * proof commands are reminiscent of natural language proofs,
+  - proof commands are reminiscent of natural language proofs,
     e.g. `from A have B using C`
-* Isabelle/PIDE is a protocol for communication between a language kernel and an IDE
-  * this is used with Isabelle/jEdit and, through an abstraction layer, with Isabelle/VSCode
+- Isabelle/PIDE is a protocol for communication between a language kernel and an IDE
+  - this is used with Isabelle/jEdit and, through an abstraction layer, with Isabelle/VSCode
 
 ### Versions
 
@@ -100,16 +100,16 @@ See also the section on [Isabelle resources](#Isabelle-resources).
 
 The available options seem to be:
 
-* _Isabelle/jEdit_, the modified and preconfigured distribution of _jEdit_
+- _Isabelle/jEdit_, the modified and preconfigured distribution of _jEdit_
   bundled with Isabelle installers
-* _emacs_ with the _Proof General_ plugin
-* _Visual Studio Code_ with the _Isabelle_ plugin
+- _emacs_ with the _Proof General_ plugin
+- _Visual Studio Code_ with the _Isabelle_ plugin
 
 Deprecated or not supported:
 
-* [Isabelle/Eclipse](http://andriusvelykis.github.io/isabelle-eclipse/),
+- [Isabelle/Eclipse](http://andriusvelykis.github.io/isabelle-eclipse/),
   latest commit from 2013
-* Isabelle/IntelliJ ?
+- Isabelle/IntelliJ ?
 
 #### Isabelle/jEdit
 
@@ -147,14 +147,14 @@ however, some of them are also cumbersome to enter (e.g., `/\` for `∧`).
 Abbreviations can be added or removed by (creating and) editing the file `$ISABELLE_USER_HOME/etc/symbols`,
 following the syntax of `$ISABELLE_HOME/etc/symbols`.
 
-_Note: __**`$ISABELLE_HOME`**__ is the location of the Isabelle installation,
-and __**`$ISABELLE_USER_HOME`**__ typically is __**`$USER_HOME/.isabelle/Isabelle20xx`**__.
-For Windows, __**`$USER_HOME`**__ is __**`%USERPROFILE%`**__._
+_Note: **`$ISABELLE_HOME`** is the location of the Isabelle installation,
+and **`$ISABELLE_USER_HOME`** typically is **`$USER_HOME/.isabelle/Isabelle20xx`**.
+For Windows, **`$USER_HOME`** is **`%USERPROFILE%`**._
 
 For instance, starting Isabelle the following `symbols` file (in the user settings directory)
 adds the abbreviations `&&` for `∧` and `||` for `∨`.
 
-_Note: the lines are copied and modified from the system version of __**`symbols`**__._
+_Note: the lines are copied and modified from the system version of **`symbols`**._
 
 ```ps
 # add new abbreviation for logical and: &&
@@ -193,34 +193,33 @@ from its open framework and large community (see also `talk:isa-vscode`).
 Install and configure extensions:
 
 1. extension corresponding to the Isabelle version
-   * for [Isabelle20xx releases](https://isabelle.in.tum.de/),
+   - for [Isabelle20xx releases](https://isabelle.in.tum.de/),
      use [`makarius.isabelle20xx`](https://marketplace.visualstudio.com/search?term=Isabelle20*&target=VSCode),
-   * for [development builds](https://isabelle.sketis.net/devel/release_snapshot/),
+   - for [development builds](https://isabelle.sketis.net/devel/release_snapshot/),
      use [`makarius.isabelle`](https://marketplace.visualstudio.com/items?itemName=makarius.isabelle)
-   * for a list of Isabelle/VSCode extensions, see
+   - for a list of Isabelle/VSCode extensions, see
      [extensions published by Makarius Wenzel](https://marketplace.visualstudio.com/publishers/makarius).
 2. install [_Prettify Symbols Mode_](https://marketplace.visualstudio.com/items?itemName=siegebell.prettify-symbols-mode)
 3. configure extensions
    1. in particular, set the `isabelle.home` variable:
-      * enter settings via `File > Preferences > Settings` or `Ctrl+,`
-      * enter `isabelle.home` in the search bar or navigate to
+      - enter settings via `File > Preferences > Settings` or `Ctrl+,`
+      - enter `isabelle.home` in the search bar or navigate to
         `Extensions > Isabelle > Isabelle: Home`
-      * enter the directory in which Isabelle is installed
+      - enter the directory in which Isabelle is installed
    2. \[optional] configure _Prettify Symbols Mode_
-      * `"prettifySymbolsMode.adjustCursorMovement": true`
-      * `"prettifySymbolsMode.revealOn": "cursor"` or `"never"`
+      - `"prettifySymbolsMode.adjustCursorMovement": true`
+      - `"prettifySymbolsMode.revealOn": "cursor"` or `"never"`
 
 ##### Working environment
 
-* open an Isabelle/HOL `.thy` file
-* show output
-  * select `View > Output` (`Ctrl+Shift+U`)
-  * there, select the `Isabelle Output` channel in the dropdown menu
-* show the state
-  * select `View > Command Palette` (`Ctrl+Shift+P`)
-  * enter `Isabelle: Show State`
-    * 
-    * wait until the Isabelle backend has launched (will display a message),
+- open an Isabelle/HOL `.thy` file
+- show output
+  - select `View > Output` (`Ctrl+Shift+U`)
+  - there, select the `Isabelle Output` channel in the dropdown menu
+- show the state
+  - select `View > Command Palette` (`Ctrl+Shift+P`)
+  - enter `Isabelle: Show State`
+    - wait until the Isabelle backend has launched (will display a message),
       as executing _show state_ before that will have no effect
 
 ##### Weird symbol representation
@@ -249,9 +248,9 @@ however, the `isabelle` binary is not usable in windows.
 
 TODO
 
-* try through the bundled, integrated cygwin console
-  * `Cygwin-Setup.bat`, then in `Cygwin-Terminal.bat` launch `isabelle`
-* try the binaries in WSL
+- try through the bundled, integrated cygwin console
+  - `Cygwin-Setup.bat`, then in `Cygwin-Terminal.bat` launch `isabelle`
+- try the binaries in WSL
 
 ##### Support
 
@@ -260,7 +259,7 @@ From the [Proof General GitHub repo](https://github.com/ProofGeneral/PG/#more-in
 > Proof General used to support other proof assistants, but those
 > instances are no longer maintained nor available in the MELPA package:
 >
-> * Legacy support of [Isabelle](https://www.cl.cam.ac.uk/research/hvg/Isabelle/)
+> - Legacy support of [Isabelle](https://www.cl.cam.ac.uk/research/hvg/Isabelle/)
 
 Latest changes in [`/isar/` directory](https://github.com/ProofGeneral/PG/tree/master/isar)
 are two years old, explicitly states support for _Isabelle2011_.
@@ -269,10 +268,10 @@ are two years old, explicitly states support for _Isabelle2011_.
 
 **_TODO_** induct/induction
 
-* induction by function rules, as opposed to "normal" induction
+- induction by function rules, as opposed to "normal" induction
   following the rules of the function `Suc`/`S`.
   See `prog-prove.pdf`, 4.4.3 Computation Induction
-* other induction rules like `nat_induct_non_zero` and `nat_induct_at_least`
+- other induction rules like `nat_induct_non_zero` and `nat_induct_at_least`
 
 **_TODO_** \[intro]/introduction rules
 
@@ -282,9 +281,9 @@ listed from ~weak to strong
 
 **_TODO_** the `..` ("default") and `.` ("immediate") tactics. something like:
 
-* `.` proves an already known result
+- `.` proves an already known result
   (including rewriting constant abbreviations)
-* `..` proves a goal through a single application of one of
+- `..` proves a goal through a single application of one of
   the natural deducation axioms
 
 **_TODO_** unfold (acts on all subgoals)
@@ -334,12 +333,12 @@ Seems more focused on functional aspect and proving the correctness of programs
 
 The available options seem to be:
 
-* _CoqIde_, a part of the Coq project
-* _jsCoq_, a web-based environment
-* _Jupyter_ with the _coq_jupyter_ kernel
-* _emacs_ with the _Proof General_ and _Company-Coq_ plugins
-* _Visual Studio Code_ with the _VSCoq_ plugin
-* _Vim_ with the _Coqtail_ plugin
+- _CoqIde_, a part of the Coq project
+- _jsCoq_, a web-based environment
+- _Jupyter_ with the _coq_jupyter_ kernel
+- _emacs_ with the _Proof General_ and _Company-Coq_ plugins
+- _Visual Studio Code_ with the _VSCoq_ plugin
+- _Vim_ with the _Coqtail_ plugin
 
 #### CoqIde
 
@@ -349,9 +348,9 @@ Similar to Isabelle/jEdit, feels even more old and clunky.
 
 Web-based, interactive. See
 
-* [jsCoq demo](https://jscoq.github.io/)
-* [jsCoq scratchpad](https://jscoq.github.io/scratchpad.html) (local storage)
-* [CollaCoq](https://x80.org/collacoq/), "the Coq pastebin"
+- [jsCoq demo](https://jscoq.github.io/)
+- [jsCoq scratchpad](https://jscoq.github.io/scratchpad.html) (local storage)
+- [CollaCoq](https://x80.org/collacoq/), "the Coq pastebin"
 
 #### VSCoq (VSCode)
 
@@ -368,52 +367,52 @@ configure at `Settings` (`Ctrl+,`) > `Extensions` > `Coq configuration`
 
 ###### required
 
-* `Coqtop: Bin Path` enter path to `Coq/bin` dir
-* (for Windows) for `Coqtop: Coqidetop Exe` and `Coqtop: Coqtop Exe`, add `.exe`
+- `Coqtop: Bin Path` enter path to `Coq/bin` dir
+- (for Windows) for `Coqtop: Coqidetop Exe` and `Coqtop: Coqtop Exe`, add `.exe`
 
 ###### recommended
 
-* `Coq: Auto Reveal Proof State At Cursor`: enable
-* `Coqtop: Start On`: set to `open-script`
+- `Coq: Auto Reveal Proof State At Cursor`: enable
+- `Coqtop: Start On`: set to `open-script`
 
 ## Comparison
 
 ### Coq Overview
 
-* internals
-  * calculus of inductive constructions (TODO..)
-  * focus on backward reasoning
-* pro
-  * **proof structure is solid**
-  * **more explicit handling of subgoals (less confusing)**
-* contra
-  * **weaker automation tools**
-  * quickly becomes tedious when large formulas need to be reformed
-  * primarily designed for constructive proofs,
+- internals
+  - calculus of inductive constructions (TODO..)
+  - focus on backward reasoning
+- pro
+  - **proof structure is solid**
+  - **more explicit handling of subgoals (less confusing)**
+- contra
+  - **weaker automation tools**
+  - quickly becomes tedious when large formulas need to be reformed
+  - primarily designed for constructive proofs,
     needs to be extended to include some widely accepted standards
-    * excluded middle: `A || !A == true`
-    * proof by contradiction
-  * theory files (`.v`) need to be compiled in order to import them
-    * recompile necessary after Coq version update
+    - excluded middle: `A || !A == true`
+    - proof by contradiction
+  - theory files (`.v`) need to be compiled in order to import them
+    - recompile necessary after Coq version update
 
 ### Isabelle Overview
 
-* internals
-  * minimalistic kernel supports only natural deduction
+- internals
+  - minimalistic kernel supports only natural deduction
     (see also `talk:isa_intro`)
-    * small means less room for errors in specification and implementation
-    * strategies/tactics submit calls to modify kernel state
-  * focus on forward reasoning
-* pro
-  * **strong automation, powerful tools**
-    * more compact proof scripts
-    * simple goals are simple to prove
-    * [sledgehammer](https://www.youtube.com/watch?v=5Cx7jzq2Bx4)
-  * comparatively simple to use
-* contra
-  * **confusing goal structure and application rules**
-  * automation sometimes leads to large leaps in reasoning, missing details => harder to follow
-  * lack of good inspection tools (view step-by-step results from automatic solver)
+    - small means less room for errors in specification and implementation
+    - strategies/tactics submit calls to modify kernel state
+  - focus on forward reasoning
+- pro
+  - **strong automation, powerful tools**
+    - more compact proof scripts
+    - simple goals are simple to prove
+    - [sledgehammer](https://www.youtube.com/watch?v=5Cx7jzq2Bx4)
+  - comparatively simple to use
+- contra
+  - **confusing goal structure and application rules**
+  - automation sometimes leads to large leaps in reasoning, missing details => harder to follow
+  - lack of good inspection tools (view step-by-step results from automatic solver)
 
 The language of Coq with the solvers of Isabelle would be an ideal combination.
 
@@ -476,8 +475,8 @@ as well as their `field` counterparts can be used,
 but lack extensibility and integration with more powerful tactics
 compared to Isabelle.
 _Note that over the naturals and integers,
-division has to be handled manually, as __**`field`**__ is not applicable
-and __**`ring`**__ is not capable of processing division._
+division has to be handled manually, as **`field`** is not applicable
+and **`ring`** is not capable of processing division._
 (see the [Coq documentation on `ring` and `field`](https://coq.inria.fr/refman/addendum/ring.html)).
 A more powerful option is `lia` (linear integer arithmetic),
 a part of the `micromega` solver package that is to replace
@@ -619,8 +618,8 @@ These concepts enable more constructions, like the polynomial hierarchy `PH`.
 It can then be shown, that oracles `A` and `B` exist, such that
 `P^A = NP^A` and `P^B ≠ NP^B` hold
 (see [Baker-Gill-Solovay-1975](doi.org/10.1137/0204037)).
-In other words, `P = NP` holds _relative to oracle \_\___`A`_,
-but fails _relative to oracle \_\___`B`_.
+In other words, `P = NP` holds _relative to oracle `A`_,
+but fails _relative to oracle `B`_.
 
 A very quick introduction to relativization would be the following question
 from [David Harris](https://mathoverflow.net/questions/75890/definition-of-relativization-of-complexity-class):
@@ -647,7 +646,7 @@ and so may also the effects of giving access to an oracle.
 
 When working with relativizations, special care needs to be taken,
 as even small changes in definitions of classes
-(see `IP vs IPP` in [Chang1994](https://doi.org/10.1016/S0022-0000(05)80084-4))
+(see `IP vs IPP` in [Chang1994](<https://doi.org/10.1016/S0022-0000(05)80084-4>))
 and oracle access mechanisms (see `relative.pdf`) can change results.
 
 ##### Notation
@@ -663,7 +662,7 @@ is an example of an oracle `A` for which `B^A ~ C^A` holds.
 A _negative relativization_ of a statement `B ~ C`
 is an example of an oracle `A` for which `B^A ≁ B^A` (`¬(B^A ~ C^A)`) holds.
 
-##### Remark (Stefan):
+##### Remark (Stefan)
 
 as it stands, I would agree with all that you noted; perhaps adding only two thoughts:
 first: the concept of an oracle TM is rarely defined to the final extent of rigor, since several aspects go unexplained in most
@@ -705,9 +704,9 @@ An often cited result regarding relativization is that `IP = PSPACE` holds
 (see [Shamir1992](https://doi.org/10.1145/146585.146609))
 even though there exist contradictory relativizations
 `IP^A = PSPACE^A` and `IP^B ≠ PSPACE^B`
-(see [Fortnow1988](https://doi.org/10.1016/0020-0190(88)90199-8))
+(see [Fortnow1988](<https://doi.org/10.1016/0020-0190(88)90199-8>))
 and `IP ≠ PSPACE` holds for almost all oracles
-(see [Chang1994](https://doi.org/10.1016/S0022-0000(05)80084-4)).
+(see [Chang1994](<https://doi.org/10.1016/S0022-0000(05)80084-4>)).
 (all cited in [this answer](https://cs.stackexchange.com/a/41562))
 
 ##### Arithmetization and Algebrization
@@ -720,7 +719,7 @@ in a process that was coined _arithmetization_
 by [Babai1991](https://doi.org/10.1007/BF01200057).
 
 [Aaronson2009](https://doi.org/10.1145/1490270.1490272) expand this idea
-to include oracle access to _field extensions __**`A'`**__ of boolean oracles \_\___`A`_
+to include oracle access to _field extensions **`A'`** of boolean oracles `A`_
 (all polynomials over finite fields
 (1) that match the boolean oracle's output if the query length matches and
 (2) with degree bound by a constant)
@@ -781,7 +780,7 @@ with `n` parameters (`C_n ⊆ F_n`).
 A combinatorial property is _natural_ if there exists a sub-property `C*_n ⊆ C_n` that satisfies two conditions:
 `C*_n` is decidable in polynomial time ("constructivity")
 and its size is non-negligible (<!--`|C*_n| / |F_n| ≥ 1 / 2^O(n)` or `|C*_n| ≥ 2^(2^n - O(n))`, -->"largeness").
-A combinatorial property is _useful against \_\___`P/poly`_ if the circuit size
+A combinatorial property is _useful against `P/poly`_ if the circuit size
 of any family of functions `{f_1, ..., f_n, ...}` with `f_n ∈ C_n`
 is super-polynomial.
 
@@ -801,20 +800,20 @@ Proofs that employ [diagonalization](https://complexityzoo.net/Complexity_Dojo/D
 
 sources
 
-* given an oracle `A` such that `P^A = NP^A`,
+- given an oracle `A` such that `P^A = NP^A`,
   one could construct an oracle `B` such that `P^A,B ≠ NP^A,B`,
   which would mean that `P^A = NP^A` does not relativize. (see [Hartmanis1985](https://scholar.google.com/scholar_lookup?title=Solvable%20problems%20with%20conflicting%20relativizations&author=J..%20Hartmanis&journal=Bulletin%20of%20the%20European%20Association%20for%20Theoretical%20Computer%20Science&volume=27&pages=40-49&publication_year=1985) as cited in [Allender1990](https://doi.org/10.1007/3-540-52921-7_54))
-* [Hartmanis1985. J Hartmanis: Solvable problems with conflicting relativizations](https://scholar.google.com/scholar_lookup?title=Solvable%20problems%20with%20conflicting%20relativizations&author=J..%20Hartmanis&journal=Bulletin%20of%20the%20European%20Association%20for%20Theoretical%20Computer%20Science&volume=27&pages=40-49&publication_year=1985) (paper frequently quoted but nowhere to be found)
-* <https://cs.stackexchange.com/questions/41501/relativization-results-in-class-separation>
-* <https://mathoverflow.net/questions/75890/definition-of-relativization-of-complexity-class>
-* <https://cstheory.stackexchange.com/questions/1388/proofs-barriers-and-p-vs-np>
-* <https://www.cs.toronto.edu/~toni/Courses/PvsNP/Lectures/lecture11.pdf>
+- [Hartmanis1985. J Hartmanis: Solvable problems with conflicting relativizations](https://scholar.google.com/scholar_lookup?title=Solvable%20problems%20with%20conflicting%20relativizations&author=J..%20Hartmanis&journal=Bulletin%20of%20the%20European%20Association%20for%20Theoretical%20Computer%20Science&volume=27&pages=40-49&publication_year=1985) (paper frequently quoted but nowhere to be found)
+- <https://cs.stackexchange.com/questions/41501/relativization-results-in-class-separation>
+- <https://mathoverflow.net/questions/75890/definition-of-relativization-of-complexity-class>
+- <https://cstheory.stackexchange.com/questions/1388/proofs-barriers-and-p-vs-np>
+- <https://www.cs.toronto.edu/~toni/Courses/PvsNP/Lectures/lecture11.pdf>
 
 TODO:
 
-* linear programming, see work of Mihalis Yannakakis (tl;dr expressing NP problems as linear programs ~always results in exponential size)
-* random-access machine with unit multiplication
-* some believe that "\[statements that do not relativize] may fall outside the axioms of set theory" (see [Hartmanis1985](https://scholar.google.com/scholar_lookup?title=Solvable%20problems%20with%20conflicting%20relativizations&author=J..%20Hartmanis&journal=Bulletin%20of%20the%20European%20Association%20for%20Theoretical%20Computer%20Science&volume=27&pages=40-49&publication_year=1985) as quoted in `relative.pdf`)
+- linear programming, see work of Mihalis Yannakakis (tl;dr expressing NP problems as linear programs ~always results in exponential size)
+- random-access machine with unit multiplication
+- some believe that "\[statements that do not relativize] may fall outside the axioms of set theory" (see [Hartmanis1985](https://scholar.google.com/scholar_lookup?title=Solvable%20problems%20with%20conflicting%20relativizations&author=J..%20Hartmanis&journal=Bulletin%20of%20the%20European%20Association%20for%20Theoretical%20Computer%20Science&volume=27&pages=40-49&publication_year=1985) as quoted in `relative.pdf`)
 
 ## Ongoing Work
 
@@ -824,23 +823,23 @@ TODO:
 
 look into papers
 
-* Bohua Zhan et al.: [Verifying Asymptotic Time Complexity of Imperative Programs in Isabelle](https://arxiv.org/abs/1802.01336) (see also [github repo](https://github.com/bzhan/Imperative_HOL_Time))
-* Tobias Nipkow: [Amortized Complexity Verified](http://www21.in.tum.de/~nipkow/pubs/itp15.html)
-* Maximilian Haslbeck et al.: [Refinement with Time - Refining the Run-time of Algorithms in Isabelle/HOL](https://www21.in.tum.de/~haslbema/documents/Haslbeck_Lammich-Refinement_with_Time.pdf)
+- Bohua Zhan et al.: [Verifying Asymptotic Time Complexity of Imperative Programs in Isabelle](https://arxiv.org/abs/1802.01336) (see also [github repo](https://github.com/bzhan/Imperative_HOL_Time))
+- Tobias Nipkow: [Amortized Complexity Verified](http://www21.in.tum.de/~nipkow/pubs/itp15.html)
+- Maximilian Haslbeck et al.: [Refinement with Time - Refining the Run-time of Algorithms in Isabelle/HOL](https://www21.in.tum.de/~haslbema/documents/Haslbeck_Lammich-Refinement_with_Time.pdf)
 
 ## Sources and Literature
 
-* `pvsnp.pdf`: Stephen Cook: [The P versus NP Problem](https://www.claymath.org/sites/default/files/pvsnp.pdf). 2006. <!-- laut PDF Metadaten wurde es 2006 erstellt -->
-* `relative.pdf`: Lance Fortnow: [The Role of Relativization in Complexity Theory](https://people.cs.uchicago.edu/~fortnow/papers/relative.pdf). 1994.
+- `pvsnp.pdf`: Stephen Cook: [The P versus NP Problem](https://www.claymath.org/sites/default/files/pvsnp.pdf). 2006. <!-- laut PDF Metadaten wurde es 2006 erstellt -->
+- `relative.pdf`: Lance Fortnow: [The Role of Relativization in Complexity Theory](https://people.cs.uchicago.edu/~fortnow/papers/relative.pdf). 1994.
 
 ### Isabelle/HOL related
 
-* `tm.pdf`: Jian Xu and Xingyuan Zhang and Christian Urban: [Mechanising Turing Machines and Computability Theory in Isabelle/HOL](https://nms.kcl.ac.uk/christian.urban/Publications/tm.pdf). Springer 2013.
-  * Turing machine alphabet is `{Bk,Oc}` (for **B**lan**k** and **Oc**cupied, resp., amounts to unary encoding)
-* GitHub repo: [The Archive of Graph Formalizations](https://github.com/wimmers/archive-of-graph-formalizations)
-* Jeremy Avigad and Kevin Donnelly: [Formalizing `O` notation in Isabelle/HOL](http://www.andrew.cmu.edu/user/avigad/Papers/bigo.pdf)
-* Robin Eßmann and Tobias Nipkow and Simon Robillard: [Verified Approximation Algorithms](https://www21.in.tum.de/~nipkow/pubs/ijcar20-approx.html)
-  * Using Hoare logic (implemented in HOL)
+- `tm.pdf`: Jian Xu and Xingyuan Zhang and Christian Urban: [Mechanising Turing Machines and Computability Theory in Isabelle/HOL](https://nms.kcl.ac.uk/christian.urban/Publications/tm.pdf). Springer 2013.
+  - Turing machine alphabet is `{Bk,Oc}` (for **B**lan**k** and **Oc**cupied, resp., amounts to unary encoding)
+- GitHub repo: [The Archive of Graph Formalizations](https://github.com/wimmers/archive-of-graph-formalizations)
+- Jeremy Avigad and Kevin Donnelly: [Formalizing `O` notation in Isabelle/HOL](http://www.andrew.cmu.edu/user/avigad/Papers/bigo.pdf)
+- Robin Eßmann and Tobias Nipkow and Simon Robillard: [Verified Approximation Algorithms](https://www21.in.tum.de/~nipkow/pubs/ijcar20-approx.html)
+  - Using Hoare logic (implemented in HOL)
 
 #### Isabelle Tutorials
 
@@ -853,135 +852,133 @@ Many of the sources provided here are taken from the [Documentation page](https:
 and the [homepage](https://isabelle.in.tum.de/community/Main_Page#Getting_started)
 as well as the page [Course Material](https://isabelle.in.tum.de/community/Course_Material) of the community wiki.
 
-* [Getting Started with Isabelle/jEdit in 2018](https://arxiv.org/abs/1208.1368)
-  * very short introduction of how to set up and work with Isabelle/jEdit
-* Thomas Genet: [A Short Isabelle/HOL Tutorial for the Functional Programmer](https://hal.inria.fr/hal-01208577)
-  * very short "depth-first" look into Isabelle
-  * many concepts explained on-the-fly
-  * requires an understanding of functional programming
-* `concrete_semantics.pdf`: Tobias Nipkow and Gerwin Klein: [Concrete Semantics](http://www.concrete-semantics.org/)
-  * full book as PDF available on the [homepage](http://www.concrete-semantics.org/concrete-semantics.pdf)
-  * full lecture (from Tobias Nipkow, follows the book) available from the
+- [Getting Started with Isabelle/jEdit in 2018](https://arxiv.org/abs/1208.1368)
+  - very short introduction of how to set up and work with Isabelle/jEdit
+- Thomas Genet: [A Short Isabelle/HOL Tutorial for the Functional Programmer](https://hal.inria.fr/hal-01208577)
+  - very short "depth-first" look into Isabelle
+  - many concepts explained on-the-fly
+  - requires an understanding of functional programming
+- `concrete_semantics.pdf`: Tobias Nipkow and Gerwin Klein: [Concrete Semantics](http://www.concrete-semantics.org/)
+  - full book as PDF available on the [homepage](http://www.concrete-semantics.org/concrete-semantics.pdf)
+  - full lecture (from Tobias Nipkow, follows the book) available from the
     [course page](https://www21.in.tum.de/teaching/semantik/WS20/)
-  * `prog-prove.pdf` is _Part I_ of this book
-    * Tobias Nipkow: [Programming and Proving in Isabelle/HOL](https://isabelle.in.tum.de/doc/prog-prove.pdf). 2020.
-    * this is the top entry in the [list of documentation items](https://isabelle.in.tum.de/documentation.html) on the isabelle homepage
-    * gives a solid introduction into the basics of using Isabelle/Isar
-* `tutorial.pdf`: Tobias Nipkow and Lawrence C. Paulson and Markus Wenzel: [Isabelle/Hol: A Proof Assistant for Higher-Order Logic](https://isabelle.in.tum.de/doc/tutorial.pdf). Springer 2020.
-  * this is an updated version of the [book of the same name](https://permalink.obvsg.at/UKL/AC03403462)
+  - `prog-prove.pdf` is _Part I_ of this book
+    - Tobias Nipkow: [Programming and Proving in Isabelle/HOL](https://isabelle.in.tum.de/doc/prog-prove.pdf). 2020.
+    - this is the top entry in the [list of documentation items](https://isabelle.in.tum.de/documentation.html) on the isabelle homepage
+    - gives a solid introduction into the basics of using Isabelle/Isar
+- `tutorial.pdf`: Tobias Nipkow and Lawrence C. Paulson and Markus Wenzel: [Isabelle/Hol: A Proof Assistant for Higher-Order Logic](https://isabelle.in.tum.de/doc/tutorial.pdf). Springer 2020.
+  - this is an updated version of the [book of the same name](https://permalink.obvsg.at/UKL/AC03403462)
     (published by Springer, 2002) that is available in the AAU library
     (see [here](https://www21.in.tum.de/~nipkow/LNCS2283/))
-  * there was a lecture based on this book with materials available
+  - there was a lecture based on this book with materials available
     [here](https://isabelle.in.tum.de/coursematerial/PSV2009-1/)
-* `jedit.pdf`: Makarius Wenzel: [Isabelle/jEdit](https://isabelle.in.tum.de/doc/jedit.pdf). 2020.
-  * more in depth overview of the features of Isabelle/jEdit
-* Christian Urban et al.: [The Isabelle Cookbook](https://web.cs.wpi.edu/~dd/resources_isabelle/isabelle_programming.urban.pdf)
-  * Tutorial about programming on the ML level of Isabelle
+- `jedit.pdf`: Makarius Wenzel: [Isabelle/jEdit](https://isabelle.in.tum.de/doc/jedit.pdf). 2020.
+  - more in depth overview of the features of Isabelle/jEdit
+- Christian Urban et al.: [The Isabelle Cookbook](https://web.cs.wpi.edu/~dd/resources_isabelle/isabelle_programming.urban.pdf)
+  - Tutorial about programming on the ML level of Isabelle
     for users who are already familiar with Isabelle
-* Course: Thomas Genet: [ACF: Software Formal Analysis and Design](http://people.irisa.fr/Thomas.Genet/ACF/),
+- Course: Thomas Genet: [ACF: Software Formal Analysis and Design](http://people.irisa.fr/Thomas.Genet/ACF/),
   6 lectures and 10 lab sessions, WS20
-  * full course materials publicly available (including lectures in french)
-  * > Disclaimer: this is a course on formal software design and not on proof design. Students are given a limited set of proof tactics that is enough to prove properties defined during the lab sessions. However, resulting proofs can be long and cumbersome. As a result, it is accepted that properties are not proven but only checked using Isabelle/HOL powerful counter-example finders.
-* Course: Clemens Ballarin and Gerwin Klein:
+  - full course materials publicly available (including lectures in french)
+  - > Disclaimer: this is a course on formal software design and not on proof design. Students are given a limited set of proof tactics that is enough to prove properties defined during the lab sessions. However, resulting proofs can be long and cumbersome. As a result, it is accepted that properties are not proven but only checked using Isabelle/HOL powerful counter-example finders.
+- Course: Clemens Ballarin and Gerwin Klein:
   [Introduction to the Isabelle Proof Assistant](https://isabelle.in.tum.de/coursematerial/IJCAR04/)
-  * one-day introduction to Isabelle
-  * materials (slides, exercises) available
-  * starts by formally introducing syntax, explaining inner workings
+  - one-day introduction to Isabelle
+  - materials (slides, exercises) available
+  - starts by formally introducing syntax, explaining inner workings
     \-> not recommended for starters
-* Course: Holger Gast: [Interactive Software Verification](https://www21.in.tum.de/teaching/isv/SS13/)
-  * materials (slides, exercises & solutions) available online
-  * introduction and working with Isabelle
-  * focus on software verification (small C-like language)
+- Course: Holger Gast: [Interactive Software Verification](https://www21.in.tum.de/teaching/isv/SS13/)
+  - materials (slides, exercises & solutions) available online
+  - introduction and working with Isabelle
+  - focus on software verification (small C-like language)
 
 #### Isabelle Resources
 
-* [Homepage of Isabelle](https://isabelle.in.tum.de/index.html)
-  * [Documentation](https://isabelle.in.tum.de/documentation.html)
-    * Tutorials (excerpts included in the section above)
-    * Reference Manuals
-      * `system.pdf` extensive manual for the `isabelle` CLI (backend)
-      * `implementation.pdf` 
-  * some interesting resources are hard to find, or are not linked to
-    * specific versions of the homepage (e.g. Isabelle2019) can be accessed
+- [Homepage of Isabelle](https://isabelle.in.tum.de/index.html)
+  - [Documentation](https://isabelle.in.tum.de/documentation.html)
+    - Tutorials (excerpts included in the section above)
+    - Reference Manuals
+      - `system.pdf` extensive manual for the `isabelle` CLI (backend)
+      - `implementation.pdf`
+  - some interesting resources are hard to find, or are not linked to
+    - specific versions of the homepage (e.g. Isabelle2019) can be accessed
       by inserting `website-Isabelle20xx/` between host and path
       (see also [version history](https://isabelle.in.tum.de/download_past.html))
       for example, viewing an old version of the documentation overview:
-      * current: <https://isabelle.in.tum.de/documentation.html>
-      * archive: <https://isabelle.in.tum.de/website-Isabelle2008/documentation.html>
-    * all files of a distribution can be accessed through the [`dist/` path](https://isabelle.in.tum.de/dist/)
-* [Isabelle community Wiki](https://isabelle.in.tum.de/community)
-  * seems to consist of [33 pages in total](https://isabelle.in.tum.de/community/Special:AllPages) with most not being very long (2021-02-06)
-  * custom `isa-*:` links are broken (2021-08-02)
-    * fix by inserting url of isabelle homepage. example:
-      * broken: [isa-current:doc/tutorial.pdf](https://isabelle.in.tum.de/community/Isa-current:doc/tutorial.pdf)
-      * fixed: <https://isabelle.in.tum.de/doc/tutorial.pdf>
-* [Sketis](https://sketis.net/) - Homepage of Makarius Wenzel,
+      - current: <https://isabelle.in.tum.de/documentation.html>
+      - archive: <https://isabelle.in.tum.de/website-Isabelle2008/documentation.html>
+    - all files of a distribution can be accessed through the [`dist/` path](https://isabelle.in.tum.de/dist/)
+- [Isabelle community Wiki](https://isabelle.in.tum.de/community)
+  - seems to consist of [33 pages in total](https://isabelle.in.tum.de/community/Special:AllPages) with most not being very long (2021-02-06)
+  - custom `isa-*:` links are broken (2021-08-02)
+    - fix by inserting url of isabelle homepage. example:
+      - broken: [isa-current:doc/tutorial.pdf](https://isabelle.in.tum.de/community/Isa-current:doc/tutorial.pdf)
+      - fixed: <https://isabelle.in.tum.de/doc/tutorial.pdf>
+- [Sketis](https://sketis.net/) - Homepage of Makarius Wenzel,
   also hosts most Isabelle development related resources, services and tools
-  * Overview: [Isabelle Development](https://isabelle-dev.sketis.net/home/menu/view/20/)
-    * Blog: [Isabelle NEWS](https://isabelle-dev.sketis.net/phame/blog/view/1/)
-    * Blog: [Isabelle Release](https://isabelle-dev.sketis.net/phame/blog/view/2/)
-      * Post: [Release Candidates for Isabelle2021](https://isabelle-dev.sketis.net/phame/post/view/28/release_candidates_for_isabelle2021/)
-* Mailing Lists
-  * for users: [The Cl-isabelle-users Archives](https://lists.cam.ac.uk/pipermail/cl-isabelle-users/index.html)
-  * for devs: [The isabelle-dev Archives](https://mailman46.in.tum.de/pipermail/isabelle-dev/)
-* Talks from Makarius Wenzel (hosted on YouTube)
-  * `talk:isa-news` [Makarius Wenzel: Isabelle NEWS and trends in 2020 (Isabelle 2020)](https://www.youtube.com/watch?v=MpJZI1M_uVs)
-    * new features in Isabelle2020
-    * development trends (where will time be invested)
-  * `talk:isa-vscode` [Makarius über Isabelle/VSCode](https://www.youtube.com/watch?v=ScOcpPS1zzo) (in German)
-    * the inner workings of Isabelle/VSCode
-    * benefits and drawbacks when compared to Isabelle/jEdit (the main platform)
-  * `talk:isa_intro` [Makarius Wenzel: Einführung in Isabelle](https://www.youtube.com/watch?v=dIwZSoZlUfw)
-    * inner workings and structure of Isabelle/HOL
-      * Pure (just natural deduction)
-      * HOL (definition of `theorem`, `rule`, `datatype`)
-      * Isar (`fix`, `assume`, `from`, `with`, `have`, `show`)
-    * examples
-      * the concept that proof "by auto" is less valuable/informative
+  - Overview: [Isabelle Development](https://isabelle-dev.sketis.net/home/menu/view/20/)
+    - Blog: [Isabelle NEWS](https://isabelle-dev.sketis.net/phame/blog/view/1/)
+    - Blog: [Isabelle Release](https://isabelle-dev.sketis.net/phame/blog/view/2/)
+      - Post: [Release Candidates for Isabelle2021](https://isabelle-dev.sketis.net/phame/post/view/28/release_candidates_for_isabelle2021/)
+- Mailing Lists
+  - for users: [The Cl-isabelle-users Archives](https://lists.cam.ac.uk/pipermail/cl-isabelle-users/index.html)
+  - for devs: [The isabelle-dev Archives](https://mailman46.in.tum.de/pipermail/isabelle-dev/)
+- Talks from Makarius Wenzel (hosted on YouTube)
+  - `talk:isa-news` [Makarius Wenzel: Isabelle NEWS and trends in 2020 (Isabelle 2020)](https://www.youtube.com/watch?v=MpJZI1M_uVs)
+    - new features in Isabelle2020
+    - development trends (where will time be invested)
+  - `talk:isa-vscode` [Makarius über Isabelle/VSCode](https://www.youtube.com/watch?v=ScOcpPS1zzo) (in German)
+    - the inner workings of Isabelle/VSCode
+    - benefits and drawbacks when compared to Isabelle/jEdit (the main platform)
+  - `talk:isa_intro` [Makarius Wenzel: Einführung in Isabelle](https://www.youtube.com/watch?v=dIwZSoZlUfw)
+    - inner workings and structure of Isabelle/HOL
+      - Pure (just natural deduction)
+      - HOL (definition of `theorem`, `rule`, `datatype`)
+      - Isar (`fix`, `assume`, `from`, `with`, `have`, `show`)
+    - examples
+      - the concept that proof "by auto" is less valuable/informative
         than one where the intermediate steps are enumerated
-        * i.e. only using the `..` ("default") and `.` ("immediate") tactics
-        * these tactics and the concept are not mentioned in `prog-prove.pdf`
+        - i.e. only using the `..` ("default") and `.` ("immediate") tactics
+        - these tactics and the concept are not mentioned in `prog-prove.pdf`
 
 ### Coq related
 
-* Maximilian Wuttke: [Verified Programming Of Turing Machines In Coq](https://www.ps.uni-saarland.de/~wuttke/bachelor.php). Bachelor's Thesis 2018.
+- Maximilian Wuttke: [Verified Programming Of Turing Machines In Coq](https://www.ps.uni-saarland.de/~wuttke/bachelor.php). Bachelor's Thesis 2018.
 
 #### Coq Tutorials
 
-* `sf1`: Benjamin C. Pierce et al.: [Software Foundations, Volume 1: Logical Foundations](http://softwarefoundations.cis.upenn.edu). Online book. I consider this to be the best Coq introduction.
+- `sf1`: Benjamin C. Pierce et al.: [Software Foundations, Volume 1: Logical Foundations](http://softwarefoundations.cis.upenn.edu). Online book. I consider this to be the best Coq introduction.
 
 #### Coq Resources
 
-* [Coq Documentation](https://coq.inria.fr/refman/index.html)
-  * recommended reading: [Built-in decision procedures and programmable tactics](https://coq.inria.fr/refman/proofs/automatic-tactics/index.html)
+- [Coq Documentation](https://coq.inria.fr/refman/index.html)
+  - recommended reading: [Built-in decision procedures and programmable tactics](https://coq.inria.fr/refman/proofs/automatic-tactics/index.html)
 
 ### General Quotes
 
-* Manuel Herold, realizing that the solution is trivial,
+- Manuel Herold, realizing that the solution is trivial,
   mere seconds after asking whether `P` is `NP`:
 
   > `P = NP` genau dann, wenn `P = 0` oder `N = 1`.
 
   \-- Manuel Herold, Personal communcations (Max), 2021-01-08.
 
-* The quote in the section on [Relativization (Basic Idea)](#Basic-Idea)
-* From the preface of Concrete Semantics (cited above), on theorem proving assistents:
-  * > The beauty is that this includes checking the logical correctness of all proof text. No more 'proofs' that look more like LSD trips than coherent chains of logical arguments.
-  * > But only recently have proof assistants become mature enough for inflicting them on students without causing the students too much pain.
+- The quote in the section on [Relativization (Basic Idea)](#Basic-Idea)
+- From the preface of Concrete Semantics (cited above), on theorem proving assistents:
+  - > The beauty is that this includes checking the logical correctness of all proof text. No more 'proofs' that look more like LSD trips than coherent chains of logical arguments.
+  - > But only recently have proof assistants become mature enough for inflicting them on students without causing the students too much pain.
 
 ## Additional reading
 
 ### Comparison of proof assistants
 
-* [Stackoverflow: What are the strengths and weaknesses of the Isabelle proof assistant compared to Coq?](https://stackoverflow.com/questions/30152139/what-are-the-strengths-and-weaknesses-of-the-isabelle-proof-assistant-compared-t)
+- [Stackoverflow: What are the strengths and weaknesses of the Isabelle proof assistant compared to Coq?](https://stackoverflow.com/questions/30152139/what-are-the-strengths-and-weaknesses-of-the-isabelle-proof-assistant-compared-t)
 
 ### Inspecting solver steps
 
-* [Stackoverflow: How to see step-by-step reasoning of Isabelle 'proofs'](https://stackoverflow.com/questions/30688177/how-to-see-step-by-step-reasoning-of-isabelle-proofs)
-  * has a somewhat unsatisfying answer of why we can "trust" Isabelle and that the actual list of steps (pure natural deduction) would be too long to comprehend
-* [Stackoverflow: Can resolution proofs be traced in Isabelle?](https://stackoverflow.com/questions/62728693/can-resolution-proofs-be-traced-in-isabelle)
-  * [Isabelle mailing list: Unfold short tactics in Isar.](https://lists.cam.ac.uk/pipermail/cl-isabelle-users/2020-August/msg00008.html)
-  * [Isabelle mailing list: Tracing intro and elim in auto](https://lists.cam.ac.uk/mailman/htdig/cl-isabelle-users/2015-March/msg00065.html)
-  * [Stackoverflow: Printing out / showing detailed steps of proof methods (like simp) in a proof in isabelle](https://stackoverflow.com/questions/26825747/printing-out-showing-detailed-steps-of-proof-methods-like-simp-in-a-proof-in)
-
-
+- [Stackoverflow: How to see step-by-step reasoning of Isabelle 'proofs'](https://stackoverflow.com/questions/30688177/how-to-see-step-by-step-reasoning-of-isabelle-proofs)
+  - has a somewhat unsatisfying answer of why we can "trust" Isabelle and that the actual list of steps (pure natural deduction) would be too long to comprehend
+- [Stackoverflow: Can resolution proofs be traced in Isabelle?](https://stackoverflow.com/questions/62728693/can-resolution-proofs-be-traced-in-isabelle)
+  - [Isabelle mailing list: Unfold short tactics in Isar.](https://lists.cam.ac.uk/pipermail/cl-isabelle-users/2020-August/msg00008.html)
+  - [Isabelle mailing list: Tracing intro and elim in auto](https://lists.cam.ac.uk/mailman/htdig/cl-isabelle-users/2015-March/msg00065.html)
+  - [Stackoverflow: Printing out / showing detailed steps of proof methods (like simp) in a proof in isabelle](https://stackoverflow.com/questions/26825747/printing-out-showing-detailed-steps-of-proof-methods-like-simp-in-a-proof-in)
