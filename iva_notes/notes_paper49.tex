@@ -523,12 +523,13 @@ Beispiel:
               \draw[-stealth',shorten >=3pt,shorten <=3pt] (A-3-\s.south) -- (\t-1-1.north);
           \end{tikzpicture}
 
+          \newpage
+
           \textbf{\textcolor{red}{Problem bei Codezeile \texttt{4:}}} \\
           \textbf{\texttt{if (|V| - 1 > max C[v])}} \\
           \texttt{C[a] = 4, |V| - 1 = 4, \textbf{4 $\ngtr 4$}} \\
-
           Die If Bedingung ist hier nicht erfüllt, somit würde der Algorithmus die Zeilen \texttt{4-5} überspringen. Der Autor fürt jedoch in diesem Beispiel diese Zeilen aus. \\
-          Annahme: Codezeile \texttt{4} müsste folgendermaßen geändert werden:\\
+          \textbf{Annahme:} Codezeile \texttt{4} müsste folgendermaßen geändert werden:\\
           \textbf{\texttt{if (|V| > max C[v])}} \\
           Man erhält in beiden Fällen die größte Clique mit $5$ Knoten.
           Die Liste bzw. verlinkte Liste ist jedoch eine andere. Diese ist nicht korrekt. 
@@ -544,11 +545,11 @@ Beispiel:
             };
             \matrix[table,below=of A-3-2] (B) {c\\g\\};
             \matrix[table,below=of A-3-6] (C) {b\\e\\f\\i\\};
-            \matrix[table,below=of A-3-4] (D) {a\\c\\d\\e\\h\\};
+            \matrix[table,below=of A-3-4, fill=ForestGreen!40] (D) {a\\c\\d\\e\\h\\};
             \matrix[table,below=of A-3-8, fill=red!40 ] (E) {a\\e\\i\\h\\};
             \foreach \s/\t in {8/B,4/D,3/C,6/C,7/C,10/C,5/D,2/E,9/E}
               \draw[-stealth',shorten >=3pt,shorten <=3pt] (A-3-\s.south) -- (\t-1-1.north);
-            \draw (5,-1) -- (7,-5)
+            
 
               \node[text width=4cm] at (7,0) 
               {Maximale Clique enthält $5$ Knoten: $\{a,c,d,e,h\}$};
@@ -565,7 +566,7 @@ Beispiel:
             };
             \matrix[table,below=of A-3-2] (B) {c\\g\\};
             \matrix[table,below=of A-3-6] (C) {b\\e\\f\\i\\};
-            \matrix[table,below=of A-3-4] (D) {a\\c\\d\\e\\h\\};
+            \matrix[table,below=of A-3-4, fill=ForestGreen!40] (D) {a\\c\\d\\e\\h\\};
             \foreach \s/\t in {8/B,4/D,3/C,6/D,7/C,10/C,5/D,2/D,9/D}
               \draw[-stealth',shorten >=3pt,shorten <=3pt] (A-3-\s.south) -- (\t-1-1.north);
 
