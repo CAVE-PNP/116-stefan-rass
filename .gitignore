@@ -8,3 +8,8 @@
 
 # ignore temporary files (Isabelle/jEdit stores unsaved changes this way)
 \#*.thy\#
+
+## other
+
+# VSCode workspace settings
+.vscode/
