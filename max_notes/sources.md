@@ -23,11 +23,11 @@
 ## Isabelle/HOL related
 
 - `tm.pdf`: Jian Xu and Xingyuan Zhang and Christian Urban: [Mechanising Turing Machines and Computability Theory in Isabelle/HOL](https://nms.kcl.ac.uk/christian.urban/Publications/tm.pdf). Springer 2013.
-  - Turing machine alphabet is `{Bk,Oc}` (for **B**lan**k** and **Oc**cupied, resp., amounts to unary encoding)
+  - Turing machine alphabet is $`\{Bk,Oc\}`$ (for **B**lan**k** and **Oc**cupied, resp., amounts to unary encoding)
 - GitHub repo: [The Archive of Graph Formalizations](https://github.com/wimmers/archive-of-graph-formalizations)
 - Robin Eßmann and Tobias Nipkow and Simon Robillard: [Verified Approximation Algorithms](https://www21.in.tum.de/~nipkow/pubs/ijcar20-approx.html)
   - Using Hoare logic (implemented in HOL)
-- Jeremy Avigad and Kevin Donnelly: [Formalizing `O` notation in Isabelle/HOL](http://www.andrew.cmu.edu/user/avigad/Papers/bigo.pdf)
+- Jeremy Avigad and Kevin Donnelly: [Formalizing $`O`$ notation in Isabelle/HOL](http://www.andrew.cmu.edu/user/avigad/Papers/bigo.pdf)
 - Bohua Zhan et al.: [Verifying Asymptotic Time Complexity of Imperative Programs in Isabelle](https://arxiv.org/abs/1802.01336)
   - see also [GitHub repo](https://github.com/bzhan/Imperative_HOL_Time)
 - Tobias Nipkow: [Amortized Complexity Verified](http://www21.in.tum.de/~nipkow/pubs/itp15.html)
@@ -150,9 +150,11 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
 ## General Quotes
 
 - Manuel Herold, realizing that the solution is trivial,
-  mere seconds after asking whether `P` is `NP`:
+  mere seconds after asking whether $`P`$ is $`NP`$:
 
-  > `P = NP` genau dann, wenn `P = 0` oder `N = 1`.
+  > $`P = NP`$ genau dann, wenn $`P = 0`$ oder $`N = 1`$.
+
+  <!-- $`P = NP \Longleftrightarrow P = 0 ∨ N = 1`$ -->
 
   \-- Manuel Herold, Personal communcations (Max), 2021-01-08.
 
@@ -189,9 +191,9 @@ These are everything from blog posts to stackexchange questions that _may_ be of
 
 - [Hartmanis1985. J Hartmanis: Solvable problems with conflicting relativizations](https://scholar.google.com/scholar_lookup?title=Solvable%20problems%20with%20conflicting%20relativizations&author=J..%20Hartmanis&journal=Bulletin%20of%20the%20European%20Association%20for%20Theoretical%20Computer%20Science&volume=27&pages=40-49&publication_year=1985)
   - paper is frequently quoted in works on relativization but nowhere to be found
-  - given an oracle `A` such that `P^A = NP^A`,
-    one could construct an oracle `B` such that `P^A,B ≠ NP^A,B`,
-    which would mean that `P^A = NP^A` does not relativize.
+  - given an oracle $`A`$ such that $`P^A = NP^A`$,
+    one could construct an oracle $`B`$ such that $`P^{A,B} ≠ NP^{A,B}`$,
+    which would mean that $`P^A = NP^A`$ does not relativize.
     (see [Hartmanis1985] as cited in [Allender1990](https://doi.org/10.1007/3-540-52921-7_54))
   - some believe that "\[statements that do not relativize] may fall outside the axioms of set theory"
-    (see [Hartmanis1985](https://scholar.google.com/scholar_lookup?title=Solvable%20problems%20with%20conflicting%20relativizations&author=J..%20Hartmanis&journal=Bulletin%20of%20the%20European%20Association%20for%20Theoretical%20Computer%20Science&volume=27&pages=40-49&publication_year=1985) as quoted in `relative.pdf`)
+    (see [Hartmanis1985] as quoted in `relative.pdf`)

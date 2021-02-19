@@ -149,7 +149,7 @@ Note that a _boolean oracle_ in this context is a function $`A: \{0,1\}^n → \{
 
 An inclusion $`C ⊆ D`$ _algebrizes_ if $`C^A ⊆ D^{A'}`$
 holds for all oracles $`A`$ and extensions $`A'`$.
-A separation $`C ⊄ D`$ _algebrizes_ if $`C^{A'} ⊄ D^A`$
+A separation $`C \not⊂ D`$ _algebrizes_ if $`C^{A'} \not⊂ D^A`$
 holds for all oracles $`A`$ and extensions $`A'`$.
 
 The asymmetry in the definition seems integral for the desired property
@@ -193,6 +193,8 @@ of _natural proofs_ which define (explicitly or implicitly)
 and reason about _useful and natural combinatorial properties_
 which are defined as follows:
 
+<!-- markdownlint-disable MD037 -->
+
 $`F_n`$ is the set of _boolean functions_ with $`n`$ parameters ($`f_n: \{0,1\}^n → \{0,1\}`$).
 $`|F_n| = 2^{2^n}`$, since every $`2^n`$ long string of bits can be interpreted as a truth table of a boolean function with $`n`$ parameters.
 A _combinatorial property_ $`C_n`$ is a subset of all boolean functions
@@ -203,6 +205,8 @@ and its size is non-negligible (<!--$`|C^*_n| / |F_n| ≥ 1 / 2^{O(n)}`$ or $`|C
 A combinatorial property is _useful against $`P/poly`$_ if the circuit size
 of any family of functions $`\{f_1, ..., f_n, ...\}`$ with $`f_n ∈ C_n`$
 is super-polynomial.
+
+<!-- markdownlint-enable MD037 -->
 
 Under the assumption that _pseudo random generators (PRG)
 with exponential hardness_ exist, it is shown that no useful natural proof
