@@ -1,4 +1,4 @@
-# Notes PNP
+# Project Notes
 
 The first challenge will be the selection of a suitable proof assistant.
 Initial research by Stefan Rass resulted in the two preliminary candidates
@@ -17,5 +17,13 @@ help prevent small scale manipulations from being necessary.
 - [Isabelle](isabelle.md)
 - [Coq](coq.md)
 - [Comparison of Isabelle and Coq](isa-vs-coq.md)
-- [Meta Results on Proofs Surrounding `P vs NP`](meta-results.md)
+- [Meta Results on Proofs Surrounding $P$ vs $NP$](meta-results.md)
 - [Sources, Resources, Literature and Further Reading](sources.md)
+
+## Meta
+
+### Math Markup in Markdown
+
+GitLab [supports math markdown](https://gitlab.com/gitlab-org/gitlab/blob/master/doc/user/markdown.md#math)
+using [$\KaTeX$](https://katex.org/)
+for [some time](https://gitlab.com/gitlab-org/gitlab/-/commit/2d170a20dc4cd3423ac7994c797cae8fbed263ba) now.
