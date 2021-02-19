@@ -113,7 +113,8 @@ however, some of them are also cumbersome to enter (e.g., `/\` for `∧`).
 Abbreviations can be added or removed by (creating and) editing the file `$ISABELLE_USER_HOME/etc/symbols`,
 following the syntax of `$ISABELLE_HOME/etc/symbols`.
 
-_Note: **`$ISABELLE_HOME`** is the location of the Isabelle installation,
+_Note: **`$ISABELLE_HOME`** is the location of the Isabelle installation
+(this is set by `isabelle` on startup and should not be modified, see `system.pdf`),
 and **`$ISABELLE_USER_HOME`** typically is **`$USER_HOME/.isabelle/Isabelle20xx`**.
 For Windows, **`$USER_HOME`** is **`%USERPROFILE%`**._
 

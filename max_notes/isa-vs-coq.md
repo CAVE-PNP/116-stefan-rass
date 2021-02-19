@@ -19,6 +19,7 @@
 - pro
   - **proof structure is solid**
   - **more explicit handling of subgoals (less confusing)**
+  - more supported IDEs
 - contra
   - **weaker automation tools**
   - quickly becomes tedious when large formulas need to be reformed
@@ -35,8 +36,9 @@
   - minimalistic kernel supports only natural deduction
     (see also `talk:isa_intro`)
     - small means less room for errors in specification and implementation
-    - strategies/tactics submit calls to modify kernel state
-  - focus on forward reasoning
+    - natural deduction axioms are the "assembly" of isabelle
+      - strategies/tactics submit calls to modify kernel state
+  - focus on forward reasoning using Isabelle/Isar
 - pro
   - **strong automation, powerful tools**
     - more compact proof scripts
@@ -45,8 +47,13 @@
   - comparatively simple to use
 - contra
   - **confusing goal structure and application rules**
-  - automation sometimes leads to large leaps in reasoning, missing details => harder to follow
+  - automation sometimes leads to large leaps in reasoning, missing details
+    - proofs are harder to follow
   - lack of good inspection tools (view step-by-step results from automatic solver)
+  - lack of unified search/print tools
+  - lack of concise documentation
+    - everything in paper structure
+    - searching terms in `isar-ref.pdf` is tedious and sometimes inconclusive
 
 The language of Coq with the solvers of Isabelle would be an ideal combination.
 
