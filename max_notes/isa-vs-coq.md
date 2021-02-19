@@ -25,7 +25,7 @@
   - quickly becomes tedious when large formulas need to be reformed
   - primarily designed for constructive proofs,
     needs to be extended to include some widely accepted standards
-    - excluded middle: `A || !A == true`
+    - excluded middle: $`A ∨ ¬A = True`$
     - proof by contradiction
   - theory files (`.v`) need to be compiled in order to import them
     - recompile necessary after Coq version update
@@ -136,7 +136,7 @@ in Coq, tactics can be prepended by `info_` (like `info_auto`)
 and the command `Show Proof.` can be used inside proofs
 to show the associated proof program.
 
-! [`trace_1_isa.png`: Isabelle shows the detailed steps taken to prove `m+0=m` by induction on m](https://seafile.aau.at/lib/d3f2bfd0-b877-47a7-a7ca-4af40c3d18d4/file/examples/img/trace_1_isa.png?raw=1)
+! [`trace_1_isa.png`: Isabelle shows the detailed steps taken to prove $`m+0=m`$ by induction on m](https://seafile.aau.at/lib/d3f2bfd0-b877-47a7-a7ca-4af40c3d18d4/file/examples/img/trace_1_isa.png?raw=1)
 
 ### Manual search for relevant lemmas
 
@@ -178,7 +178,7 @@ the source file can instead be found by following the package import path
 `<Coq>/lib/coq/theories/` for the `Coq` root package,
 where `<Coq>` is the Coq installation directory.
 
-Example: `Nat.add_0_l` states `0+n=n`. Note that there are multiple versions
+Example: `Nat.add_0_l` states $`0+n=n`$. Note that there are multiple versions
 of `add_0_l` for different domains; `Nat.add_0_l` is stated over the naturals.
 `Locate Nat.add_0_l.` yields `Constant Coq.Arith.PeanoNat.Nat.add_0_l`.
 The path to the source file is therefore `<Coq>/lib/coq/theories/Arith/PeanoNat.v`.
