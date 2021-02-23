@@ -15,10 +15,11 @@ proof (induction n)
 value "let n=1 in (\<Sum>i::nat=0..n. i) > 0"
 
 (* 
- * it seems possible in isabelle to arrive at False, 
+ * it seems possible in isabelle to arrive at False,
  * even when starting with correct assumptions
  * see also: https://isabelle.in.tum.de/community/FAQ#If_I_do_auto.2C_it_leaves_me_a_goal_False._Is_my_theorem_wrong.3F
  *)
+
 
 lemma this_does: 
   fixes n::nat
@@ -55,3 +56,6 @@ qed
  * induction seems to take the context into account 
  * but is seemingly not smart enough to include the assumptions
  *)
+
+(* Stating the assumption as an implication works too *)
+lemma "n > 0 \<Longrightarrow> (\<Sum>i::nat=0..n. i) > 0" by (induction n; simp)
