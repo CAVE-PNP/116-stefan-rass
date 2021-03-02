@@ -7,11 +7,14 @@ inductive ev :: "nat \<Rightarrow> bool" where
   evSS: "ev n \<Longrightarrow> ev(Suc(Suc n))"
 
 
-(* TODO: find a way to inline this proof *)
 lemma "\<not> ev(Suc 0)"
 proof
   assume "ev(Suc 0)" then show False by cases
 qed
+
+(* inline version *)
+lemma "\<not> ev(Suc 0)"
+  by (rule ccontr, cases rule: ev.cases, auto)
 
 lemma
   fixes n::nat
