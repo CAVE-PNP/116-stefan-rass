@@ -5,7 +5,7 @@ Q: What's wrong with following function definition?
 fun count :: "'a ⇒ 'a list ⇒ nat" where
 "count _ nil = 0" | "count x (h#t) = count x t + (if x=h then 1 else 0)"
 ```
-A: "nil" is not defined. Use [] instead of "nil".
+A: `nil` is not defined. Use `Nil` or `[]` instead of "nil".
 
 Q: Coq `rewrite` tactic in Isabelle?
 A: simp, auto
@@ -28,14 +28,13 @@ A: `let ?t = ... `
 Q: Coq Check
 A: value / thm / term / ...?
 
-Q: How to print definitions of a function/datatype/notation... (Coq Print)?
+Q: How to find definitions of a (function|datatype|class) (Coq Print)?
+A: Use <kbd>Ctrl</kbd>+Click on the usage to get around.
 
-	Q: How to print definitions of types (e.g. `'a list`)
-	
-	Q: How to print definitions of classes (e.g. `class<plus>`)?
+Q: How to print definitions of rules or facts (e.g. `list.size(3)` or `Cons.IH`)?
 
-	Q: How to print definitions of rules (e.g. `list.size(3)`)?
+Q: How to list all rules starting with `List.`?
 
 Q: What exactly is the dot notation in `List.length_rev` ?
 
-Q: How to list all rules starting with `List.`?
+Q: In `assumes ... shows ... using assms` why do we need `using assms`?
