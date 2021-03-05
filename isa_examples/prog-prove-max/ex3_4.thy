@@ -23,7 +23,7 @@ lemma h3: "r x x \<Longrightarrow> iter r (Suc n) x x"
   by (induction n)
     (auto simp add: h0 h2 isingle istep)
 
-(* the proofs of the following two lemmas are incorrect *)
+(* early drafts: the proofs of the following two lemmas are incorrect *)
 
 lemma h4: "star r x z \<Longrightarrow> (x = z \<or> (r x y \<and> star r y z))"
   apply (induction rule: star.induct)
@@ -37,6 +37,11 @@ lemma "star r x y \<Longrightarrow> x \<noteq> y \<Longrightarrow> iter r (Suc n
   nitpick
   oops
 
+(* 
+ * working versions.
+ * note that these inline proofs are in fact derived from the explicit proof,
+ * with the help of sledgehammer, as implied by the use of "metis"
+ *)
 
 lemma h4:
   fixes r x z
@@ -44,38 +49,19 @@ lemma h4:
   obtains y where "r x y" "star r y z"
   using assms by (induction rule: star.induct; simp)
 
-lemma h4_explicit:
+theorem
   fixes r x z
   assumes "star r x z" and "x \<noteq> z"
-  obtains y where "r x y" "star r y z"
+  shows "\<exists>n. iter r n x z"
   using assms
-proof (induction rule: star.induct)
-  case (refl x)
-    (*
-  find_theorems "?x = ?x"
-  find_theorems "(\<not>True) = False"
-  find_theorems "(\<not>?a) = (\<not>?b)"
-  find_theorems "(\<not>?a) \<Longrightarrow> ?a \<Longrightarrow> _"
-  find_theorems "False \<Longrightarrow> _"
-  thm HOL.refl[of x]
-  thm Not_eq_iff[of "x = x" True]
-  thm not_True_eq_False
-  from \<open>x \<noteq> x\<close> HOL.refl[of x] have False by (rule notE)
-  *)
-  from HOL.refl have "x = x" .
-  with \<open>x \<noteq> x\<close> have False by (rule notE)
-  thus ?case by (rule FalseE)
-next
-  case (step x y z)
-  from \<open>r x y\<close> \<open>star r y z\<close> show ?case
-    by (rule \<open>r x y \<Longrightarrow> star r y z \<Longrightarrow> ?case\<close>)
-qed
+  by (induction rule: star.induct, simp, metis isingle istep)
 
+(* different problem formulation using "obtains" (equivalent in theory, somewhat more explicit) *)
+theorem
+  fixes r x z
+  assumes "star r x z" and "x \<noteq> z"
+  obtains n where "iter r n x z"
+  using assms
+  by (induction rule: star.induct, simp, metis isingle istep)
 
-lemma 
-  fixes r x y
-  assumes "star r x y" and "x \<noteq> y"
-  obtains n where "iter r n x y"
-proof
-  obtain y where "r x y" "star r y z"
-    (* TODO *)
+end
