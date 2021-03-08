@@ -1,13 +1,16 @@
 # Sources and Literature
 
 - [Sources and Literature](#sources-and-literature)
-  - [P vs NP and related Topics](#p-vs-np-and-related-topics)
-  - [Isabelle/HOL related](#isabellehol-related)
-    - [Isabelle Tutorials](#isabelle-tutorials)
-    - [Isabelle Resources](#isabelle-resources)
-  - [Coq related](#coq-related)
-    - [Coq Tutorials](#coq-tutorials)
-    - [Coq Resources](#coq-resources)
+  - [P vs NP](#p-vs-np)
+    - [Related Topics](#related-topics)
+  - [Isabelle/HOL](#isabellehol)
+    - [Formalizations](#formalizations)
+    - [Tutorials](#tutorials)
+    - [Resources](#resources)
+  - [Coq](#coq)
+    - [Formalizations](#formalizations-1)
+    - [Tutorials](#tutorials-1)
+    - [Resources](#resources-1)
   - [General Quotes](#general-quotes)
   - [Additional reading](#additional-reading)
     - [Comparison of proof assistants](#comparison-of-proof-assistants)
@@ -15,26 +18,45 @@
     - [Unsorted Resources](#unsorted-resources)
   - [Missing/Hard-to-Find Resources](#missinghard-to-find-resources)
 
-## P vs NP and related Topics
+## P vs NP
 
 - `pvsnp.pdf`: Stephen Cook: [The P versus NP Problem](https://www.claymath.org/sites/default/files/pvsnp.pdf). 2006. <!-- laut PDF Metadaten wurde es 2006 erstellt -->
+
+### Related Topics
+
 - `relative.pdf`: Lance Fortnow: [The Role of Relativization in Complexity Theory](https://people.cs.uchicago.edu/~fortnow/papers/relative.pdf). 1994.
 
-## Isabelle/HOL related
+## Isabelle/HOL
 
-- `tm.pdf`: Jian Xu and Xingyuan Zhang and Christian Urban: [Mechanising Turing Machines and Computability Theory in Isabelle/HOL](https://nms.kcl.ac.uk/christian.urban/Publications/tm.pdf). Springer 2013.
+### Formalizations
+
+This section lists results and resources relevant or close to the topic of this project.
+
+- The [Archive of Formal Proofs](https://www.isa-afp.org/) (AFP)
+  > The Archive of Formal Proofs is a collection of proof libraries, examples, and larger scientific developments
+  - official proof repository of Isabelle
+  - relevant topics include: Algorithms, Data Structures, Security, Computability, Probability, Graph theory
+  - [TODO] look into
+    - Andreas Lochbihler: [CryptHOL](https://www.isa-afp.org/entries/CryptHOL.html)
+    - Andreas Lochbihler and S. Reza Sefidgar: [Constructive Cryptography in HOL](https://www.isa-afp.org/entries/Constructive_Cryptography.html)
+- `tm.pdf`: Jian Xu and Xingyuan Zhang and Christian Urban: [Mechanising Turing Machines and Computability Theory in Isabelle/HOL](https://nms.kcl.ac.uk/christian.urban/Publications/tm.pdf). Springer 2013. ([in AFP](https://www.isa-afp.org/entries/Universal_Turing_Machine.html))
   - Turing machine alphabet is $`\{Bk,Oc\}`$ (for **B**lan**k** and **Oc**cupied, resp., amounts to unary encoding)
-- GitHub repo: [The Archive of Graph Formalizations](https://github.com/wimmers/archive-of-graph-formalizations)
-- Robin Eßmann and Tobias Nipkow and Simon Robillard: [Verified Approximation Algorithms](https://www21.in.tum.de/~nipkow/pubs/ijcar20-approx.html)
+- GitHub repo: [The Archive of Graph Formalizations](https://github.com/wimmers/archive-of-graph-formalizations) (collection of graph related works)
+  - Lars Noschinski: [Graph Theory](https://www.isa-afp.org/entries/Graph_Theory.html)
+    > This development provides a formalization of directed graphs, supporting (labelled) multi-edges and infinite graphs.
+- Robin Eßmann and Tobias Nipkow and Simon Robillard: [Verified Approximation Algorithms](https://www21.in.tum.de/~nipkow/pubs/ijcar20-approx.html) ([in AFP](https://www.isa-afp.org/entries/Approximation_Algorithms.html))
   - Using Hoare logic (implemented in HOL)
-- Jeremy Avigad and Kevin Donnelly: [Formalizing $`O`$ notation in Isabelle/HOL](http://www.andrew.cmu.edu/user/avigad/Papers/bigo.pdf)
+- Jeremy Avigad and Kevin Donnelly: [Formalizing $`O`$ notation in Isabelle/HOL](http://www.andrew.cmu.edu/user/avigad/Papers/bigo.pdf) ([in AFP?](https://www.isa-afp.org/browser_info/devel/HOL/HOL-Library/BigO.html))
 - Bohua Zhan et al.: [Verifying Asymptotic Time Complexity of Imperative Programs in Isabelle](https://arxiv.org/abs/1802.01336)
   - see also [GitHub repo](https://github.com/bzhan/Imperative_HOL_Time)
-- Tobias Nipkow: [Amortized Complexity Verified](http://www21.in.tum.de/~nipkow/pubs/itp15.html)
+- Tobias Nipkow: [Amortized Complexity Verified](http://www21.in.tum.de/~nipkow/pubs/itp15.html) ([in AFP](https://www.isa-afp.org/entries/Amortized_Complexity.html))
   - focus on data structures
   - uses invariant aproach with an additional property for amortized _potential_
+- Frank J. Balbach: [Some classical results in inductive inference of recursive functions](https://www.isa-afp.org/entries/Inductive_Inference.html) (in AFP)
+  - contains formalization of Gödel numbers
+    - specific to inductive inference, thus probably not useful for paper #116
 
-### Isabelle Tutorials
+### Tutorials
 
 Note: _Markus Wenzel_ seems to be using the name _Makarius Wenzel_ since ~2007
 as can be seen in the
@@ -85,7 +107,7 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
   - introduction and working with Isabelle
   - focus on software verification (small C-like language)
 
-### Isabelle Resources
+### Resources
 
 - [Homepage of Isabelle](https://isabelle.in.tum.de/index.html)
   - [Documentation](https://isabelle.in.tum.de/documentation.html)
@@ -134,18 +156,32 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
         - i.e. only using the `..` ("default") and `.` ("immediate") tactics
         - these tactics and the concept are not mentioned in `prog-prove.pdf`
 
-## Coq related
+## Coq
 
+<!-- markdownlint-disable MD024 -->
+### Formalizations
+
+- The [Coq Package Index](https://coq.inria.fr/packages.html)
+  - proof repository of Coq
+  - part of the [OCaml Package Manager](http://opam.ocaml.org/) (OPAM)
+  - counterpart of the Isabelle AFP
+  - see also the Package Ecosystem section [here](https://coq.inria.fr/community)
 - Maximilian Wuttke: [Verified Programming Of Turing Machines In Coq](https://www.ps.uni-saarland.de/~wuttke/bachelor.php). Bachelor's Thesis 2018.
+- [EasyCrypt](https://www.easycrypt.info/) ([GitHub repo](https://github.com/EasyCrypt/easycrypt))
+  > EasyCrypt is a toolset for reasoning about relational properties of probabilistic computations with adversarial code. Its main application is the construction and verification of game-based cryptographic proofs.
+  - [CertiCrypt](http://certicrypt.gforge.inria.fr/) ([GitHub repo](https://github.com/EasyCrypt/certicrypt))
+    > CertiCrypt is a toolset that assists the construction and verification of cryptographic proofs; it supports common patterns of reasoning in cryptography, and has been used successfully to prove the security of many constructions [...]
 
-### Coq Tutorials
+### Tutorials
 
 - `sf1`: Benjamin C. Pierce et al.: [Software Foundations, Volume 1: Logical Foundations](http://softwarefoundations.cis.upenn.edu). Online book. I consider this to be the best Coq introduction.
 
-### Coq Resources
+### Resources
 
 - [Coq Documentation](https://coq.inria.fr/refman/index.html)
   - recommended reading: [Built-in decision procedures and programmable tactics](https://coq.inria.fr/refman/proofs/automatic-tactics/index.html)
+
+<!-- markdownlint-enable MD024 -->
 
 ## General Quotes
 
