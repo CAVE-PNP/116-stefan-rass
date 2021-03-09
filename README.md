@@ -4,7 +4,7 @@ The publications examined (proof approaches) are selected with respect to the fo
 1. the rigor of the argumentation, 
 2. the proof techniques applied,
 3. "feasibility" of modeling in proof assistants, and 
-4. the claimed result of the relation of P to NP (equivalent/indifferent/unprovable).
+4. the claimed result of the relation of P to NP (equivalent/distinct/unprovable).
 
 **Expected results**: Researchers who deal with the question should be given extended possibilities to subject their ideas and arguments to a mechanical, and thus objective/independent, examination (before publication). Independently of it the P/NP question serves thus as "study object", whose investigation is to advance the possibilities of mechanical proof verification, as an aid, simplification and objectification of scientific Peer reviews. 
 
