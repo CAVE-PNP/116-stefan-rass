@@ -19,6 +19,7 @@ help prevent small scale manipulations from being necessary.
 - [Comparison of Isabelle and Coq](isa-vs-coq.md)
 - [Meta Results on Proofs Surrounding $`P`$ vs $`NP`$](meta-results.md)
 - [Sources, Resources, Literature and Further Reading](sources.md)
+- [Claimed Solutions of $`P`$ vs $`NP`$](papers.md)
 
 ## Meta
 
