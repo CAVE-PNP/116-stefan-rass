@@ -11,7 +11,13 @@ fun inc :: "bool list \<Rightarrow> bool list" where
   "inc [] = [True]" |
   "inc (a # xs) = (if a then (False # inc xs) else (True # xs))"
 
+(* abbreviations are directly replaced and only displayed to the user *)
+abbreviation ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" where
+  "ends_in a xs \<equiv> (\<exists>ys. xs = ys @ [a])"
+
 (*
+ * alternative definitions
+ *
  * note: the auto-solvers seem to have difficulties with the split rules,
  * but can easily prove equivalence to the versions defined with "if ... then ... else"
  *)
@@ -31,13 +37,20 @@ fun inc' :: "bool list \<Rightarrow> bool list" where
 lemma "inc' w = inc w"
   by (induction w) auto
 
+
+(* properties of inc *)
 lemma bin_to_nat_inc_S: "Suc (bin_to_nat xs) = bin_to_nat (inc xs)"
   by (induction xs) auto
+
+lemma inc_not_Nil[simp]: "inc xs \<noteq> []"
+  by (induction xs rule: inc.induct) auto
 
 lemma inc_end_True:
   fixes xs
   assumes "\<exists>ys. xs = ys @ [True]"
   shows "\<exists>zs. inc xs = zs @ [True]"
+  (* assumes "ends_in True xs"
+  shows "ends_in True (inc xs)" *)
   using assms
 proof (induction xs)
   case Nil
@@ -48,7 +61,7 @@ next
   thm Cons.IH
   thm Cons.prems
 
-  then show ?case 
+  then show ?case
   proof (cases ys)
     case Nil
     with ysD show ?thesis by simp
@@ -114,28 +127,123 @@ fun nat_to_bin :: "nat \<Rightarrow> bool list" where
   "nat_to_bin 0 = []" |
   "nat_to_bin (Suc n) = inc (nat_to_bin n)"
 
-lemma nat_to_bin_to_nat[simp]: "bin_to_nat (nat_to_bin (n)) = n"
+lemma nat_to_bin_to_nat[simp]: 
+  "bin_to_nat (nat_to_bin (n)) = n" (is "?nbn n = n")
 proof (induction n)
   case 0
   then show ?case by simp
 next
   case (Suc n)
-  have "bin_to_nat (nat_to_bin (Suc n)) = bin_to_nat (inc (nat_to_bin n))" by simp
-  also have "bin_to_nat (inc (nat_to_bin n)) = Suc (bin_to_nat (nat_to_bin n))" by (simp add: bin_to_nat_inc_S)
-  also have "Suc (bin_to_nat (nat_to_bin n)) = Suc n" by (simp add: Suc.IH)
+  have "?nbn (Suc n) = bin_to_nat (inc (nat_to_bin n))" by simp
+  also have "... = Suc (?nbn n)" using bin_to_nat_inc_S by simp
+  also have "... = Suc n" using Suc.IH by simp
   finally show ?case .
 qed
 
-(* lemma bin_to_nat_to_bin: "(last w = True) \<Longrightarrow> (nat_to_bin (bin_to_nat w)) = w" *)
-(*lemma bin_to_nat_to_bin: 
+lemma nat_to_bin_end_True:
+  fixes n
+  assumes "n > 0"
+  shows "ends_in True (nat_to_bin n)"
+  using assms
+  by (induction n rule: nat_induct_non_zero) 
+    (auto simp add: inc_end_True)
+
+(* lemma bin_to_nat_to_bin: "(last w = True) \<Longrightarrow> (nat_to_bin (bin_to_nat w)) = w" 
+lemma bin_to_nat_to_bin: 
   fixes xs
   assumes "\<exists>ys. xs = ys @ [True]"
   shows "(nat_to_bin (bin_to_nat xs)) = xs"
   using assms
-proof (induction xs) *)
+proof (induction xs)
+  case Nil
+  then show ?case by simp
+next
+  case (Cons a xs)
+  
 
-lemma inc_not_Nil[simp]: "inc xs \<noteq> []"
-  by (induction xs rule: inc.induct) auto
+  then show ?case
+  proof (cases xs)
+    case Nil
+    with Cons.prems show ?thesis by simp
+  next
+    case (Cons a xs')
+    then have 
+    then show ?thesis sorry
+  qed
+qed
+  oops *)
+
+(* what happens when a digit is appended *)
+lemma bin_to_nat_app0: "bin_to_nat (xs @ [False]) = bin_to_nat xs"
+  by (induction xs) auto
+
+lemma bin_to_nat_app1: "bin_to_nat (xs @ [True]) = bin_to_nat xs + 2 ^ length xs"
+  by (induction xs) auto
+
+(* boundaries *)
+lemma bin_to_nat_max: "bin_to_nat xs < 2 ^ (length xs)"
+  by (induction xs) auto
+
+lemma bin_to_nat_min: "ends_in True xs \<Longrightarrow> bin_to_nat xs \<ge> 2 ^ (length xs - 1)"
+  by (auto simp add: bin_to_nat_app1)
+
+lemma bin_to_nat_len_eq:
+  fixes xs ys
+  assumes "bin_to_nat xs = bin_to_nat ys" (is "?nx = ?ny")
+    and xsD: "ends_in True xs"
+    and ysD: "ends_in True ys"
+  shows "length xs = length ys" (is "?lx = ?ly") (* let ?lx = "length xs" and ?ly = "length ys" *)
+proof (rule ccontr)
+  (* 
+   * at this point the mathematical way would be 
+   * to assume ?lx < ?ly "without loss of generality".
+   * it seems, this is not possible in isabelle, and tedious to work around. see:
+  find_theorems name:wlog
+  thm linorder_wlog 
+   *)
+  assume "?lx \<noteq> ?ly"
+  then have "?lx < ?ly \<or> ?lx > ?ly" using less_linear by blast
+  then have "?nx \<noteq> ?ny"
+  proof (* standard determines "(elim disjE)" *)
+    assume "?lx < ?ly"
+    have "?nx < 2 ^ ?lx" by (rule bin_to_nat_max)
+    also have "... \<le> 2 ^ (?ly - 1)" using \<open>?lx < ?ly\<close> by simp
+    also have "... \<le> ?ny" using ysD by (rule bin_to_nat_min)
+    finally show "?nx \<noteq> ?ny" by (rule less_imp_neq)
+  next
+    assume "?lx > ?ly"
+    have "?ny < 2 ^ ?ly" by (rule bin_to_nat_max)
+    also have "... \<le> 2 ^ (?lx - 1)" using \<open>?lx > ?ly\<close> by simp
+    also have "... \<le> ?nx" using xsD by (rule bin_to_nat_min)
+    finally have "?ny \<noteq> ?nx" by (rule less_imp_neq)
+    then show "?nx \<noteq> ?ny" by (rule not_sym)
+  qed
+
+  with \<open>?nx = ?ny\<close> show False by contradiction
+qed
+
+lemma "bin_to_nat (a # xs) - bin_to_nat (b # xs) \<le> 1"
+  by (induction xs arbitrary: a b) auto
+
+lemma if_rev: "b \<noteq> c \<Longrightarrow> (if a then b else c) = b \<Longrightarrow> a"
+  by (cases a) simp_all
+
+lemma bin_to_nat_hd_ne: "bin_to_nat (x # xs) = bin_to_nat (y # xs) \<Longrightarrow> x = y"
+  by (induction xs arbitrary: x y, auto, (metis One_nat_def zero_neq_one)+)
+  (* the last part was generated by sledge and i have not found any replacement for it *)
+
+lemma bin_to_nat_msb_lt:
+  fixes xs ys
+  assumes "length xs = length ys"
+  shows "bin_to_nat (xs @ [False]) < bin_to_nat (ys @ [True])"
+  using assms 
+  by (induction xs ys rule: list_induct2) auto
+
+(* lemma "xs \<noteq> ys \<Longrightarrow> \<exists>xsH xsT x ysH ysT y. xs = xsH @ x # xsT \<and> ys = ysH @ y # ysT \<and> xsT = ysT \<and> x \<noteq> y" *)
+
+(* lemma "bin_to_nat xs = (\<Sum>n::nat=1..(length xs). n)" *)
+
+thm longest_common_suffix
 
 (* gödel number and related *)
 fun gn :: "bool list \<Rightarrow> nat" where

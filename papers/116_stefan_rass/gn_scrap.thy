@@ -280,4 +280,47 @@ next
 
 qed
 
+
+lemma
+  fixes x xs ys
+  assumes xs_ys: "bin_to_nat (x # xs) = bin_to_nat (x # ys)"
+    and xsD: "ends_in True (x # xs)"
+    and ysD: "ends_in True (x # ys)"
+  shows "xs = ys"
+proof -
+  from assms have "length (x # xs) = length (x # ys)" by (rule bin_to_nat_len_eq)
+  then have "length xs = length ys" by simp
+  then show ?thesis using assms
+  proof (induction xs ys rule: list_induct2)
+    case Nil
+    show ?case by (rule refl)
+  next
+    case (Cons a xs b ys)
+    then show ?case sorry
+  qed
+  oops
+
+lemma bin_to_nat_eq:
+  fixes xs ys
+  assumes xs_ys: "bin_to_nat xs = bin_to_nat ys" (is "?nx = ?ny")
+    and xsD: "ends_in True xs"
+    and ysD: "ends_in True ys"
+  shows "xs = ys"
+proof -
+  from assms have "length xs = length ys" (is "?lx = ?ly") by (rule bin_to_nat_len_eq)
+  then show ?thesis using assms (* this will not work with "with assms show ..." as list_induct2 consumes the first fact in "this" *)
+  proof (induction xs ys rule: list_induct2) (* simultaneous induction over two lists of equal length *)
+    case Nil
+    show ?case by (rule refl)
+  next
+    case (Cons x xs y ys)
+    value "bin_to_nat (x # xs)"
+    print_cases
+    thm Cons.hyps
+    thm Cons.prems
+    thm Cons.IH
+    then show ?case sorry
+  qed
+  oops
+
 end
