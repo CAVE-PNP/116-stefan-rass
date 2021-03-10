@@ -18,22 +18,25 @@ A: use `subst` and instantiate rule explicitly using `<rule>[of "<var1>" "<var2>
 use `fold` and `unfold` to only apply rules in one direction.
 (look these up in `isar-ref.pdf` for more information)
 
-A: recommendation: **use Isar to specify intermediate results instead** and use simp/auto (add new rewrite rules with `(simp add: <rules>)`).
+Recommendation: **use Isar to specify intermediate results instead** and use simp/auto (add new rewrite rules with `(simp add: <rules>)`).
 Isabelle/Isar tries to focus on proofs that read like the ones in conventional mathematical papers.
 Therefore the use of `apply`-style proofs is discouraged.
 
 #### Q: "The definition of a function f is a theorem named f_def and can be added to a call of simp like any other theorem"... False?
 
-A: technically incorrect, but the definition of function `g` generates the following facts:
+A: yes, when defined with `definition`
+
+Note: for functions defined like `fun g ...` the following facts are generated instead of g_def:
 `g.simps`, `g.induct`, `g.cases`, `g.elims`, `g.pelims` to be used by the respective tactics.
-For a recursively defined function, `.simps` contains the rules that induce the function.
+`g.simps` contains the rules that induce the function.
 See [isa_examples/f_def_example.thy](isa_examples/f_def_example.thy)
 
 #### Q: How to declare an inline function?
 
 A: `\<lambda>` or its shorthand `%`
-(for the sake of readability, the use of `λ` is encouraged.
-note that entering either of the ASCII versions will prompt replacing them with the unicode lambda in Isabelle/jEdit)
+
+Note: for the sake of readability, the use of `λ` is encouraged.
+note that entering either of the ASCII versions will prompt replacing them with the unicode lambda in Isabelle/jEdit
 
 #### Q: How to require a type `'a` to be both of class times and plus?
 
@@ -74,3 +77,15 @@ Isar-style assumptions are not a part of this and instead are collected in `assm
 `proof` (without an explicit opening)
 will use the `standard` tactic to generate more useful goals, but will sometimes require the assumptions as prerequisites.
 similarly, `induction` and `cases` can only provide assumptions in the `case.prems` when they are made available to the openings.
+
+#### Q: How to make `simp` use specific facts by default?
+
+A: add the attribute `[simp]` to the fact definition, or use `declare` to manually specify attributes. (see `tutorial.pdf` ch 3.1.2 _Simplification Rules_ and `isar-ref.pdf` ch 3.3.9 _Attributes and theorems_)
+
+```isabelle
+lemma MyLemma[simp]: "1 + 1 = 2" by simp
+lemma [simp]: "1 + 2 = 3" by simp (* "anonymous" lemma *)
+
+declare MyLemma[simp] (* add to simp *)
+declare MyLemma[simp del] (* remove from simp *)
+```
