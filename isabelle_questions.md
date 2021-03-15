@@ -44,6 +44,13 @@ A: `'a :: {times, plus}` (source: <https://stackoverflow.com/a/65967607>)
 
 #### Q: How to print generated proof terms?
 
+A: use `prf` and `full_prf` (see `isar-ref.pdf` ch 8.1.1)
+
+Note: this will not work for most theorems, as proof terms are disabled by default (it seems for performance reasons).
+[this answer](https://stackoverflow.com/a/31644559/9335596) suggests enabling proof terms by switching to `HOL-Proofs` in the _Theories_ panel and restarting jEdit.
+this will cause all theories in HOL to be built, which may take a few minutes.
+see [this answer](https://stackoverflow.com/a/30692248/9335596) explaining _why this may not be what you want_
+
 #### Q: How to introduce variables in Isar?
 
 A: `let ?t = ...`
@@ -58,7 +65,9 @@ A: Use <kbd>Ctrl</kbd>+Click on the usage to jump to the definition.
 
 #### Q: How to print definitions of rules or facts (e.g. `list.size(3)` or `Cons.IH`)?
 
-A: `thm <fact>` (note that `thm list.size` will print multiple lines, as `list.size` is a collection of facts)
+A: use `thm <fact>` (_Pure_ notation) or `print_statement <fact>` (_Isar_ notation)
+
+Note: `thm list.size` will print multiple lines, as `list.size` is a collection of facts
 
 #### Q: How to list all rules starting with `List.`?
 
