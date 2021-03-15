@@ -1,15 +1,17 @@
 theory gn
-  imports Main HOL.HOL HOL.Num
+  imports Main HOL.Num
 begin
+
+type_synonym word = "bool list"
 
 (* actually we could just use num instead of "bool list" since both
    types are constructed exactly the same way as shown below *)
-fun num_of_word :: "bool list \<Rightarrow> num" where
+fun num_of_word :: "word \<Rightarrow> num" where
   "num_of_word Nil = num.One" |
   "num_of_word (True#t) = num.Bit1 (num_of_word t)" |
   "num_of_word (False#t) = num.Bit0 (num_of_word t)"
 
-fun word_of_num :: "num \<Rightarrow> bool list" where
+fun word_of_num :: "num \<Rightarrow> word" where
   "word_of_num num.One = Nil" |
   "word_of_num (num.Bit1 t) = True#(word_of_num t)" |
   "word_of_num (num.Bit0 t) = False#(word_of_num t)"
@@ -23,8 +25,8 @@ lemma num_word_num_id [simp]: "word_of_num (num_of_word x) = x"
 lemma word_num_word_id [simp]: "num_of_word (word_of_num x) = x"
   by (induction x) auto
 
-(* definition of gödel number *)
-fun gn :: "bool list \<Rightarrow> nat" where
+(* definition of gödel number from ch 3.1, eqn (2) *)
+fun gn :: "word \<Rightarrow> nat" where
   "gn w = nat_of_num (num_of_word w)"
 
 theorem gn_inj: "gn x = gn y \<Longrightarrow> x = y"
@@ -35,6 +37,9 @@ proof -
   from this show ?thesis by simp
 qed
 
+corollary gn_inj2: "inj gn"
+  using gn_inj by (rule injI)
+
 lemma gn_gt_0[simp]: "gn w > 0"
   by (simp add: nat_of_num_pos)
 
@@ -43,7 +48,7 @@ fun is_gn :: "nat \<Rightarrow> bool"
   where "is_gn n = (n > 0)"
 
 (* inverse: retrieve word from gödel number, assuming it is a valid gn (is_gn n = True) *)
-fun gn_inv :: "nat \<Rightarrow> bool list"
+fun gn_inv :: "nat \<Rightarrow> word"
   where "gn_inv n = word_of_num (num_of_nat n)"
 
 (* correctness of the inverse *)
@@ -55,3 +60,7 @@ corollary ex_gn: "is_gn n \<Longrightarrow> \<exists>w. gn w = n"
 
 theorem gn_inv_id [simp]: "gn_inv (gn (x)) = x"
   by (simp add: nat_of_num_inverse)
+
+(* TODO (?) gödel numbering of turing machines *)
+
+end
