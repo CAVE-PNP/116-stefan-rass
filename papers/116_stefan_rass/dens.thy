@@ -18,9 +18,11 @@ proof (rule ccontr)
   then have "\<exists>x>0. dens L x > x" by (fold not_le) blast
   then obtain x0 where "x0 > 0" and "dens L x0 > x0" by blast
   then obtain W where "W = {w\<in>L. gn w \<le> x0}" and Wcard: "card W = Suc x0" by sorry
-  then have "gn ` W \<subseteq> {i. 0<i \<and> i\<le>x0}" using gn_gt_0 by auto
-  then have "card (gn ` W) \<le> x0" using card_mono by sorry
-  then show False using Wcard pigeonhole by (metis gn_inj inj_onI le_imp_less_Suc)
+  then have "gn ` W \<subseteq> {0<..x0}" using gn_gt_0 by auto
+  then have "card (gn ` W) \<le> x0" using card_mono card_greaterThanAtMost
+    by (metis diff_zero finite_greaterThanAtMost)
+  then show False using Wcard pigeonhole
+    by (metis gn_inj inj_on_def le_imp_less_Suc)
 qed
 
 lemma lemma4_1':
