@@ -1,5 +1,5 @@
 theory gn
-  imports Main HOL.Num
+  imports Main HOL.Num nat_bin
 begin
 
 type_synonym word = "bool list"
@@ -60,6 +60,14 @@ corollary ex_gn: "is_gn n \<Longrightarrow> \<exists>w. gn w = n"
 
 theorem gn_inv_id [simp]: "gn_inv (gn (x)) = x"
   by (simp add: nat_of_num_inverse)
+
+(* relation to bin *)
+lemma gn_bin_eq: "gn w = nat_of_bin (w @ [True])"
+  by (induction w) auto
+
+(* gn of nat for convenience, as defined in ch 4.1 *)
+fun gn' :: "nat \<Rightarrow> nat" where
+  "gn' n = gn (bin_of_nat n)"
 
 (* TODO (?) gödel numbering of turing machines *)
 
