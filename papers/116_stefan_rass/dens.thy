@@ -15,9 +15,8 @@ fun dens' :: "lang \<Rightarrow> word \<Rightarrow> nat" where
 lemma lemma4_1: "dens L x \<le> x"
 proof (rule ccontr)
   assume "\<not> dens L x \<le> x"
-  then have "dens L x > x" by (fold not_le) blast
 
-  then have "Suc x \<le> card {w\<in>L. gn w \<le> x}" by simp
+  then have "card {w\<in>L. gn w \<le> x} \<ge> Suc x" by force
   then obtain W where "W \<subseteq> {w\<in>L. gn w \<le> x}" and Wcard: "card W = Suc x"
     by (rule obtain_subset_with_card_n)
 
