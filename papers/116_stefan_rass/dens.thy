@@ -27,4 +27,20 @@ proof (rule ccontr)
     by (metis gn_inj inj_on_def le_imp_less_Suc)
 qed
 
+lemma bounded_lang_finite : "finite {w\<in>L. gn w \<le> x}" by sorry
+
+lemma dens_mono: "L \<subseteq> M \<Longrightarrow> dens L x \<le> dens M x"
+proof -
+  fix x
+  assume "L \<subseteq> M"
+  hence "{w \<in> L. gn w \<le> x} \<subseteq> {w \<in> M. gn w \<le> x}" by blast
+  thus "dens L x \<le> dens M x"
+    using card_mono bounded_lang_finite [of M x] by simp
+qed
+
+lemma dens_intersect_le: "dens (L1 \<inter> L2) x \<le> dens L1 x"
+proof -
+  from dens_mono show ?thesis by blast
+qed
+
 end
