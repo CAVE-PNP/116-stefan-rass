@@ -16,8 +16,12 @@ lemma lemma4_1: "\<forall>x>0. dens L x \<le> x"
 proof (rule ccontr)
   assume "\<not> (\<forall>x>0. dens L x \<le> x)"
   then have "\<exists>x>0. dens L x > x" by (fold not_le) blast
-  then obtain x0 where "x0 > 0" and "dens L x0 > x0" by blast
-  then obtain W where "W = {w\<in>L. gn w \<le> x0}" and Wcard: "card W = Suc x0" by sorry
+  then obtain x0 where "x0 < dens L x0" by blast
+
+  then have "Suc x0 \<le> card {w\<in>L. gn w \<le> x0}" by simp
+  then obtain W where "W \<subseteq> {w\<in>L. gn w \<le> x0}" and Wcard: "card W = Suc x0"
+    by (rule obtain_subset_with_card_n)
+
   then have "gn ` W \<subseteq> {0<..x0}" using gn_gt_0 by auto
   then have "card (gn ` W) \<le> x0" using card_mono card_greaterThanAtMost
     by (metis diff_zero finite_greaterThanAtMost)
