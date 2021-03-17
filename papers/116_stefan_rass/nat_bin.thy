@@ -82,4 +82,26 @@ next
   then show ?case by (cases n) (auto simp add: inc_end_True)
 qed
 
+
+lemma inc_len: "length xs \<le> length (inc xs)"
+  by (induction xs) auto
+
+lemma bin_of_nat_len:
+  assumes "n > 0"
+  shows "length (bin_of_nat n) > 0"
+  using assms 
+proof (induction n rule: nat_induct_non_zero)
+  case 1
+  then show ?case by simp
+next
+  case (Suc n)
+  let ?b = "\<lambda>n. bin_of_nat n" and ?l = "\<lambda>w. length w"
+
+  (* also ... finally does not work in this case for some reason *)
+  have 1: "?l (?b (Suc n)) = ?l (inc (?b n))" using nat_of_bin_inc_S by simp
+  have 2: "?l (inc (?b n)) \<ge> ?l (?b n)" by (rule inc_len)
+  have 3:  "?l (?b n) > 0" by (rule Suc.IH)
+  from 1 2 3 show "0 < length (bin_of_nat (Suc n))" by fastforce
+qed 
+
 end
