@@ -1,16 +1,35 @@
 theory dens
-  imports Main gn
+  imports Main HOL.Num
 begin
+
+(*
+  words are binary strings which can be represented by num by appending 1
+  empty word \<rightarrow> 1
+  0000       \<rightarrow> 10000
+  101010     \<rightarrow> 1101010
+  w          \<rightarrow> 1w
+
+  Using this representation, the Gödel numbering gn: word \<Rightarrow> nat
+  from the paper is just the function nat_of_num
+*)
+type_synonym word = "num"
+fun length :: "word \<Rightarrow> nat" where
+ "length num.One = 0" |
+ "length (num.Bit0 x) = Suc (length x)" |
+ "length (num.Bit1 x) = Suc (length x)"
+
+lemma nat_of_num_inj: "inj nat_of_num"
+  using num_eq_iff by (simp add: injI)
 
 type_synonym lang = "word set"
 
 (* language density function as defined in ch 3.2 *)
 fun dens :: "lang \<Rightarrow> nat \<Rightarrow> nat" where
-  "dens L x = card {w \<in> L. gn w \<le> x}"
+  "dens L x = card {w \<in> L. nat_of_num w \<le> x}"
 
 (* "density of a word" for convenience *)
 fun dens' :: "lang \<Rightarrow> word \<Rightarrow> nat" where
-  "dens' L v = dens L (gn v)"
+  "dens' L v = dens L (nat_of_num v)"
 
 lemma vim_le:
   fixes x :: nat
@@ -23,22 +42,22 @@ lemma vim_le2:
   using vim_le[of f x] by blast
 
 (* definition of dens is equivalent to using preimage of gn intersected with L *)
-lemma dens_eq_card_vim_gn: "dens L x = card (L \<inter> gn -` {0..x})"
-  using dens.simps[of L x] unfolding vim_le2[of L gn x] .
+lemma dens_eq_card_vim_gn: "dens L x = card (L \<inter> nat_of_num -` {0..x})"
+  using dens.simps[of L x] unfolding vim_le2[of L nat_of_num x] .
 
 lemma lemma4_1: "dens L x \<le> x"
 proof (rule ccontr)
   assume "\<not> dens L x \<le> x"
 
-  then have "card {w\<in>L. gn w \<le> x} \<ge> Suc x" by force
-  then obtain W where "W \<subseteq> {w\<in>L. gn w \<le> x}" and Wcard: "card W = Suc x"
+  then have "card {w\<in>L. nat_of_num w \<le> x} \<ge> Suc x" by force
+  then obtain W where "W \<subseteq> {w\<in>L. nat_of_num w \<le> x}" and Wcard: "card W = Suc x"
     by (rule obtain_subset_with_card_n)
 
-  then have "gn ` W \<subseteq> {0<..x}" using gn_gt_0 by auto
-  then have "card (gn ` W) \<le> x" using card_mono card_greaterThanAtMost
+  then have "nat_of_num ` W \<subseteq> {0<..x}" using nat_of_num_pos by auto
+  then have "card (nat_of_num ` W) \<le> x" using card_mono card_greaterThanAtMost
     by (metis diff_zero finite_greaterThanAtMost)
   then show False using Wcard pigeonhole
-    by (metis gn_inj inj_on_def le_imp_less_Suc)
+    by (metis num_eq_iff inj_on_def le_imp_less_Suc)
 qed
 
 lemma set_un_le: (* currently unused *)
@@ -47,17 +66,19 @@ lemma set_un_le: (* currently unused *)
     and set_un_le_Suc: "{w. P w \<and> f w \<le> (Suc x)} = {w. P w \<and> f w \<le> x} \<union> {w. P w \<and> f w = (Suc x)}"
   by auto
 
-lemma bounded_lang_finite: "finite {w \<in> L. gn w \<le> x}"
+
+lemma bounded_lang_finite: "finite {w \<in> L. nat_of_num w \<le> x}"
 proof -
-  from gn_inj2 have "finite (gn -` {0..x})" using finite_vimageI[of "{0..x}" gn] by blast
-  then have "finite (L \<inter> (gn -` {0..x}))" by blast
-  then show "finite {w \<in> L. gn w \<le> x}" by (fold vim_le2[of L gn x])
+  from nat_of_num_inj have "finite (nat_of_num -` {0..x})"
+    using finite_vimageI[of "{0..x}" nat_of_num] by blast
+  then have "finite (L \<inter> (nat_of_num -` {0..x}))" by blast
+  then show "finite {w \<in> L. nat_of_num w \<le> x}" by (fold vim_le2[of L nat_of_num x])
 qed
 
 lemma dens_mono: "L \<subseteq> M \<Longrightarrow> dens L x \<le> dens M x"
 proof -
   assume "L \<subseteq> M"
-  hence "{w \<in> L. gn w \<le> x} \<subseteq> {w \<in> M. gn w \<le> x}" by blast
+  hence "{w \<in> L. nat_of_num w \<le> x} \<subseteq> {w \<in> M. nat_of_num w \<le> x}" by blast
   thus "dens L x \<le> dens M x"
     using card_mono bounded_lang_finite [of M x] by simp
 qed
