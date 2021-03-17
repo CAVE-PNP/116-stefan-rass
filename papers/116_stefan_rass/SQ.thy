@@ -13,13 +13,13 @@ declare SQ_def[simp] SQ_nat_def[simp]
 lemma SQ_nat_eq: "SQ = {w. gn w \<in> SQ_nat}" by simp
 
 (* floor of log\<^sub>2 n for easier access *)
-fun log2 :: "nat \<Rightarrow> nat" where
-  "log2 n = length (bin_of_nat n) - 1"
+fun floor_log_2 :: "nat \<Rightarrow> nat" where
+  "floor_log_2 n = length (bin_of_nat n) - 1"
 
 (* prove correctness of the shortcut *)
 lemma
   assumes "n > 0"
-  shows "log2 n = floor (log 2 n)"
+  shows "floor_log_2 n = floor (log 2 n)"
 proof -
   (* proof steps from https://math.stackexchange.com/a/3550303/870587 *)
 
@@ -73,7 +73,32 @@ proof -
   finally have "d - 1 \<ge> floor (log 2 n)" .
 
   with lower have "d - 1 = floor (log 2 n)" by linarith
-  then show "log2 n = floor (log 2 n)" unfolding d_def and log2.simps .
+  then show "floor_log_2 n = floor (log 2 n)" unfolding d_def and floor_log_2.simps .
 qed
+
+(* show padding function to be unnecessary *)
+fun c_pad :: "real \<Rightarrow> real" where
+  "c_pad y = (if log 2 y = ceiling (log 2 y) then 1 else 0)"
+
+lemma c_pad_replacement:
+  "floor (log 2 y) + 1 = ceiling (log 2 y) + c_pad y"
+  by (smt (verit, ccfv_threshold) add.left_neutral c_pad.simps ceiling_altdef floor_of_int of_int_1 of_int_add)
+
+(* arithmetic representation of gn of a binary number *)
+lemma gn_arith:
+  assumes w\<^sub>y: "w\<^sub>y = bin_of_nat y" and "y > 0"
+  shows "gn w\<^sub>y = 2 ^ (floor_log_2 y + 1) + y"
+proof -
+  have "gn w\<^sub>y = nat_of_bin (w\<^sub>y @ [True])" by (rule gn_bin_eq)
+  thm nat_of_bin_app1
+  also have "... = 2 ^ length w\<^sub>y + nat_of_bin w\<^sub>y" unfolding nat_of_bin_app1 by simp
+  also have "... = 2 ^ length (bin_of_nat y) + y" unfolding w\<^sub>y and nat_bin_nat by (rule refl)
+  finally show "gn w\<^sub>y = 2 ^ (floor_log_2 y + 1) + y" using \<open>y > 0\<close> and bin_of_nat_len by simp
+qed
+
+lemma gn_arith':
+  assumes "y > 0"
+  shows "gn' y = 2 ^ (floor_log_2 y + 1) + y"
+  using \<open>y > 0\<close> and gn_arith by simp
 
 end
