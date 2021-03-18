@@ -1,16 +1,70 @@
 theory SQ
-  imports Complex_Main gn dens
+  imports Complex_Main gn dens "HOL-Library.Discrete"
 begin
 
-definition SQ :: lang where
-  "SQ \<equiv> {w. \<exists>x. gn w = x ^ 2}"
+term "Discrete.log"
+find_theorems "Discrete.log" "log"
 
-definition SQ_nat :: "nat set" where
-  "SQ_nat \<equiv> {y. \<exists>x. y = x ^ 2}"
+(* TODO review this (StefanH, StefanR)
+ * SQ is an overloaded identifier in the paper. 
+ *)
+definition SQ :: lang where \<comment> \<open>the \<^emph>\<open>language\<close> \<open>SQ \<subseteq> \<Sigma>\<^sup>*\<close>, as defined in ch 4.4\<close>
+  "SQ \<equiv> {w. \<exists>x. nat_of_bin w = x ^ 2}"
 
-declare SQ_def[simp] SQ_nat_def[simp]
+definition SQ' :: lang where \<comment> \<open>modified version of \<open>SQ\<close> for which the following is easier to show\<close>
+  "SQ' \<equiv> {w. \<exists>x. gn w = x ^ 2}"
 
-lemma SQ_nat_eq: "SQ = {w. gn w \<in> SQ_nat}" by simp
+definition SQ_nat :: "nat set" where \<comment> \<open>the analogous set \<open>SQ \<subseteq> \<nat>\<close>, as defined in ch 4.1\<close>
+  "(SQ_nat::nat set) \<equiv> {y. \<exists>x. y = x ^ 2}"
+
+declare SQ_def[simp] SQ'_def[simp] SQ_nat_def[simp]
+
+(* relating SQ, SQ', and SQ_nat *)
+lemma SQ_SQ_nat:
+  shows SQ_nat_vim: "SQ = nat_of_bin -` SQ_nat"
+    and SQ_nat_eq: "SQ = {w. nat_of_bin w \<in> SQ_nat}"
+    and SQ'_nat_vim: "SQ' = gn -` SQ_nat"
+    and SQ'_nat_eq: "SQ' = {w. gn w \<in> SQ_nat}"
+  by simp_all
+
+lemma SQ_nat_im: "SQ_nat = nat_of_bin ` SQ" 
+  using SQ_nat_vim
+  by (metis image_eqI image_vimage_subset mem_Collect_eq nat_bin_nat subsetI subset_antisym vimage_def)
+
+lemma SQ'_nat_im: "SQ_nat = gn ` SQ' \<union> {0}"
+proof (standard; standard)
+  fix n
+  assume a: "n \<in> SQ_nat"
+  then show "n \<in> gn ` SQ' \<union> {0}"
+  proof (cases n)
+    case 0
+    then show ?thesis by simp
+  next
+    case (Suc nat)
+    from \<open>n \<in> SQ_nat\<close> obtain x where b: "n = x ^ 2" by force
+    with Suc have c: "gn (gn_inv n) = x ^ 2" using inv_gn_id by (metis is_gn.simps zero_less_Suc)
+    then have "n \<in> {n. \<exists>x. gn (gn_inv n) = x ^ 2}" by force
+    then have "n \<in> gn ` SQ'" by (metis a b c SQ'_nat_eq image_eqI mem_Collect_eq)
+    then show ?thesis by simp
+  qed
+next
+  fix n
+  assume "n \<in> gn ` SQ' \<union> {0}"
+  then have a: "n \<in> gn ` SQ' \<or> n = 0" by blast
+  then show "n \<in> SQ_nat"
+  proof (cases "n = 0")
+    case True thus ?thesis by simp
+  next
+    case False
+    with a have "n \<in> gn ` SQ'" by blast
+    then have "n \<in> {n. \<exists>x. gn (gn_inv n) = x ^ 2}" using gn_inv_id by fastforce
+    then have "\<exists>x. gn (gn_inv n) = x ^ 2" by blast
+    then obtain x where "gn (gn_inv n) = x ^ 2" ..
+    
+    with False have "n = x ^ 2" using inv_gn_id by simp
+    then show ?thesis by simp
+  qed
+qed
 
 (* floor of log\<^sub>2 n for easier access *)
 fun floor_log_2 :: "nat \<Rightarrow> nat" where
