@@ -13,7 +13,8 @@ begin
   from the paper is just the function nat_of_num
 *)
 type_synonym word = "num"
-definition gn :: "word \<Rightarrow> nat" where "gn = nat_of_num"
+definition gn :: "word \<Rightarrow> nat" where "gn \<equiv> nat_of_num"
+definition gninv :: "nat \<Rightarrow> word" where "gninv \<equiv> num_of_nat"
 
 lemma gn_inj: "inj gn"
   using num_eq_iff gn_def by (simp add: injI)
