@@ -27,18 +27,15 @@ lemma dens_eq_card_vim_gn: "dens L x = card (L \<inter> gn -` {0..x})"
   using dens.simps[of L x] unfolding vim_le2[of L gn x] .
 
 lemma lemma4_1: "dens L x \<le> x"
-proof (rule ccontr)
-  assume "\<not> dens L x \<le> x"
-
-  then have "card {w\<in>L. gn w \<le> x} \<ge> Suc x" by force
-  then obtain W where "W \<subseteq> {w\<in>L. gn w \<le> x}" and Wcard: "card W = Suc x"
-    by (rule obtain_subset_with_card_n)
-
-  then have "gn ` W \<subseteq> {0<..x}" using gn_gt_0 by auto
-  then have "card (gn ` W) \<le> x" using card_mono card_greaterThanAtMost
-    by (metis diff_zero finite_greaterThanAtMost)
-  then show False using Wcard pigeonhole
-    by (metis gn_inj inj_on_def le_imp_less_Suc)
+proof -
+  let ?A = "{w\<in>L. gn w \<le> x}"
+  have gn_inj_on: "inj_on gn ?A"
+    using gn_inj inj_on_def by blast
+  have "gn ` ?A \<subseteq> {0<..x}"
+    using nat_of_num_pos by auto
+  then have "card ?A \<le> card {0<..x}"
+    using gn_inj_on card_inj_on_le by blast
+  then show ?thesis using card_greaterThanAtMost by auto
 qed
 
 lemma set_un_le: (* currently unused *)
