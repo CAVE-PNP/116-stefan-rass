@@ -21,6 +21,8 @@ fun bin_of_nat :: "nat \<Rightarrow> bin" where
   "bin_of_nat 0 = []" |
   "bin_of_nat (Suc n) = inc (bin_of_nat n)"
 
+(* many of the following proofs can probably be replaced by references to similar lemmas for Num *)
+
 (* what happens when a digit is appended *)
 lemma nat_of_bin_app0: "nat_of_bin (xs @ [False]) = nat_of_bin xs"
   by (induction xs) auto

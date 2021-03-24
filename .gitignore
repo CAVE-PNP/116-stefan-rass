@@ -8,6 +8,7 @@
 
 # ignore temporary files (Isabelle/jEdit stores unsaved changes this way)
 \#*.thy\#
+\#*\#
 
 # ignore markers (created when marking lines with right click)
 *.thy.marks
