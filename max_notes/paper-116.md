@@ -53,7 +53,7 @@ as consultation with the author revealed them to be either spelling mistakes ("t
 
 #### Gödel Numbering, Density Functions and the Language of Squares
 
-The first milestone in formalizing the paper were Lemmas 4.1 ($`dens_L(x) \le x`$) and 4.2 ($`dens_{SQ}(x) \in \Theta(px)`$).
+The first milestone in formalizing the paper were Lemmas 4.1 ($`dens_L(x) \le x`$) and 4.2 ($`dens_{SQ}(x) \in \Theta(\sqrt{x})`$).
 
 Proving these required modeling the concepts needed to express them. These include:
 
