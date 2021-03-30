@@ -6,6 +6,8 @@ The vast majority of entries are from the `P-versus-NP page`. Here, only the pap
 
 ### 49. Zohreh O. Akbari: A polynomial-time algorithm for the maximum clique problem
 
+_See the separate report on [paper #49](../iva_notes/notes_paper49.pdf)_
+
 Claim: $`P = NP`$
 
 Published in: _2013 IEEE/ACIS 12th International Conference on Computer and Information Science (ICIS)_ (see <https://doi.org/10.1109/ICIS.2013.6607889>)
@@ -13,6 +15,8 @@ Published in: _2013 IEEE/ACIS 12th International Conference on Computer and Info
 Full text available through Google Scholar.
 
 ### 116. Stefan Rass: On the Existence of Weak One-Way Functions
+
+_See the separate report on [paper #116](paper-116.md)_
 
 Claim: $`P ≠ NP`$
 

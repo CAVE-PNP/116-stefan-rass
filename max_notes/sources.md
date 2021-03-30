@@ -41,6 +41,9 @@ This section lists results and resources relevant or close to the topic of this 
     - Andreas Lochbihler and S. Reza Sefidgar: [Constructive Cryptography in HOL](https://www.isa-afp.org/entries/Constructive_Cryptography.html)
 - `tm.pdf`: Jian Xu and Xingyuan Zhang and Christian Urban: [Mechanising Turing Machines and Computability Theory in Isabelle/HOL](https://nms.kcl.ac.uk/christian.urban/Publications/tm.pdf). Springer 2013. ([in AFP](https://www.isa-afp.org/entries/Universal_Turing_Machine.html))
   - Turing machine alphabet is $`\{Bk,Oc\}`$ (for **B**lan**k** and **Oc**cupied, resp., amounts to unary encoding)
+  - follows the structure of _Boolos et al.: Computability and Logic. Cambridge University Press 2007._
+    - use abacus machines (counter-machines, a kind of register machine) to make more complicated TM programs feasible and prove that abacus machines can be simulated on TMs
+    - use recursive functions to make complicated abacus programs feasible and prove that recursive functions can be computed by abacus machines
 - GitHub repo: [The Archive of Graph Formalizations](https://github.com/wimmers/archive-of-graph-formalizations) (collection of graph related works)
   - Lars Noschinski: [Graph Theory](https://www.isa-afp.org/entries/Graph_Theory.html)
     > This development provides a formalization of directed graphs, supporting (labelled) multi-edges and infinite graphs.
