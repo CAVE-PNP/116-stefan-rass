@@ -4,7 +4,7 @@
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
 \usepackage{graphicx}
-\usepackage[english, naustrian]{babel}
+\usepackage[english]{babel}
 \usepackage[draft=false, kerning=true]{microtype} 
 \usepackage{amsmath, amssymb, amstext, amsthm}
 \usepackage{hyperref}
@@ -78,48 +78,49 @@
 \theoremstyle{definition}
 %\newtheorem{definition}{Definition}
 
-\title{P/NP Notizen}
-\subtitle{Paper \#49}
+\title{A polynomial-Time Algorithm for the Maximum Clique Problem}
+\subtitle{Detailed overview}
+\author{Zohreh O. Akbari}
 \date{\today}
 
 \begin{document}
+\pagenumbering{arabic}
 \maketitle
 
 \newpage
 
-\section*{Aufbau von Paper \#49}
-Titel: \textit{A polynomial-Time Algorithm for the Maximum Clique Problem} \\
-Author: \textit{Zohreh O. Akbari} \\
-
 \subsection*{\Romannum{1}. Introduction}
-Eine wichtige Konsequenz des Cook-Levin Theorems (SAT Problem ist $NP$-vollst"andig) ist, dass sobald ein Problem aus $NP$ in polynomieller Zeit l"osbar ist, alle Probleme aus $NP$ in polynomieller Zeit l"osbar sind. Das w"urde bedeuten, dass $P = NP$.
+An important consequence of the Cook-Levin theorem claims, that if any NP-complete problem can be solved in polynomial time, then every problem in NP has a polynomial-time solution. Thus besides many important applications in different domains, a polynomial-time solution to the maximum clique problem, as an NP-complete problem causes every problem in NP to have a polynomial solution, which leads to the equality of P and NP complexity classes.
 
-Paper \#49 pr"asentiert einen polynomiellen Algorithmus f"ur das \textit{Maximum Clique Problem}. Der Autor folgert also $P = NP$.
+This paper presents a polynomial-time algorithm for the \textit{maximum clique problem}, which detects the maximum clique of a given graph through a recursive approach.
 
 \subsection*{\Romannum{2}. The Maximum Clique Problem}
 
 \begin{definition}[Graph]\ \\
-    Sei $V$ eine Knotenmenge und $E \subseteq \{ \{i,j\} \mid i,j \in V, i \neq j\}$. Dann hei"st das Paar $G = (V,E)$ ein Graph.
+    Let $V$ be a set of vertices and $E \subseteq \{ \{i,j\} \mid i,j \in V, i \neq j\}$ a set of edges. The pair $G = (V,E)$ is called a graph.
 \end{definition}
 
-\begin{definition}[Vollst"andiger Graph]\ \\
-    Ein Graph $G = (V,E)$ hei"st vollst"andig, wenn alle Knoten paarweise adjazent sind. Also $\forall ~ i,j \in V,~ i \neq j \Longrightarrow (i,j) \in E$. Falls jeder Knoten Knotengrad $|V|-1$ besitzt, so ist $G$ vollständig.\\
-    Autor bezeichnet mit $\varphi$ (vermutlich) den vollst"andigen Graphen.
+\begin{definition}[Complete graph]\ \\
+    A graph $G = (V,E)$ is called complete graph, if every pair of distinct vertices is connected by a unique edge. That means $\forall ~ i,j \in V,~ i \neq j \Longrightarrow (i,j) \in E$. A graph is complete, if and only if every vertex has degree $|V|-1$. All complete graphs are their own maximal cliques.
+    
+    The author defines the complete graph by $\varphi$.
 \end{definition}
 
 \begin{definition}[Clique]\ \\
-    Sei $C \subseteq V$. $C$ nennt man Clique, falls $G = (C,E')$ vollst"andig ist.
+    Let $C \subseteq V$. $C$ is called a clique, if and only if  $G = (C,E')$ is complete.
 \end{definition}
 
-\begin{definition}[Gr"o"ste Clique]\ \\
-    $\omega (G)$ ist die gr"o"ste Clique in $G$. Also 
-    \[ \omega (G) = \max\{|S| : S \text{ ist eine Clique in }G\} \]
+\begin{definition}[Maximum clique]\ \\
+    The maximum clique of $G$ is called $\omega (G)$. That means  
+    \[ \omega (G) = \max\{|S| : S \text{ is a clique in }G\} \]
 \end{definition}
 
-\begin{definition}[Gr"o"ster Teilgraph von $G$ der $\alpha$ enth"alt]\ \\
-    Sei $\alpha$ jener Knoten mit geringstem Knotengrad. 
-    \[ \alpha = \{j \in V : deg(j) \text{ ist minimal}\} \]
-    Den Teilgraph, der $\alpha$ und alle inzidenten Knoten zu $\alpha$ enh"alt, bezeichnet der Autor als gr"o"sten Teilgraph in $G$. \\ \textit{($\alpha$ und alle seine Nachbarn samt deren Kanten)}
+\begin{definition}[Largest subgraph of $G$ in which $\alpha$ exists]\ \\
+    Let $\alpha$ be the vertex of lowest degree:
+    \[ \alpha = \{j \in V : deg(j) \text{ is minimal}\} \]
+    The author calls the subgraph, which contains $\alpha$ and all connected vertices to $\alpha$, the largest subgraph of $G$ in which $\alpha$ exists.
+
+    \textit{($\alpha$ and all his neighbours including edges)}
 \end{definition}
 
 \subsection*{\Romannum{3}. A Polynomial-Time Algorithm for the Maximum Clique Problem}
@@ -168,7 +169,7 @@ Pseudocode:
 
 \newpage
 
-Beispiel: 
+Auhtors example: 
 
           \begin{figure}[H]
             \centering
@@ -203,17 +204,16 @@ Beispiel:
             \draw (d) -- (b);
             \draw (h) -- (e);
 
-            \node[text width=2cm] at (3.5,-1) 
-              {Graph $G$};
-
             \end{tikzpicture}
+            \caption{Graph $G$}
           \end{figure}
 
-          Ausganglage ist der obige beliebige Graph $G$. \\ 
-          \texttt{\textcolor{codepurple}{1},7: }$G$ ist nicht vollständig, da nicht jeder Knoten Knotengrad $|V|-1$ besitzt. \\
-          \texttt{8-9: }Knoten mit minimalen Knotengrad ist $g$, also $\alpha := g$. \\
+          We start with this arbitrary graph $G$. \\ 
+          $G$ is not complete. Therefor we choose the vertex of minimal degree, which is $g$. That means $\alpha := g$. \\
+          Now we determine the largest subgraph $G'$ of $G$, which contains $\alpha$.
 
-        \begin{figure}[h]
+        \begin{figure}[H]
+          \centering
             \begin{minipage}[c]{6cm}
                 $G' = (\{c,g\},\{\{c,g\}\})$ 
             \end{minipage}%
@@ -224,9 +224,13 @@ Beispiel:
                     \draw (g) -- (c);
                     \end{tikzpicture}
             \end{minipage}
+            \caption{Largest subgraph $G'$ which contains $g$}
          \end{figure}
 
-         \texttt{10,2-6: }$G'$ ist vollständig. \\
+         $G'$ is complete. Therefor we updated the list and linked list, which was empty. The vertices $c$ and $g$ have value 2 and point to the linked list, which contains the clique we found. 
+
+         \begin{figure}[H]
+          \centering
          \begin{tikzpicture}
             \matrix[table] (A)
             { |[draw=none]|
@@ -240,8 +244,10 @@ Beispiel:
             \foreach \s/\t in {8/B,4/B}%,3/C,7/C,10/C,2/D,4/D,5/D,6/D,9/D}
               \draw[-stealth',shorten >=3pt,shorten <=3pt] (A-3-\s.south) -- (\t-1-1.north);
           \end{tikzpicture}
+          \caption{Updated list}
+        \end{figure}
 
-          \texttt{11: }$V - g$ ist nicht vollständig. \\
+          Now we remove $\alpha$ from the graph $G$ and we can see that $G - g$ is not complete.\\
 
           \begin{figure}[H]
             \centering
@@ -274,16 +280,15 @@ Beispiel:
             \draw (d) -- (b);
             \draw (h) -- (e);
 
-            \node[text width=2cm] at (3.8,-1) 
-              {$V - g$};
-
             \end{tikzpicture}
+            \caption{$G - g$}
           \end{figure}
 
-          \texttt{12,8,9: }Knoten mit minimalen Knotengrad ist $f$, also $\alpha := f$. \\
-          \newpage
+          Therefor we obtain the vertex of minimal degree, which is $f$. That means $\alpha := f$. The largest subgraph, which contains $f$ looks like follows:\\
+          
           $G' = (\{b,e,f,i\},\{\{b,e\},\{b,f\},\{b,i\},\{e,f\},\{e,i\},\{f,i\}\})$ 
-          \begin{figure}[h]
+          \begin{figure}[H]
+            \centering
           \begin{tikzpicture}
             \draw (4,4) node[draw, circle, inner sep=1.5pt]                   (b) {b};
             \draw (5,1) node[draw, circle, inner sep=1.5pt]                  (e) {e};
@@ -297,9 +302,13 @@ Beispiel:
             \draw (e) -- (b);
 
             \end{tikzpicture}
+            \caption{Largest subgraph $G'$ which contains $f$}
           \end{figure}
 
-          \texttt{10,2-6: }$G'$ ist vollständig. \\
+          $G'$ is complete and we can update the list.
+
+          \begin{figure}[H]
+            \centering
          \begin{tikzpicture}
             \matrix[table] (A)
             { |[draw=none]|
@@ -313,8 +322,10 @@ Beispiel:
             \foreach \s/\t in {8/B,4/B,3/C,6/C,7/C,10/C}%,3/C,7/C,10/C,2/D,4/D,5/D,6/D,9/D}
               \draw[-stealth',shorten >=3pt,shorten <=3pt] (A-3-\s.south) -- (\t-1-1.north);
           \end{tikzpicture}
+          \caption{Updated list}
+        \end{figure}
 
-          \texttt{11: }$V - f$ ist nicht vollständig. \\
+          Now we remove $\alpha$ from the graph $G$ and we can see that $G - f$ is not complete.\\
 
           \begin{figure}[H]
             \centering
@@ -343,15 +354,14 @@ Beispiel:
             \draw (d) -- (b);
             \draw (h) -- (e);
 
-            \node[text width=2cm] at (3.8,-1) 
-              {$V - f$};
-
             \end{tikzpicture}
+            \caption{$G - f$}
           \end{figure}
 
-          \texttt{12,8,9: }Knoten mit minimalen Knotengrad ist $b$, also $\alpha := b$. \\
+          Therefor we obtain the vertex of minimal degree, which is $b$. That means $\alpha := b$. The largest subgraph, which contains $b$ looks like follows:\\
           $G' = (\{b,d,e,i\},\{\{b,e\},\{b,d\},\{b,i\},\{d,e\},\{e,i\}\})$ 
-          \begin{figure}[h]
+          \begin{figure}[H]
+            \centering
           \begin{tikzpicture}
             \draw (4,4) node[draw, circle, inner sep=1.5pt]                   (b) {b};
             \draw (5,1) node[draw, circle, inner sep=1.5pt]                  (e) {e};
@@ -364,13 +374,17 @@ Beispiel:
             \draw (e) -- (b);
 
             \end{tikzpicture}
+            \caption{Largest subgraph $G'$ which contains $b$}
+            \label{fig:third-step}
           \end{figure}
 
-          \texttt{10: }$G'$ ist nicht vollständig. \\
-          \texttt{8-9: }Knoten mit minimalen Knotengrad ist $d$ oder $i$, also o.B.d.A? $\alpha := d$. \\
+          Now we can see that $G'$ is not complete. Therefor we repeat the algorithm on this graph \\
+          There are two vertices with the same minimal degree, which is two. We can choose $d$ or $i$. For such case there is no explanation in the paper. We assume that one can choose the vertex at random. In this case we choose $\alpha := d$. Later on there will be the same example but with choice for $i$.
+          \\
           $G' = (\{b,d,e\},\{\{b,e\},\{b,d\},\{d,e\}\})$ 
 
-          \begin{figure}[h]
+          \begin{figure}[H]
+            \centering
           \begin{tikzpicture}
             \draw (4,4) node[draw, circle, inner sep=1.5pt]                   (b) {b};
             \draw (5,1) node[draw, circle, inner sep=1.5pt]                  (e) {e};
@@ -380,10 +394,14 @@ Beispiel:
             \draw (e) -- (b);
 
             \end{tikzpicture}
+            \caption{Largest subgraph $G'$ of graph in Figure \ref{fig:third-step} which contains  $d$ }
           \end{figure}
 
 
-          \texttt{10,2-6: }$G'$ ist vollständig. \\
+          $G'$ is complete and we can update the list. $b$ and $e$ have value four. They will not be updated, because the condition $|V| - 1 >$ max $C[v]$ is not satisfied. In this case $|V| - 1 = 2$ and $C[b] = 4$ also $C[e] = 4$. That is the reason, why only $d$ is pointing to the new clique. \\
+
+          \begin{figure}[H]
+            \centering
          \begin{tikzpicture}
             \matrix[table] (A)
             { |[draw=none]|
@@ -397,10 +415,14 @@ Beispiel:
             \foreach \s/\t in {8/B,4/B,3/C,6/C,7/C,10/C,5/D}%,3/C,7/C,10/C,2/D,4/D,5/D,6/D,9/D}
               \draw[-stealth',shorten >=3pt,shorten <=3pt] (A-3-\s.south) -- (\t-1-1.north);
           \end{tikzpicture}
+          \caption{Updated list}
+        \end{figure}
 
-          \texttt{11: }$G' - d$ ist vollständig. $(G' - d) = (\{b,e,i\},\{\{b,e\},\{b,i\},\{e,i\}\})$.  \\
+         Now we have a look on the graph in Figure \ref{fig:third-step}. We remove the vertex $d$ and see that the new graph is complete. $(G' - d) = (\{b,e,i\},\{\{b,e\},\{b,i\},\{e,i\}\})$.  \\
 
+          
           \begin{figure}[H]
+            \centering
             \begin{tikzpicture}
               \draw (4,4) node[draw, circle, inner sep=1.5pt]                   (b) {b};
               \draw (5,1) node[draw, circle, inner sep=1.5pt]                  (e) {e};
@@ -411,10 +433,12 @@ Beispiel:
 
   
               \end{tikzpicture}
+              \caption{Graph in Figure \ref{fig:third-step} with removed $d$}
+              \label{fig:removed-d}
             \end{figure}
-            Linked List bleibt gleich.
+            In this case the conditions for all vertices in the clique in Figure \ref{fig:removed-d} are not satisfied. Therefor there is no vertex which has to be updatetd. The list and linked list stay the same as before.
 
-            \texttt{11: }$V - b$ ist nicht vollständig. \\
+            Now we remove $\alpha$ from the graph $G$ and we can see that $G - b$ is not complete. \\
 
             \begin{figure}[H]
             \centering
@@ -439,16 +463,15 @@ Beispiel:
             \draw (d) -- (a);
             \draw (h) -- (e);
 
-            \node[text width=2cm] at (3.8,-1) 
-              {$V - b$};
-
             \end{tikzpicture}
+            \caption{$G - b$}
           \end{figure}
 
-          \texttt{12,8,9: }Knoten mit minimalen Knotengrad ist $i$, also $\alpha := i$. \\
+          We obtain the vertex of minimal degree, which is $i$. That means $\alpha := i$. The largest subgraph, which contains $i$ looks like follows:\\
           $G' = (\{a,e,i,h\},\{\{a,e\},\{a,i\},\{a,h\},\{e,i\},\{e,h\},\{i,h\}\})$ 
 
           \begin{figure}[H]
+            \centering
           \begin{tikzpicture}
             \draw (2.5,4) node[draw, circle, inner sep=1.5pt]               (a) {a};{d};
             \draw (5,1) node[draw, circle, inner sep=1.5pt]                  (e) {e};
@@ -462,9 +485,11 @@ Beispiel:
             \draw (e) -- (h);
   
             \end{tikzpicture}
+            \caption{Largest subgraph $G'$ which contains $i$}
+            \label{fig:contains-i}
           \end{figure}
 
-          \texttt{10,2-6: }$G'$ ist vollständig. \\
+          We can see that the graph in figure \ref{fig:contains-i} is complete. Therefor it is a clique and the list will be updtated as follows: \\
          \begin{tikzpicture}
             \matrix[table] (A)
             { |[draw=none]|
@@ -480,7 +505,7 @@ Beispiel:
               \draw[-stealth',shorten >=3pt,shorten <=3pt] (A-3-\s.south) -- (\t-1-1.north);
           \end{tikzpicture}
 
-          \texttt{11: }$V - i$ ist vollständig. \\
+          $G - i$ is a complete graph. 
 
           \begin{figure}[H]
             \centering
@@ -502,37 +527,69 @@ Beispiel:
             \draw (d) -- (a);
             \draw (h) -- (e);
 
-            \node[text width=2cm] at (3.8,-1) 
-              {$V - i$};
-
             \end{tikzpicture}
+            \caption{$G - i$}
+            \label{fig:finalgraph}
           \end{figure}
 
+          The next and last step is to update the list containing the cliques.\\
+          Now we have a problem at codeline 4. Let us look more closely on the if-condition:
+          \[ \textbf{\texttt{if (|V| - 1 > max C[v])}} \]
+          Which vertices of our clique in figure \ref{fig:finalgraph} satisfy the condition? 
+
+          $|V| - 1 = 5 - 1 = 4$
+
+          \begin{itemize}
+            \item[\textcolor{red}{\textbullet}] $C[a] = 4 ~\ngtr~ 4$ 
+            \item[\textcolor{Green}{\textbullet}] $C[c] = 2 ~>~ 4$
+            \item[\textcolor{Green}{\textbullet}] $C[d] = 3 ~>~ 4$
+            \item[\textcolor{red}{\textbullet}] $C[e] = 4 ~\ngtr~ 4$
+            \item[\textcolor{red}{\textbullet}] $C[h] = 4 ~\ngtr~ 4$
+          \end{itemize}
+
+          The vertices $a$,$e$ and $h$ will not be updated. This is a mistake, because the vertices in the list must be part of the the maximum clique found for each vertex. In this case the maximum clique found is correct 
+          but the list and linked list are not. 
+
+          \begin{figure}[H]
+            \centering
           \begin{tikzpicture}
             \matrix[table] (A)
             { |[draw=none]|
                   &a&b&c&d&e&f&g&h&i\\
-              maxC & 4 & 4 & 2 & 3 & 4 & 4 & 2 & 4 & 4 \\
+              maxC & \textcolor{red}{4} & \textcolor{ForestGreen}{4} & \textcolor{ForestGreen}{5} & \textcolor{ForestGreen}{5} & \textcolor{red}{4} & \textcolor{ForestGreen}{4} & \textcolor{ForestGreen}{2} & \textcolor{red}{4} & \textcolor{ForestGreen}{4} \\
               maxC & & & & & & & & & \\
             };
             \matrix[table,below=of A-3-2] (B) {c\\g\\};
             \matrix[table,below=of A-3-6] (C) {b\\e\\f\\i\\};
-            \matrix[table,below=of A-3-4] (D) {b\\d\\e\\};
-            \matrix[table,below=of A-3-8] (E) {a\\e\\i\\h\\};
-            \foreach \s/\t in {8/B,4/B,3/C,6/C,7/C,10/C,5/D,2/E,9/E}
+            \matrix[table,below=of A-3-4, fill=ForestGreen!40] (D) {a\\c\\d\\e\\h\\};
+            \matrix[table,below=of A-3-8, fill=red!40 ] (E) {a\\e\\i\\h\\};
+            \foreach \s/\t in {8/B,4/D,3/C,6/C,7/C,10/C,5/D,2/E,9/E}
               \draw[-stealth',shorten >=3pt,shorten <=3pt] (A-3-\s.south) -- (\t-1-1.north);
-          \end{tikzpicture}
+            
 
+              \node[text width=4cm] at (7,0) 
+              {Maximum clique contains $5$ vertices: $\{a,c,d,e,h\}$};
+          \end{tikzpicture}
+          \caption{Incorrect list and linked list}
+        \end{figure}
+
+        The red values represent the error. The green values are correct. The red colored clique should not be stated anymore. The vertices $a$ and $h$ still point to this clique because the condition is not satisfied. 
+
+
+        Our assumption is that the codeline 4 could be adjusted such that 
+        \[ \textcolor{red}{if (|V| - 1 > max C[v])} \text{ to } \textcolor{Green}{if (|V| > max C[v])} \]
           \newpage
 
           \textbf{\textcolor{red}{Problem bei Codezeile \texttt{4:}}} \\
           \textbf{\texttt{if (|V| - 1 > max C[v])}} \\
-          \texttt{C[a] = 4, |V| - 1 = 4, \textbf{4 $\ngtr 4$}} \\
+          \texttt{C[a] = 4, |V| - 1 = 4, \textbf{4 $\ngtr$ 4}} \\
           Die If Bedingung ist hier nicht erfüllt, somit würde der Algorithmus die Zeilen \texttt{4-5} überspringen. Der Autor fürt jedoch in diesem Beispiel diese Zeilen aus. \\
           \textbf{Annahme:} Codezeile \texttt{4} müsste folgendermaßen geändert werden:\\
           \textbf{\texttt{if (|V| > max C[v])}} \\
           Man erhält in beiden Fällen die größte Clique mit $5$ Knoten.
           Die Liste bzw. verlinkte Liste ist jedoch eine andere. Diese ist nicht korrekt. 
+
+
           
           \textbf{Ergebnis \textcolor{red}{ohne} Änderung:}
 
@@ -552,7 +609,7 @@ Beispiel:
             
 
               \node[text width=4cm] at (7,0) 
-              {Maximale Clique enthält $5$ Knoten: $\{a,c,d,e,h\}$};
+              {Maximum clique contains $5$ vertices: $\{a,c,d,e,h\}$};
           \end{tikzpicture}
 
           \textbf{Ergebnis \textcolor{red}{mit} Änderung:}
