@@ -11,6 +11,8 @@
     - [Formalizations](#formalizations-1)
     - [Tutorials](#tutorials-1)
     - [Resources](#resources-1)
+  - [Other Proof Assistants](#other-proof-assistants)
+    - [Matita](#matita)
   - [General Quotes](#general-quotes)
   - [Additional reading](#additional-reading)
     - [Comparison of proof assistants](#comparison-of-proof-assistants)
@@ -54,7 +56,7 @@ This section lists results and resources relevant or close to the topic of this 
   - see also [GitHub repo](https://github.com/bzhan/Imperative_HOL_Time)
 - Tobias Nipkow: [Amortized Complexity Verified](http://www21.in.tum.de/~nipkow/pubs/itp15.html) ([in AFP](https://www.isa-afp.org/entries/Amortized_Complexity.html))
   - focus on data structures
-  - uses invariant aproach with an additional property for amortized _potential_
+  - uses invariant approach with an additional property for amortized _potential_
 - Frank J. Balbach: [Some classical results in inductive inference of recursive functions](https://www.isa-afp.org/entries/Inductive_Inference.html) (in AFP)
   - contains formalization of Gödel numbers
     - specific to inductive inference, thus probably not useful for paper #116
@@ -162,6 +164,7 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
 ## Coq
 
 <!-- markdownlint-disable MD024 -->
+
 ### Formalizations
 
 - The [Coq Package Index](https://coq.inria.fr/packages.html)
@@ -174,6 +177,14 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
   > EasyCrypt is a toolset for reasoning about relational properties of probabilistic computations with adversarial code. Its main application is the construction and verification of game-based cryptographic proofs.
   - [CertiCrypt](http://certicrypt.gforge.inria.fr/) ([GitHub repo](https://github.com/EasyCrypt/certicrypt))
     > CertiCrypt is a toolset that assists the construction and verification of cryptographic proofs; it supports common patterns of reasoning in cryptography, and has been used successfully to prove the security of many constructions [...]
+- Yannick Forster, Fabian Kunze, and Maximilian Wuttke: [Verified Programming of Turing Machines in Coq](https://ps.uni-saarland.de/Publications/documents/ForsterEtAl_2019_VerifiedTMs.pdf). ACM 2020.
+  - based on the Matita implementation by Asperti and Ricciotti
+  - multi-tape TMs
+    - universal TM simulates single tape TM
+    - compiler from multi-tape to single tape
+  - three abstraction-layers from standard TM to ~register machine
+  - custom tactics for reasoning about TMs
+    - the authors state about a certain kind of statement that "using them by hand is almost impossible"
 
 ### Tutorials
 
@@ -183,6 +194,32 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
 
 - [Coq Documentation](https://coq.inria.fr/refman/index.html)
   - recommended reading: [Built-in decision procedures and programmable tactics](https://coq.inria.fr/refman/proofs/automatic-tactics/index.html)
+
+## Other Proof Assistants
+
+### Matita
+
+- Homepage: <http://matita.cs.unibo.it>
+- Developed at: Computer Science Department of the University of Bologna
+- Latest release (as of 2021-04): 0.99.3 (2016-05-18)
+- sources: [self-hosted git](http://matita.cs.unibo.it/gitweb/?p=helm.git) (active 2021-03)
+
+Based on the Calculus of (Co)Inductive Constructions, like Coq.
+
+#### Publications
+
+- Asperti et al.: [Crafting a Proof Assistant](http://matita.cs.unibo.it/PAPERS/matita_types.pdf). Springer 2007.
+  - includes comparison to Coq
+- Asperti et al.: [The Matita Interactive Theorem Prover](http://cs.unibo.it/~asperti/PAPERS/system_description2011.pdf). Springer 2011.
+
+#### Formalizations
+
+- Andrea Asperti, and Wilmer Ricciotti: [Formalizing Turing Machines](http://www.cs.unibo.it/~ricciott/PAPERS/turing.pdf). Springer 2012.
+  - Follow-up: [A Formalization of Multi-tape Turing Machines](http://www.cs.unibo.it/~ricciott/PAPERS/multi_turing.pdf). Springer 2015.
+  - comparison to `tm.pdf`
+    - Asperti and Ricciotti cite the complexity of the machines in `tm.pdf`, in contrast to the composition of very small machines
+    - "In particular, the fact that the universal machine operates with a different alphabet with respect to the machines it simulates is annoying."
+
 
 <!-- markdownlint-enable MD024 -->
 
@@ -195,10 +232,10 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
 
   <!-- $`P = NP \Longleftrightarrow P = 0 ∨ N = 1`$ -->
 
-  \-- Manuel Herold, Personal communcations (Max), 2021-01-08.
+  \-- Manuel Herold, Personal communications (Max), 2021-01-08.
 
 - The quote in the section on [Relativization (Basic Idea)](#Basic-Idea)
-- From the preface of Concrete Semantics (cited above), on theorem proving assistents:
+- From the preface of Concrete Semantics (cited above), on theorem proving assistants:
   - > The beauty is that this includes checking the logical correctness of all proof text. No more 'proofs' that look more like LSD trips than coherent chains of logical arguments.
   - > But only recently have proof assistants become mature enough for inflicting them on students without causing the students too much pain.
 
@@ -225,6 +262,7 @@ These are everything from blog posts to stackexchange questions that _may_ be of
 - <https://mathoverflow.net/questions/75890/definition-of-relativization-of-complexity-class>
 - <https://cstheory.stackexchange.com/questions/1388/proofs-barriers-and-p-vs-np>
 - <https://www.cs.toronto.edu/~toni/Courses/PvsNP/Lectures/lecture11.pdf>
+- <https://cstheory.stackexchange.com/questions/48164/formalization-of-simulation-for-turing-machines>
 
 ## Missing/Hard-to-Find Resources
 
