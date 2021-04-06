@@ -251,7 +251,7 @@ listed from ~weak to strong
 - `.` proves an already known result
   (including rewriting constant abbreviations)
 - `..` proves a goal through a single application of one of
-  the natural deducation axioms
+  the natural deduction axioms
 
 **_TODO_** unfold (acts on all subgoals)
 

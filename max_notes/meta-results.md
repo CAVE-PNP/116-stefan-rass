@@ -96,7 +96,7 @@ Second, and more personally, I believe that reasoning under relativization is th
 maths (speaking computer-science vocabulary, I would add one more instruction to my assembly in the machine that I consider).
 Formally, we have worked on showing that by adding certain instructions to the machine model, we end up contradicting
 well known (and proven as correct) facts, since the resulting machines are instantly more powerful than the original ones. Thus,
-what is true without the oracle can be wrong with the oracle, say, the halting problem could even become solveable.
+what is true without the oracle can be wrong with the oracle, say, the halting problem could even become solvable.
 More formally, we used the forcing technique (unpublished work) to prove this - something that I will share with you along the lines
 of looking into independence proofs (the third category that yet went without a paper selected, as they were all wrong :-))
 
