@@ -120,6 +120,8 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
     - Reference Manuals
       - `system.pdf` extensive manual for the `isabelle` CLI (backend)
       - `implementation.pdf`
+    - `how_to_prove_it.pdf`: Tobias Nipkow: [How to Prove it in Isabelle/HOL](https://isabelle.in.tum.de/dist/library/Doc/How_to_Prove_it/how_to_prove_it.pdf).
+      - solutions for common issues over `nat`, `list`, and for arithmetic statements
   - some interesting resources are hard to find, or are not linked to
     - specific versions of the homepage (e.g. Isabelle2019) can be accessed
       by inserting `website-Isabelle20xx/` between host and path
@@ -219,7 +221,6 @@ Based on the Calculus of (Co)Inductive Constructions, like Coq.
   - comparison to `tm.pdf`
     - Asperti and Ricciotti cite the complexity of the machines in `tm.pdf`, in contrast to the composition of very small machines
     - "In particular, the fact that the universal machine operates with a different alphabet with respect to the machines it simulates is annoying."
-
 
 <!-- markdownlint-enable MD024 -->
 
