@@ -151,4 +151,42 @@ proof -
   then show "?b - ?a \<le> 2 * ?s + 1" unfolding adj_sq_nat .
 qed
 
+lemma log_ceil_le:
+  assumes "x > 0"
+  shows "log 2 \<lceil>x\<rceil> \<le> \<lceil>log 2 x\<rceil>"
+proof -
+  have "log 2 x \<le> \<lceil>log 2 x\<rceil>" using le_of_int_ceiling .
+  then have "2 powr (log 2 x) \<le> 2 powr \<lceil>log 2 x\<rceil>" by simp
+  then have "x \<le> 2 powr \<lceil>log 2 x\<rceil>"
+    by (smt (verit, ccfv_threshold) Transcendental.log_le_iff powr_gt_zero)
+  then have "\<lceil>x\<rceil> \<le> \<lceil>2 powr \<lceil>log 2 x\<rceil>\<rceil>" by (rule ceiling_mono)
+  then have "\<lceil>x\<rceil> \<le> 2 powr \<lceil>log 2 x\<rceil>" sorry (* 2 powr \<lceil>log 2 x\<rceil> \<in> nat *)
+  thus "log 2 \<lceil>x\<rceil> \<le> \<lceil>log 2 x\<rceil>"
+    using Transcendental.log_le_iff assms by simp
+qed
+
+lemma delta_bitlength:
+  assumes "1 \<le> x"
+  shows "\<lceil>log 2 (2*\<lceil>sqrt x\<rceil>+1)\<rceil> \<le> 3 + \<lceil>log 2 x\<rceil> / 2"
+proof -
+  have le1: "\<lceil>x/2\<rceil> \<le> 1 + \<lceil>x\<rceil>/2" by linarith
+  have le2: "1 \<le> \<lceil>sqrt x\<rceil>" using assms by simp
+  have le3: "(log 2 3) \<le> 2" sorry
+  with le2 have "\<lceil>log 2 (2*\<lceil>sqrt x\<rceil>+1)\<rceil> \<le> \<lceil>log 2 (3*\<lceil>sqrt x\<rceil>)\<rceil>"
+    by (smt (verit, del_insts) ceiling_mono log_le_cancel_iff of_int_le_1_iff of_int_le_iff)
+  also have "\<dots> = \<lceil>(log 2 3) + log 2 \<lceil>sqrt x\<rceil>\<rceil>"
+    using log_mult [of 2 3] sorry
+  also have "\<dots> \<le> \<lceil>2 + log 2 \<lceil>sqrt x\<rceil>\<rceil>"
+    using le3 ceiling_mono by (simp add: ceiling_mono)
+  also have "\<dots> = 2 + \<lceil>log 2 \<lceil>sqrt x\<rceil>\<rceil>" by linarith
+  also have "\<dots> \<le> 2 + \<lceil>\<lceil>log 2 (sqrt x)\<rceil>\<rceil>"
+    using log_ceil_le by (smt (verit, ccfv_SIG) ceiling_mono le2 zero_less_ceiling)
+  also have "\<dots> = 2 + \<lceil>log 2 (sqrt x)\<rceil>" by simp
+  also have "\<dots> = 2 + \<lceil>(log 2 x)/2\<rceil>"
+    by (smt (verit, ccfv_SIG) le2 log_root numeral_plus_numeral of_nat_numeral one_plus_numeral pos2 real_sqrt_gt_0_iff semiring_norm(2) sqrt_def zero_less_ceiling)
+  also have "\<dots> \<le> 3 + \<lceil>log 2 x\<rceil> / 2"
+    using le1  by linarith
+  finally show ?thesis by simp
+qed
+
 end
