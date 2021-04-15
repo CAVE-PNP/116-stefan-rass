@@ -153,6 +153,61 @@ proof -
 qed
 
 
+lemma sqrt_altdef: "Discrete.sqrt n = \<lfloor>sqrt n\<rfloor>"
+proof -
+  have *: "n = (sqrt n)\<^sup>2" by simp
+
+  have "(Discrete.sqrt n)\<^sup>2 \<le> n" by simp
+  with * have "(Discrete.sqrt n)\<^sup>2 \<le> (sqrt n)\<^sup>2" by simp
+  then have upper: "Discrete.sqrt n \<le> sqrt n" by (simp add: real_le_rsqrt)
+
+  have "n < (Discrete.sqrt n + 1)\<^sup>2" using Suc_sqrt_power2_gt by simp
+  with * have "(sqrt n)\<^sup>2 < (Discrete.sqrt n + 1)\<^sup>2" by linarith
+  then have "(sqrt n)\<^sup>2 < (real (Discrete.sqrt n + 1))\<^sup>2" by simp
+  then have lower: "sqrt n < Discrete.sqrt n + 1"
+    using power2_less_imp_less[of "sqrt n" "Discrete.sqrt n + 1"] by simp
+
+  from upper and lower show ?thesis by linarith
+qed
+
+lemma sqrt_ceil_floor: 
+  fixes n :: nat
+  assumes "n > 0"
+  shows "\<lceil>sqrt n\<rceil> = \<lfloor>sqrt (n - 1)\<rfloor> + 1"
+proof -
+  let ?dsr = Discrete.sqrt
+  have h0: "Suc (n - 1) = n" using \<open>n > 0\<close> by simp
+  have h1: "?dsr n = (if is_square n then ?dsr (n - 1) + 1 else ?dsr (n - 1))" 
+    using sqrt_Suc[of "n - 1"] unfolding h0 unfolding Suc_eq_plus1 .
+
+  have "\<lfloor>sqrt (n - 1)\<rfloor> + 1 - 1 = \<lfloor>sqrt (n - 1)\<rfloor>" by simp
+  also have "... \<le> sqrt (n - 1)" by simp
+  also have "... < sqrt n" using \<open>n > 0\<close> by simp
+  finally have upper: "\<lfloor>sqrt (n - 1)\<rfloor> + 1 - 1 < sqrt n" .
+
+  have "sqrt n \<le> Discrete.sqrt (n - 1) + 1"
+  proof (cases "is_square n")
+    case True
+    then have "Discrete.sqrt (n - 1) + 1 = Discrete.sqrt n" using h1 by presburger
+    also have "... = sqrt n" using \<open>is_square n\<close> by auto
+    finally show "sqrt n \<le> Discrete.sqrt (n - 1) + 1" by argo
+  next
+    case False
+    then have "Discrete.sqrt (n - 1) + 1 = Discrete.sqrt n + 1" using h1 by presburger
+    also have "... = \<lfloor>sqrt n\<rfloor> + 1" by (simp add: sqrt_altdef)
+    also have "... > sqrt n" by simp
+    finally show "sqrt n \<le> Discrete.sqrt (n - 1) + 1" by simp
+  qed
+  moreover have "Discrete.sqrt (n - 1) + 1 = \<lfloor>sqrt (n - 1)\<rfloor> + 1" using sqrt_altdef by simp
+  ultimately have lower: "sqrt n \<le> \<lfloor>sqrt (n - 1)\<rfloor> + 1" by auto
+
+  from upper and lower show ?thesis by linarith
+qed
+
+lemma next_sq_correct3: "n > 0 \<Longrightarrow> next_square n = \<lceil>sqrt n\<rceil>\<^sup>2"
+  using sqrt_ceil_floor sqrt_altdef by simp
+
+
 subsection\<open>Log inequality\<close>
 
 lemma nat_pow_nat:
