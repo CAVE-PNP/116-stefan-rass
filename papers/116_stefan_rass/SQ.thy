@@ -139,9 +139,9 @@ lemma next_sq_diff: "next_square n - n \<le> 2 * (Discrete.sqrt n) + 1"
 proof -
   let ?s = "Discrete.sqrt n"
   let ?l = "?s\<^sup>2"
-  and ?u = "(?s + 1)\<^sup>2"
-  and ?a = n
-  and ?b = "next_square n"
+    and ?u = "(?s + 1)\<^sup>2"
+    and ?a = n
+    and ?b = "next_square n"
 
   note bounded_diff
   moreover have "?l \<le> ?a" using sqrt_power2_le .
@@ -226,5 +226,33 @@ proof -
   also have "\<dots> \<le> 3 + \<lceil>log 2 x\<rceil> / 2" using le1 by linarith
   finally show ?thesis by simp
 qed
+
+
+subsection\<open>Log and bit-length\<close>
+
+lemma bit_length_eq_log2:
+  "bit_length n = Discrete.log n + 1" (is "?len n = ?log n + 1")
+proof (cases n)
+  case (Suc _)
+  then have "n > 0" by blast (* consumed by log_induct *)
+  then show ?thesis
+  proof (induction n rule: log_induct)
+    case one thus ?case by force
+  next
+    case (double n)
+    have "n = 2 * (n div 2) \<or> n = 2 * (n div 2) + 1" by linarith
+    then have "?len n = ?len (2 * (n div 2))" by (standard, simp, presburger add: bit_len_even_odd)
+    also have "... = ?len (n div 2) + 1" using bit_len_double and \<open>n \<ge> 2\<close> by auto
+    also have "... = ?log (n div 2) + 1 + 1" unfolding double.IH ..
+    also have "... = ?log (n) + 1" using log_rec[of n] and \<open>n \<ge> 2\<close> by presburger
+    finally show ?case .
+  qed
+qed simp
+
+lemma
+  assumes "n > 0"
+  shows "bit_length n = \<lfloor>log 2 n\<rfloor> + 1"
+  using assms log_altdef bit_length_eq_log2 by auto
+
 
 end
