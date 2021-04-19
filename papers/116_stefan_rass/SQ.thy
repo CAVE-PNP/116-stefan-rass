@@ -170,14 +170,14 @@ proof -
   from upper and lower show ?thesis by linarith
 qed
 
-lemma sqrt_ceil_floor: 
+lemma sqrt_ceil_floor:
   fixes n :: nat
   assumes "n > 0"
   shows "\<lceil>sqrt n\<rceil> = \<lfloor>sqrt (n - 1)\<rfloor> + 1"
 proof -
   let ?dsr = Discrete.sqrt
   have h0: "Suc (n - 1) = n" using \<open>n > 0\<close> by simp
-  have h1: "?dsr n = (if is_square n then ?dsr (n - 1) + 1 else ?dsr (n - 1))" 
+  have h1: "?dsr n = (if is_square n then ?dsr (n - 1) + 1 else ?dsr (n - 1))"
     using sqrt_Suc[of "n - 1"] unfolding h0 unfolding Suc_eq_plus1 .
 
   have "\<lfloor>sqrt (n - 1)\<rfloor> + 1 - 1 = \<lfloor>sqrt (n - 1)\<rfloor>" by simp
@@ -285,7 +285,7 @@ qed
 
 subsection\<open>Log and bit-length\<close>
 
-lemma bit_length_eq_log2:
+lemma bit_length_eq_discrete_log:
   "bit_length n = Discrete.log n + 1" (is "?len n = ?log n + 1")
 proof (cases n)
   case (Suc _)
@@ -304,10 +304,96 @@ proof (cases n)
   qed
 qed simp
 
-lemma
+lemma bit_length_eq_log:
   assumes "n > 0"
   shows "bit_length n = \<lfloor>log 2 n\<rfloor> + 1"
-  using assms log_altdef bit_length_eq_log2 by auto
+  using assms log_altdef bit_length_eq_discrete_log by auto
 
+lemma log_eq_cancel_iff:
+  assumes "a > 1" "x > 0" "y > 0"
+  shows "(log a x = log a y) = (x = y)"
+proof
+  assume l_eq: "log a x = log a y"
+  then have "log a x \<le> log a y" and "log a x \<ge> log a y" by simp_all
+  with assms have "x \<le> y" and "x \<ge> y" by simp_all
+  then show "x = y" by simp
+qed (rule arg_cong)
+
+lemma floor_eq_ceil_nat: "\<lfloor>x\<rfloor> = \<lceil>x\<rceil> \<longleftrightarrow> x = of_int \<lfloor>x\<rfloor>" by (simp add: ceiling_altdef)
+
+lemma delta_bitlength2:
+  assumes "n > 0"
+  shows "bit_length (next_square n - n) \<le> 3 + (bit_length n) / 2"
+    (is "bit_length ?delta \<le> 3 + (bit_length n) / 2")
+proof (cases "n > 0") (* TODO clean up *)
+  case True thus ?thesis
+  proof (cases "?delta \<ge> 1")
+    case True
+    then have h1: "?delta > 0" by linarith
+
+    have h2: "real (2 * Discrete.sqrt n + 1) = 2 * \<lfloor>sqrt (real n)\<rfloor> + 1" using sqrt_altdef
+      by (smt (verit, ccfv_threshold) left_add_twice of_int_of_nat_eq of_nat_1 zadd_int_left)
+
+    have h3: "\<lfloor>log 2 (2 * \<lfloor>sqrt n\<rfloor> + 1)\<rfloor> + 1 \<le> \<lceil>log 2 (2 * \<lceil>sqrt n\<rceil> + 1)\<rceil>" (is "?l + 1 \<le> ?r")
+      \<comment> \<open>this follows from \<open>sqrt n\<close> not being an integer, from assumption \<open>?delta \<ge> 1\<close>\<close>
+    proof -
+      have "?l < ?r" unfolding order.strict_iff_order
+      proof (* ?l < ?r \<longleftrightarrow> ?l \<le> ?r \<and> ?l \<noteq> ?r *)
+        let ?roi = real_of_int
+        from \<open>n > 0\<close> have h3a: "?roi \<lfloor>sqrt n\<rfloor> > 0" "?roi \<lceil>sqrt n\<rceil> > 0" by simp_all
+        then have h3b: "?roi (2 * \<lfloor>sqrt n\<rfloor> + 1) > 0" "?roi (2 * \<lceil>sqrt n\<rceil> + 1) > 0" by linarith+
+        then have h3c: "log 2 (2 * \<lfloor>sqrt n\<rfloor> + 1) \<le> log 2 (2 * \<lceil>sqrt n\<rceil> + 1)" by simp
+        then show le: "\<lfloor>log 2 (2 * \<lfloor>sqrt n\<rfloor> + 1)\<rfloor> \<le> \<lceil>log 2 (2 * \<lceil>sqrt n\<rceil> + 1)\<rceil>" by linarith
+        show "?l \<noteq> ?r"
+        proof
+          assume "?l = ?r"
+          with h3c have "log 2 (2 * \<lfloor>sqrt n\<rfloor> + 1) = log 2 (2 * \<lceil>sqrt n\<rceil> + 1)" by linarith
+          then have "?roi (2 * \<lfloor>sqrt n\<rfloor> + 1) = ?roi (2 * \<lceil>sqrt n\<rceil> + 1)" using log_eq_cancel_iff h3b by simp
+          then have "\<lfloor>sqrt n\<rfloor> = \<lceil>sqrt n\<rceil>" by simp
+          then have "sqrt n = \<lfloor>sqrt n\<rfloor>" using floor_eq_ceil_nat by blast
+          then have "(sqrt n)\<^sup>2 = \<lfloor>sqrt n\<rfloor>\<^sup>2" by simp
+          then have "n = \<lfloor>sqrt n\<rfloor>\<^sup>2" using real_sqrt_pow2
+            by (metis floor_of_int floor_of_nat of_nat_0_le_iff)
+          then have "n = (nat \<lfloor>sqrt n\<rfloor>)\<^sup>2"
+            by (metis nat_int of_nat_power sqrt_altdef)
+          then have "is_square n" ..
+          then have "next_square n = n" using next_sq_eq and \<open>n > 0\<close> by blast
+          then show False using \<open>?delta > 0\<close> by simp
+        qed
+      qed
+      then have "\<lfloor>log 2 (2 * \<lfloor>sqrt n\<rfloor> + 1)\<rfloor> + 1 < \<lceil>log 2 (2 * \<lceil>sqrt n\<rceil> + 1)\<rceil> + 1" by linarith
+      then show "?l + 1 \<le> ?r" by simp
+    qed
+
+    have h4: "\<lfloor>log 2 (real n)\<rfloor> + 1 = real (bit_length n)"
+      using bit_length_eq_log[of n] and \<open>n > 0\<close> by simp
+
+    have "bit_length ?delta = \<lfloor>log 2 ?delta\<rfloor> + 1" using bit_length_eq_log and \<open>?delta > 0\<close> .
+    also have "... \<le> \<lfloor>log 2 (2 * Discrete.sqrt n + 1)\<rfloor> + 1"
+    proof -
+      have "real ?delta \<le> real (2 * Discrete.sqrt n + 1)" using next_sq_diff of_nat_le_iff by blast
+      then have "log 2 ?delta \<le> log 2 (2 * Discrete.sqrt n + 1)" using \<open>?delta > 0\<close> by force
+      then have "\<lfloor>log 2 ?delta\<rfloor> \<le> \<lfloor>log 2 (2 * Discrete.sqrt n + 1)\<rfloor>" by linarith
+      then show ?thesis by presburger
+    qed
+    also have "... = \<lfloor>log 2 (2 * \<lfloor>sqrt n\<rfloor> + 1)\<rfloor> + 1" unfolding h2 ..
+    also have "... \<le> \<lceil>log 2 (2 * \<lceil>sqrt n\<rceil> + 1)\<rceil>" using h3 .
+
+    also have "... \<le> 3 + \<lceil>log 2 n\<rceil> div 2" using delta_bitlength and \<open>n > 0\<close>
+    proof -
+      have "\<lceil>log 2 (2 * \<lceil>sqrt n\<rceil> + 1)\<rceil> = \<lfloor> real_of_int \<lceil>log 2 (2 * \<lceil>sqrt n\<rceil> + 1)\<rceil>\<rfloor>" using floor_of_int by simp
+
+      also have "... \<le> \<lfloor>3 + ((real_of_int \<lceil>log 2 n\<rceil>) / 2)\<rfloor>" using delta_bitlength and \<open>n > 0\<close>
+        by (smt (verit, ccfv_SIG) floor_less_cancel floor_of_nat of_nat_0_less_iff one_le_floor)
+      also have "... = 3 + \<lceil>log 2 n\<rceil> div 2" by linarith
+      finally show ?thesis .
+    qed
+
+    also have "... \<le> 3 + \<lceil>log 2 n\<rceil> / 2" using delta_bitlength and \<open>n > 0\<close> by simp
+    also have "... \<le> 3 + (\<lfloor>log 2 n\<rfloor> + 1) / 2" using ceiling_le_iff le_floor_iff by fastforce
+    also have "... = 3 + bit_length n / 2" unfolding h4 ..
+    finally show ?thesis by linarith
+  qed simp (* case False by simp *)
+qed simp (* case False by simp *)
 
 end
