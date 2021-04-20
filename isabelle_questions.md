@@ -48,8 +48,9 @@ use `prf` and `full_prf` (see `isar-ref.pdf` ch 8.1.1)
 
 Note: this will not work for most theorems, as proof terms are disabled by default (it seems for performance reasons).
 [this answer](https://stackoverflow.com/a/31644559/9335596) suggests enabling proof terms by switching to `HOL-Proofs` in the _Theories_ panel and restarting jEdit.
-this will cause all theories in HOL to be built, which may take a few minutes.
-see [this answer](https://stackoverflow.com/a/30692248/9335596) explaining _why this may not be what you want_
+this will cause all theories in HOL to be built (once), which may take a few minutes.
+see [this answer](https://stackoverflow.com/a/30692248/9335596) explaining _why this may not be what you want_.
+see [proof_terms_example.thy](isa_examples/proof_terms_example.thy) for a demonstration.
 
 #### How to introduce variables in Isar?
 
@@ -66,6 +67,9 @@ Use <kbd>Ctrl</kbd>+Click on the usage to jump to the definition.
 #### How to fix `Cannot update finished theory ...` in a non-painful way so I can jump to definitions with <kbd>Ctrl</kbd>+Click?
 
 Start Isabelle using `/opt/Isabelle2021/bin/isabelle jedit -l Pure` and open the theory file.
+This is equivalent to changing the loaded session in the Theories panel in Isabelle/jEdit to `Pure`.
+
+Note that this will cause any imported or opened theories to be checked live, which may take a long time depending on the size of the theories.
 
 #### How to print definitions of rules or facts (e.g. `list.size(3)` or `Cons.IH`)?
 
