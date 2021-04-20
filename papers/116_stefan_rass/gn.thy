@@ -46,6 +46,18 @@ lemma gn_gt_0: "gn w > 0"
   by (induction w) auto
 
 
+(* gn of nat for convenience, as defined in ch 4.1 *)
+definition gn' :: "nat \<Rightarrow> nat" where
+  "gn' n = n"
+
+declare gn'_def[simp]
+
+lemma gn'D: "n > 0 \<Longrightarrow> gn' n = gn (num_of_nat n)"
+  using inv_gn_id by auto
+
+
+subsection\<open>bit-strings\<close>
+
 (* conversion to bit strings *)
 fun word_of_bin :: "bit_string \<Rightarrow> word" where
   "word_of_bin Nil = num.One" |
@@ -79,13 +91,50 @@ corollary word_bin_bij:
 lemma gn_bin_eq: "gn w = nat_of_bin ((bin_of_word w) @ [True])"
   by (induction w) auto
 
-(* gn of nat for convenience, as defined in ch 4.1 *)
-definition gn' :: "nat \<Rightarrow> nat" where
-  "gn' n = n"
 
-declare gn'_def[simp]
+subsection\<open>bit-length\<close>
 
-lemma gn'D: "n > 0 \<Longrightarrow> gn' n = gn (num_of_nat n)"
-  using inv_gn_id by auto
+fun len :: "word \<Rightarrow> nat" where
+  "len num.One = 0" |
+  "len (num.Bit0 w) = Suc (len w)" |
+  "len (num.Bit1 w) = Suc (len w)"
+
+definition bit_length :: "nat \<Rightarrow> nat" where
+  "bit_length n \<equiv> len (num_of_nat n) + 1"
+
+declare bit_length_def[simp]
+
+corollary len_Cons_eq: "len (num.Bit0 w) = len (num.Bit1 w)" by simp
+
+lemma num_of_nat_double': "0 < n \<Longrightarrow> num_of_nat (n + n + 1) = num.Bit1 (num_of_nat n)"
+  by (induction n) auto
+
+lemma bit_len_even_odd: "bit_length (2 * n) = bit_length (2 * n + 1)"
+proof (cases "n > 0")
+  case False thus ?thesis by simp
+next
+  case True
+  have "bit_length (2 * n) = len (num_of_nat (n + n)) + 1" unfolding mult_2 by simp
+  also have "... = len (num.Bit0 (num_of_nat n)) + 1" using num_of_nat_double and \<open>n > 0\<close> by simp
+  also have "... = len (num.Bit1 (num_of_nat n)) + 1" unfolding len_Cons_eq ..
+  also have "... = len (num_of_nat (n + n + 1)) + 1" using num_of_nat_double' and \<open>n > 0\<close> by simp
+  also have "... = bit_length (2 * n + 1)" unfolding mult_2 by simp
+  finally show ?thesis .
+qed
+
+lemma word_len_eq_bin_len:
+  "len w = length (bin_of_word w)"
+  by (induction w) auto
+
+lemma num_of_nat_double:
+  assumes "n > 0"
+  shows "num_of_nat (2 * n) = num.Bit0 (num_of_nat n)"
+  using assms num_of_nat_inverse num_eq_iff by simp
+
+corollary bit_len_double:
+  assumes "n > 0"
+  shows "bit_length (2 * n) = 1 + bit_length n"
+  using assms num_of_nat_double by simp
+
 
 end
