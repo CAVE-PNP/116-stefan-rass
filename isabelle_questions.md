@@ -106,3 +106,5 @@ lemma [simp]: "1 + 2 = 3" by simp (* "anonymous" lemma *)
 declare MyLemma[simp] (* add to simp *)
 declare MyLemma[simp del] (* remove from simp *)
 ```
+
+#### How to make `_` an abbreviation for `\<^sub>` to make subscripts easier to type?
