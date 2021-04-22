@@ -108,3 +108,8 @@ declare MyLemma[simp del] (* remove from simp *)
 ```
 
 #### How to make `_` an abbreviation for `\<^sub>` to make subscripts easier to type?
+The abbreviation `_` does not work for some reason. Create the file `$ISABELLE_HOME_USER/etc/symbols` and add following lines:
+```
+\<^sub>  code: 0x0021e9  abbrev: !_
+\<^sup>  code: 0x0021e7  abbrev: !^
+```
