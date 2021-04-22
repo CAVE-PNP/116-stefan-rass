@@ -33,7 +33,7 @@ See [isa_examples/f_def_example.thy](isa_examples/f_def_example.thy)
 
 #### How to declare an inline function?
 
-`\<lambda>` or its shorthand `%`
+`\<lambda>` or its abbreviation `%`
 
 Note: for the sake of readability, the use of `λ` is encouraged.
 note that entering either of the ASCII versions will prompt replacing them with the unicode lambda in Isabelle/jEdit
@@ -113,3 +113,16 @@ The abbreviation `_` does not work for some reason. Create the file `$ISABELLE_H
 \<^sub>  code: 0x0021e9  abbrev: !_
 \<^sup>  code: 0x0021e7  abbrev: !^
 ```
+
+#### How to fix `No type variable in part of specification element`
+```isabelle
+class TM =
+  fixes Γ⇩i⇩n :: "'a set" (*input alphabet*)
+  fixes k :: nat (*tape count*)
+  assumes input_alphabet_finite: "finite Γ⇩i⇩n"
+begin
+end
+```
+Gives `No type variable in part of specification element fixes k :: "nat"`.
+
+Use `locale` instead of `class`.
