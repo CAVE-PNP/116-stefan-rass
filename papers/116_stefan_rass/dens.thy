@@ -38,7 +38,7 @@ proof - (* shorter proof by Moritz Hiebler *)
     using nat_of_num_pos by auto
   then have "card ?A \<le> card {0<..x}"
     using gn_inj_on card_inj_on_le by blast
-  then show ?thesis using card_greaterThanAtMost by auto
+  then show ?thesis by (unfold card_greaterThanAtMost dens_def minus_nat.diff_0)
 qed
 
 
@@ -53,8 +53,8 @@ lemma dens_mono: "L \<subseteq> M \<Longrightarrow> dens L x \<le> dens M x"
 proof -
   assume "L \<subseteq> M"
   hence "{w \<in> L. gn w \<le> x} \<subseteq> {w \<in> M. gn w \<le> x}" by blast
-  thus "dens L x \<le> dens M x"
-    using card_mono bounded_lang_finite [of M x] by simp
+  with card_mono bounded_lang_finite show ?thesis unfolding dens_def .
+      (* interestingly, the unfold tactic does not work here *)
 qed
 
 lemma dens_intersect_le: "dens (L\<^sub>1 \<inter> L\<^sub>2) x \<le> dens L\<^sub>1 x"

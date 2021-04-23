@@ -47,13 +47,12 @@ lemma gn_gt_0: "gn w > 0"
 
 
 (* gn of nat for convenience, as defined in ch 4.1 *)
-definition gn' :: "nat \<Rightarrow> nat" where
-  "gn' n = n"
+definition gn' :: "nat \<Rightarrow> nat" where "gn' n = n"
 
 declare gn'_def[simp]
 
 lemma gn'D: "n > 0 \<Longrightarrow> gn' n = gn (num_of_nat n)"
-  using inv_gn_id by auto
+  using inv_gn_id by simp
 
 
 subsection\<open>bit-strings\<close>

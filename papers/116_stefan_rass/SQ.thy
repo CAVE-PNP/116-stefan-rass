@@ -5,11 +5,11 @@ begin
 subsection\<open>Language of integer squares\<close>
 
 (* SQ is an overloaded identifier in the paper *)
-definition SQ :: lang where \<comment> \<open>then language of non-zero square numbers, represented by binary string without leading ones\<close>
-  "SQ \<equiv> {w. \<exists>x. gn w = x ^ 2}"
+definition SQ :: lang \<comment> \<open>then language of non-zero square numbers, represented by binary string without leading ones\<close>
+  where "SQ \<equiv> {w. \<exists>x. gn w = x ^ 2}"
 
-definition SQ_nat :: "nat set" where \<comment> \<open>the analogous set \<open>SQ \<subseteq> \<nat>\<close>, as defined in ch 4.1\<close>
-  "(SQ_nat::nat set) \<equiv> {y. y \<noteq> 0 \<and> (\<exists>x. y = x ^ 2)}"
+definition SQ_nat :: "nat set" \<comment> \<open>the analogous set \<open>SQ \<subseteq> \<nat>\<close>, as defined in ch 4.1\<close>
+  where "(SQ_nat::nat set) \<equiv> {y. y \<noteq> 0 \<and> (\<exists>x. y = x ^ 2)}"
 
 declare SQ_def[simp] SQ_nat_def[simp]
 
@@ -25,7 +25,7 @@ lemma SQ_SQ_nat:
   by (simp_all add: nat_of_num_pos)
 
 lemma SQ_nat_im: "SQ_nat = gn ` SQ"
-proof (standard; standard)
+proof (intro subset_antisym subsetI) (* equivalent but less straightforward: (intro set_eqI iffI) *)
   fix n
   assume assm: "n \<in> SQ_nat"
   then have "n > 0" by simp
@@ -107,17 +107,15 @@ qed
 
 lemma next_sq_correct2: "n \<le> next_square n"
 proof (cases "n > 0")
-  case False thus ?thesis by simp
-next
-  case True then show ?thesis
+  case True show ?thesis
   proof (cases "is_square n")
     case True
-    with next_sq_eq[of n] and \<open>n > 0\<close> show ?thesis using eq_imp_le by presburger
+    with next_sq_eq[of n] and \<open>n > 0\<close> show ?thesis by (intro eq_imp_le) (rule sym)
   next
     case False
-    with next_sq_gt[of n] and \<open>n > 0\<close> show ?thesis using less_imp_le_nat by blast
+    with next_sq_gt[of n] and \<open>n > 0\<close> show ?thesis by (intro less_imp_le_nat)
   qed
-qed
+qed (* case "n = 0" by *) simp
 
 
 corollary prev_sq_le_next_sq: "(Discrete.sqrt n)\<^sup>2 \<le> next_square n"
@@ -155,7 +153,7 @@ qed
 
 lemma sqrt_altdef: "Discrete.sqrt n = \<lfloor>sqrt n\<rfloor>"
 proof -
-  have *: "n = (sqrt n)\<^sup>2" by simp
+  have *: "n = (sqrt n)\<^sup>2" by (subst real_sqrt_pow2) simp_all
 
   have "(Discrete.sqrt n)\<^sup>2 \<le> n" by simp
   with * have "(Discrete.sqrt n)\<^sup>2 \<le> (sqrt n)\<^sup>2" by simp
@@ -170,7 +168,8 @@ proof -
   from upper and lower show ?thesis by linarith
 qed
 
-corollary sqrt_altdef2: "Discrete.sqrt n = nat \<lfloor>sqrt n\<rfloor>" using sqrt_altdef by (metis nat_int)
+corollary sqrt_altdef2: "Discrete.sqrt n = nat \<lfloor>sqrt n\<rfloor>" 
+  using arg_cong[OF sqrt_altdef, of nat] unfolding nat_int .
 
 lemma sqrt_ceil_floor:
   fixes n :: nat
@@ -185,7 +184,8 @@ proof -
   have "\<lfloor>sqrt (n - 1)\<rfloor> + 1 - 1 = \<lfloor>sqrt (n - 1)\<rfloor>" by simp
   also have "... \<le> sqrt (n - 1)" by simp
   also have "... < sqrt n" using \<open>n > 0\<close> by simp
-  finally have upper: "\<lfloor>sqrt (n - 1)\<rfloor> + 1 - 1 < sqrt n" .
+  finally have "of_int (\<lfloor>sqrt (n - 1)\<rfloor> + 1) - 1 < sqrt n" by simp
+  then have upper: "\<lfloor>sqrt (n - 1)\<rfloor> + 1 \<le> \<lceil>sqrt n\<rceil>" by (subst le_ceiling_iff)
 
   have "sqrt n \<le> Discrete.sqrt (n - 1) + 1"
   proof (cases "is_square n")
@@ -201,9 +201,10 @@ proof -
     finally show "sqrt n \<le> Discrete.sqrt (n - 1) + 1" by simp
   qed
   moreover have "Discrete.sqrt (n - 1) + 1 = \<lfloor>sqrt (n - 1)\<rfloor> + 1" using sqrt_altdef by simp
-  ultimately have lower: "sqrt n \<le> \<lfloor>sqrt (n - 1)\<rfloor> + 1" by auto
+  ultimately have "sqrt n \<le> \<lfloor>sqrt (n - 1)\<rfloor> + 1" by auto
+  then have lower: "\<lceil>sqrt n\<rceil> \<le> \<lfloor>sqrt (n - 1)\<rfloor> + 1" by (subst ceiling_le_iff)
 
-  from upper and lower show ?thesis by linarith
+  from lower and upper show ?thesis by (rule antisym)
 qed
 
 lemma next_sq_correct3: "n > 0 \<Longrightarrow> next_square n = \<lceil>sqrt n\<rceil>\<^sup>2"
@@ -289,13 +290,9 @@ subsection\<open>Log and bit-length\<close>
 
 lemma bit_length_eq_discrete_log:
   "bit_length n = Discrete.log n + 1" (is "?len n = ?log n + 1")
-proof (cases n)
-  case (Suc _)
-  then have "n > 0" by blast (* consumed by log_induct *)
-  then show ?thesis
+proof (cases "n > 0")
+  case True thus ?thesis
   proof (induction n rule: log_induct)
-    case one thus ?case by force
-  next
     case (double n)
     have "n = 2 * (n div 2) \<or> n = 2 * (n div 2) + 1" by linarith
     then have "?len n = ?len (2 * (n div 2))" by (standard, simp, presburger add: bit_len_even_odd)
@@ -303,8 +300,8 @@ proof (cases n)
     also have "... = ?log (n div 2) + 1 + 1" unfolding double.IH ..
     also have "... = ?log (n) + 1" using log_rec[of n] and \<open>n \<ge> 2\<close> by presburger
     finally show ?case .
-  qed
-qed simp
+  qed (* case "n = 1" by *) force
+qed (* case "n = 0" by *) simp
 
 lemma bit_length_eq_log:
   assumes "n > 0"
@@ -314,7 +311,7 @@ lemma bit_length_eq_log:
 lemma log_eq_cancel_iff:
   assumes "a > 1" "x > 0" "y > 0"
   shows "(log a x = log a y) = (x = y)"
-proof
+proof (intro iffI)
   assume l_eq: "log a x = log a y"
   then have "log a x \<le> log a y" and "log a x \<ge> log a y" by simp_all
   with assms have "x \<le> y" and "x \<ge> y" by simp_all
