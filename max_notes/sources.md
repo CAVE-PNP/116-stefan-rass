@@ -5,6 +5,7 @@
     - [Related Topics](#related-topics)
   - [Isabelle/HOL](#isabellehol)
     - [Formalizations](#formalizations)
+    - [Quick Reference](#quick-reference)
     - [Tutorials](#tutorials)
     - [Resources](#resources)
   - [Coq](#coq)
@@ -34,9 +35,7 @@
 
 This section lists results and resources relevant or close to the topic of this project.
 
-- The [Archive of Formal Proofs](https://www.isa-afp.org/) (AFP)
-  > The Archive of Formal Proofs is a collection of proof libraries, examples, and larger scientific developments
-  - official proof repository of Isabelle
+- [AFP](https://www.isa-afp.org/) backlog
   - relevant topics include: Algorithms, Data Structures, Security, Computability, Probability, Graph theory
   - [TODO] look into
     - Andreas Lochbihler: [CryptHOL](https://www.isa-afp.org/entries/CryptHOL.html)
@@ -51,7 +50,7 @@ This section lists results and resources relevant or close to the topic of this 
     > This development provides a formalization of directed graphs, supporting (labelled) multi-edges and infinite graphs.
 - Robin Eßmann and Tobias Nipkow and Simon Robillard: [Verified Approximation Algorithms](https://www21.in.tum.de/~nipkow/pubs/ijcar20-approx.html) ([in AFP](https://www.isa-afp.org/entries/Approximation_Algorithms.html))
   - Using Hoare logic (implemented in HOL)
-- Jeremy Avigad and Kevin Donnelly: [Formalizing $`O`$ notation in Isabelle/HOL](http://www.andrew.cmu.edu/user/avigad/Papers/bigo.pdf) ([in AFP?](https://www.isa-afp.org/browser_info/devel/HOL/HOL-Library/BigO.html))
+- Jeremy Avigad and Kevin Donnelly: [Formalizing $`O`$ notation in Isabelle/HOL](http://www.andrew.cmu.edu/user/avigad/Papers/bigo.pdf) (distributed as part of  [`HOL-Library`](https://www.isa-afp.org/browser_info/devel/HOL/HOL-Library/BigO.html))
 - Bohua Zhan et al.: [Verifying Asymptotic Time Complexity of Imperative Programs in Isabelle](https://arxiv.org/abs/1802.01336)
   - see also [GitHub repo](https://github.com/bzhan/Imperative_HOL_Time)
 - Tobias Nipkow: [Amortized Complexity Verified](http://www21.in.tum.de/~nipkow/pubs/itp15.html) ([in AFP](https://www.isa-afp.org/entries/Amortized_Complexity.html))
@@ -60,6 +59,23 @@ This section lists results and resources relevant or close to the topic of this 
 - Frank J. Balbach: [Some classical results in inductive inference of recursive functions](https://www.isa-afp.org/entries/Inductive_Inference.html) (in AFP)
   - contains formalization of Gödel numbers
     - specific to inductive inference, thus probably not useful for paper #116
+
+### Quick Reference
+
+- Isabelle [Search](https://search.isabelle.in.tum.de/)
+  - filter by type
+  - allows following _uses_ and _used by_ relations of definitions
+  - search includes Isabelle sources and AFP
+- The [cookbook](https://github.com/isabelle-prover/cookbook)
+  > useful tips/tricks/hints for Isabelle users contributed by the community
+  - the section on [Proof Methods](https://isabelle.systems/cookbook/src/proofs/methods/) and the examples on [Chained facts](https://github.com/isabelle-prover/cookbook/blob/master/src/proofs/methods/Chained_Facts.thy) are recommended reading
+  - not to be confused with _The Isabelle Cookbook_ on Isabelle/ML (see above)
+- `how_to_prove_it.pdf`: Tobias Nipkow: [How to Prove it in Isabelle/HOL](https://isabelle.in.tum.de/dist/library/Doc/How_to_Prove_it/how_to_prove_it.pdf).
+  - solutions for common issues over `nat`, `list`, and for arithmetic statements
+- Isabelle/Isar (syntax) quick reference (Appendix A of [`isar-ref.pdf`](https://isabelle.in.tum.de/doc/isar-ref.pdf))
+- [Isabelle Cheat Sheet](https://isabelle.in.tum.de/community/Isabelle_Cheat_Sheet) on the community wiki
+- [Isabelle / Proof General Cheat Sheet](https://www.inf.ed.ac.uk/teaching/courses/ar/isabelle/FormalCheatSheet.pdf)
+  - somewhat outdated
 
 ### Tutorials
 
@@ -114,14 +130,16 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
 
 ### Resources
 
+- [isabelle.systems](https://isabelle.systems/) - Isabelle Quick Access Links
+- The [Archive of Formal Proofs](https://www.isa-afp.org/) (AFP)
+  - _a collection of proof libraries, examples, and larger scientific developments_
+  - official proof repository of Isabelle
 - [Homepage of Isabelle](https://isabelle.in.tum.de/index.html)
   - [Documentation](https://isabelle.in.tum.de/documentation.html)
     - Tutorials (excerpts included in the section above)
     - Reference Manuals
       - `system.pdf` extensive manual for the `isabelle` CLI (backend)
       - `implementation.pdf`
-    - `how_to_prove_it.pdf`: Tobias Nipkow: [How to Prove it in Isabelle/HOL](https://isabelle.in.tum.de/dist/library/Doc/How_to_Prove_it/how_to_prove_it.pdf).
-      - solutions for common issues over `nat`, `list`, and for arithmetic statements
   - some interesting resources are hard to find, or are not linked to
     - specific versions of the homepage (e.g. Isabelle2019) can be accessed
       by inserting `website-Isabelle20xx/` between host and path

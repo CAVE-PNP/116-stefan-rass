@@ -107,6 +107,11 @@ as any files included in the image cannot be live-checked in Isabelle/jEdit
 
 ## Proof methods (work in progress)
 
+The cookbook's section on [Proof Methods](https://isabelle.systems/cookbook/src/proofs/methods/) is recommended reading.
+For more information see the `isar-ref.pdf` _ch. 9 Generic tools and packages_, especially _chs. 9.2.1-9.2.2, 9.3.1, 9.4.3-9.4.4_.
+Refer to _chs. 12.1-12.2_ for more tools (see also _chs. 12.4-12.8_ for some more uncommon tactics).
+See _chs. 9.3.2, 9.4.2_ for theorem attributes that allow the automatic tools to use them effectively.
+
 **_TODO_** induct/induction
 
 - induction by function rules, as opposed to "normal" induction
