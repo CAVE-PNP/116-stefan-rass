@@ -192,19 +192,40 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
   - part of the [OCaml Package Manager](http://opam.ocaml.org/) (OPAM)
   - counterpart of the Isabelle AFP
   - see also the Package Ecosystem section [here](https://coq.inria.fr/community)
-- Maximilian Wuttke: [Verified Programming Of Turing Machines In Coq](https://www.ps.uni-saarland.de/~wuttke/bachelor.php). Bachelor's Thesis 2018.
 - [EasyCrypt](https://www.easycrypt.info/) ([GitHub repo](https://github.com/EasyCrypt/easycrypt))
   > EasyCrypt is a toolset for reasoning about relational properties of probabilistic computations with adversarial code. Its main application is the construction and verification of game-based cryptographic proofs.
   - [CertiCrypt](http://certicrypt.gforge.inria.fr/) ([GitHub repo](https://github.com/EasyCrypt/certicrypt))
     > CertiCrypt is a toolset that assists the construction and verification of cryptographic proofs; it supports common patterns of reasoning in cryptography, and has been used successfully to prove the security of many constructions [...]
-- Yannick Forster, Fabian Kunze, and Maximilian Wuttke: [Verified Programming of Turing Machines in Coq](https://ps.uni-saarland.de/Publications/documents/ForsterEtAl_2019_VerifiedTMs.pdf). ACM 2020.
-  - based on the Matita implementation by Asperti and Ricciotti
+- Forster et al.: [A Coq Library of Undecidable Problems](https://hal.archives-ouvertes.fr/hal-02944217/document)
+  - collection of results from computability and complexity theory
+  - sources hosted on GitHub as [`uds-psl/coq-libary-undecidability`](https://github.com/uds-psl/coq-library-undecidability)
+    - maintained by the University of Saarland
+- Yannick Forster, Fabian Kunze, and Maximilian Wuttke:
+  [Verified Programming of Turing Machines in Coq](https://ps.uni-saarland.de/Publications/documents/ForsterEtAl_2019_VerifiedTMs.pdf). ACM 2020.
+  - TMs with space and time complexity, including the universal TM
+  - maintained as part of the _Coq Library of Undecidable Problems_ (see above)
+    - static standalone (paper) version on GitHub as [`uds-psl/tm-verification-framework`](https://github.com/uds-psl/tm-verification-framework)
+  - extends Wuttke's [Bachelor's thesis of the same name](https://www.ps.uni-saarland.de/~wuttke/bachelor.php)
+    - this is not confirmed, but definitions and content match
+    - the _universal TM_ and _space complexity_ are not parts of the Bachelor's thesis
+    - states the heavy use of dependent types, making this particular formalization of TMs rather unpleasant for proof assistants that do not support them (like Isabelle/HOL)
+  - based on the Matita implementation by Asperti and Ricciotti ([see below](#matita))
+  - see the [external Appendix](https://www.ps.uni-saarland.de/extras/tm-verification-framework/cpp20-tms-appendix.pdf) for definitions that are left out in the paper
+    - see also the Bachelor's thesis
   - multi-tape TMs
     - universal TM simulates single tape TM
     - compiler from multi-tape to single tape
-  - three abstraction-layers from standard TM to ~register machine
+  - three abstraction-layers from standard TM to ~register machine/pseudo code
   - custom tactics for reasoning about TMs
     - the authors state about a certain kind of statement that "using them by hand is almost impossible"
+    - the tactic (`TMSimp`) simplifies goals by "destruction of complex assumptions" (i.e. conjunctions, existentials) and "exhaustively rewriting with all available equations between tapes"
+- Lennard Gäher and Fabian Kunze: **Mechanising Complexity Theory: The Cook-Levin Theorem in Coq**
+  - unpublished (2021-04-30), set to be presented at the [ITP 2021 conference](https://easyconferences.eu/itp2021/accepted-papers/)
+  - sources available on GitHub as [uds-psl/cook-levin](https://github.com/uds-psl/cook-levin)
+    - not (yet?) included in the _Coq Library of Undecidable Problems_ (see above)
+  - see the [compiled documentation](https://uds-psl.github.io/cook-levin/website/Complexity.NP.SAT.CookLevin.html#lab71)
+  - includes a proof for the [_Time Hierarchy Theorem_](https://github.com/uds-psl/cook-levin/blob/paper-cook-levin/theories/HierarchyTheorem/TimeHierarchyTheorem.v#L132)
+    - `exists (P : term * nat -> Prop), ~P ∈Timeo f /\ P ∈TimeO (fun n => n * f n * f n).`
 
 ### Tutorials
 
