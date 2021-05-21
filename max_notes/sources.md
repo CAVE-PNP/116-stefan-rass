@@ -50,7 +50,7 @@ This section lists results and resources relevant or close to the topic of this 
     > This development provides a formalization of directed graphs, supporting (labelled) multi-edges and infinite graphs.
 - Robin Eßmann and Tobias Nipkow and Simon Robillard: [Verified Approximation Algorithms](https://www21.in.tum.de/~nipkow/pubs/ijcar20-approx.html) ([in AFP](https://www.isa-afp.org/entries/Approximation_Algorithms.html))
   - Using Hoare logic (implemented in HOL)
-- Jeremy Avigad and Kevin Donnelly: [Formalizing $`O`$ notation in Isabelle/HOL](http://www.andrew.cmu.edu/user/avigad/Papers/bigo.pdf) (distributed as part of  [`HOL-Library`](https://www.isa-afp.org/browser_info/devel/HOL/HOL-Library/BigO.html))
+- Jeremy Avigad and Kevin Donnelly: [Formalizing $`O`$ notation in Isabelle/HOL](http://www.andrew.cmu.edu/user/avigad/Papers/bigo.pdf) (distributed as part of [`HOL-Library`](https://www.isa-afp.org/browser_info/devel/HOL/HOL-Library/BigO.html))
 - Bohua Zhan et al.: [Verifying Asymptotic Time Complexity of Imperative Programs in Isabelle](https://arxiv.org/abs/1802.01336)
   - see also [GitHub repo](https://github.com/bzhan/Imperative_HOL_Time)
 - Tobias Nipkow: [Amortized Complexity Verified](http://www21.in.tum.de/~nipkow/pubs/itp15.html) ([in AFP](https://www.isa-afp.org/entries/Amortized_Complexity.html))
@@ -198,17 +198,41 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
     > CertiCrypt is a toolset that assists the construction and verification of cryptographic proofs; it supports common patterns of reasoning in cryptography, and has been used successfully to prove the security of many constructions [...]
 - Forster et al.: [A Coq Library of Undecidable Problems](https://hal.archives-ouvertes.fr/hal-02944217/document)
   - collection of results from computability and complexity theory
-  - sources hosted on GitHub as [`uds-psl/coq-libary-undecidability`](https://github.com/uds-psl/coq-library-undecidability)
+  - sources available as [`github:uds-psl/coq-library-undecidability`](https://github.com/uds-psl/coq-library-undecidability)
     - maintained by the University of Saarland
+  - related: [The Coq Library of Complexity Theory](https://github.com/uds-psl/coq-library-complexity) (GitHub repository)
+    - builds upon the _Coq Library of Undecidable Problems_ to extend further into complexity theory
+    - includes a proof for the [_Time Hierarchy Theorem_](https://github.com/uds-psl/coq-library-complexity/blob/coq-8.12/theories/HierarchyTheorem/TimeHierarchyTheorem.v#L132)
+      - `exists (P : term * nat -> Prop), ~P ∈Timeo f /\ P ∈TimeO (fun n => n * f n * f n).`
+    - the target model of computability seems to be the _weak call-by-value λ-calculus_ (`L`)
+      - complexity is "formulated for the call-by-value lambda calculus `L`"
+        - introduced by Forster et al.: [Weak Call-by-Value Lambda Calculus as a Model of Computation in Coq](https://www.ps.uni-saarland.de/extras/L-computability/).
+          Springer 2018.
+      - there is ongoing work towards replacing TMs by `L` as the main model of computation in complexity theory
+        - Forster et al.: [A Mechanised Proof of the Time Invariance Thesis for the Weak Call-by-value λ-Calculus](https://www.ps.uni-saarland.de/Publications/documents/ForsterEtAl_2021_Mechanised-Time-Invariance-L.pdf).
+          Draft, to be presented at [ITP 2021](http://easyconferences.eu/itp2021/).
+          - L and TMs can simulate each other with poly-time overhead
+            - the _number of β-reductions_ is used as time-measure for `L`
+          - sources: [`github:uds-psl/time-invariance-thesis-for-L`](https://github.com/uds-psl/time-invariance-thesis-for-L), to be included in the Coq Library of Undecidable Problems
+        - Forster et al.: [The Weak Call-By-Value λ-Calculus is Reasonable for Both Time and Space](https://www.ps.uni-saarland.de/extras/wcbv-reasonable/).
+          ACM 2019.
+          - L and TMs can simulate each other with polynomial time overhead and a linear overhead in space
+            - the _size of the largest term in the computation_ is used as space-measure for `L`
+            - terms in L may exhibit size explosion, but this can always be avoided
+          - not to be mechanized until problems with space measure are resolved
+          - see the explanations given in the presentation at the POPL 2020 conference
+            - hosted as supplemental material on the [ACM entry of the paper](https://dl.acm.org/doi/10.1145/3371095)
 - Yannick Forster, Fabian Kunze, and Maximilian Wuttke:
   [Verified Programming of Turing Machines in Coq](https://ps.uni-saarland.de/Publications/documents/ForsterEtAl_2019_VerifiedTMs.pdf). ACM 2020.
   - TMs with space and time complexity, including the universal TM
   - maintained as part of the _Coq Library of Undecidable Problems_ (see above)
-    - static standalone (paper) version on GitHub as [`uds-psl/tm-verification-framework`](https://github.com/uds-psl/tm-verification-framework)
+    - static standalone (paper) version available as [`github:uds-psl/tm-verification-framework`](https://github.com/uds-psl/tm-verification-framework)
   - extends Wuttke's [Bachelor's thesis of the same name](https://www.ps.uni-saarland.de/~wuttke/bachelor.php)
     - this is not confirmed, but definitions and content match
     - the _universal TM_ and _space complexity_ are not parts of the Bachelor's thesis
     - states the heavy use of dependent types, making this particular formalization of TMs rather unpleasant for proof assistants that do not support them (like Isabelle/HOL)
+      - it may be possible to work around this using the [pattern suggested by Tobias Nipkow](https://lists.cam.ac.uk/pipermail/cl-isabelle-users/2010-April/msg00008.html)
+        (_unconstrained type + predicate_)
   - based on the Matita implementation by Asperti and Ricciotti ([see below](#matita))
   - see the [external Appendix](https://www.ps.uni-saarland.de/extras/tm-verification-framework/cpp20-tms-appendix.pdf) for definitions that are left out in the paper
     - see also the Bachelor's thesis
@@ -221,20 +245,25 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
     - the tactic (`TMSimp`) simplifies goals by "destruction of complex assumptions" (i.e. conjunctions, existentials) and "exhaustively rewriting with all available equations between tapes"
 - Lennard Gäher and Fabian Kunze: **Mechanising Complexity Theory: The Cook-Levin Theorem in Coq**
   - unpublished (2021-04-30), set to be presented at the [ITP 2021 conference](https://easyconferences.eu/itp2021/accepted-papers/)
-  - sources available on GitHub as [uds-psl/cook-levin](https://github.com/uds-psl/cook-levin)
-    - not (yet?) included in the _Coq Library of Undecidable Problems_ (see above)
-  - see the [compiled documentation](https://uds-psl.github.io/cook-levin/website/Complexity.NP.SAT.CookLevin.html#lab71)
-  - includes a proof for the [_Time Hierarchy Theorem_](https://github.com/uds-psl/cook-levin/blob/paper-cook-levin/theories/HierarchyTheorem/TimeHierarchyTheorem.v#L132)
-    - `exists (P : term * nat -> Prop), ~P ∈Timeo f /\ P ∈TimeO (fun n => n * f n * f n).`
+  - based on Lennard Gäher: [Towards a Formal Proof of the Cook-Levin Theorem](https://www.ps.uni-saarland.de/~gaeher/bachelor.php). Bachelor's thesis, 2020.
+  - sources available on GitHub as [github:uds-psl/cook-levin](https://github.com/uds-psl/cook-levin)
+    - to be included in the _Coq Library of Complexity Theory_ (see above)
+  - see also the [compiled documentation](https://uds-psl.github.io/cook-levin/website/Complexity.NP.SAT.CookLevin.html#lab71)
 
 ### Tutorials
 
+The [documentation](https://coq.inria.fr/documentation) section on the Coq homepage gives an overview of resources.
+
 - `sf1`: Benjamin C. Pierce et al.: [Software Foundations, Volume 1: Logical Foundations](http://softwarefoundations.cis.upenn.edu). Online book. I consider this to be the best Coq introduction.
+- `MPCTT`: Gert Smolka: [Modeling and Proving in Computational Type Theory Using the Coq Proof Assistant](https://www.ps.uni-saarland.de/~smolka/drafts/icl2021.pdf). "Textbook, under construction", 2021.
+  - accompanying git repository [github:uds-psl/MPCTT](https://github.com/uds-psl/MPCTT)
 
 ### Resources
 
 - [Coq Documentation](https://coq.inria.fr/refman/index.html)
   - recommended reading: [Built-in decision procedures and programmable tactics](https://coq.inria.fr/refman/proofs/automatic-tactics/index.html)
+- [Tricks in Coq](https://github.com/tchajed/coq-tricks#tricks-in-coq)
+- (outdated) Overview of the [Coq Ecosystem](https://github.com/xgrommx/coq-ecosystem)
 
 ## Other Proof Assistants
 
