@@ -424,17 +424,18 @@ value "next_square 31"
 value "adj_square 31"
 
 
-lemma shared_msb:
-  "\<exists>ps. suffix ps (bin_of_nat n)
+lemma shared_msb: "bit_length n \<ge> 9 \<Longrightarrow>
+   \<exists>ps. suffix ps (bin_of_nat n)
       \<and> suffix ps (bin_of_nat (adj_square n))
       \<and> length ps \<ge> dlog (bit_length n + 1)"
   sorry
 
 lemma shared_msb2: (* equivalent form using obtains *)
+  assumes "bit_length n \<ge> 9"
   obtains ps
   where "suffix ps (bin_of_nat n)"
     and "suffix ps (bin_of_nat (adj_square n))"
     and "length ps \<ge> dlog (bit_length n + 1)"
-  using shared_msb by blast
+  using assms and shared_msb by blast
 
 end
