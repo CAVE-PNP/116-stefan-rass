@@ -1,5 +1,5 @@
 theory SQ
-  imports Complex_Main gn dens "HOL-Library.Discrete"
+  imports Complex_Main gn dens "HOL-Library.Discrete" "HOL-Library.Sublist"
 begin
 
 subsection\<open>Language of integer squares\<close>
@@ -379,5 +379,62 @@ proof (cases "n > 0", cases "?delta > 0")
   also have "... = 3 + bit_length n div 2" using bit_length_eq_log[of n] and \<open>n > 0\<close> by simp
   finally show ?thesis by (fold zle_int)
 qed simp_all \<comment> \<open>cases \<open>n = 0\<close> or \<open>?delta = 0\<close>\<close>
+
+
+subsection\<open>Length of prefix\<close>
+
+\<comment> \<open>\<open>w'\<close> (next_square n) will eventually have an identical lot of \<open>\<lceil>log l\<rceil>\<close> most significant bits\<close>
+
+(* 
+ * but what about when the carry "wraps over", for instance n := 31
+ * 
+ * 25 : 011001  <- prev_square n
+ * 26 : 011010
+ * 27 : 011011
+ * 28 : 011100
+ * 29 : 011101
+ * 30 : 011110
+ * 31 : 011111  <- n
+ * 32 : 100000
+ * 33 : 100001
+ * 34 : 100010
+ * 35 : 100011
+ * 36 : 100100  <- next_square n
+ *
+ * no shared prefix. 
+ * simplest fix: when this happens, use prev_square n := (Discrete.sqrt n)²
+ *)
+
+abbreviation dlog :: "nat \<Rightarrow> nat" 
+  where "dlog \<equiv> Discrete.log"
+
+abbreviation dsqrt :: "nat \<Rightarrow> nat"
+  where "dsqrt \<equiv> Discrete.sqrt"
+
+abbreviation prev_square :: "nat \<Rightarrow> nat"
+  where "prev_square n \<equiv> (dsqrt n)\<^sup>2"
+
+(* maybe the bit_length is easier to work with than the discrete log *)
+definition adj_square :: "nat \<Rightarrow> nat"
+  where "adj_square n = (if dlog n = dlog (next_square n) then next_square n else prev_square n)"
+
+declare adj_square_def[simp]
+
+value "next_square 31"
+value "adj_square 31"
+
+
+lemma shared_msb:
+  "\<exists>ps. suffix ps (bin_of_nat n)
+      \<and> suffix ps (bin_of_nat (adj_square n))
+      \<and> length ps \<ge> dlog (bit_length n + 1)"
+  sorry
+
+lemma shared_msb2: (* equivalent form using obtains *)
+  obtains ps
+  where "suffix ps (bin_of_nat n)"
+    and "suffix ps (bin_of_nat (adj_square n))"
+    and "length ps \<ge> dlog (bit_length n + 1)"
+  using shared_msb by blast
 
 end
