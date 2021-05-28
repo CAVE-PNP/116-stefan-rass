@@ -414,11 +414,84 @@ abbreviation dsqrt :: "nat \<Rightarrow> nat"
 abbreviation prev_square :: "nat \<Rightarrow> nat"
   where "prev_square n \<equiv> (dsqrt n)\<^sup>2"
 
+corollary prev_next_sq_eq: "prev_square n = next_square n \<longleftrightarrow> n = next_square n"
+  (* TODO tune proof (or drop lemma if not needed) *)
+  by (cases "is_square n", force, metis dual_order.eq_iff next_sq_correct1 next_sq_correct2 sqrt_power2_le)
+
+
+lemma adj_sq_diff1: "next_square n - prev_square n \<le> 2 * dsqrt n + 1"
+  by (metis adj_sq_nat diff_le_mono next_sq_le_greater_sq)
+
+lemma adj_sq_diff2: "2 * dsqrt n + 1 < 2 ^ (4 + bit_length n div 2)"
+proof (cases "n > 0")
+  assume "n > 0"
+  then have n0r: "n > (0::real)"
+    and s1: "sqrt n \<ge> 1"
+    and ds0: "\<lfloor>sqrt n\<rfloor> > 0"
+    by simp_all
+
+  have "1 < (2::real)" by simp
+  note log_mono = \<open>1 < 2\<close>[THEN log_le_cancel_iff]
+    and log_mono_strict = \<open>1 < 2\<close>[THEN log_less_cancel_iff]
+
+  have "log 2 (2 * \<lfloor>sqrt n\<rfloor> + 1) \<le> log 2 (2 * sqrt n + 1)"
+  proof -
+    have "2 * \<lfloor>sqrt n\<rfloor> + 1 \<le> 2 * sqrt n + 1" by simp
+    moreover have "2 * \<lfloor>sqrt n\<rfloor> + 1 > (0::real)" "2 * sqrt n + 1 > 0" using s1 by linarith+
+    ultimately show ?thesis using log_mono by blast
+  qed
+  also have "... < log 2 (4 * sqrt n)"
+  proof -
+    have "a \<ge> 1 \<Longrightarrow> 2 * a + 1 < 4 * a" for a :: real by simp
+    then have "2 * sqrt n + 1 < 4 * sqrt n" using s1 .
+    moreover from s1 have "2 * sqrt n + 1 > 0" and "4 * sqrt n > 0" by linarith+
+    ultimately show ?thesis using log_mono_strict by blast 
+  qed
+  also have "... = log 2 (2 powr 2 * sqrt n)" by simp
+  also have "... = 2 + log 2 (sqrt n)" using \<open>n > 0\<close> add_log_eq_powr by simp
+  also have "... = 2 + log 2 n / 2" unfolding n0r[THEN log2_sqrt'] ..
+  finally have *: "log 2 (2 * \<lfloor>sqrt n\<rfloor> + 1) < 2 + log 2 n / 2" .
+
+  have "real (2 * dsqrt n + 1) = 2 * \<lfloor>sqrt n\<rfloor> + 1" unfolding sqrt_altdef2 by simp
+  also have "... = 2 powr (log 2 (2 * \<lfloor>sqrt n\<rfloor> + 1))" using ds0 powr_log_cancel
+  proof -
+    from ds0 have "real_of_int (2 * \<lfloor>sqrt n\<rfloor> + 1) > 0" by linarith
+    with powr_log_cancel show ?thesis by simp
+  qed
+  also have "... < 2 powr (2 + log 2 n / 2)" using * by simp
+  also have "... \<le> 2 powr (4 + dlog n div 2)"
+  proof -
+    have "2 + log 2 (real n) / 2 \<le> 4 + \<lfloor>\<lfloor>log 2 (real n)\<rfloor> / 2\<rfloor>" by linarith
+    also have "... = 4 + \<lfloor>log 2 (real n)\<rfloor> div 2"
+      by (metis floor_divide_of_int_eq of_int_numeral)
+    also have "... = 4 + dlog n div 2"
+    proof -
+      from \<open>n > 0\<close> have "n \<noteq> 0" ..
+      with log_altdef have *: "\<lfloor>log 2 n\<rfloor> = int (dlog n)" by simp
+      then have "4 + \<lfloor>log 2 (real n)\<rfloor> div 2 = (4 + (int (dlog n)) div 2)" unfolding * by blast
+      also have "... = 4 + dlog n div 2" by simp
+      finally show ?thesis by simp
+    qed
+    finally show ?thesis by simp
+  qed
+  also have "... = 2 ^ (4 + dlog n div 2)" using powr_realpow[of 2] by fastforce
+  finally have "real (2 * dsqrt n + 1) < real (2 ^ (4 + dlog n div 2))" by simp
+  then have "2 * dsqrt n + 1 < 2 ^ (4 + dlog n div 2)" unfolding of_nat_less_iff .
+
+  also have "... \<le> 2 ^ (4 + bit_length n div 2)" unfolding bit_length_eq_discrete_log by simp
+  finally show ?thesis .
+qed simp (* case "n = 0" *)
+
+lemma adj_sq_diff: "next_square n - prev_square n < 2 ^ (4 + bit_length n div 2)"
+  using dual_order.strict_trans2 adj_sq_diff2 adj_sq_diff1 .
+
+
 (* maybe the bit_length is easier to work with than the discrete log *)
 definition adj_square :: "nat \<Rightarrow> nat" (*adjacent square*)
   where "adj_square n = (if dlog n = dlog (next_square n) then next_square n else prev_square n)"
 
 declare adj_square_def[simp]
+
 
 lemma shared_prefix:
 (*
