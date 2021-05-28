@@ -415,27 +415,22 @@ abbreviation prev_square :: "nat \<Rightarrow> nat"
   where "prev_square n \<equiv> (dsqrt n)\<^sup>2"
 
 (* maybe the bit_length is easier to work with than the discrete log *)
-definition adj_square :: "nat \<Rightarrow> nat"
+definition adj_square :: "nat \<Rightarrow> nat" (*adjacent square*)
   where "adj_square n = (if dlog n = dlog (next_square n) then next_square n else prev_square n)"
 
 declare adj_square_def[simp]
 
-value "next_square 31"
-value "adj_square 31"
-
-
-lemma shared_msb: "bit_length n \<ge> 9 \<Longrightarrow>
-   \<exists>ps. suffix ps (bin_of_nat n)
-      \<and> suffix ps (bin_of_nat (adj_square n))
-      \<and> length ps \<ge> dlog (bit_length n + 1)"
-  sorry
-
-lemma shared_msb2: (* equivalent form using obtains *)
+lemma shared_prefix:
+(*
+ \<open>n\<close> and \<open>adj_square n\<close> share a common prefix \<open>ps\<close> with a min length of \<open>\<lceil>log 2 (bit_length n)\<rceil>.\<close>
+ The universal TM on input \<open>w\<close> only cares about the most \<open>\<lceil>log 2 w\<rceil>\<close> bits.
+ Thus using \<open>adj_square n\<close> instead of \<open>n\<close> does not change the computation.
+*)
   assumes "bit_length n \<ge> 9"
   obtains ps
   where "suffix ps (bin_of_nat n)"
     and "suffix ps (bin_of_nat (adj_square n))"
-    and "length ps \<ge> dlog (bit_length n + 1)"
-  using assms and shared_msb by blast
+    and "length ps \<ge> \<lceil>log 2 (bit_length n)\<rceil>"
+  sorry
 
 end
