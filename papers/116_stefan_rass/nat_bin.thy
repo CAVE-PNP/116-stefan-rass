@@ -36,6 +36,12 @@ lemma nat_of_bin_0s [simp]: "nat_of_bin (replicate k False) = 0"
 lemma nat_of_bin_app: "nat_of_bin (lo @ up) = (nat_of_bin up) * 2^(length lo) + (nat_of_bin lo)"
   by (induction lo) auto
 
+corollary nat_of_bin_app_zs: "nat_of_bin (replicate k False @ up) = (nat_of_bin up) * 2^k"
+  using nat_of_bin_app by simp
+
+corollary nat_of_bin_leading_zs[simp]: "nat_of_bin (xs @ replicate k False) = nat_of_bin xs"
+  using nat_of_bin_app by simp
+
 lemma nat_of_bin_div2[simp]: "nat_of_bin (a # xs) div 2 = nat_of_bin xs" by force
 lemma nat_of_bin_div2': "nat_of_bin xs div 2 = nat_of_bin (tl xs)" by (cases xs) auto
 
@@ -88,7 +94,7 @@ next
   qed
 qed
 
-lemma bin_of_nat_end_True: "n > 0 \<Longrightarrow> ends_in True (bin_of_nat n)"
+lemma bin_of_nat_end_True[simp]: "n > 0 \<Longrightarrow> ends_in True (bin_of_nat n)"
 proof (induction n)
   case 0 thus ?case by simp
 next
@@ -121,7 +127,7 @@ qed (* case "ys = []" by *) simp
 lemma inc_len: "length xs \<le> length (inc xs)"
   by (induction xs) auto
 
-lemma bin_of_nat_len:
+lemma bin_of_nat_len[simp]:
   assumes "n > 0"
   shows "length (bin_of_nat n) > 0"
   using assms
@@ -163,7 +169,7 @@ proof -
   finally show ?thesis .
 qed
 
-lemma bin_nat_bin: "ends_in True w \<Longrightarrow> bin_of_nat (nat_of_bin w) = w"
+lemma bin_nat_bin[simp]: "ends_in True w \<Longrightarrow> bin_of_nat (nat_of_bin w) = w"
 proof (induction w)
   case (Cons a w)
   note IH = Cons.IH and prems1 = Cons.prems
@@ -240,4 +246,36 @@ proof -
   finally show ?thesis .
 qed
 
+corollary nat_of_bin_drop: "nat_of_bin (drop k xs) = (nat_of_bin xs) div 2 ^ k" 
+proof (induction k)
+  case 0
+  then show ?case by simp
+next
+  case (Suc k)
+  then show ?case
+    by (metis Suc_eq_plus1 div_exp_eq drop_Suc nat_of_bin_div2' power_one_right tl_drop)
+qed
+
+lemma bin_of_nat_app_zs:
+  assumes "n > 0"
+  shows "bin_of_nat (n * 2^k) = replicate k False @ bin_of_nat n"
+  (is "?lhs = ?zs @ ?n")
+proof -
+  from \<open>n > 0\<close> have "?n \<noteq> []" using bin_of_nat_len by simp
+  moreover from \<open>n > 0\<close> have "ends_in True ?n" by simp
+  ultimately have eTr: "ends_in True (?zs @ ?n)" unfolding ends_in_app by simp
+
+  have "?lhs = bin_of_nat (nat_of_bin ?n * 2^k)" by simp
+  also have "... = bin_of_nat (nat_of_bin (?zs @ ?n))" using nat_of_bin_app_zs by simp
+  also have "... = ?zs @ ?n" using eTr by simp
+  finally show ?thesis .
+qed
+
+
+lemma ends_in_drop:
+  assumes "k < length w"
+    and "ends_in True w"
+  shows "ends_in True (drop k w)"
+  using assms by force
+  
 end
