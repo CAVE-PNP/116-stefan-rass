@@ -464,7 +464,7 @@ proof (cases "n > 0")
 
   also have "... \<le> 2 ^ (4 + bit_length n div 2)" unfolding bit_len_eq_dlog by simp
   finally show ?thesis .
-qed simp (* case "n = 0" *)
+qed (* case "n = 0" by *) simp
 
 lemma adj_sq_diff: "next_square n - prev_square n < 2 ^ (4 + bit_length n div 2)"
   using dual_order.strict_trans2 adj_sq_diff2 adj_sq_diff1 .
@@ -612,7 +612,7 @@ proof (induct n rule: log_induct)
     also have "... = length (bin_of_word (num_of_nat n)) + 1" unfolding * ..
     finally show ?thesis by (rule sym)
   qed
-qed simp
+qed (* case "n = 1" by *) simp
 
 lemma shared_bin_prefix_refl:
   assumes "n > 0"
@@ -664,7 +664,7 @@ proof (cases "k > 0")
     moreover have "a < b \<Longrightarrow> a \<le> b - 1" for a b :: nat by force
     ultimately show "?Z^(k - 1) \<le> 2^k - 1" by blast
   qed
-qed simp
+qed (* case "k = 0" by *) simp
 
 lemma add_suffix_bin:
   fixes up lo k :: nat
@@ -914,7 +914,7 @@ qed
 corollary dlog_add1_le: "dlog (n + 1) \<le> dlog n + 1"
   by (cases "n > 0", cases "Suc n = 2 ^ dlog (Suc n)") (auto simp add: dlog_Suc)
 
-lemma shared_prefix_log_ineq: "l \<ge> 18 \<Longrightarrow> dlog l + 1 \<le> l div 2 - 4"
+lemma shared_prefix_log_ineq: "l \<ge> 18 \<Longrightarrow> dlog l \<le> l div 2 - 5"
 proof (induction l rule: nat_induct_at_least)
   case base (* l = 18 *)
   show ?case by (simp add: Discrete.log.simps)
@@ -931,24 +931,22 @@ next
     then have "even ?Sn" using dlog_Suc_ by fastforce (* TUNE *)
     then have div_eq: "?Sn div 2 = n div 2 + 1" by simp
 
-    from True have "dlog ?Sn = Suc (dlog n)" by (subst dlog_Suc_) simp
-    then have "dlog ?Sn + 1 = dlog n + 1 + 1" unfolding remove_plus1 Suc_eq_plus1 .
-    also have "... \<le> n div 2 - 4 + 1" unfolding remove_plus1 using Suc.IH .
-    also have "... = n div 2 + 1 - 4" using Suc.IH by linarith (* TUNE *)
-    also have "... = ?Sn div 2 - 4" unfolding div_eq ..
+    from True have "dlog ?Sn = (dlog n) + 1" by (subst dlog_Suc_) simp
+    also have "... \<le> n div 2 - 5 + 1" unfolding remove_plus1 using Suc.IH .
+    also have "... = n div 2 + 1 - 5" using \<open>n \<ge> 18\<close> by linarith (* TUNE *)
+    also have "... = ?Sn div 2 - 5" unfolding div_eq ..
     finally show ?thesis .
   next
     case False
     then have "dlog ?Sn = dlog n" by (subst dlog_Suc_) simp
-    then have "dlog ?Sn + 1 = dlog n + 1" unfolding remove_plus1 .
-    also have "... \<le> n div 2 - 4" unfolding remove_plus1 using Suc.IH .
-    also have "... \<le> ?Sn div 2 - 4" by simp
+    also have "... \<le> n div 2 - 5" unfolding remove_plus1 using Suc.IH .
+    also have "... \<le> ?Sn div 2 - 5" by simp
     finally show ?thesis .
   qed
 qed
 
 lemma adj_sq_shared_prefix_log:
-  assumes n_len: "bit_length n \<ge> 18" (* lower bound for "dlog l + 1 \<le> l div 2 - 4" *)
+  assumes "bit_length n \<ge> 18" (* lower bound for "dlog l + 1 \<le> l div 2 - 4" *)
   defines "l \<equiv> nat \<lceil>log 2 (bit_length n)\<rceil>"
   defines "sq \<equiv> adj_square n"
   shows "shared_bin_prefix l n sq"
@@ -957,17 +955,21 @@ proof -
   let ?bl = bit_length
   define bln where "bln = ?bl n"
   let ?lh = "bln - (4 + bln div 2)"
+  have n_len: "bln \<ge> 18" unfolding bln_def using \<open>bit_length n \<ge> 18\<close> .
 
-  from n_len have "bln \<ge> 9" unfolding bln_def by linarith
+  from n_len have "bln \<ge> 9" by linarith
   with adj_sq_shared_prefix_half have sp_lh: "?sp ?lh n sq" unfolding sq_def bln_def .
 
-  from n_len have "bln > 0" unfolding bln_def by simp
-
   have "l \<le> nat \<lfloor>log 2 bln\<rfloor> + 1" unfolding l_def bln_def by linarith
-  also have "... = dlog bln + 1"
-    unfolding log_altdef using n_len[folded bln_def] by presburger
-  also have "... \<le> bln div 2 - 4" using shared_prefix_log_ineq n_len unfolding bln_def .
+  also have "... = dlog bln + 1" unfolding log_altdef using n_len by presburger
+  also have "... \<le> bln div 2 - 4"
+  proof -
+    from n_len have h1: "bln div 2 - 4 \<ge> 1" by linarith
 
+    from shared_prefix_log_ineq n_len have "dlog bln \<le> bln div 2 - 5" .
+    then have "dlog bln \<le> bln div 2 - 4 - 1" by fastforce
+    then show ?thesis unfolding h1[THEN le_diff_conv2] .
+  qed
 
   also have "... \<le> bln - bln div 2 - 4" by simp
   also have "... = bln - (4 + bln div 2)" by simp

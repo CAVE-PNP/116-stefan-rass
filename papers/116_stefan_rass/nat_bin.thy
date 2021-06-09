@@ -96,11 +96,8 @@ qed
 
 lemma bin_of_nat_end_True[simp]: "n > 0 \<Longrightarrow> ends_in True (bin_of_nat n)"
 proof (induction n)
-  case 0 thus ?case by simp
-next
-  case (Suc n)
-  then show ?case by (cases n) (auto simp add: inc_end_True)
-qed
+  case (Suc n) thus ?case by (cases n) (simp_all add: inc_end_True)
+qed (* case "n = 0" by *) simp
 
 
 (* more lemmas about ends_in *)
@@ -141,8 +138,18 @@ next
   finally show ?case .
 qed
 
+lemma bin_of_nat_len_mono:
+  "mono (\<lambda>w. length (bin_of_nat w))"
+  (is "mono (\<lambda>w. ?lb w)")
+proof (subst mono_iff_le_Suc, intro allI)
+  fix n
+  have "?lb n \<le> length (inc (bin_of_nat n))" using inc_len .
+  also have "... = ?lb (Suc n)" by simp
+  finally show "?lb n \<le> ?lb (Suc n)" .
+qed
+
 lemma ends_in_True_Cons: "ends_in True (a # w) \<Longrightarrow> w \<noteq> [] \<Longrightarrow> ends_in True w"
-  by (metis append_butlast_last_id last.simps last_ConsR last_snoc list.sel(3) tl_append2)
+  by (simp add: Cons_eq_append_conv)
 
 lemma double_inc: "xs \<noteq> [] \<Longrightarrow> inc (inc (x # xs)) = x # (inc xs)" by force 
 
@@ -199,29 +206,33 @@ proof (induction w)
       finally show ?thesis .
     qed
   qed
-qed simp
+qed (* case "w = []" by *) simp
 
 lemma bin_of_nat_div2: "bin_of_nat (n div 2) = tl (bin_of_nat n)"
 proof (cases "n > 1")
   case False
-  then have "n = 0 \<or> n = 1" by (cases n) auto
+  then have "n = 0 \<or> n = 1" by fastforce
   then show ?thesis by (elim disjE) auto
 next
   case True
-
   define w where "w \<equiv> bin_of_nat n"
-  then have "nat_of_bin w = nat_of_bin (bin_of_nat n)" by simp
+  have "nat_of_bin w = nat_of_bin (bin_of_nat n)" unfolding w_def ..
   then have wI: "nat_of_bin w = n" by simp
 
-  have eTw: "ends_in True w" unfolding w_def using bin_of_nat_end_True \<open>n > 1\<close> by simp
+  from \<open>n > 1\<close> have "n \<ge> 2" by simp
+  have "1 < length (bin_of_nat 2)" unfolding numeral_2_eq_2 by simp
+  also have "... \<le> length w" unfolding w_def using bin_of_nat_len_mono \<open>n \<ge> 2\<close> ..
+  finally have "length w > 1" .
 
-  (* TODO remove metis *)
-  from \<open>n > 1\<close> have "length w \<ge> 2"
-    by (metis (mono_tags, lifting) Suc_1 Suc_leI less_trans_Suc nat_of_bin_max one_less_numeral_iff power_one_right power_strict_increasing_iff semiring_norm(76) wI)
-  then have "tl w \<noteq> []"
-    by (metis Suc_1 Suc_le_length_iff butlast.simps(1) butlast_snoc butlast_tl dual_order.order_iff_strict eTw less_imp_Suc_add list.sel(3) not_Cons_self2 one_le_numeral plus_1_eq_Suc self_append_conv tl_append2)
-  with eTw have "ends_in True (hd w # tl w)" by force
-  with ends_in_True_Cons have eTtw: "ends_in True (tl w)" using \<open>tl w \<noteq> []\<close> .
+  with less_trans zero_less_one have "w \<noteq> []" by (fold length_greater_0_conv)
+  with hd_Cons_tl have w_split: "hd w # tl w = w" .
+
+  have eTw: "ends_in True w" unfolding w_def using bin_of_nat_end_True \<open>n > 1\<close> by simp
+  then have "ends_in True (hd w # tl w)" unfolding w_split .
+
+  from \<open>length w > 1\<close> have "length (tl w) > 0" unfolding length_tl less_diff_conv add_0 .
+  then have "tl w \<noteq> []" unfolding length_greater_0_conv .
+  with ends_in_True_Cons[of "hd w" "tl w"] eTw have eTtw: "ends_in True (tl w)" unfolding w_split .
 
   have "bin_of_nat (n div 2) = bin_of_nat (nat_of_bin w div 2)" unfolding wI ..
   also have "... = bin_of_nat (nat_of_bin (tl w))" using nat_of_bin_div2' by simp
@@ -246,15 +257,17 @@ proof -
   finally show ?thesis .
 qed
 
-corollary nat_of_bin_drop: "nat_of_bin (drop k xs) = (nat_of_bin xs) div 2 ^ k" 
+corollary nat_of_bin_drop: "nat_of_bin (drop k xs) = (nat_of_bin xs) div 2 ^ k"
+  (is "?n (drop k xs) = (?n xs) div 2 ^ k")
 proof (induction k)
-  case 0
-  then show ?case by simp
-next
   case (Suc k)
-  then show ?case
-    by (metis Suc_eq_plus1 div_exp_eq drop_Suc nat_of_bin_div2' power_one_right tl_drop)
-qed
+  have "?n (drop (Suc k) xs) = ?n (tl (drop k xs))" unfolding drop_Suc drop_tl ..
+  also have "... = ?n (drop k xs) div 2" unfolding nat_of_bin_div2' ..
+  also have "... = ?n xs div 2 ^ k div 2" unfolding Suc.IH ..
+  also have "... = ?n xs div (2 ^ k * 2)" unfolding div_mult2_eq ..
+  also have "... = ?n xs div 2 ^ Suc k" unfolding power_Suc2 ..
+  finally show ?case .
+qed (* case "k = 0" by *) simp
 
 lemma bin_of_nat_app_zs:
   assumes "n > 0"
