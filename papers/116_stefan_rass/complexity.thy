@@ -18,8 +18,17 @@ definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> tprog0 \<Ri
 
 text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>\<close>
 definition time :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat option"
-  where "time p tp = 
-    (if \<exists>n. is_final (steps0 (1, tp) p n) then Some (LEAST n. is_final (steps0 (1, tp) p n)) else None)"
+  where "time p tp = (
+    if \<exists>n. is_final (steps0 (1, tp) p n)
+      then Some (LEAST n. is_final (steps0 (1, tp) p n))
+      else None
+    )"
+
+lemma least_p:
+  fixes P and n::nat
+  assumes "n = (LEAST m. P n)"
+  shows "P n"
+sorry
 
 lemma "time_restricted T p \<longleftrightarrow> (\<forall>tp. the (time p tp) \<le> T (tape_size tp))"
 proof (intro iffI allI)
@@ -33,9 +42,18 @@ proof (intro iffI allI)
   also note \<open>n \<le> T (tape_size tp)\<close>
   finally show "the (time p tp) \<le> T (tape_size tp)" .
 next
-  assume "\<forall>tp. the (time p tp) \<le> T (tape_size tp)"
-  then show "time_restricted T p" unfolding time_def time_restricted_def sorry
-  oops
+  assume assm: "\<forall>tp. the (time p tp) \<le> T (tape_size tp)"
+  show "time_restricted T p" unfolding time_restricted_def proof
+    fix tp
+    define n where "n \<equiv> the (time p tp)"
+    from assm have "time p tp \<noteq> None" sorry
+    then have "n = (LEAST m. is_final (steps0 (1, tp) p m))" using n_def time_def by auto
+    then have C1: "is_final (steps0 (1, tp) p n)" using least_p by metis
+    from assm have C2: "n \<le> T(tape_size tp)" unfolding n_def ..
+    show "\<exists>n\<le>T (tape_size tp). is_final (steps0 (1, tp) p n)" using C1 C2 by auto
+  qed
+qed
+
 
 
 subsection\<open>Encoding\<close>
