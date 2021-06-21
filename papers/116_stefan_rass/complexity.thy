@@ -92,45 +92,43 @@ qed (* cases "cs = []", "cs = Bk # _", "cs = [_]" by *) simp_all
 
 subsection\<open>Deciding Languages\<close>
 
-\<comment> \<open>TODO \<^term>\<open>L\<close> is recognized as the constant of type \<^typ>\<open>action\<close> ("move head left").
-    Since \<open>L\<close> is a typical name for unspecified languages in the literature, 
-    being unable to use it as variable name is annoying.\<close>
+hide_const (open) L
 
-text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^term>\<open>l\<close>, iff for every possible word \<^term>\<open>w\<close>
+text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^term>\<open>L\<close>, iff for every possible word \<^term>\<open>w\<close>
   it correctly calculates language membership. 
-  That is, for \<^term>\<open>w \<in> l\<close> the computation results in \<^term>\<open>Oc\<close> under the TM head, 
-  and for \<^term>\<open>w \<notin> l\<close> in \<^term>\<open>Bk\<close>.
+  That is, for \<^term>\<open>w \<in> L\<close> the computation results in \<^term>\<open>Oc\<close> under the TM head, 
+  and for \<^term>\<open>w \<notin> L\<close> in \<^term>\<open>Bk\<close>.
   The head is over the first cell of the right tape. 
-  That is for \<^term>\<open>tp = (l, x # r)\<close>, the symbol under the head is \<open>x\<close>, or \<open>hd (snd tp)\<close>\<close>
-definition decides :: "lang \<Rightarrow> tprog0 \<Rightarrow> bool" 
-  where "decides l p \<equiv> \<forall>w. Hoare_halt
-    (\<lambda>tp. tp = ([], encode_word w)) p (\<lambda>tp. hd (snd tp) = (if w \<in> l then Oc else Bk))"
+  That is for \<^term>\<open>tp = (L, x # r)\<close>, the symbol under the head is \<open>x\<close>, or \<open>hd (snd tp)\<close>\<close>
+definition decides :: "lang \<Rightarrow> tprog0 \<Rightarrow> bool"
+  where "decides L p \<equiv> \<forall>w. Hoare_halt
+    (\<lambda>tp. tp = ([], encode_word w)) p (\<lambda>tp. hd (snd tp) = (if w \<in> L then Oc else Bk))"
 
-(* TODO (?) notation: \<open>l decides p\<close> *)
+(* TODO (?) notation: \<open>p decides L\<close> *)
 
 
 subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
 definition DTIME :: "(nat \<Rightarrow> nat) \<Rightarrow> lang set"
-  where "DTIME T \<equiv> {l. \<exists>p. decides l p \<and> time_restricted T p}"
+  where "DTIME T \<equiv> {L. \<exists>p. decides L p \<and> time_restricted T p}"
 
 lemma in_dtimeI[intro]:
-  assumes "decides l p"
+  assumes "decides L p"
     and "time_restricted T p"
-  shows "l \<in> DTIME T"
+  shows "L \<in> DTIME T"
   unfolding DTIME_def using assms by blast
 
 lemma in_dtimeE[elim]:
-  assumes "l \<in> DTIME T"
+  assumes "L \<in> DTIME T"
   obtains p
-  where "decides l p" 
+  where "decides L p" 
     and "time_restricted T p"
   using assms unfolding DTIME_def by blast
 
 lemma in_dtimeE'[elim]:
-  assumes "l \<in> DTIME T"
-  shows "\<exists>p. decides l p \<and> time_restricted T p"
+  assumes "L \<in> DTIME T"
+  shows "\<exists>p. decides L p \<and> time_restricted T p"
   using assms unfolding DTIME_def ..
 
 
