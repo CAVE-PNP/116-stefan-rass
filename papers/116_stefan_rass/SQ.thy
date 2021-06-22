@@ -964,8 +964,7 @@ theorem adj_sq_shared_prefix_log:
   shows "shared_bin_prefix l n sq"
   (is "?sp l n sq")
 proof -
-  let ?bl = bit_length
-  define bln where "bln = ?bl n"
+  define bln where "bln = bit_length n"
   let ?lh = "bln - (4 + bln div 2)"
   have n_len: "bln \<ge> 18" unfolding bln_def using \<open>bit_length n \<ge> 18\<close> .
 
