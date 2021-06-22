@@ -24,6 +24,13 @@ definition time :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat option"
       else None
     )"
 
+
+lemma least_p:
+  fixes P and n::nat
+  assumes "n = (LEAST m. P n)"
+  shows "P n"
+sorry
+
 lemma time_restricted_altdef:
   "time_restricted T p \<longleftrightarrow> (\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp))" 
   unfolding time_restricted_def
