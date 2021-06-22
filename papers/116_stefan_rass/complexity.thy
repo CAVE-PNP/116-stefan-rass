@@ -24,36 +24,39 @@ definition time :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat option"
       else None
     )"
 
-lemma least_p:
-  fixes P and n::nat
-  assumes "n = (LEAST m. P n)"
-  shows "P n"
-sorry
-
-lemma "time_restricted T p \<longleftrightarrow> (\<forall>tp. the (time p tp) \<le> T (tape_size tp))"
-proof (intro iffI allI)
+lemma time_restricted_altdef:
+  "time_restricted T p \<longleftrightarrow> (\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp))" 
+  unfolding time_restricted_def
+proof (intro iffI allI exI conjI)
   fix tp
-  assume "time_restricted T p"
-  then have e: "\<exists>n. n \<le> T (tape_size tp) \<and> is_final (steps0 (1, tp) p n)" unfolding time_restricted_def ..
+  assume (* time_restricted T p *) "\<forall>tp. \<exists>n\<le>T (tape_size tp). is_final (steps0 (1, tp) p n)"
+  then have e: "\<exists>n. n \<le> T (tape_size tp) \<and> is_final (steps0 (1, tp) p n)" ..
   then obtain n where "n \<le> T (tape_size tp)" and nH: "is_final (steps0 (1, tp) p n)" by blast
 
-  have "the (time p tp) = (LEAST n. is_final (steps0 (1, tp) p n))" unfolding time_def using e by auto
-  also have "... \<le> n" using Least_le nH .
+  let ?f = "LEAST n. is_final (steps0 (1, tp) p n)"
+
+  from e have "\<exists>n. is_final (steps0 (1, tp) p n)" by blast
+  then show "time p tp = Some ?f" unfolding time_def by (rule if_P)
+
+  have "?f \<le> n" using Least_le nH .
   also note \<open>n \<le> T (tape_size tp)\<close>
-  finally show "the (time p tp) \<le> T (tape_size tp)" .
+  finally show "?f \<le> T (tape_size tp)" .
 next
-  assume assm: "\<forall>tp. the (time p tp) \<le> T (tape_size tp)"
-  show "time_restricted T p" unfolding time_restricted_def proof
-    fix tp
-    define n where "n \<equiv> the (time p tp)"
-    from assm have "time p tp \<noteq> None" sorry
-    then have "n = (LEAST m. is_final (steps0 (1, tp) p m))" using n_def time_def by auto
-    then have C1: "is_final (steps0 (1, tp) p n)" using least_p by metis
-    from assm have C2: "n \<le> T(tape_size tp)" unfolding n_def ..
-    show "\<exists>n\<le>T (tape_size tp). is_final (steps0 (1, tp) p n)" using C1 C2 by auto
-  qed
+  fix tp
+  assume assm: "\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp)"
+  then obtain n where a: "time p tp = Some n" and b: "n \<le> T (tape_size tp)" by blast
+
+  let ?f = "LEAST n. is_final (steps0 (1, tp) p n)"
+
+  from a have n: "?f = n" unfolding time_def
+    by (metis option.discI option.inject)
+  show "is_final (steps0 (1, tp) p ?f)" unfolding n using least_p by metis
+  show "?f \<le> T (tape_size tp)" unfolding n using b .
 qed
 
+corollary "time_restricted T p \<Longrightarrow> (\<forall>tp. \<exists>n. the (time p tp) \<le> T (tape_size tp))"
+  unfolding time_restricted_altdef
+  by (metis option.sel)
 
 
 subsection\<open>Encoding\<close>
@@ -92,17 +95,20 @@ qed (* cases "cs = []", "cs = Bk # _", "cs = [_]" by *) simp_all
 
 subsection\<open>Deciding Languages\<close>
 
+\<comment> \<open>Since \<open>L\<close> is a typical name for unspecified languages in the literature, 
+    the synonymous constructor \<^term>\<open>L\<close> of type \<^typ>\<open>action\<close> ("move head left") is hidden.\<close>
 hide_const (open) L
 
 text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^term>\<open>L\<close>, iff for every possible word \<^term>\<open>w\<close>
-  it correctly calculates language membership. 
-  That is, for \<^term>\<open>w \<in> L\<close> the computation results in \<^term>\<open>Oc\<close> under the TM head, 
+  it correctly calculates language membership.
+  That is, for \<^term>\<open>w \<in> L\<close> the computation results in \<^term>\<open>Oc\<close> under the TM head,
   and for \<^term>\<open>w \<notin> L\<close> in \<^term>\<open>Bk\<close>.
-  The head is over the first cell of the right tape. 
-  That is for \<^term>\<open>tp = (L, x # r)\<close>, the symbol under the head is \<open>x\<close>, or \<open>hd (snd tp)\<close>\<close>
+  The head is over the first cell of the right tape.
+  That is for \<^term>\<open>tp = (L, x # r)\<close>, the symbol under the head is \<open>x\<close>, or \<^term>\<open>read (snd tp)\<close>.
+  Additionally (through \<^term>\<open>read\<close>), the edge of the tape is interpreted as \<^term>\<open>Bk\<close>.\<close>
 definition decides :: "lang \<Rightarrow> tprog0 \<Rightarrow> bool"
   where "decides L p \<equiv> \<forall>w. Hoare_halt
-    (\<lambda>tp. tp = ([], encode_word w)) p (\<lambda>tp. hd (snd tp) = (if w \<in> L then Oc else Bk))"
+    (\<lambda>tp. tp = ([], encode_word w)) p (\<lambda>tp. read (snd tp) = (if w \<in> L then Oc else Bk))"
 
 (* TODO (?) notation: \<open>p decides L\<close> *)
 
