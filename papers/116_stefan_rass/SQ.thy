@@ -84,6 +84,8 @@ abbreviation is_square :: "nat \<Rightarrow> bool" where
 
 corollary next_sq_correct1: "is_square (next_square n)" by simp
 
+lemma next_sq_gt0: "next_square n > 0" by simp
+
 lemma next_sq_eq: "n > 0 \<Longrightarrow> is_square n \<Longrightarrow> next_square n = n"
 proof -
   assume "n > 0" and "is_square n"
@@ -484,6 +486,16 @@ definition adj_square :: "nat \<Rightarrow> nat"
   where "adj_square n = next_square (n - n mod 2^(suffix_len n))"
 
 declare suffix_len_def[simp] adj_square_def[simp]
+
+lemma adj_sq_correct: "is_square (adj_square n)"
+  unfolding adj_square_def using next_sq_correct1 .
+
+lemma adj_sq_correct': "num_of_nat (adj_square n) \<in> SQ" unfolding SQ_def
+proof (intro CollectI)
+  have "adj_square n > 0" unfolding adj_square_def using next_sq_gt0 .
+  with num_of_nat_inverse have gn_nat: "gn (num_of_nat (adj_square n)) = adj_square n" unfolding gn_def .
+  show "is_square (gn (num_of_nat (adj_square n)))" unfolding gn_nat using adj_sq_correct .
+qed
 
 definition bin_prefix :: "bin \<Rightarrow> nat \<Rightarrow> bool"
   where "bin_prefix ps n \<equiv> suffix ps (bin_of_nat n)"
@@ -945,7 +957,7 @@ next
   qed
 qed
 
-lemma adj_sq_shared_prefix_log:
+theorem adj_sq_shared_prefix_log:
   assumes "bit_length n \<ge> 18" (* lower bound for "dlog l + 1 \<le> l div 2 - 4" *)
   defines "l \<equiv> nat \<lceil>log 2 (bit_length n)\<rceil>"
   defines "sq \<equiv> adj_square n"
@@ -977,17 +989,21 @@ proof -
   with shared_prefix_len sp_lh show "?sp l n sq" .
 qed
 
-lemma shared_prefix:
-(*
- \<open>n\<close> and \<open>adj_square n\<close> share a common prefix \<open>ps\<close> with a min length of \<open>\<lceil>log 2 (bit_length n)\<rceil>.\<close>
- The universal TM on input \<open>w\<close> only cares about the most \<open>\<lceil>log 2 w\<rceil>\<close> bits.
- Thus using \<open>adj_square n\<close> instead of \<open>n\<close> does not change the computation.
-*)
+corollary adj_sq_shared_prefix_log':
   assumes "bit_length n \<ge> 18"
-  obtains ps
-  where "suffix ps (bin_of_nat n)"
-    and "suffix ps (bin_of_nat (adj_square n))"
-    and "length ps \<ge> \<lceil>log 2 (bit_length n)\<rceil>"
-  sorry
+  defines "l \<equiv> nat \<lceil>log 2 (bit_length n)\<rceil>"
+  obtains w where "w \<in> SQ"
+    and "shared_bin_prefix l n (gn w)"
+proof
+  let ?sp = shared_bin_prefix and ?bln = "bit_length n" and ?sq = "adj_square n"
+  let ?w = "num_of_nat ?sq"
+  define w where "w = num_of_nat ?sq"
+
+  have "?sq > 0" unfolding adj_square_def using next_sq_gt0 .
+  with num_of_nat_inverse have gn_nat: "gn ?w = ?sq" unfolding gn_def .
+
+  show "?w \<in> SQ" using adj_sq_correct' .
+  show "?sp l n (gn ?w)" unfolding l_def gn_nat using adj_sq_shared_prefix_log \<open>?bln \<ge> 18\<close> .
+qed
 
 end
