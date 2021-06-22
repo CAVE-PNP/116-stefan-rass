@@ -127,4 +127,12 @@ Gives `No type variable in part of specification element fixes k :: "nat"`.
 
 #### Importing "Universal_Turing_Machine.UTM" takes very long every time I open the file. How can I cache the compilation?
 
+The following requires the AFP libraries to be set up and accessible to Isabelle (see [Referring to AFP Entries](https://www.isa-afp.org/using.html)).
+Open the Theories panel (docked on the right by default, otherwise open with `Plugins > Isabelle > Theories panel`),
+and select `Universal_Turing_Machine` in the drop-down box.
+Restart Isabelle/jEdit.
+The library is compiled once, and will load near-instantly for subsequent launches.
+
+See the section on [Imports](max_notes/isabelle.md#imports) in the notes on Isabelle for more information.
+
 Use `locale` instead of `class`.
