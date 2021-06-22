@@ -24,41 +24,34 @@ definition time :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat option"
       else None
     )"
 
-
-lemma least_p:
-  fixes P and n::nat
-  assumes "n = (LEAST m. P n)"
-  shows "P n"
-sorry
-
 lemma time_restricted_altdef:
   "time_restricted T p \<longleftrightarrow> (\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp))" 
-  unfolding time_restricted_def
+  unfolding time_restricted_def (* in order for the intros to work in direction "\<Longleftarrow>" *)
 proof (intro iffI allI exI conjI)
   fix tp
-  assume (* time_restricted T p *) "\<forall>tp. \<exists>n\<le>T (tape_size tp). is_final (steps0 (1, tp) p n)"
-  then have e: "\<exists>n. n \<le> T (tape_size tp) \<and> is_final (steps0 (1, tp) p n)" ..
-  then obtain n where "n \<le> T (tape_size tp)" and nH: "is_final (steps0 (1, tp) p n)" by blast
+  let ?f = "\<lambda>n. is_final (steps0 (1, tp) p n)" let ?lf = "LEAST n. ?f n"
 
-  let ?f = "LEAST n. is_final (steps0 (1, tp) p n)"
+  assume (* time_restricted T p *) "\<forall>tp. \<exists>n \<le> T (tape_size tp). is_final (steps0 (1, tp) p n)"
+  then have n_ex: "\<exists>n. n \<le> T (tape_size tp) \<and> ?f n" ..
+  then obtain n where "n \<le> T (tape_size tp)" and "?f n" by blast
 
-  from e have "\<exists>n. is_final (steps0 (1, tp) p n)" by blast
-  then show "time p tp = Some ?f" unfolding time_def by (rule if_P)
-
-  have "?f \<le> n" using Least_le nH .
+  from n_ex have "\<exists>n. ?f n" by blast
+  then show "time p tp = Some ?lf" unfolding time_def by (rule if_P)
+  have "?lf \<le> n" using Least_le \<open>?f n\<close> .
   also note \<open>n \<le> T (tape_size tp)\<close>
-  finally show "?f \<le> T (tape_size tp)" .
+  finally show "?lf \<le> T (tape_size tp)" .
 next
   fix tp
-  assume assm: "\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp)"
-  then obtain n where a: "time p tp = Some n" and b: "n \<le> T (tape_size tp)" by blast
+  let ?f = "\<lambda>n. is_final (steps0 (1, tp) p n)" let ?lf = "LEAST n. ?f n"
 
-  let ?f = "LEAST n. is_final (steps0 (1, tp) p n)"
+  assume "\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp)"
+  then obtain n where n_some: "time p tp = Some n" and n_le: "n \<le> T (tape_size tp)" by blast
 
-  from a have n: "?f = n" unfolding time_def
-    by (metis option.discI option.inject)
-  show "is_final (steps0 (1, tp) p ?f)" unfolding n using least_p by metis
-  show "?f \<le> T (tape_size tp)" unfolding n using b .
+  have n_ex: "\<exists>n. ?f n" by (metis n_some option.discI time_def)
+  with n_some have "?lf = n" unfolding time_def by simp
+
+  show "?f ?lf" using LeastI_ex n_ex .
+  show "?lf \<le> T (tape_size tp)" unfolding \<open>?lf = n\<close> using n_le .
 qed
 
 corollary "time_restricted T p \<Longrightarrow> (\<forall>tp. \<exists>n. the (time p tp) \<le> T (tape_size tp))"
