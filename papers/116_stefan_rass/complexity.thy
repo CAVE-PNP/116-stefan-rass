@@ -59,7 +59,7 @@ corollary "time_restricted T p \<Longrightarrow> (\<forall>tp. \<exists>n. the (
   by (metis option.sel)
 
 
-subsection\<open>Encoding\<close>
+subsection\<open>Encoding Words\<close>
 
 text\<open>Encoding binary words as TM tape cells: \<^term>\<open>Num.Bit1\<close> is encoded as \<^term>\<open>[Oc, Oc]\<close> and \<^term>\<open>Num.Bit1\<close> as term>\<open>[Oc, Bk]\<close>.
   Thus, the ends of an encoded term can be marked with the pattern \<^term>\<open>[Bk, Bk]\<close>.\<close>
@@ -104,11 +104,31 @@ text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^t
   That is, for \<^term>\<open>w \<in> L\<close> the computation results in \<^term>\<open>Oc\<close> under the TM head,
   and for \<^term>\<open>w \<notin> L\<close> in \<^term>\<open>Bk\<close>.
   The head is over the first cell of the right tape.
-  That is for \<^term>\<open>tp = (L, x # r)\<close>, the symbol under the head is \<open>x\<close>, or \<^term>\<open>read (snd tp)\<close>.
+  That is, for \<^term>\<open>tp = (L, x # r)\<close>, the symbol under the head is \<open>x\<close>, or \<^term>\<open>read (snd tp)\<close>.
   Additionally (through \<^term>\<open>read\<close>), the edge of the tape is interpreted as \<^term>\<open>Bk\<close>.\<close>
+
+definition accepts :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
+  where "accepts M w \<equiv> Hoare_halt (\<lambda>tp. tp = ([], encode_word w)) M (\<lambda>tp. read (snd tp) = Oc)"
+
+definition rejects :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
+  where "rejects M w \<equiv> \<not> accepts M w"
+
 definition decides :: "lang \<Rightarrow> tprog0 \<Rightarrow> bool"
-  where "decides L p \<equiv> \<forall>w. Hoare_halt
-    (\<lambda>tp. tp = ([], encode_word w)) p (\<lambda>tp. read (snd tp) = (if w \<in> L then Oc else Bk))"
+  where "decides L M \<equiv> \<forall>w. if w \<in> L then accepts M w else rejects M w"
+
+lemma rejects_altdef:
+  "rejects M w = Hoare_halt (\<lambda>tp. tp = ([], encode_word w)) M (\<lambda>tp. read (snd tp) = Bk)"
+proof -
+  let ?acc = "\<lambda>tp. read (snd tp) = Oc" and ?rej = "\<lambda>tp. read (snd tp) = Bk"
+  have "\<forall>tp. ?acc tp \<longleftrightarrow> \<not> ?rej tp"
+    by (metis cell.distinct(1) cell.exhaust)
+  oops
+
+lemma decides_altdef:
+  "decides L p \<longleftrightarrow> (\<forall>w. Hoare_halt
+    (\<lambda>tp. tp = ([], encode_word w)) p (\<lambda>tp. read (snd tp) = (if w \<in> L then Oc else Bk)))"
+  (is "decides L p \<longleftrightarrow> (\<forall>w. Hoare_halt (?l w) p (?r w))")
+  oops
 
 (* TODO (?) notation: \<open>p decides L\<close> *)
 
@@ -137,5 +157,16 @@ lemma in_dtimeE'[elim]:
   shows "\<exists>p. decides L p \<and> time_restricted T p"
   using assms unfolding DTIME_def ..
 
+
+subsection\<open>Encoding TMs\<close>
+
+definition is_encoded_TM :: "word \<Rightarrow> bool"
+  where "is_encoded_TM w = (\<exists>M. code M = gn w)"
+
+definition decode_TM :: "word \<Rightarrow> tprog0"
+  where "decode_TM w = (THE M. code M = gn w)"
+
+definition Rejecting_TM :: tprog0
+  where "Rejecting_TM = [(W0, 0), (W0, 0)]"
 
 end
