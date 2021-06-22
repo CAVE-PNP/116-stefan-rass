@@ -125,4 +125,6 @@ end
 ```
 Gives `No type variable in part of specification element fixes k :: "nat"`.
 
+#### Importing "Universal_Turing_Machine.UTM" takes very long every time I open the file. How can I cache the compilation?
+
 Use `locale` instead of `class`.
