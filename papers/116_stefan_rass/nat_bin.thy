@@ -140,16 +140,21 @@ qed
 
 lemma nat_of_bin_shift_left_one_n: "nat_of_bin (replicate n True @ xs) = nat_of_bin(xs) * 2^n + 2^n - 1"
 proof (induction n)
-  case 0
-  then show ?case by simp
-next
   case (Suc n)
+
+  have h1: "c \<ge> a \<Longrightarrow> a \<ge> b \<Longrightarrow> c - a + b = c - (a - b)" for a b c ::nat by simp
+  have h2: "nat_of_bin xs * 2^(Suc n) + 2^(Suc n) \<ge> 2" by (intro trans_le_add2) simp
+  note h3 = h2[THEN h1]
+
   have "nat_of_bin (replicate (Suc n) True @ xs) = nat_of_bin (True # replicate n True @ xs)" by simp
-  also have "\<dots> = 2 * (nat_of_bin xs * 2 ^ n + 2 ^ n - 1) + 1" using Suc.IH by simp
-  also have "\<dots> = nat_of_bin xs * 2^(Suc n) + 2 ^ (Suc n) - 1"
-    by (smt (z3) Suc_eq_plus1 add_Suc_right diff_Suc_1 distrib_left le_add_diff_inverse mult.commute mult_2 one_le_numeral one_le_power plus_1_eq_Suc power_Suc)
+  also have "\<dots> = 2 * (nat_of_bin xs * 2^n + 2^n - 1) + 1" using Suc.IH by simp
+  also have "\<dots> = 2 * (nat_of_bin xs * 2^n + 2^n) - 2 + 1" unfolding diff_mult_distrib2 by simp
+  also have "\<dots> = nat_of_bin xs * 2 * 2^n + 2 * 2^n - 2 + 1"
+    unfolding add_mult_distrib2 mult.assoc[symmetric] by (subst mult.commute) rule
+  also have "\<dots> = nat_of_bin xs * 2^(Suc n) + 2^(Suc n) - 2 + 1" unfolding power_Suc mult.assoc ..
+  also have "\<dots> = nat_of_bin xs * 2^(Suc n) + 2^(Suc n) - 1" by (subst h3) simp_all
   finally show ?case .
-qed
+qed (* case "n = 0" by *) simp
 
 lemma hd_one_nonzero:
   fixes xs
