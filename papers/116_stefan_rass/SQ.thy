@@ -989,6 +989,7 @@ proof -
 qed
 
 corollary adj_sq_shared_prefix_log':
+  fixes n
   assumes "bit_length n \<ge> 18"
   defines "l \<equiv> nat \<lceil>log 2 (bit_length n)\<rceil>"
   obtains w where "w \<in> SQ"
