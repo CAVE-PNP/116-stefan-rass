@@ -138,6 +138,24 @@ next
   finally show ?case .
 qed
 
+lemma nat_of_bin_shift_left_one_n: "nat_of_bin (replicate n True @ xs) = nat_of_bin(xs) * 2^n + 2^n - 1"
+proof (induction n)
+  case 0
+  then show ?case by simp
+next
+  case (Suc n)
+  have "nat_of_bin (replicate (Suc n) True @ xs) = nat_of_bin (True # replicate n True @ xs)" by simp
+  also have "\<dots> = 2 * (nat_of_bin xs * 2 ^ n + 2 ^ n - 1) + 1" using Suc.IH by simp
+  also have "\<dots> = nat_of_bin xs * 2^(Suc n) + 2 ^ (Suc n) - 1"
+    by (smt (z3) Suc_eq_plus1 add_Suc_right diff_Suc_1 distrib_left le_add_diff_inverse mult.commute mult_2 one_le_numeral one_le_power plus_1_eq_Suc power_Suc)
+  finally show ?case .
+qed
+
+lemma hd_one_nonzero:
+  fixes xs
+  shows "1 \<le> nat_of_bin (True # xs)"
+by simp
+
 lemma bin_of_nat_len_mono:
   "mono (\<lambda>w. length (bin_of_nat w))"
   (is "mono (\<lambda>w. ?lb w)")
