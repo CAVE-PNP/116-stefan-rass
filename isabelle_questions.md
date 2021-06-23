@@ -96,8 +96,7 @@ will use the `standard` tactic to generate more useful goals, but will sometimes
 similarly, `induction` and `cases` can only provide assumptions in the `case.prems` when they are made available to the openings.
 
 #### How to make `simp` use specific facts by default?
-
-add the attribute `[simp]` to the fact definition, or use `declare` to manually specify attributes. (see `tutorial.pdf` ch 3.1.2 _Simplification Rules_ and `isar-ref.pdf` ch 3.3.9 _Attributes and theorems_)
+Add the attribute `[simp]` to the fact definition, or use `declare` to manually specify attributes. (see `tutorial.pdf` ch 3.1.2 _Simplification Rules_ and `isar-ref.pdf` ch 3.3.9 _Attributes and theorems_)
 
 ```isabelle
 lemma MyLemma[simp]: "1 + 1 = 2" by simp
@@ -124,6 +123,7 @@ begin
 end
 ```
 Gives `No type variable in part of specification element fixes k :: "nat"`.
+Solution: Use `locale` instead of `class`.
 
 #### Importing "Universal_Turing_Machine.UTM" takes very long every time I open the file. How can I cache the compilation?
 
@@ -134,5 +134,3 @@ Restart Isabelle/jEdit.
 The library is compiled once, and will load near-instantly for subsequent launches.
 
 See the section on [Imports](max_notes/isabelle.md#imports) in the notes on Isabelle for more information.
-
-Use `locale` instead of `class`.

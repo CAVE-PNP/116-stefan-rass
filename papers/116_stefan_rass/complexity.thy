@@ -99,36 +99,24 @@ subsection\<open>Deciding Languages\<close>
     the synonymous constructor \<^term>\<open>L\<close> of type \<^typ>\<open>action\<close> ("move head left") is hidden.\<close>
 hide_const (open) L
 
+abbreviation head where "head tp \<equiv> read (snd tp)"
+
 text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^term>\<open>L\<close>, iff for every possible word \<^term>\<open>w\<close>
   it correctly calculates language membership.
   That is, for \<^term>\<open>w \<in> L\<close> the computation results in \<^term>\<open>Oc\<close> under the TM head,
   and for \<^term>\<open>w \<notin> L\<close> in \<^term>\<open>Bk\<close>.
   The head is over the first cell of the right tape.
-  That is, for \<^term>\<open>tp = (L, x # r)\<close>, the symbol under the head is \<open>x\<close>, or \<^term>\<open>read (snd tp)\<close>.
+  That is, for \<^term>\<open>tp = (l, x # r)\<close>, the symbol under the head is \<open>x\<close>, or \<^term>\<open>read (snd tp)\<close>.
   Additionally (through \<^term>\<open>read\<close>), the edge of the tape is interpreted as \<^term>\<open>Bk\<close>.\<close>
 
 definition accepts :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
-  where "accepts M w \<equiv> Hoare_halt (\<lambda>tp. tp = ([], encode_word w)) M (\<lambda>tp. read (snd tp) = Oc)"
+  where "accepts M w \<equiv> Hoare_halt (\<lambda>tp. tp = ([], encode_word w)) M (\<lambda>tp. head tp = Oc)"
 
 definition rejects :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
-  where "rejects M w \<equiv> \<not> accepts M w"
+  where "rejects M w \<equiv> Hoare_halt (\<lambda>tp. tp = ([], encode_word w)) M (\<lambda>tp. head tp = Bk)"
 
 definition decides :: "lang \<Rightarrow> tprog0 \<Rightarrow> bool"
-  where "decides L M \<equiv> \<forall>w. if w \<in> L then accepts M w else rejects M w"
-
-lemma rejects_altdef:
-  "rejects M w = Hoare_halt (\<lambda>tp. tp = ([], encode_word w)) M (\<lambda>tp. read (snd tp) = Bk)"
-proof -
-  let ?acc = "\<lambda>tp. read (snd tp) = Oc" and ?rej = "\<lambda>tp. read (snd tp) = Bk"
-  have "\<forall>tp. ?acc tp \<longleftrightarrow> \<not> ?rej tp"
-    by (metis cell.distinct(1) cell.exhaust)
-  oops
-
-lemma decides_altdef:
-  "decides L p \<longleftrightarrow> (\<forall>w. Hoare_halt
-    (\<lambda>tp. tp = ([], encode_word w)) p (\<lambda>tp. read (snd tp) = (if w \<in> L then Oc else Bk)))"
-  (is "decides L p \<longleftrightarrow> (\<forall>w. Hoare_halt (?l w) p (?r w))")
-  oops
+  where "decides L M \<equiv> \<forall>w. (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
 
 (* TODO (?) notation: \<open>p decides L\<close> *)
 
