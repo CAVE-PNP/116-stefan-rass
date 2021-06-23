@@ -40,7 +40,11 @@ corollary ex_gn: "is_gn n \<Longrightarrow> \<exists>w. gn w = n"
 
 (* more properties *)
 lemma gn_inv_inj: "inj_on gn_inv {0<..}"
-  by (metis greaterThan_iff inj_on_inverseI inv_gn_id is_gn_def)
+proof (intro inj_on_inverseI)
+  fix x::nat assume "x \<in> {0<..}"
+  then have "is_gn x" unfolding is_gn_def greaterThan_iff .
+  with inv_gn_id show "gn (gn_inv x) = x" .
+qed
 
 lemma gn_gt_0: "gn w > 0"
   by (induction w) auto
@@ -70,7 +74,9 @@ fun bin_of_word :: "word \<Rightarrow> bit_string" where
 
 (* correctness and relations *)
 lemma bin_word_bin_id [simp]: "bin_of_word (word_of_bin x) = x"
-  by (induction x, simp, metis (full_types) word_of_bin.simps(2-3) bin_of_word.simps(2-3))
+proof (induction x)
+  case (Cons a x) thus ?case by (cases a) simp_all
+qed (* case "x = []" by *) simp
 
 lemma word_bin_word_id [simp]: "word_of_bin (bin_of_word x) = x"
   by (induction x) auto
@@ -83,7 +89,10 @@ corollary word_bin_inv:
 corollary word_bin_bij:
   shows word_of_bin_bij: "bij word_of_bin"
     and bin_of_word_bij: "bij bin_of_word"
-  by (metis bijI' bin_word_bin_id word_bin_word_id)+
+proof -
+  show "bij word_of_bin" by (intro bijI', metis bin_word_bin_id, metis word_bin_word_id)
+  with bij_imp_bij_inv[of word_of_bin] show "bij bin_of_word" unfolding word_of_bin_inv .
+qed
 
 
 (* relation to bin *)
