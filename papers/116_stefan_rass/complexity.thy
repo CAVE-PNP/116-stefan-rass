@@ -112,7 +112,7 @@ text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^t
   That is, for \<^term>\<open>tp = (l, x # r)\<close>, the symbol under the head is \<open>x\<close>, or \<^term>\<open>read (snd tp)\<close>.
   Additionally (through \<^term>\<open>read\<close>), the edge of the tape is interpreted as \<^term>\<open>Bk\<close>.\<close>
 
-abbreviation input where "input w \<equiv> (\<lambda>tp. tp = ([], encode_word w))"
+abbreviation input where "input w \<equiv> (\<lambda>tp. tp = (([]::cell list), encode_word w))"
 
 definition accepts :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
   where "accepts M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
@@ -126,11 +126,11 @@ definition decides :: "lang \<Rightarrow> tprog0 \<Rightarrow> bool"
 
 lemma Hoare_haltE[elim]:
   fixes P M tp
-  assumes "Hoare_halt P M (\<lambda>_. False)"
+  assumes "Hoare_halt P M Q"
     and "P tp"
   obtains n 
   where "is_final (steps0 (1, tp) M n)"
-    and "(\<lambda>_. False) holds_for steps0 (1, tp) M n"
+    and "Q holds_for steps0 (1, tp) M n"
   using assms unfolding Hoare_halt_def by blast
 
 \<comment> \<open>to avoid conflicts in terms like \<open>P \<mapsto> Q\<close>\<close>
@@ -141,11 +141,61 @@ proof (subst Hoare_consequence)
   show "Q \<mapsto> (\<lambda>_. True)" unfolding Turing_Hoare.assert_imp_def by blast
 qed simp_all
 
-lemma hoare_and:
-  assumes "Hoare_halt P M Q1"
-  and "Hoare_halt P M Q2"
-shows "Hoare_halt P M (\<lambda>tp. Q1 tp \<and> Q2 tp)"
-  sorry (* idea: take max of steps required to satisfy Q1 and Q2 resp.*)
+lemma holds_for_le:
+  assumes f: "is_final (steps0 (1, l, r) M n)"
+    and Qn: "Q holds_for steps0 (1, l, r) M n"
+    and "n \<le> m"
+  shows "Q holds_for steps0 (1, l, r) M m" (is "?Qh m")
+proof -
+  from \<open>n \<le> m\<close> obtain n' where "m = n + n'" by (rule less_eqE)
+  then have "?Qh m = Q holds_for steps0 (steps0 (1, l, r) M n) M n'" by simp
+  also have "... = ?Qh n" using f by (rule is_final_holds)
+  finally show ?thesis using Qn ..
+qed
+
+lemma max_cases:
+  assumes "P a"
+    and "P b"
+  shows "P (max a b)"
+  using assms unfolding max_def by simp
+
+lemma holds_for_and[intro]:
+  assumes P: "P holds_for c"
+    and Q: "Q holds_for c"
+  shows "(\<lambda>tp. P tp \<and> Q tp) holds_for c"
+proof -
+  obtain s l r where c: "c = (s, l, r)" by (rule prod_cases3)
+  from c P have "P (l, r)" by simp
+  moreover from c Q have "Q (l, r)" by simp
+  ultimately show ?thesis unfolding c by simp
+qed
+
+lemma hoare_and[intro]:
+  assumes h1: "Hoare_halt P M Q1"
+    and h2: "Hoare_halt P M Q2"
+  shows "Hoare_halt P M (\<lambda>tp. Q1 tp \<and> Q2 tp)"
+proof (intro Hoare_haltI)
+  fix l r
+  assume p: "P (l, r)" (is "P ?tp")
+  from p h1 obtain n1
+    where f1: "is_final (steps0 (1, ?tp) M n1)"
+    and q1: "Q1 holds_for steps0 (1, ?tp) M n1" by blast
+  from p h2 obtain n2
+    where f2: "is_final (steps0 (1, ?tp) M n2)"
+    and q2: "Q2 holds_for steps0 (1, ?tp) M n2" by blast
+  define n where "n = max n1 n2"
+
+  have "is_final (steps0 (1, l, r) M n)" (is "?f n") 
+    unfolding n_def using f1 f2 by (rule max_cases)
+  moreover have "(\<lambda>tp. Q1 tp \<and> Q2 tp) holds_for steps0 (1, l, r) M n" (is "?q n") unfolding n_def
+  proof (intro holds_for_and)
+    show "Q1 holds_for steps0 (1, l, r) M (max n1 n2)" 
+      using f1 q1 max.cobounded1 by (rule holds_for_le)
+    show "Q2 holds_for steps0 (1, l, r) M (max n1 n2)" 
+      using f2 q2 max.cobounded2 by (rule holds_for_le)
+  qed
+  ultimately show "\<exists>n. ?f n \<and> ?q n" by blast
+qed
 
 lemma hoare_contr:
   fixes P M tp
@@ -160,14 +210,14 @@ qed
 
 lemma hoare_and_neg: (*probably not useful but somewhat nice?*)
   assumes "Hoare_halt P M Q"
-  and "\<not> Hoare_halt P M S"
+    and "\<not> Hoare_halt P M S"
   obtains tp where "Q tp \<and> \<not> S tp"
 proof -
   from assms(2) obtain tp where "P tp"
     and 1: "(\<forall>n. \<not> is_final (steps0 (1, tp) M n) \<or> ~ (S holds_for steps0 (1, tp) M n))"
     unfolding Hoare_halt_def by auto
   from assms(1) obtain n where
-      2: "is_final (steps0 (1, tp) M n) \<and> Q holds_for steps0 (1, tp) M n"
+    2: "is_final (steps0 (1, tp) M n) \<and> Q holds_for steps0 (1, tp) M n"
     unfolding Hoare_halt_def using \<open>P tp\<close> by blast
   from 1 2 have "\<not> S holds_for steps0 (1, tp) M n" by simp
   with that show ?thesis using 2
@@ -176,8 +226,8 @@ qed
 
 lemma hoare_halt_neg:
   assumes "\<not> Hoare_halt (input w) M Q"
-  and "halts_for M w"
-shows "Hoare_halt (input w) M (\<lambda>tp. \<not> Q tp)"
+    and "halts_for M w"
+  shows "Hoare_halt (input w) M (\<lambda>tp. \<not> Q tp)"
   sorry
 
 lemma acc_not_rej:
@@ -185,17 +235,17 @@ lemma acc_not_rej:
   shows "\<not> rejects M w"
 proof (intro notI)
   assume "rejects M w"
-  note assms = assms this
-  
+  have *: "a = Oc \<and> a = Bk \<longleftrightarrow> False" for a::cell by blast
+
   have "Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
-    using assms(1) unfolding accepts_def .
+    using \<open>accepts M w\<close> unfolding accepts_def .
   moreover have "Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
-    using assms(2) unfolding rejects_def .
+    using \<open>rejects M w\<close> unfolding rejects_def .
   ultimately have "Hoare_halt (input w) M (\<lambda>tp. head tp = Oc \<and> head tp = Bk)"
-    using hoare_and by simp
-  then have "Hoare_halt (input w) M (\<lambda>_. False)"
-    by (smt (z3) Hoare_halt_def cell.distinct(1) holds_for.elims(2))
-  then show "False" using hoare_contr by auto
+    by (rule hoare_and)
+
+  then have "Hoare_halt (input w) M (\<lambda>_. False)" unfolding * .
+  then show "False" by (intro hoare_contr) blast+
 qed
 
 lemma rejects_altdef:
