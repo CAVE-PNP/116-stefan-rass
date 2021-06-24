@@ -112,22 +112,61 @@ text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^t
   That is, for \<^term>\<open>tp = (l, x # r)\<close>, the symbol under the head is \<open>x\<close>, or \<^term>\<open>read (snd tp)\<close>.
   Additionally (through \<^term>\<open>read\<close>), the edge of the tape is interpreted as \<^term>\<open>Bk\<close>.\<close>
 
+abbreviation input where "input w \<equiv> (\<lambda>tp. tp = ([], encode_word w))"
+
 definition accepts :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
-  where "accepts M w \<equiv> Hoare_halt (\<lambda>tp. tp = ([], encode_word w)) M (\<lambda>tp. head tp = Oc)"
+  where "accepts M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
 
 definition rejects :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
-  where "rejects M w \<equiv> Hoare_halt (\<lambda>tp. tp = ([], encode_word w)) M (\<lambda>tp. head tp = Bk)"
+  where "rejects M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
 
 definition decides :: "lang \<Rightarrow> tprog0 \<Rightarrow> bool"
   where "decides L M \<equiv> \<forall>w. (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
 
+lemma hoareTrue: "Hoare_halt P M Q \<Longrightarrow> Hoare_halt P M (\<lambda>_. True)"
+  unfolding Hoare_halt_def by (metis holds_for.elims(2) holds_for.simps)
+
+lemma hoareAnd:
+  assumes "Hoare_halt P M Q1"
+  and "Hoare_halt P M Q2"
+shows "Hoare_halt P M (\<lambda>tp. Q1 tp \<and> Q2 tp)"
+  sorry (* idea: take max of steps required to satisfy Q1 and Q2 resp.*)
+
+lemma hoareContr:
+  fixes P M tp
+  assumes "Hoare_halt P M (\<lambda>_. False)"
+  and "P tp"
+shows "False"
+  sorry
+
+lemma accNotRej:
+  assumes "accepts M w"
+  shows "\<not> rejects M w"
+proof (intro notI)
+  assume "rejects M w"
+  note assms = assms this
+  
+  have "Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
+    using assms(1) unfolding accepts_def .
+  moreover have "Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
+    using assms(2) unfolding rejects_def .
+  ultimately have "Hoare_halt (input w) M (\<lambda>tp. head tp = Oc \<and> head tp = Bk)"
+    using hoareAnd by simp
+  then have "Hoare_halt (input w) M (\<lambda>_. False)"
+    by (smt (z3) Hoare_halt_def cell.distinct(1) holds_for.elims(2))
+  then show "False" using hoareContr by auto
+qed
+
 lemma rejects_altdef:
-  "rejects M w = halts_for M w \<and> \<not> accepts M w"
-proof -
-  let ?acc = "\<lambda>tp. read (snd tp) = Oc" and ?rej = "\<lambda>tp. read (snd tp) = Bk"
-  have "\<forall>tp. ?acc tp \<longleftrightarrow> \<not> ?rej tp"
-    by (metis cell.distinct(1) cell.exhaust)
-  then show ?thesis sorry
+  "rejects M w = (halts_for M w \<and> \<not> accepts M w)"
+proof (intro iffI conjI)
+  assume "rejects M w"
+  then show "halts_for M w" unfolding rejects_def halts_for_def using hoareTrue by simp
+  assume "rejects M w"
+  then show "\<not> accepts M w" using accNotRej by auto
+next
+  assume "halts_for M w \<and> \<not> accepts M w"
+  then show "rejects M w" sorry
 qed
 
 lemma decides_altdef:
