@@ -123,8 +123,23 @@ definition rejects :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
 definition decides :: "lang \<Rightarrow> tprog0 \<Rightarrow> bool"
   where "decides L M \<equiv> \<forall>w. (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
 
+
+lemma Hoare_haltE[elim]:
+  fixes P M tp
+  assumes "Hoare_halt P M (\<lambda>_. False)"
+    and "P tp"
+  obtains n 
+  where "is_final (steps0 (1, tp) M n)"
+    and "(\<lambda>_. False) holds_for steps0 (1, tp) M n"
+  using assms unfolding Hoare_halt_def by blast
+
+\<comment> \<open>to avoid conflicts in terms like \<open>P \<mapsto> Q\<close>\<close>
+no_notation Abacus_Hoare.assert_imp ("_ \<mapsto> _" [0, 0] 100)
+
 lemma hoare_true: "Hoare_halt P M Q \<Longrightarrow> Hoare_halt P M (\<lambda>_. True)"
-  unfolding Hoare_halt_def by (metis holds_for.elims(2) holds_for.simps)
+proof (subst Hoare_consequence)
+  show "Q \<mapsto> (\<lambda>_. True)" unfolding Turing_Hoare.assert_imp_def by blast
+qed simp_all
 
 lemma hoare_and:
   assumes "Hoare_halt P M Q1"
@@ -134,10 +149,14 @@ shows "Hoare_halt P M (\<lambda>tp. Q1 tp \<and> Q2 tp)"
 
 lemma hoare_contr:
   fixes P M tp
-  assumes "Hoare_halt P M (\<lambda>_. False)"
-  and "P tp"
-shows "False"
-  by (metis Hoare_halt_def assms holds_for.elims(2))
+  assumes "Hoare_halt P M (\<lambda>_. False)" and "P tp"
+  shows "False"
+proof - \<comment> \<open>This one is tricky since the automatic solvers do not pick apart pairs on their own.
+  Since @{thm holds_for.simps} is defined in terms of pair items, it is not directly applicable.\<close>
+  from assms obtain n where "(\<lambda>_. False) holds_for steps0 (1, tp) M n" ..
+  moreover obtain s l r where "steps0 (1, tp) M n = (s, l, r)" using prod_cases3 .
+  ultimately show "(\<lambda>_. False) (l, r)" (* \<equiv> False *) by simp
+qed
 
 lemma hoare_and_neg: (*probably not useful but somewhat nice?*)
   assumes "Hoare_halt P M Q"
@@ -229,6 +248,11 @@ lemma in_dtimeE'[elim]:
 
 
 subsection\<open>Encoding TMs\<close>
+
+\<comment> \<open>An issue of the following definitions is that the existing definition \<^term>\<open>code\<close>
+  uses a naive Gödel numbering scheme that includes encoding list items as prime powers,
+  where each "next prime" \<^term>\<open>Np p\<close> is defined as \<^term>\<open>p! + 1\<close>
+  (see \<^term>\<open>godel_code'\<close>, \<^term>\<open>Pi\<close>, and \<^term>\<open>Np\<close>).\<close>
 
 definition is_encoded_TM :: "word \<Rightarrow> bool"
   where "is_encoded_TM w = (\<exists>M. code M = gn w)"
