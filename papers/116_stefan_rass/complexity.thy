@@ -216,12 +216,14 @@ proof -
   from assms(2) obtain tp where "P tp"
     and 1: "(\<forall>n. \<not> is_final (steps0 (1, tp) M n) \<or> ~ (S holds_for steps0 (1, tp) M n))"
     unfolding Hoare_halt_def by auto
-  from assms(1) obtain n where
-    2: "is_final (steps0 (1, tp) M n) \<and> Q holds_for steps0 (1, tp) M n"
+  from assms(1) obtain n 
+    where 2: "is_final (steps0 (1, tp) M n)" 
+      and 3: "Q holds_for steps0 (1, tp) M n"
     unfolding Hoare_halt_def using \<open>P tp\<close> by blast
-  from 1 2 have "\<not> S holds_for steps0 (1, tp) M n" by simp
-  with that show ?thesis using 2
-    by (metis holds_for.elims(3) holds_for.simps)
+
+  obtain s l r where split: "steps0 (1, tp) M n = (s, l, r)" by (rule prod_cases3)
+  from 1 2 have "\<not> S holds_for steps0 (1, tp) M n" by blast
+  with 3 show ?thesis unfolding split holds_for.simps by (intro that conjI)
 qed
 
 lemma holds_for_neg: "\<not> Q holds_for c \<longleftrightarrow> (\<lambda>tp. \<not> Q tp) holds_for c"
@@ -262,11 +264,12 @@ proof (intro iffI conjI)
   assume "rejects M w"
   then show "\<not> accepts M w" using acc_not_rej by auto
 next
+  have *: "c \<noteq> Oc \<longleftrightarrow> c = Bk" for c by (cases c) blast+
+
   assume "halts_for M w \<and> \<not> accepts M w"
   then have "Hoare_halt (input w) M (\<lambda>tp. head tp \<noteq> Oc)"
-    unfolding accepts_def using hoare_halt_neg by simp
-  then show "rejects M w" unfolding rejects_def
-    by (smt (z3) Hoare_halt_def cell.exhaust holds_for.elims(2) holds_for.simps)
+    unfolding accepts_def by (intro hoare_halt_neg) blast+
+  then show "rejects M w" unfolding rejects_def * .
 qed
 
 lemma decides_altdef:
