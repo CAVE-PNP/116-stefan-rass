@@ -123,23 +123,45 @@ definition rejects :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
 definition decides :: "lang \<Rightarrow> tprog0 \<Rightarrow> bool"
   where "decides L M \<equiv> \<forall>w. (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
 
-lemma hoareTrue: "Hoare_halt P M Q \<Longrightarrow> Hoare_halt P M (\<lambda>_. True)"
+lemma hoare_true: "Hoare_halt P M Q \<Longrightarrow> Hoare_halt P M (\<lambda>_. True)"
   unfolding Hoare_halt_def by (metis holds_for.elims(2) holds_for.simps)
 
-lemma hoareAnd:
+lemma hoare_and:
   assumes "Hoare_halt P M Q1"
   and "Hoare_halt P M Q2"
 shows "Hoare_halt P M (\<lambda>tp. Q1 tp \<and> Q2 tp)"
   sorry (* idea: take max of steps required to satisfy Q1 and Q2 resp.*)
 
-lemma hoareContr:
+lemma hoare_contr:
   fixes P M tp
   assumes "Hoare_halt P M (\<lambda>_. False)"
   and "P tp"
 shows "False"
+  by (metis Hoare_halt_def assms holds_for.elims(2))
+
+lemma hoare_and_neg: (*probably not useful but somewhat nice?*)
+  assumes "Hoare_halt P M Q"
+  and "\<not> Hoare_halt P M S"
+  obtains tp where "Q tp \<and> \<not> S tp"
+proof -
+  from assms(2) obtain tp where "P tp"
+    and 1: "(\<forall>n. \<not> is_final (steps0 (1, tp) M n) \<or> ~ (S holds_for steps0 (1, tp) M n))"
+    unfolding Hoare_halt_def by auto
+  from assms(1) obtain n where
+      2: "is_final (steps0 (1, tp) M n) \<and> Q holds_for steps0 (1, tp) M n"
+    unfolding Hoare_halt_def using \<open>P tp\<close> by blast
+  from 1 2 have "\<not> S holds_for steps0 (1, tp) M n" by simp
+  with that show ?thesis using 2
+    by (metis holds_for.elims(3) holds_for.simps)
+qed
+
+lemma hoare_halt_neg:
+  assumes "\<not> Hoare_halt (input w) M Q"
+  and "halts_for M w"
+shows "Hoare_halt (input w) M (\<lambda>tp. \<not> Q tp)"
   sorry
 
-lemma accNotRej:
+lemma acc_not_rej:
   assumes "accepts M w"
   shows "\<not> rejects M w"
 proof (intro notI)
@@ -151,22 +173,25 @@ proof (intro notI)
   moreover have "Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
     using assms(2) unfolding rejects_def .
   ultimately have "Hoare_halt (input w) M (\<lambda>tp. head tp = Oc \<and> head tp = Bk)"
-    using hoareAnd by simp
+    using hoare_and by simp
   then have "Hoare_halt (input w) M (\<lambda>_. False)"
     by (smt (z3) Hoare_halt_def cell.distinct(1) holds_for.elims(2))
-  then show "False" using hoareContr by auto
+  then show "False" using hoare_contr by auto
 qed
 
 lemma rejects_altdef:
   "rejects M w = (halts_for M w \<and> \<not> accepts M w)"
 proof (intro iffI conjI)
   assume "rejects M w"
-  then show "halts_for M w" unfolding rejects_def halts_for_def using hoareTrue by simp
+  then show "halts_for M w" unfolding rejects_def halts_for_def using hoare_true by simp
   assume "rejects M w"
-  then show "\<not> accepts M w" using accNotRej by auto
+  then show "\<not> accepts M w" using acc_not_rej by auto
 next
   assume "halts_for M w \<and> \<not> accepts M w"
-  then show "rejects M w" sorry
+  then have "Hoare_halt (input w) M (\<lambda>tp. head tp \<noteq> Oc)"
+    unfolding accepts_def using hoare_halt_neg by simp
+  then show "rejects M w" unfolding rejects_def
+    by (smt (z3) Hoare_halt_def cell.exhaust holds_for.elims(2) holds_for.simps)
 qed
 
 lemma decides_altdef:
