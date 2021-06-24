@@ -95,6 +95,9 @@ qed (* cases "cs = []", "cs = Bk # _", "cs = [_]" by *) simp_all
 
 subsection\<open>Deciding Languages\<close>
 
+definition halts_for :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
+  where "halts_for M w \<equiv> Hoare_halt (\<lambda>tp. tp = ([], encode_word w)) M (\<lambda>_. True)"
+
 \<comment> \<open>Since \<open>L\<close> is a typical name for unspecified languages in the literature, 
     the synonymous constructor \<^term>\<open>L\<close> of type \<^typ>\<open>action\<close> ("move head left") is hidden.\<close>
 hide_const (open) L
@@ -117,6 +120,21 @@ definition rejects :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
 
 definition decides :: "lang \<Rightarrow> tprog0 \<Rightarrow> bool"
   where "decides L M \<equiv> \<forall>w. (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
+
+lemma rejects_altdef:
+  "rejects M w = halts_for M w \<and> \<not> accepts M w"
+proof -
+  let ?acc = "\<lambda>tp. read (snd tp) = Oc" and ?rej = "\<lambda>tp. read (snd tp) = Bk"
+  have "\<forall>tp. ?acc tp \<longleftrightarrow> \<not> ?rej tp"
+    by (metis cell.distinct(1) cell.exhaust)
+  then show ?thesis sorry
+qed
+
+lemma decides_altdef:
+  "decides L p \<longleftrightarrow> (\<forall>w. Hoare_halt
+    (\<lambda>tp. tp = ([], encode_word w)) p (\<lambda>tp. read (snd tp) = (if w \<in> L then Oc else Bk)))"
+  (is "decides L p \<longleftrightarrow> (\<forall>w. Hoare_halt (?l w) p (?r w))")
+  oops
 
 (* TODO (?) notation: \<open>p decides L\<close> *)
 
@@ -156,5 +174,28 @@ definition decode_TM :: "word \<Rightarrow> tprog0"
 
 definition Rejecting_TM :: tprog0
   where "Rejecting_TM = [(W0, 0), (W0, 0)]"
+
+definition read_TM :: "word \<Rightarrow> tprog0"
+  where "read_TM w = (if is_encoded_TM w then decode_TM w else Rejecting_TM)"
+
+lemma rej_TM: "rejects Rejecting_TM w" unfolding rejects_def
+proof (intro Hoare_haltI exI conjI)
+  fix l r
+  have fetch: "fetch Rejecting_TM 1 b = (W0, 0)" for b unfolding Rejecting_TM_def
+    by (cases b) (simp_all add: fetch.simps nth_of.simps)
+
+  have step1: "steps0 (1, (l, r)) Rejecting_TM 1 = (0, l, Bk # tl r)"
+  proof -
+    have "steps0 (1, (l, r)) Rejecting_TM 1 = step0 (1, l, r) Rejecting_TM" unfolding One_nat_def steps.simps ..
+    also have "... = (0, update W0 (l, r))" unfolding step.simps diff_zero fetch by simp
+    also have "... = (0, l, Bk # tl r)" by simp
+    finally show ?thesis .
+  qed
+
+  show "is_final (steps0 (1, l, r) Rejecting_TM 1)" unfolding step1 ..
+  show "(\<lambda>tp. head tp = Bk) holds_for steps0 (1, l, r) Rejecting_TM 1"
+    unfolding step1 holds_for.simps by simp
+qed
+
 
 end
