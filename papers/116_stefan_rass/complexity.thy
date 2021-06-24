@@ -224,11 +224,17 @@ proof -
     by (metis holds_for.elims(3) holds_for.simps)
 qed
 
+lemma holds_for_neg: "\<not> Q holds_for c \<longleftrightarrow> (\<lambda>tp. \<not> Q tp) holds_for c"
+proof -
+  obtain s l r where c: "c = (s, l, r)" by (rule prod_cases3)
+  show ?thesis unfolding c by simp
+qed
+
 lemma hoare_halt_neg:
   assumes "\<not> Hoare_halt (input w) M Q"
     and "halts_for M w"
   shows "Hoare_halt (input w) M (\<lambda>tp. \<not> Q tp)"
-  sorry
+  using assms unfolding Hoare_halt_def holds_for_neg[symmetric] halts_for_def by fast
 
 lemma acc_not_rej:
   assumes "accepts M w"
