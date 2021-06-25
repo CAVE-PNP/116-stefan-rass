@@ -218,7 +218,20 @@ lemma hoare_halt_neg:
   assumes "\<not> Hoare_halt (input w) M Q"
     and "halts_for M w"
   shows "Hoare_halt (input w) M (\<lambda>tp. \<not> Q tp)"
-using assms unfolding Hoare_halt_def holds_for_neg[symmetric] halts_for_def by fast
+  using assms unfolding Hoare_halt_def holds_for_neg[symmetric] halts_for_def by fast
+
+lemma head_halt_inj:
+  assumes "Hoare_halt (input w) M (\<lambda>tp. head tp = x)"
+      and "Hoare_halt (input w) M (\<lambda>tp. head tp = y)"
+    shows "x = y"
+proof (rule ccontr)
+  assume "x \<noteq> y"
+  from assms have "Hoare_halt (input w) M (\<lambda>tp. head tp = x \<and> head tp = y)"
+    using hoare_and by simp
+  then have "Hoare_halt (input w) M (\<lambda>_. False)" using \<open>x \<noteq> y\<close> 
+    by (smt (z3) Hoare_haltE holds_for.elims(2))
+  thus False using hoare_contr by blast
+qed
 
 lemma acc_not_rej:
   assumes "accepts M w"
@@ -231,17 +244,9 @@ proof (intro notI)
     using \<open>accepts M w\<close> unfolding accepts_def .
   moreover have "Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
     using \<open>rejects M w\<close> unfolding rejects_def .
-  ultimately have "Hoare_halt (input w) M (\<lambda>tp. head tp = Oc \<and> head tp = Bk)"
-    by (rule hoare_and)
-  then have "Hoare_halt (input w) M (\<lambda>_. False)" unfolding * .
-  then show "False" by (intro hoare_contr) blast+
+  ultimately show False using head_halt_inj[of w M Oc Bk] by simp
 qed
 
-lemma head_inj:
-  assumes "Hoare_halt (input w) M (\<lambda>tp. head tp = x)"
-      and "Hoare_halt (input w) M (\<lambda>tp. head tp = y)"
-    shows "x = y"
-  sorry
 
 lemma rejects_altdef:
   "rejects M w = (halts_for M w \<and> \<not> accepts M w)"
@@ -268,6 +273,7 @@ proof (intro iffI allI)
   assume "decides L p"
   fix w
   from \<open>decides L p\<close> show "Hoare_halt (?pre w) p (?post w)"
+    unfolding decides_def accepts_def rejects_def
   proof (cases "w \<in> L")
     case True
     from \<open>decides L p\<close> \<open>w \<in> L\<close> have "accepts p w" unfolding decides_def by simp
@@ -286,8 +292,8 @@ show "decides L p" unfolding decides_def proof (intro allI conjI)
     thus "accepts p w" unfolding accepts_def using assm by presburger
   next
     assume "accepts p w"
-    then have "(if w\<in>L then Oc else Bk) = Oc"
-      unfolding accepts_def using assm head_inj sorry (*what?*)
+    then have "Oc = (if w\<in>L then Oc else Bk)"
+      unfolding accepts_def using assm head_halt_inj[of w p Oc] by simp
     thus "w \<in> L" using cell.distinct(1) by presburger
   qed
 next
@@ -297,8 +303,8 @@ next
     thus "rejects p w" unfolding rejects_def using assm by presburger
   next
     assume "rejects p w"
-    then have "(if w\<in>L then Oc else Bk) = Bk"
-      unfolding rejects_def using assm head_inj sorry (*what?*)
+    then have "Bk = (if w\<in>L then Oc else Bk)"
+      unfolding rejects_def using assm head_halt_inj[of w p Bk] by simp
     thus "w \<notin> L" by auto
   qed
 qed
