@@ -164,10 +164,10 @@ lemma holds_for_and[intro]:
     and Q: "Q holds_for c"
   shows "(\<lambda>tp. P tp \<and> Q tp) holds_for c"
 proof -
-  obtain s l r where c: "c = (s, l, r)" by (rule prod_cases3)
-  from c P have "P (l, r)" by simp
-  moreover from c Q have "Q (l, r)" by simp
-  ultimately show ?thesis unfolding c by simp
+  obtain s l r where c_def: "c = (s, l, r)" by (rule prod_cases3)
+  from c_def P have "P (l, r)" by simp
+  moreover from c_def Q have "Q (l, r)" by simp
+  ultimately show ?thesis unfolding c_def by simp
 qed
 
 lemma hoare_and[intro]:
@@ -208,35 +208,17 @@ proof - \<comment> \<open>This one is tricky since the automatic solvers do not 
   ultimately show "(\<lambda>_. False) (l, r)" (* \<equiv> False *) by simp
 qed
 
-lemma hoare_and_neg: (*probably not useful but somewhat nice?*)
-  assumes "Hoare_halt P M Q"
-    and "\<not> Hoare_halt P M S"
-  obtains tp where "Q tp \<and> \<not> S tp"
-proof -
-  from assms(2) obtain tp where "P tp"
-    and 1: "(\<forall>n. \<not> is_final (steps0 (1, tp) M n) \<or> ~ (S holds_for steps0 (1, tp) M n))"
-    unfolding Hoare_halt_def by auto
-  from assms(1) obtain n 
-    where 2: "is_final (steps0 (1, tp) M n)" 
-      and 3: "Q holds_for steps0 (1, tp) M n"
-    unfolding Hoare_halt_def using \<open>P tp\<close> by blast
-
-  obtain s l r where split: "steps0 (1, tp) M n = (s, l, r)" by (rule prod_cases3)
-  from 1 2 have "\<not> S holds_for steps0 (1, tp) M n" by blast
-  with 3 show ?thesis unfolding split holds_for.simps by (intro that conjI)
-qed
-
 lemma holds_for_neg: "\<not> Q holds_for c \<longleftrightarrow> (\<lambda>tp. \<not> Q tp) holds_for c"
 proof -
-  obtain s l r where c: "c = (s, l, r)" by (rule prod_cases3)
-  show ?thesis unfolding c by simp
+  obtain s l r where c_def: "c = (s, l, r)" by (rule prod_cases3)
+  show ?thesis unfolding c_def by simp
 qed
 
 lemma hoare_halt_neg:
   assumes "\<not> Hoare_halt (input w) M Q"
     and "halts_for M w"
   shows "Hoare_halt (input w) M (\<lambda>tp. \<not> Q tp)"
-  using assms unfolding Hoare_halt_def holds_for_neg[symmetric] halts_for_def by fast
+using assms unfolding Hoare_halt_def holds_for_neg[symmetric] halts_for_def by fast
 
 lemma acc_not_rej:
   assumes "accepts M w"
@@ -251,10 +233,15 @@ proof (intro notI)
     using \<open>rejects M w\<close> unfolding rejects_def .
   ultimately have "Hoare_halt (input w) M (\<lambda>tp. head tp = Oc \<and> head tp = Bk)"
     by (rule hoare_and)
-
   then have "Hoare_halt (input w) M (\<lambda>_. False)" unfolding * .
   then show "False" by (intro hoare_contr) blast+
 qed
+
+lemma head_inj:
+  assumes "Hoare_halt (input w) M (\<lambda>tp. head tp = x)"
+      and "Hoare_halt (input w) M (\<lambda>tp. head tp = y)"
+    shows "x = y"
+  sorry
 
 lemma rejects_altdef:
   "rejects M w = (halts_for M w \<and> \<not> accepts M w)"
@@ -273,10 +260,50 @@ next
 qed
 
 lemma decides_altdef:
-  "decides L p \<longleftrightarrow> (\<forall>w. Hoare_halt
-    (\<lambda>tp. tp = ([], encode_word w)) p (\<lambda>tp. read (snd tp) = (if w \<in> L then Oc else Bk)))"
-  (is "decides L p \<longleftrightarrow> (\<forall>w. Hoare_halt (?l w) p (?r w))")
-  oops
+  "decides L p \<longleftrightarrow> (\<forall>w. 
+    Hoare_halt (input w) p (\<lambda>tp. head tp = (if w \<in> L then Oc else Bk))
+  )"
+  (is "decides L p \<longleftrightarrow> ( \<forall>w. Hoare_halt (?pre w) p (?post w) )")
+proof (intro iffI allI)
+  assume "decides L p"
+  fix w
+  from \<open>decides L p\<close> show "Hoare_halt (?pre w) p (?post w)"
+  proof (cases "w \<in> L")
+    case True
+    from \<open>decides L p\<close> \<open>w \<in> L\<close> have "accepts p w" unfolding decides_def by simp
+    thus ?thesis unfolding accepts_def using \<open>w \<in> L\<close> by simp
+  next
+    case False
+    from \<open>decides L p\<close> \<open>w \<notin> L\<close> have "rejects p w" unfolding decides_def by auto
+    thus ?thesis unfolding rejects_def using \<open>w \<notin> L\<close> by simp
+  qed
+next
+assume assm: "\<forall>w. Hoare_halt (?pre w) p (?post w)"
+show "decides L p" unfolding decides_def proof (intro allI conjI)
+  fix w
+  show "w \<in> L \<longleftrightarrow> accepts p w" proof
+    assume "w \<in> L"
+    thus "accepts p w" unfolding accepts_def using assm by presburger
+  next
+    assume "accepts p w"
+    then have "(if w\<in>L then Oc else Bk) = Oc"
+      unfolding accepts_def using assm head_inj sorry (*what?*)
+    thus "w \<in> L" using cell.distinct(1) by presburger
+  qed
+next
+  fix w
+  show "w \<notin> L \<longleftrightarrow> rejects p w" proof
+    assume "w \<notin> L"
+    thus "rejects p w" unfolding rejects_def using assm by presburger
+  next
+    assume "rejects p w"
+    then have "(if w\<in>L then Oc else Bk) = Bk"
+      unfolding rejects_def using assm head_inj sorry (*what?*)
+    thus "w \<notin> L" by auto
+  qed
+qed
+qed
+
 
 (* TODO (?) notation: \<open>p decides L\<close> *)
 
