@@ -95,9 +95,6 @@ qed (* cases "cs = []", "cs = Bk # _", "cs = [_]" by *) simp_all
 
 subsection\<open>Deciding Languages\<close>
 
-definition halts_for :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
-  where "halts_for M w \<equiv> Hoare_halt (\<lambda>tp. tp = ([], encode_word w)) M (\<lambda>_. True)"
-
 \<comment> \<open>Since \<open>L\<close> is a typical name for unspecified languages in the literature, 
     the synonymous constructor \<^term>\<open>L\<close> of type \<^typ>\<open>action\<close> ("move head left") is hidden.\<close>
 hide_const (open) L
@@ -114,14 +111,17 @@ text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^t
 
 abbreviation input where "input w \<equiv> (\<lambda>tp. tp = (([]::cell list), encode_word w))"
 
+definition halts :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
+  where "halts M w \<equiv> Hoare_halt (input w) M (\<lambda>_. True)"
+
 definition accepts :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
   where "accepts M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
 
 definition rejects :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
   where "rejects M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
 
-definition decides :: "lang \<Rightarrow> tprog0 \<Rightarrow> bool"
-  where "decides L M \<equiv> \<forall>w. (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
+definition decides :: "tprog0 \<Rightarrow> lang  \<Rightarrow> bool"
+  where "decides M L \<equiv> \<forall>w. (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
 
 
 lemma Hoare_haltE[elim]:
@@ -140,6 +140,11 @@ lemma hoare_true: "Hoare_halt P M Q \<Longrightarrow> Hoare_halt P M (\<lambda>_
 proof (subst Hoare_consequence)
   show "Q \<mapsto> (\<lambda>_. True)" unfolding Turing_Hoare.assert_imp_def by blast
 qed simp_all
+
+lemma accepts_halts: "accepts M w \<Longrightarrow> halts M w"
+  unfolding accepts_def halts_def by (rule hoare_true)
+lemma rejects_halts: "rejects M w \<Longrightarrow> halts M w"
+  unfolding rejects_def halts_def by (rule hoare_true)
 
 lemma holds_for_le:
   assumes f: "is_final (steps0 (1, l, r) M n)"
@@ -216,9 +221,9 @@ qed
 
 lemma hoare_halt_neg:
   assumes "\<not> Hoare_halt (input w) M Q"
-    and "halts_for M w"
+    and "halts M w"
   shows "Hoare_halt (input w) M (\<lambda>tp. \<not> Q tp)"
-  using assms unfolding Hoare_halt_def holds_for_neg[symmetric] halts_for_def by fast
+  using assms unfolding Hoare_halt_def holds_for_neg[symmetric] halts_def by fast
 
 lemma head_halt_inj:
   assumes "Hoare_halt (input w) M (\<lambda>tp. head tp = x)"
@@ -226,8 +231,8 @@ lemma head_halt_inj:
     shows "x = y"
 proof (rule ccontr)
   assume "x \<noteq> y"
-  from assms have "Hoare_halt (input w) M (\<lambda>tp. head tp = x \<and> head tp = y)"
-    using hoare_and by simp
+  from hoare_and have "Hoare_halt (input w) M (\<lambda>tp. head tp = x \<and> head tp = y)"
+    using assms by simp
   then have "Hoare_halt (input w) M (\<lambda>_. False)" using \<open>x \<noteq> y\<close> 
     by (smt (z3) Hoare_haltE holds_for.elims(2))
   thus False using hoare_contr by blast
@@ -238,8 +243,7 @@ lemma acc_not_rej:
   shows "\<not> rejects M w"
 proof (intro notI)
   assume "rejects M w"
-  have *: "a = Oc \<and> a = Bk \<longleftrightarrow> False" for a::cell by blast
-
+  
   have "Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
     using \<open>accepts M w\<close> unfolding accepts_def .
   moreover have "Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
@@ -249,62 +253,89 @@ qed
 
 
 lemma rejects_altdef:
-  "rejects M w = (halts_for M w \<and> \<not> accepts M w)"
+  "rejects M w = (halts M w \<and> \<not> accepts M w)"
 proof (intro iffI conjI)
   assume "rejects M w"
-  then show "halts_for M w" unfolding rejects_def halts_for_def using hoare_true by simp
+  then show "halts M w" unfolding rejects_def halts_def using hoare_true by simp
   assume "rejects M w"
   then show "\<not> accepts M w" using acc_not_rej by auto
 next
   have *: "c \<noteq> Oc \<longleftrightarrow> c = Bk" for c by (cases c) blast+
 
-  assume "halts_for M w \<and> \<not> accepts M w"
+  assume "halts M w \<and> \<not> accepts M w"
   then have "Hoare_halt (input w) M (\<lambda>tp. head tp \<noteq> Oc)"
     unfolding accepts_def by (intro hoare_halt_neg) blast+
   then show "rejects M w" unfolding rejects_def * .
 qed
 
-lemma decides_altdef:
-  "decides L p \<longleftrightarrow> (\<forall>w. 
-    Hoare_halt (input w) p (\<lambda>tp. head tp = (if w \<in> L then Oc else Bk))
-  )"
-  (is "decides L p \<longleftrightarrow> ( \<forall>w. Hoare_halt (?pre w) p (?post w) )")
+lemma decides_halts:
+  assumes "decides M L"
+  shows "halts M w"
+proof (cases "w \<in> L")
+  case True
+  hence "accepts M w" using assms unfolding decides_def by simp
+  then show ?thesis by (rule accepts_halts)
+next
+  case False
+  hence "rejects M w" using assms unfolding decides_def by auto
+  then show ?thesis by (rule rejects_halts)
+qed
+
+lemma decides_altdef: "decides M L = (\<forall>w. halts M w \<and> (w \<in> L \<longleftrightarrow> accepts M w))"
 proof (intro iffI allI)
-  assume "decides L p"
   fix w
-  from \<open>decides L p\<close> show "Hoare_halt (?pre w) p (?post w)"
+  assume "decides M L"
+  hence "halts M w" by (rule decides_halts)
+  moreover have "w \<in> L \<longleftrightarrow> accepts M w" using \<open>decides M L\<close>
+    unfolding decides_def by simp
+  ultimately show "halts M w \<and> (w \<in> L \<longleftrightarrow> accepts M w)" ..
+next
+  assume "\<forall>w. halts M w \<and> (w \<in> L \<longleftrightarrow> accepts M w)"
+  then show "decides M L" unfolding decides_def
+    by (simp add: rejects_altdef)
+qed
+
+lemma decides_altdef2:
+  "decides M L \<longleftrightarrow> (\<forall>w. 
+    Hoare_halt (input w) M (\<lambda>tp. head tp = (if w \<in> L then Oc else Bk))
+  )"
+  (is "decides M L \<longleftrightarrow> ( \<forall>w. Hoare_halt (?pre w) M (?post w) )")
+proof (intro iffI allI)
+  assume "decides M L"
+  fix w
+  from \<open>decides M L\<close> show "Hoare_halt (?pre w) M (?post w)"
     unfolding decides_def accepts_def rejects_def
   proof (cases "w \<in> L")
     case True
-    from \<open>decides L p\<close> \<open>w \<in> L\<close> have "accepts p w" unfolding decides_def by simp
+    from \<open>decides M L\<close> \<open>w \<in> L\<close> have "accepts M w" unfolding decides_def by simp
     thus ?thesis unfolding accepts_def using \<open>w \<in> L\<close> by simp
   next
     case False
-    from \<open>decides L p\<close> \<open>w \<notin> L\<close> have "rejects p w" unfolding decides_def by auto
+    from \<open>decides M L\<close> \<open>w \<notin> L\<close> have "rejects M w" unfolding decides_def by auto
     thus ?thesis unfolding rejects_def using \<open>w \<notin> L\<close> by simp
   qed
 next
-assume assm: "\<forall>w. Hoare_halt (?pre w) p (?post w)"
-show "decides L p" unfolding decides_def proof (intro allI conjI)
+assume assm: "\<forall>w. Hoare_halt (?pre w) M (?post w)"
+show "decides M L" unfolding decides_def proof (intro allI conjI)
   fix w
-  show "w \<in> L \<longleftrightarrow> accepts p w" proof
+  show "w \<in> L \<longleftrightarrow> accepts M w" proof
     assume "w \<in> L"
-    thus "accepts p w" unfolding accepts_def using assm by presburger
+    thus "accepts M w" unfolding accepts_def using assm by presburger
   next
-    assume "accepts p w"
+    assume "accepts M w"
     then have "Oc = (if w\<in>L then Oc else Bk)"
-      unfolding accepts_def using assm head_halt_inj[of w p Oc] by simp
+      unfolding accepts_def using assm head_halt_inj[of w M Oc] by simp
     thus "w \<in> L" using cell.distinct(1) by presburger
   qed
 next
   fix w
-  show "w \<notin> L \<longleftrightarrow> rejects p w" proof
+  show "w \<notin> L \<longleftrightarrow> rejects M w" proof
     assume "w \<notin> L"
-    thus "rejects p w" unfolding rejects_def using assm by presburger
+    thus "rejects M w" unfolding rejects_def using assm by presburger
   next
-    assume "rejects p w"
+    assume "rejects M w"
     then have "Bk = (if w\<in>L then Oc else Bk)"
-      unfolding rejects_def using assm head_halt_inj[of w p Bk] by simp
+      unfolding rejects_def using assm head_halt_inj[of w M Bk] by simp
     thus "w \<notin> L" by auto
   qed
 qed
@@ -318,24 +349,24 @@ subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
 definition DTIME :: "(nat \<Rightarrow> nat) \<Rightarrow> lang set"
-  where "DTIME T \<equiv> {L. \<exists>p. decides L p \<and> time_restricted T p}"
+  where "DTIME T \<equiv> {L. \<exists>M. decides M L \<and> time_restricted T M}"
 
 lemma in_dtimeI[intro]:
-  assumes "decides L p"
-    and "time_restricted T p"
+  assumes "decides M L"
+    and "time_restricted T M"
   shows "L \<in> DTIME T"
   unfolding DTIME_def using assms by blast
 
 lemma in_dtimeE[elim]:
   assumes "L \<in> DTIME T"
-  obtains p
-  where "decides L p" 
-    and "time_restricted T p"
+  obtains M
+  where "decides M L" 
+    and "time_restricted T M"
   using assms unfolding DTIME_def by blast
 
 lemma in_dtimeE'[elim]:
   assumes "L \<in> DTIME T"
-  shows "\<exists>p. decides L p \<and> time_restricted T p"
+  shows "\<exists>M. decides M L \<and> time_restricted T M"
   using assms unfolding DTIME_def ..
 
 
