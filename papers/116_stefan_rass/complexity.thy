@@ -16,13 +16,23 @@ definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> tprog0 \<Ri
 
 (* TODO (?) notation: \<open>p terminates_in_time T\<close> *)
 
-text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>\<close>
+(* size of tape after M does n steps on input x *)
+abbreviation space0 where "space0 M x n \<equiv> let (_,tp) = steps0 (1, x) M n in tape_size tp"
+
+definition space_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> tprog0 \<Rightarrow> bool"
+  where "space_restricted T M \<equiv> \<forall>x. \<forall>n. space0 M x n \<le> T(tape_size x)"
+
+text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>
+     or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>x\<close>\<close>
 definition time :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat option"
   where "time p tp = (
     if \<exists>n. is_final (steps0 (1, tp) p n)
       then Some (LEAST n. is_final (steps0 (1, tp) p n))
       else None
     )"
+
+definition space :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat"
+  where "space M x = Max {space0 M x n | n. n\<in>\<nat>}"
 
 lemma time_restricted_altdef:
   "time_restricted T p \<longleftrightarrow> (\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp))" 
@@ -57,6 +67,17 @@ qed
 corollary "time_restricted T p \<Longrightarrow> (\<forall>tp. \<exists>n. the (time p tp) \<le> T (tape_size tp))"
   unfolding time_restricted_altdef
   by (metis option.sel)
+
+lemma update_space_one: "tape_size (update a (l,r)) \<le> 1 + tape_size (l,r)"
+  by (cases a) simp_all
+lemma update_space_le: "tape_size (l,r) \<le> tape_size(update a (l,r))"
+  by (cases a) simp_all
+
+lemma step_space_mono: "space0 M x n \<le> space0 M x (Suc n)"    
+  oops
+
+lemma tape_size_mono: "n \<le> m \<Longrightarrow> tape_size(tape0 M x n) \<le> tape_size(tape0 M x m)"
+  oops
 
 
 subsection\<open>Encoding Words\<close>
