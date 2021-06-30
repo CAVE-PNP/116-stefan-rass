@@ -1,5 +1,5 @@
 theory complexity
-  imports Main gn "Universal_Turing_Machine.UTM"
+  imports Main gn "Universal_Turing_Machine.UTM" "HOL-Library.Sublist" "HOL-Library.Discrete"
 begin
 
 subsection\<open>Termination\<close>
@@ -395,8 +395,83 @@ subsection\<open>Encoding TMs\<close>
 
 \<comment> \<open>An issue of the following definitions is that the existing definition \<^term>\<open>code\<close>
   uses a naive Gödel numbering scheme that includes encoding list items as prime powers,
-  where each "next prime" \<^term>\<open>Np p\<close> is defined as \<^term>\<open>p! + 1\<close>
+  where each "next prime" \<^term>\<open>Np n\<close> is searched naively starting from \<^term>\<open>Pi n\<close>
   (see \<^term>\<open>godel_code'\<close>, \<^term>\<open>Pi\<close>, and \<^term>\<open>Np\<close>).\<close>
+
+\<comment> \<open>Reminder: For binary numbers, as stated in the paper (ch. 1, p. 2),
+  the "least significant bit is located at the right end".
+  The recursive definitions for words result in somewhat unintuitive definitions here:
+  The number 6 is 110 in binary, but as \<^typ>\<open>word\<close> it is \<^term>\<open>Num.Bit0 (Num.Bit1 Num.One)\<close>.
+  Similarly, as \<^typ>\<open>bit_string\<close> (synonym for \<^typ>\<open>bool list\<close>), 6 is \<^term>\<open>[False, True]\<close>.\<close>
+
+value "nat_of_num (Num.Bit0 (Num.Bit1 Num.One))"
+value "nat_of_num (word_of_bin ([False, True]))"
+
+text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
+  the decoding of a TM \<open>M\<close> from a binary word \<open>w\<close> includes:
+
+  1. Exponential padding. "all but the most significant \<open>\<lceil>log(len(w))\<rceil>\<close> bits are ignored"
+  2. \<open>1\<^sup>+0\<close> padding. "from [the result] we drop all preceding 1-bits and the first 0-bit"
+  3. Code description. "let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form".
+
+  The somewhat obvious choice for \<open>\<rho>\<close> is to utilize \<^term>\<open>code\<close>, since it is already defined
+  and used as encoding by the universal TM \<^term>\<open>UTM\<close> (see @{thm UTM_halt_lemma2}).\<close>
+
+definition pad_encoded_TM :: "word \<Rightarrow> word"
+  where "pad_encoded_TM w = Num.Bit1 (Num.Bit0 w)"
+
+definition add_exp_pad :: "word \<Rightarrow> word"
+  where "add_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
+      False \<up> (2^l - l) @ b
+    ))"
+
+text\<open>Discrete ceiling log\<close>
+  \<comment> \<open>TODO prove that \<^term>\<open>Discrete.log (l-1) + 1 = \<lceil>log 2 l\<rceil>\<close>. see stub \<open>log_altdef_ceil\<close>\<close>
+abbreviation clog :: "nat \<Rightarrow> nat"
+  where "clog n \<equiv> Discrete.log (n-1) + 1"
+
+(* anecdotal evidence that this is correct:
+ * plot: https://www.wolframalpha.com/input/?i=plot+floor%28log2%28x-1%29%29%2B1%3Dceiling%28log2%28x%29%29+from+x%3D0+to+x%3D15
+ * solve: https://www.wolframalpha.com/input/?i=solve+floor%28log2%28x-1%29%29%2B1%3Dceiling%28log2%28x%29%29+for+x+over+the+integers
+ * check individual ints not mentioned by solve: https://www.wolframalpha.com/input/?i=floor%28log2%28x-1%29%29%2B1%3Dceiling%28log2%28x%29%29+for+x%3D4 *)
+lemma log_altdef_ceil: 
+  assumes "n \<ge> 2"
+  shows "Discrete.log (n - 1) + 1 = nat \<lceil>log 2 n\<rceil>"
+proof -
+  thm log_altdef[of "n - 1"]
+  from \<open>n \<ge> 2\<close> have "n - 1 \<noteq> 0" by simp 
+
+  have "log 2 n \<le> Discrete.log (n - 1) + 1"
+  proof (cases "\<exists>n'. n = 2^n'")
+    case True
+    then show ?thesis sorry
+  next
+    case False
+    then show ?thesis sorry
+  qed
+
+  then have "Discrete.log (n - 1) + 1 = nat \<lfloor>log 2 (n-1)\<rfloor> + 1" sorry
+  also have "... = nat \<lceil>log 2 n\<rceil>" sorry
+  oops
+
+
+definition strip_exp_pad :: "word \<Rightarrow> word"
+  where "strip_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
+      drop (l - clog l) b
+  ))"
+
+lemmas exp_pad_simps = add_exp_pad_def strip_exp_pad_def
+
+lemma exp_pad_correct1[simp]: "strip_exp_pad (add_exp_pad w) = w"
+  oops
+
+lemma exp_pad_correct2:
+  fixes w
+  defines "b \<equiv> bin_of_word w"
+    and "b_pad \<equiv> bin_of_word (add_exp_pad w)"
+  shows "suffix b b_pad"
+  unfolding assms add_exp_pad_def by (intro suffixI) simp
+
 
 definition is_encoded_TM :: "word \<Rightarrow> bool"
   where "is_encoded_TM w = (\<exists>M. code M = gn w)"

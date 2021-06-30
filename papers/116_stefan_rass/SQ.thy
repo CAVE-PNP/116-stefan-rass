@@ -152,8 +152,7 @@ proof -
   then show "?b - ?a \<le> 2 * ?s + 1" unfolding adj_sq_nat .
 qed
 
-
-lemma sqrt_altdef: "Discrete.sqrt n = \<lfloor>sqrt n\<rfloor>"
+lemma sqrt_altdef_nat: "Discrete.sqrt n = nat \<lfloor>sqrt n\<rfloor>"
 proof -
   have *: "n = (sqrt n)\<^sup>2" by simp
 
@@ -164,13 +163,12 @@ proof -
   have "n < (Discrete.sqrt n + 1)\<^sup>2" using Suc_sqrt_power2_gt by simp
   with * have "(sqrt n)\<^sup>2 < (Discrete.sqrt n + 1)\<^sup>2" by linarith
   then have "(sqrt n)\<^sup>2 < (real (Discrete.sqrt n + 1))\<^sup>2" by simp
-  then have lower: "sqrt n < Discrete.sqrt n + 1"
-    using power2_less_imp_less[of "sqrt n" "Discrete.sqrt n + 1"] by simp
+  then have lower: "sqrt n < Discrete.sqrt n + 1" by (subst power2_less_imp_less) auto
 
-  from upper and lower show ?thesis by linarith
+  from upper and lower show "Discrete.sqrt n = nat \<lfloor>sqrt n\<rfloor>" by (intro floor_eq4[symmetric]) auto
 qed
 
-corollary sqrt_altdef2: "Discrete.sqrt n = nat \<lfloor>sqrt n\<rfloor>" using sqrt_altdef by (metis nat_int)
+corollary sqrt_altdef: "Discrete.sqrt n = \<lfloor>sqrt n\<rfloor>" using sqrt_altdef_nat int_eq_iff by simp
 
 lemma sqrt_ceil_floor:
   fixes n :: nat
