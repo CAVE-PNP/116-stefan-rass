@@ -430,13 +430,15 @@ text\<open>Discrete ceiling log\<close>
 abbreviation clog :: "nat \<Rightarrow> nat"
   where "clog n \<equiv> Discrete.log (n-1) + 1"
 
+lemma clog_exp: "n > 0 \<Longrightarrow> clog (2^n) = n" sorry (* unfolding log_exp_m1 by simp *)
+
 (* anecdotal evidence that this is correct:
  * plot: https://www.wolframalpha.com/input/?i=plot+floor%28log2%28x-1%29%29%2B1%3Dceiling%28log2%28x%29%29+from+x%3D0+to+x%3D15
  * solve: https://www.wolframalpha.com/input/?i=solve+floor%28log2%28x-1%29%29%2B1%3Dceiling%28log2%28x%29%29+for+x+over+the+integers
  * check individual ints not mentioned by solve: https://www.wolframalpha.com/input/?i=floor%28log2%28x-1%29%29%2B1%3Dceiling%28log2%28x%29%29+for+x%3D4 *)
 lemma log_altdef_ceil: 
   assumes "n \<ge> 2"
-  shows "Discrete.log (n - 1) + 1 = nat \<lceil>log 2 n\<rceil>"
+  shows "clog n = nat \<lceil>log 2 n\<rceil>"
 proof -
   thm log_altdef[of "n - 1"]
   from \<open>n \<ge> 2\<close> have "n - 1 \<noteq> 0" by simp 
@@ -462,15 +464,63 @@ definition strip_exp_pad :: "word \<Rightarrow> word"
 
 lemmas exp_pad_simps = add_exp_pad_def strip_exp_pad_def
 
-lemma exp_pad_correct1[simp]: "strip_exp_pad (add_exp_pad w) = w"
-  oops
+lemma exp_pad_correct[simp]: "w \<noteq> Num.One \<Longrightarrow> strip_exp_pad (add_exp_pad w) = w"
+proof -
+  let ?w = "bin_of_word w"
+  let ?l = "length ?w"
+  let ?pad = "False \<up> (2 ^ ?l - ?l)"
+  let ?wp = "?pad @ ?w"
 
-lemma exp_pad_correct2:
+  assume "w \<noteq> Num.One"
+  with len_gt_0 have "?l > 0" unfolding word_len_eq_bin_len .
+  then have l_clog: "clog (2^?l) = ?l" by (intro clog_exp)
+
+  have len_pad: "length ?pad = 2 ^ ?l - ?l" by simp
+  have len_wp: "length ?wp = 2^?l" unfolding length_append len_pad by simp
+
+  have *: "length ?wp - clog (length ?wp) = length ?pad" unfolding len_wp l_clog len_pad ..
+  show "strip_exp_pad (add_exp_pad w) = w"
+    unfolding exp_pad_simps Let_def bin_word_bin_id * by simp
+qed
+
+lemma exp_pad_suffix:
   fixes w
   defines "b \<equiv> bin_of_word w"
     and "b_pad \<equiv> bin_of_word (add_exp_pad w)"
   shows "suffix b b_pad"
   unfolding assms add_exp_pad_def by (intro suffixI) simp
+
+lemma add_exp_pad_len: "len (add_exp_pad w) = 2 ^ len w" 
+  unfolding word_len_eq_bin_len add_exp_pad_def Let_def by simp
+
+lemma drop_diff_length: "n \<le> length xs \<Longrightarrow> length (drop (length xs - n) xs) = n" by simp
+
+lemma log_less: "n > 0 \<Longrightarrow> Discrete.log n < n" (* complements "HOL-Library.Discrete" *)
+proof -
+  assume "n > 0"
+  have "Discrete.log n < 2 ^ Discrete.log n" by (rule less_exp)
+  also have "... \<le> n" using \<open>n > 0\<close> by (rule log_exp2_le)
+  finally show ?thesis .
+qed
+
+lemma log_le: "Discrete.log n \<le> n" (* complements "HOL-Library.Discrete" *)
+proof (cases "n > 0")
+  assume "n > 0"
+  with log_less show ?thesis by (intro less_imp_le)
+qed (* case "n = 0" by *) simp
+
+lemma strip_exp_pad_len: 
+  assumes "w \<noteq> num.One"
+  defines "l \<equiv> len w"
+  shows "len (strip_exp_pad w) = clog (len w)"
+  unfolding word_len_eq_bin_len strip_exp_pad_def Let_def bin_word_bin_id
+proof (intro drop_diff_length, fold word_len_eq_bin_len l_def)
+  have "l > 0" unfolding l_def using \<open>w \<noteq> num.One\<close> by (rule len_gt_0)
+  have "Discrete.log (l-1) \<le> l-1" by (rule log_le)
+  then have "clog l \<le> l-1 + 1" by (unfold add_le_cancel_right)
+  also have "... = l" using \<open>l > 0\<close> by simp
+  finally show "clog l \<le> l" .
+qed
 
 
 definition is_encoded_TM :: "word \<Rightarrow> bool"
