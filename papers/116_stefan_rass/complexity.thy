@@ -35,7 +35,7 @@ definition space :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat"
   where "space M x = Max {space0 M x n | n. n\<in>\<nat>}"
 
 lemma time_restricted_altdef:
-  "time_restricted T p \<longleftrightarrow> (\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp))" 
+  "time_restricted T p \<longleftrightarrow> (\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp))"
   unfolding time_restricted_def (* in order for the intros to work in direction "\<Longleftarrow>" *)
 proof (intro iffI allI exI conjI)
   fix tp
@@ -73,7 +73,7 @@ lemma update_space_one: "tape_size (update a (l,r)) \<le> 1 + tape_size (l,r)"
 lemma update_space_le: "tape_size (l,r) \<le> tape_size(update a (l,r))"
   by (cases a) simp_all
 
-lemma step_space_mono: "space0 M x n \<le> space0 M x (Suc n)"    
+lemma step_space_mono: "space0 M x n \<le> space0 M x (Suc n)"
   oops
 
 lemma tape_size_mono: "n \<le> m \<Longrightarrow> tape_size(tape0 M x n) \<le> tape_size(tape0 M x m)"
@@ -82,29 +82,29 @@ lemma tape_size_mono: "n \<le> m \<Longrightarrow> tape_size(tape0 M x n) \<le> 
 
 subsection\<open>Encoding Words\<close>
 
-text\<open>Encoding binary words as TM tape cells: \<^term>\<open>Num.Bit1\<close> is encoded as \<^term>\<open>[Oc, Oc]\<close> and \<^term>\<open>Num.Bit1\<close> as term>\<open>[Oc, Bk]\<close>.
+text\<open>Encoding binary words as TM tape cells: \<^term>\<open>num.Bit1\<close> is encoded as \<^term>\<open>[Oc, Oc]\<close> and \<^term>\<open>num.Bit1\<close> as term>\<open>[Oc, Bk]\<close>.
   Thus, the ends of an encoded term can be marked with the pattern \<^term>\<open>[Bk, Bk]\<close>.\<close>
-fun encode_word :: "word \<Rightarrow> cell list"
-  where "encode_word Num.One = []"
-      | "encode_word (Num.Bit0 w) = Oc # Bk # encode_word w"
-      | "encode_word (Num.Bit1 w) = Oc # Oc # encode_word w"
+fun encode_word :: "word \<Rightarrow> cell list" where
+  "encode_word num.One = []"
+| "encode_word (num.Bit0 w) = Oc # Bk # encode_word w"
+| "encode_word (num.Bit1 w) = Oc # Oc # encode_word w"
 
-fun is_encoded_word :: "cell list \<Rightarrow> bool"
-  where "is_encoded_word [] = True"
-      | "is_encoded_word (Oc # _ # cs) = is_encoded_word cs"
-      | "is_encoded_word _ = False"
+fun is_encoded_word :: "cell list \<Rightarrow> bool" where
+  "is_encoded_word [] = True"
+| "is_encoded_word (Oc # _ # cs) = is_encoded_word cs"
+| "is_encoded_word _ = False"
 
-fun decode_word :: "cell list \<Rightarrow> word"
-  where "decode_word (Oc # Bk # cs) = Num.Bit0 (decode_word cs)"
-      | "decode_word (Oc # Oc # cs) = Num.Bit1 (decode_word cs)"
-      | "decode_word _ = Num.One"
+fun decode_word :: "cell list \<Rightarrow> word" where
+  "decode_word (Oc # Bk # cs) = num.Bit0 (decode_word cs)"
+| "decode_word (Oc # Oc # cs) = num.Bit1 (decode_word cs)"
+| "decode_word _ = num.One"
 
 
-lemma encode_decode_word: "decode_word (encode_word w) = w" 
+lemma encode_decode_word: "decode_word (encode_word w) = w"
   by (induction w) simp_all
 
 lemma decode_encode_word:
-  "is_encoded_word cs \<Longrightarrow> encode_word (decode_word cs) = cs" 
+  "is_encoded_word cs \<Longrightarrow> encode_word (decode_word cs) = cs"
   (is "?ie cs \<Longrightarrow> ?de cs = cs")
 proof (induction cs rule: is_encoded_word.induct)
   case (2 c cs) (* cs = Oc # c # cs *)
@@ -116,7 +116,7 @@ qed (* cases "cs = []", "cs = Bk # _", "cs = [_]" by *) simp_all
 
 subsection\<open>Deciding Languages\<close>
 
-\<comment> \<open>Since \<open>L\<close> is a typical name for unspecified languages in the literature, 
+\<comment> \<open>Since \<open>L\<close> is a typical name for unspecified languages in the literature,
     the synonymous constructor \<^term>\<open>L\<close> of type \<^typ>\<open>action\<close> ("move head left") is hidden.\<close>
 hide_const (open) L
 
@@ -149,7 +149,7 @@ lemma Hoare_haltE[elim]:
   fixes P M tp
   assumes "Hoare_halt P M Q"
     and "P tp"
-  obtains n 
+  obtains n
   where "is_final (steps0 (1, tp) M n)"
     and "Q holds_for steps0 (1, tp) M n"
   using assms unfolding Hoare_halt_def by blast
@@ -205,19 +205,19 @@ proof (intro Hoare_haltI)
   assume p: "P (l, r)" (is "P ?tp")
   from p h1 obtain n1
     where f1: "is_final (steps0 (1, ?tp) M n1)"
-    and q1: "Q1 holds_for steps0 (1, ?tp) M n1" by blast
+      and q1: "Q1 holds_for steps0 (1, ?tp) M n1" by blast
   from p h2 obtain n2
     where f2: "is_final (steps0 (1, ?tp) M n2)"
-    and q2: "Q2 holds_for steps0 (1, ?tp) M n2" by blast
+      and q2: "Q2 holds_for steps0 (1, ?tp) M n2" by blast
   define n where "n = max n1 n2"
 
-  have "is_final (steps0 (1, l, r) M n)" (is "?f n") 
+  have "is_final (steps0 (1, l, r) M n)" (is "?f n")
     unfolding n_def using f1 f2 by (rule max_cases)
   moreover have "(\<lambda>tp. Q1 tp \<and> Q2 tp) holds_for steps0 (1, l, r) M n" (is "?q n") unfolding n_def
   proof (intro holds_for_and)
-    show "Q1 holds_for steps0 (1, l, r) M (max n1 n2)" 
+    show "Q1 holds_for steps0 (1, l, r) M (max n1 n2)"
       using f1 q1 max.cobounded1 by (rule holds_for_le)
-    show "Q2 holds_for steps0 (1, l, r) M (max n1 n2)" 
+    show "Q2 holds_for steps0 (1, l, r) M (max n1 n2)"
       using f2 q2 max.cobounded2 by (rule holds_for_le)
   qed
   ultimately show "\<exists>n. ?f n \<and> ?q n" by blast
@@ -254,7 +254,7 @@ proof (rule ccontr)
   assume "x \<noteq> y"
   from hoare_and have "Hoare_halt (input w) M (\<lambda>tp. head tp = x \<and> head tp = y)"
     using assms by simp
-  then have "Hoare_halt (input w) M (\<lambda>_. False)" using \<open>x \<noteq> y\<close> 
+  then have "Hoare_halt (input w) M (\<lambda>_. False)" using \<open>x \<noteq> y\<close>
     by (smt (z3) Hoare_haltE holds_for.elims(2))
   thus False using hoare_contr by blast
 qed
@@ -264,7 +264,7 @@ lemma acc_not_rej:
   shows "\<not> rejects M w"
 proof (intro notI)
   assume "rejects M w"
-  
+
   have "Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
     using \<open>accepts M w\<close> unfolding accepts_def .
   moreover have "Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
@@ -317,7 +317,7 @@ next
 qed
 
 lemma decides_altdef2:
-  "decides M L \<longleftrightarrow> (\<forall>w. 
+  "decides M L \<longleftrightarrow> (\<forall>w.
     Hoare_halt (input w) M (\<lambda>tp. head tp = (if w \<in> L then Oc else Bk))
   )"
   (is "decides M L \<longleftrightarrow> ( \<forall>w. Hoare_halt (?pre w) M (?post w) )")
@@ -336,30 +336,30 @@ proof (intro iffI allI)
     thus ?thesis unfolding rejects_def using \<open>w \<notin> L\<close> by simp
   qed
 next
-assume assm: "\<forall>w. Hoare_halt (?pre w) M (?post w)"
-show "decides M L" unfolding decides_def proof (intro allI conjI)
-  fix w
-  show "w \<in> L \<longleftrightarrow> accepts M w" proof
-    assume "w \<in> L"
-    thus "accepts M w" unfolding accepts_def using assm by presburger
+  assume assm: "\<forall>w. Hoare_halt (?pre w) M (?post w)"
+  show "decides M L" unfolding decides_def proof (intro allI conjI)
+    fix w
+    show "w \<in> L \<longleftrightarrow> accepts M w" proof
+      assume "w \<in> L"
+      thus "accepts M w" unfolding accepts_def using assm by presburger
+    next
+      assume "accepts M w"
+      then have "Oc = (if w\<in>L then Oc else Bk)"
+        unfolding accepts_def using assm head_halt_inj[of w M Oc] by simp
+      thus "w \<in> L" using cell.distinct(1) by presburger
+    qed
   next
-    assume "accepts M w"
-    then have "Oc = (if w\<in>L then Oc else Bk)"
-      unfolding accepts_def using assm head_halt_inj[of w M Oc] by simp
-    thus "w \<in> L" using cell.distinct(1) by presburger
+    fix w
+    show "w \<notin> L \<longleftrightarrow> rejects M w" proof
+      assume "w \<notin> L"
+      thus "rejects M w" unfolding rejects_def using assm by presburger
+    next
+      assume "rejects M w"
+      then have "Bk = (if w\<in>L then Oc else Bk)"
+        unfolding rejects_def using assm head_halt_inj[of w M Bk] by simp
+      thus "w \<notin> L" by auto
+    qed
   qed
-next
-  fix w
-  show "w \<notin> L \<longleftrightarrow> rejects M w" proof
-    assume "w \<notin> L"
-    thus "rejects M w" unfolding rejects_def using assm by presburger
-  next
-    assume "rejects M w"
-    then have "Bk = (if w\<in>L then Oc else Bk)"
-      unfolding rejects_def using assm head_halt_inj[of w M Bk] by simp
-    thus "w \<notin> L" by auto
-  qed
-qed
 qed
 
 
@@ -381,7 +381,7 @@ lemma in_dtimeI[intro]:
 lemma in_dtimeE[elim]:
   assumes "L \<in> DTIME T"
   obtains M
-  where "decides M L" 
+  where "decides M L"
     and "time_restricted T M"
   using assms unfolding DTIME_def by blast
 
@@ -401,10 +401,10 @@ subsection\<open>Encoding TMs\<close>
 \<comment> \<open>Reminder: For binary numbers, as stated in the paper (ch. 1, p. 2),
   the "least significant bit is located at the right end".
   The recursive definitions for words result in somewhat unintuitive definitions here:
-  The number 6 is 110 in binary, but as \<^typ>\<open>word\<close> it is \<^term>\<open>Num.Bit0 (Num.Bit1 Num.One)\<close>.
+  The number 6 is 110 in binary, but as \<^typ>\<open>word\<close> it is \<^term>\<open>num.Bit0 (num.Bit1 num.One)\<close>.
   Similarly, as \<^typ>\<open>bit_string\<close> (synonym for \<^typ>\<open>bool list\<close>), 6 is \<^term>\<open>[False, True]\<close>.\<close>
 
-value "nat_of_num (Num.Bit0 (Num.Bit1 Num.One))"
+value "nat_of_num (num.Bit0 (num.Bit1 num.One))"
 value "nat_of_num (word_of_bin ([False, True]))"
 
 text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
@@ -436,12 +436,12 @@ lemma clog_exp: "n > 0 \<Longrightarrow> clog (2^n) = n" sorry (* unfolding log_
  * plot: https://www.wolframalpha.com/input/?i=plot+floor%28log2%28x-1%29%29%2B1%3Dceiling%28log2%28x%29%29+from+x%3D0+to+x%3D15
  * solve: https://www.wolframalpha.com/input/?i=solve+floor%28log2%28x-1%29%29%2B1%3Dceiling%28log2%28x%29%29+for+x+over+the+integers
  * check individual ints not mentioned by solve: https://www.wolframalpha.com/input/?i=floor%28log2%28x-1%29%29%2B1%3Dceiling%28log2%28x%29%29+for+x%3D4 *)
-lemma log_altdef_ceil: 
+lemma log_altdef_ceil:
   assumes "n \<ge> 2"
   shows "clog n = nat \<lceil>log 2 n\<rceil>"
 proof -
   thm log_altdef[of "n - 1"]
-  from \<open>n \<ge> 2\<close> have "n - 1 \<noteq> 0" by simp 
+  from \<open>n \<ge> 2\<close> have "n - 1 \<noteq> 0" by simp
 
   have "log 2 n \<le> Discrete.log (n - 1) + 1"
   proof (cases "\<exists>n'. n = 2^n'")
@@ -464,14 +464,14 @@ definition strip_exp_pad :: "word \<Rightarrow> word"
 
 lemmas exp_pad_simps = add_exp_pad_def strip_exp_pad_def
 
-lemma exp_pad_correct[simp]: "w \<noteq> Num.One \<Longrightarrow> strip_exp_pad (add_exp_pad w) = w"
+lemma exp_pad_correct[simp]: "w \<noteq> num.One \<Longrightarrow> strip_exp_pad (add_exp_pad w) = w"
 proof -
   let ?w = "bin_of_word w"
   let ?l = "length ?w"
   let ?pad = "False \<up> (2 ^ ?l - ?l)"
   let ?wp = "?pad @ ?w"
 
-  assume "w \<noteq> Num.One"
+  assume "w \<noteq> num.One"
   with len_gt_0 have "?l > 0" unfolding word_len_eq_bin_len .
   then have l_clog: "clog (2^?l) = ?l" by (intro clog_exp)
 
@@ -490,7 +490,7 @@ lemma exp_pad_suffix:
   shows "suffix b b_pad"
   unfolding assms add_exp_pad_def by (intro suffixI) simp
 
-lemma add_exp_pad_len: "len (add_exp_pad w) = 2 ^ len w" 
+lemma add_exp_pad_len: "len (add_exp_pad w) = 2 ^ len w"
   unfolding word_len_eq_bin_len add_exp_pad_def Let_def by simp
 
 lemma drop_diff_length: "n \<le> length xs \<Longrightarrow> length (drop (length xs - n) xs) = n" by simp
@@ -509,7 +509,7 @@ proof (cases "n > 0")
   with log_less show ?thesis by (intro less_imp_le)
 qed (* case "n = 0" by *) simp
 
-lemma strip_exp_pad_len: 
+lemma strip_exp_pad_len:
   assumes "w \<noteq> num.One"
   defines "l \<equiv> len w"
   shows "len (strip_exp_pad w) = clog (len w)"
