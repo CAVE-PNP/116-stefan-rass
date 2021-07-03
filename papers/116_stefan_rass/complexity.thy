@@ -411,14 +411,14 @@ text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
   the decoding of a TM \<open>M\<close> from a binary word \<open>w\<close> includes:
 
   1. Exponential padding. "all but the most significant \<open>\<lceil>log(len(w))\<rceil>\<close> bits are ignored"
-  2. \<open>1\<^sup>+0\<close> padding. "from [the result] we drop all preceding 1-bits and the first 0-bit"
+  2. Arbitrary-length \<open>1\<^sup>+0\<close> prefix. "from [the result] we drop all preceding 1-bits and the first 0-bit"
   3. Code description. "let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form".
 
   The somewhat obvious choice for \<open>\<rho>\<close> is to utilize \<^term>\<open>code\<close>, since it is already defined
   and used as encoding by the universal TM \<^term>\<open>UTM\<close> (see @{thm UTM_halt_lemma2}).\<close>
 
-definition pad_encoded_TM :: "word \<Rightarrow> word"
-  where "pad_encoded_TM w = Num.Bit1 (Num.Bit0 w)"
+
+subsubsection\<open>Exponential Padding\<close>
 
 definition add_exp_pad :: "word \<Rightarrow> word"
   where "add_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
@@ -522,6 +522,92 @@ proof (intro drop_diff_length, fold word_len_eq_bin_len l_def)
   finally show "clog l \<le> l" .
 qed
 
+
+subsubsection\<open>Arbitrary-length \<open>1\<^sup>+0\<close> prefix\<close>
+
+fun add_al_prefix :: "word \<Rightarrow> word" where
+  "add_al_prefix num.One = num.Bit0 (num.Bit1 num.One)"
+| "add_al_prefix (num.Bit0 w) = num.Bit0 (add_al_prefix w)"
+| "add_al_prefix (num.Bit1 w) = num.Bit1 (add_al_prefix w)"
+
+definition has_al_prefix :: "word \<Rightarrow> bool"
+  where "has_al_prefix w = (\<exists>n>0. \<exists>w'. bin_of_word w = w' @ [False] @ True \<up> n)"
+
+definition strip_al_prefix :: "word \<Rightarrow> word" where
+  "strip_al_prefix w = word_of_bin (rev (drop 1 (dropWhile (\<lambda>b. b = True) (rev (bin_of_word w)))))"
+
+lemmas al_prefix_simps = add_al_prefix.simps has_al_prefix_def strip_al_prefix_def
+
+lemma add_alp_altdef: "add_al_prefix w = word_of_bin (bin_of_word w @ [False, True])"
+  by (induction w) simp_all
+
+lemma add_alp_correct: "has_al_prefix (add_al_prefix w)" unfolding has_al_prefix_def
+proof (intro exI conjI)
+  show "0 < Suc 0" ..
+  show "bin_of_word (add_al_prefix w) = (bin_of_word w) @ [False] @ True \<up> (Suc 0)"
+    unfolding add_alp_altdef by simp
+qed
+
+lemma alp_correct: "strip_al_prefix (add_al_prefix w) = w"
+  unfolding strip_al_prefix_def add_alp_altdef by simp
+
+lemma replicate_takeWhile: "takeWhile (\<lambda>x. x = a) xs = a \<up> length (takeWhile (\<lambda>x. x = a) xs)"
+proof (intro replicate_eqI)
+  fix y
+  assume "y \<in> set (takeWhile (\<lambda>x. x = a) xs)"
+  thus "y = a" by (blast dest: set_takeWhileD conjunct2)
+qed rule
+
+lemma replicate_While: "(a \<up> length (takeWhile (\<lambda>x. x = a) xs)) @ dropWhile (\<lambda>x. x = a) xs = xs"
+  by (fold replicate_takeWhile) (rule takeWhile_dropWhile_id)
+
+lemma strip_alp_correct1:
+  assumes "has_al_prefix w"
+  obtains n where "n > 0"
+    and "bin_of_word w = bin_of_word (strip_al_prefix w) @ [False] @ True \<up> n"
+proof
+  let ?w = "bin_of_word w"
+  let ?dw = "dropWhile (\<lambda>b. b = True) (rev ?w)"
+  define n where "n \<equiv> length (takeWhile (\<lambda>b. b = True) (rev ?w))"
+
+  have *: "bin_of_word (strip_al_prefix w) = rev (drop 1 ?dw)"
+    unfolding strip_al_prefix_def rev_rev_ident bin_word_bin_id ..
+
+  obtain nO wO where "nO > 0" and "?w = wO @ [False] @ True \<up> nO"
+    using \<open>has_al_prefix w\<close> unfolding has_al_prefix_def by blast
+  then have "rev ?w = True \<up> nO @ False # rev wO" by simp
+  moreover then have r1: "rev ?w = True \<up> nO @ ?dw" by (simp add: dropWhile_append3)
+  ultimately have dw_split: "?dw = False # drop 1 ?dw" by simp
+
+  have r2: "rev ?w = True \<up> n @ ?dw" unfolding n_def replicate_While ..
+  also have "... = True \<up> n @ False # drop 1 ?dw" by (fold dw_split) rule
+  finally have "?w = rev (True \<up> n @ False # drop 1 ?dw)" by (unfold rev_swap)
+
+  also have "... = rev (drop 1 ?dw) @ [False] @ True \<up> n" by simp
+  finally show "?w = bin_of_word (strip_al_prefix w) @ [False] @ True \<up> n" unfolding * .
+
+  from r1 r2 have "True \<up> nO @ ?dw = True \<up> n @ ?dw" by (rule subst)
+  then have "n = nO" unfolding append_same_eq by simp
+  then show "n > 0" using \<open>nO > 0\<close> by blast
+qed
+
+lemma strip_alp_correct2:
+  "prefix (bin_of_word (strip_al_prefix w)) (bin_of_word w)" (is "prefix ?bsw ?w")
+proof -
+  \<comment> \<open>The following definitions are constructed to fit in the following proof;
+    their values are not important.\<close>
+  define n where "n \<equiv> Suc (length (takeWhile (\<lambda>b. b) (rev ?w)))"
+  define m where "m \<equiv> length (rev ?w) - n"
+
+  have "bin_of_word (strip_al_prefix w) = rev (drop n (rev ?w))"
+    unfolding n_def strip_al_prefix_def bin_word_bin_id dropWhile_eq_drop by simp
+  also have "... = take m ?w" unfolding m_def rev_drop rev_rev_ident ..
+  finally have "?bsw = take m ?w" . \<comment> \<open>for some \<open>m\<close>\<close>
+  show "prefix ?bsw ?w" unfolding \<open>?bsw = take m ?w\<close> by (rule take_is_prefix)
+qed
+
+
+subsubsection\<open>Code Description\<close>
 
 definition is_encoded_TM :: "word \<Rightarrow> bool"
   where "is_encoded_TM w = (\<exists>M. code M = gn w)"
