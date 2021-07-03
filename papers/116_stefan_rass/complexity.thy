@@ -69,9 +69,9 @@ corollary "time_restricted T p \<Longrightarrow> (\<forall>tp. \<exists>n. the (
   by (metis option.sel)
 
 lemma update_space_one: "tape_size (update a (l,r)) \<le> 1 + tape_size (l,r)"
-  by (cases a) simp_all
+  by (induction a) simp_all
 lemma update_space_le: "tape_size (l,r) \<le> tape_size(update a (l,r))"
-  by (cases a) simp_all
+  by (induction a) simp_all
 
 lemma step_space_mono: "space0 M x n \<le> space0 M x (Suc n)"
   oops
@@ -234,6 +234,10 @@ proof - \<comment> \<open>This one is tricky since the automatic solvers do not 
   ultimately show "(\<lambda>_. False) (l, r)" (* \<equiv> False *) by simp
 qed
 
+lemma input_encoding: \<comment> \<open>Each word has an input encoding. Useful with @{thm hoare_contr}}\<close>
+  fixes w
+  shows "input w ([], encode_word (decode_word (encode_word w)))" unfolding encode_decode_word ..
+
 lemma holds_for_neg: "\<not> Q holds_for c \<longleftrightarrow> (\<lambda>tp. \<not> Q tp) holds_for c"
 proof -
   obtain s l r where c_def: "c = (s, l, r)" by (rule prod_cases3)
@@ -252,11 +256,12 @@ lemma head_halt_inj:
     shows "x = y"
 proof (rule ccontr)
   assume "x \<noteq> y"
+  then have *: "a = x \<and> a = y \<longleftrightarrow> False" for a by blast
+
   from hoare_and have "Hoare_halt (input w) M (\<lambda>tp. head tp = x \<and> head tp = y)"
-    using assms by simp
-  then have "Hoare_halt (input w) M (\<lambda>_. False)" using \<open>x \<noteq> y\<close>
-    by (smt (z3) Hoare_haltE holds_for.elims(2))
-  thus False using hoare_contr by blast
+    using assms .
+  then have "Hoare_halt (input w) M (\<lambda>_. False)" unfolding * .
+  thus False using input_encoding by (rule hoare_contr)
 qed
 
 lemma acc_not_rej:
@@ -269,7 +274,7 @@ proof (intro notI)
     using \<open>accepts M w\<close> unfolding accepts_def .
   moreover have "Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
     using \<open>rejects M w\<close> unfolding rejects_def .
-  ultimately show False using head_halt_inj[of w M Oc Bk] by simp
+  ultimately show False using head_halt_inj[of w M Oc Bk] by blast
 qed
 
 
@@ -277,7 +282,7 @@ lemma rejects_altdef:
   "rejects M w = (halts M w \<and> \<not> accepts M w)"
 proof (intro iffI conjI)
   assume "rejects M w"
-  then show "halts M w" unfolding rejects_def halts_def using hoare_true by simp
+  then show "halts M w" unfolding rejects_def halts_def using hoare_true by fast
   assume "rejects M w"
   then show "\<not> accepts M w" using acc_not_rej by auto
 next
@@ -327,14 +332,10 @@ proof (intro iffI allI)
   from \<open>decides M L\<close> show "Hoare_halt (?pre w) M (?post w)"
     unfolding decides_def accepts_def rejects_def
   proof (cases "w \<in> L")
-    case True
-    from \<open>decides M L\<close> \<open>w \<in> L\<close> have "accepts M w" unfolding decides_def by simp
-    thus ?thesis unfolding accepts_def using \<open>w \<in> L\<close> by simp
-  next
     case False
-    from \<open>decides M L\<close> \<open>w \<notin> L\<close> have "rejects M w" unfolding decides_def by auto
-    thus ?thesis unfolding rejects_def using \<open>w \<notin> L\<close> by simp
-  qed
+    from \<open>decides M L\<close> \<open>w \<notin> L\<close> have "rejects M w" unfolding decides_def by blast
+    thus ?thesis unfolding rejects_def using \<open>w \<notin> L\<close> by presburger
+  qed (* case "w \<in> L" by *) presburger
 next
   assume assm: "\<forall>w. Hoare_halt (?pre w) M (?post w)"
   show "decides M L" unfolding decides_def proof (intro allI conjI)
@@ -345,7 +346,7 @@ next
     next
       assume "accepts M w"
       then have "Oc = (if w\<in>L then Oc else Bk)"
-        unfolding accepts_def using assm head_halt_inj[of w M Oc] by simp
+        unfolding accepts_def using assm head_halt_inj[of w M Oc] by presburger
       thus "w \<in> L" using cell.distinct(1) by presburger
     qed
   next
@@ -356,7 +357,7 @@ next
     next
       assume "rejects M w"
       then have "Bk = (if w\<in>L then Oc else Bk)"
-        unfolding rejects_def using assm head_halt_inj[of w M Bk] by simp
+        unfolding rejects_def using assm head_halt_inj[of w M Bk] by presburger
       thus "w \<notin> L" by auto
     qed
   qed
