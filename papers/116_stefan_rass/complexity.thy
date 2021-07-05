@@ -446,8 +446,25 @@ lemma dlog_altdef: "1 \<le> n \<Longrightarrow> Discrete.log n = nat \<lfloor>lo
 lemma power_decompose:
   fixes n::nat
   obtains k m::nat
-  where "n = 2^k + m" and "0 \<le> m" "m < 2^k"
-sorry
+  where "n = 2^k + m" and "m < 2^k"
+proof -
+  define k where "k \<equiv> GREATEST k. 2^k \<le> n"
+     (*2^k strictly increasing in nat \<Longrightarrow> well defined.
+      How does GREATEST work anyway? Something is strange.
+     *)
+  define m where "m \<equiv> n - 2^k"
+
+  have "2^k \<le> n" using k_def sorry
+  hence "n = 2^k + m" using m_def by simp
+  
+  moreover have "m < 2^k" proof (rule ccontr)
+    assume "\<not> m < 2^k"
+    hence "2^(k+1) \<le> n" using m_def by simp
+    then show False using k_def sorry
+  qed
+
+  ultimately show thesis using that by simp
+qed
 
 
 (* anecdotal evidence that this is correct:
@@ -461,7 +478,7 @@ lemma log_altdef_ceil:
   assumes "2 \<le> (n::nat)"
   shows "clog n = nat \<lceil>log 2 n\<rceil>"
 proof -
-  from power_decompose obtain k m where km_def: "n = 2^k + m" "0 \<le> m" "m < 2^k" .
+  from power_decompose obtain k m where km_def: "n = 2^k + m" "m < 2^k" .
   have "1 + nat \<lfloor>log 2 (n-1)\<rfloor> = nat \<lceil>log 2 n\<rceil>" proof (cases "m = 0")
     case True
     then have k_def: "n = 2^k" using \<open>n = 2^k + m\<close> by simp
