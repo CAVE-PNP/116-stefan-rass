@@ -440,30 +440,48 @@ next
   then show ?case using Discrete.log.simps by fastforce
 qed
 
+lemma dlog_altdef: "1 \<le> n \<Longrightarrow> Discrete.log n = nat \<lfloor>log 2 n\<rfloor>"
+  using log_altdef by simp
+
+lemma power_decompose:
+  fixes n::nat
+  obtains k m::nat
+  where "n = 2^k + m" and "0 \<le> m" "m < 2^k"
+sorry
+
+
 (* anecdotal evidence that this is correct:
- * plot: https://www.wolframalpha.com/input/?i=plot+floor%28log2%28x-1%29%29%2B1%3Dceiling%28log2%28x%29%29+from+x%3D0+to+x%3D15
- * solve: https://www.wolframalpha.com/input/?i=solve+floor%28log2%28x-1%29%29%2B1%3Dceiling%28log2%28x%29%29+for+x+over+the+integers
- * check individual ints not mentioned by solve: https://www.wolframalpha.com/input/?i=floor%28log2%28x-1%29%29%2B1%3Dceiling%28log2%28x%29%29+for+x%3D4 *)
+from math import ceil, log2, floor
+dlog = lambda n: floor(log2(n))
+clog = lambda n: dlog(n-1)+1
+for n in range(2, 100):
+    print(clog(n) == ceil(log2(n)))
+*)
 lemma log_altdef_ceil:
-  assumes "n \<ge> 2"
+  assumes "2 \<le> (n::nat)"
   shows "clog n = nat \<lceil>log 2 n\<rceil>"
 proof -
-  thm log_altdef[of "n - 1"]
-  from \<open>n \<ge> 2\<close> have "n - 1 \<noteq> 0" by simp
-
-  have "log 2 n \<le> Discrete.log (n - 1) + 1"
-  proof (cases "\<exists>n'. n = 2^n'")
+  from power_decompose obtain k m where km_def: "n = 2^k + m" "0 \<le> m" "m < 2^k" .
+  have "1 + nat \<lfloor>log 2 (n-1)\<rfloor> = nat \<lceil>log 2 n\<rceil>" proof (cases "m = 0")
     case True
-    then show ?thesis sorry
+    then have k_def: "n = 2^k" using \<open>n = 2^k + m\<close> by simp
+    then have "nat \<lfloor>log 2 (n-1)\<rfloor> = k - 1"
+      using dlog_altdef[of "n-1"] clog_exp[of k] assms by fastforce
+    moreover have "nat \<lceil>log 2 n\<rceil> = k" using k_def by simp
+    moreover have \<open>1 \<le> k\<close> using assms k_def
+      by (smt (z3) One_nat_def int_zle_neg not_le not_less_eq numerals(2) of_nat_0_less_iff power_0)
+    ultimately show ?thesis by simp
   next
     case False
-    then show ?thesis sorry
+    then have \<open>1\<le>m\<close> by simp
+    have "nat \<lfloor>log 2 (n-1)\<rfloor> = k"
+      using km_def \<open>1\<le>m\<close> sorry
+    moreover have "nat \<lceil>log 2 n\<rceil> = 1 + k"
+      using km_def \<open>1\<le>m\<close> sorry
+    ultimately show ?thesis by simp
   qed
-
-  then have "Discrete.log (n - 1) + 1 = nat \<lfloor>log 2 (n-1)\<rfloor> + 1" sorry
-  also have "... = nat \<lceil>log 2 n\<rceil>" sorry
-  oops
-
+  then show ?thesis using assms dlog_altdef by simp
+qed
 
 definition strip_exp_pad :: "word \<Rightarrow> word"
   where "strip_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
