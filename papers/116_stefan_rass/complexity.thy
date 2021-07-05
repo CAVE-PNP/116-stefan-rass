@@ -76,7 +76,7 @@ lemma update_space_le: "tape_size (l,r) \<le> tape_size(update a (l,r))"
 lemma step_space_mono: "space0 M x n \<le> space0 M x (Suc n)"
   oops
 
-lemma tape_size_mono: "n \<le> m \<Longrightarrow> tape_size(tape0 M x n) \<le> tape_size(tape0 M x m)"
+lemma tape_size_mono: "n \<le> m \<Longrightarrow> space0 M x n \<le> space0 M x m"
   oops
 
 
@@ -431,7 +431,14 @@ text\<open>Discrete ceiling log\<close>
 abbreviation clog :: "nat \<Rightarrow> nat"
   where "clog n \<equiv> Discrete.log (n-1) + 1"
 
-lemma clog_exp: "n > 0 \<Longrightarrow> clog (2^n) = n" sorry (* unfolding log_exp_m1 by simp *)
+lemma clog_exp: "0 < n \<Longrightarrow> clog (2^n) = n"
+proof (induction n rule: nat_induct_non_zero)
+  case 1
+  then show ?case by simp
+next
+  case (Suc n)
+  then show ?case using Discrete.log.simps by fastforce
+qed
 
 (* anecdotal evidence that this is correct:
  * plot: https://www.wolframalpha.com/input/?i=plot+floor%28log2%28x-1%29%29%2B1%3Dceiling%28log2%28x%29%29+from+x%3D0+to+x%3D15
