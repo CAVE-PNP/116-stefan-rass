@@ -25,6 +25,15 @@ lemma cliqueE [elim]:
   obtains G\<^sub>C where "induced_subgraph G G\<^sub>C" and "C \<subseteq> verts G" and "verts G\<^sub>C = C" and "complete_digraph (card C) G\<^sub>C"
   using assms unfolding clique_def by blast
 
+definition max_clique :: "('a, 'b) pre_digraph \<Rightarrow> 'a set"
+  where "max_clique G = (ARG_MAX card S. (clique G S))"
+
+definition least_degree_vertex :: "('a, 'b) pre_digraph \<Rightarrow> 'a"
+  where "least_degree_vertex G = (ARG_MIN (\<lambda>\<alpha>. out_degree G \<alpha>) \<alpha>. (\<alpha> \<in> verts G))"
+
+definition direct_neighborhood :: "('a, 'b) pre_digraph \<Rightarrow> 'a \<Rightarrow> ('a, 'b) pre_digraph"
+  where "direct_neighborhood G \<alpha> = (SOME G\<^sub>N. induced_subgraph G\<^sub>N G \<and> (\<forall>v. \<alpha> \<rightarrow>\<^bsub>G\<^esub> v \<longleftrightarrow> v \<in> verts G\<^sub>N))"
+
 
 subsection\<open>Helper lemmas\<close>
 
