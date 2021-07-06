@@ -433,12 +433,9 @@ abbreviation clog :: "nat \<Rightarrow> nat"
 
 lemma clog_exp: "0 < n \<Longrightarrow> clog (2^n) = n"
 proof (induction n rule: nat_induct_non_zero)
-  case 1
-  then show ?case by simp
-next
   case (Suc n)
   then show ?case using Discrete.log.simps by fastforce
-qed
+qed simp
 
 lemma dlog_altdef: "1 \<le> n \<Longrightarrow> Discrete.log n = nat \<lfloor>log 2 n\<rfloor>"
   using log_altdef by simp
@@ -449,7 +446,7 @@ lemma nat_strict_mono_greatest:
   obtains n where "f n \<le> N" and "\<forall>m. f m \<le> N \<longrightarrow> m \<le> n"
   sorry
 
-lemma power_decompose:
+lemma power_two_decompose:
   fixes n::nat
   assumes "1 \<le> n"
   obtains k m::nat
@@ -472,19 +469,31 @@ proof -
   ultimately show thesis using that by simp
 qed
 
-(* anecdotal evidence that this is correct:
-from math import ceil, log2, floor
-dlog = lambda n: floor(log2(n))
-clog = lambda n: dlog(n-1)+1
-for n in range(2, 100):
-    print(clog(n) == ceil(log2(n)))
-*)
+lemma log_eq1:
+  fixes k m::nat
+  assumes "0 \<le> m" "m < 2^k"
+  shows "Discrete.log (2^k + m) = k"
+  using assms log_eqI by force
+
+lemma log_eq2:
+  fixes k m::nat
+  assumes "1 \<le> m" "m < 2^k"
+  shows "nat \<lceil>log 2 (2^k + m)\<rceil> = k + 1"
+proof -
+  let ?n = "2^k+m"
+  have "k < log 2 ?n"
+    using assms less_log2_of_power[of k ?n] by simp
+  moreover have "log 2 ?n \<le> k+1"
+    using assms log2_of_power_le[of ?n "k+1"] by simp
+  ultimately show ?thesis by linarith
+qed
+
 lemma log_altdef_ceil:
   assumes "2 \<le> (n::nat)"
   shows "clog n = nat \<lceil>log 2 n\<rceil>"
 proof -
   from assms have "1 \<le> n" by simp
-  with power_decompose obtain k m where km_def: "n = 2^k + m" "m < 2^k" .
+  with power_two_decompose obtain k m where km_def: "n = 2^k + m" "m < 2^k" .
   have "1 + nat \<lfloor>log 2 (n-1)\<rfloor> = nat \<lceil>log 2 n\<rceil>" proof (cases "m = 0")
     case True
     then have k_def: "n = 2^k" using \<open>n = 2^k + m\<close> by simp
@@ -498,9 +507,9 @@ proof -
     case False
     then have \<open>1\<le>m\<close> by simp
     have "nat \<lfloor>log 2 (n-1)\<rfloor> = k"
-      using km_def \<open>1\<le>m\<close> sorry
+      using km_def \<open>1\<le>m\<close> log_eq1[of "m-1" k] dlog_altdef[of "n-1"] assms by simp
     moreover have "nat \<lceil>log 2 n\<rceil> = 1 + k"
-      using km_def \<open>1\<le>m\<close> sorry
+      using km_def \<open>1\<le>m\<close> log_eq2 by simp
     ultimately show ?thesis by simp
   qed
   then show ?thesis using assms dlog_altdef by simp
