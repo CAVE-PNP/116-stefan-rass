@@ -444,7 +444,20 @@ lemma nat_strict_mono_greatest:
   fixes f::"nat \<Rightarrow> nat" and N::nat
   assumes "strict_mono f" "f 0 \<le> N"
   obtains n where "f n \<le> N" and "\<forall>m. f m \<le> N \<longrightarrow> m \<le> n"
-  sorry
+proof -
+  define M where "M \<equiv> {m. f m \<le> N}"
+  define n where "n = Max M"
+
+  from \<open>strict_mono f\<close> have "\<And>n. n \<le> f n" by (rule strict_mono_imp_increasing)
+  hence "finite M" using M_def finite_less_ub by simp
+  moreover from M_def \<open>f 0 \<le> N\<close> have "M \<noteq> {}" by auto
+  ultimately have "n \<in> M" unfolding n_def using Max_in[of M] by simp
+    
+  then have "f n \<le> N" using n_def M_def by simp
+  moreover have "\<forall>m. f m \<le> N \<longrightarrow> m \<le> n"
+    using Max_ge \<open>finite M\<close> n_def M_def by blast
+  ultimately show thesis using that by simp
+qed
 
 lemma power_two_decompose:
   fixes n::nat
