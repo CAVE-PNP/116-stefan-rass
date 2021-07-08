@@ -21,8 +21,39 @@ definition max_clique :: "('a, 'b) pre_digraph \<Rightarrow> 'a set"
 definition least_degree_vertex :: "('a, 'b) pre_digraph \<Rightarrow> 'a"
   where "least_degree_vertex G = (ARG_MIN (\<lambda>\<alpha>. out_degree G \<alpha>) \<alpha>. (\<alpha> \<in> verts G))"
 
-definition direct_neighborhood :: "('a, 'b) pre_digraph \<Rightarrow> 'a \<Rightarrow> ('a, 'b) pre_digraph"
-  where "direct_neighborhood G \<alpha> = G \<restriction> {v\<in>verts G. v = \<alpha> \<or> \<alpha> \<rightarrow>\<^bsub>G\<^esub> v}"
+definition neighborhood :: "('a, 'b) pre_digraph \<Rightarrow> 'a \<Rightarrow> ('a, 'b) pre_digraph"
+  where "neighborhood G \<alpha> = G \<restriction> {v. v = \<alpha> \<or> \<alpha> \<rightarrow>\<^bsub>G\<^esub> v \<or> v \<rightarrow>\<^bsub>G\<^esub> \<alpha>}"
+
+
+lemma (in fin_digraph) least_degree_vertex_ex:
+  assumes "verts G \<noteq> {}"
+  shows "least_degree_vertex G \<in> verts G"
+  using arg_min_if_finite(1) finite_verts assms unfolding least_degree_vertex_def arg_min_on_def .
+
+thm fin_digraph.least_degree_vertex_ex
+
+lemma (in graph) singleton_clique:
+  assumes "v \<in> verts G"
+  shows "clique G {v}"
+  unfolding clique_def complete_digraph_def
+proof (intro conjI)
+  show "graph (G \<restriction> {v})" using assms graph_axioms sorry
+  show "card (verts (G \<restriction> {v})) = card {v}" sorry
+  show "arcs_ends (G \<restriction> {v}) = {(u, w). (u, w) \<in> verts (G \<restriction> {v}) \<times> verts (G \<restriction> {v}) \<and> u \<noteq> w}" sorry
+qed
+
+lemma neighbor_selfI: "\<alpha> \<in> verts (neighborhood G \<alpha>)" unfolding neighborhood_def by simp
+lemma neighbor_inI: "\<alpha> \<rightarrow>\<^bsub>G\<^esub> v \<Longrightarrow> v \<in> verts (neighborhood G \<alpha>)" unfolding neighborhood_def by simp
+lemma neighbor_outI: "v \<rightarrow>\<^bsub>G\<^esub> \<alpha> \<Longrightarrow> v \<in> verts (neighborhood G \<alpha>)" unfolding neighborhood_def by simp 
+
+lemma neighborE:
+  assumes "v \<in> verts (neighborhood G \<alpha>)"
+  shows "v = \<alpha> \<or> \<alpha> \<rightarrow>\<^bsub>G\<^esub> v \<or> v \<rightarrow>\<^bsub>G\<^esub> \<alpha>"
+  using assms unfolding neighborhood_def by simp
+
+lemma nbh_altdef: "neighborhood G \<alpha> = G \<restriction> ({\<alpha>} \<union> {v. \<alpha> \<rightarrow>\<^bsub>G\<^esub> v} \<union> {v. v \<rightarrow>\<^bsub>G\<^esub> \<alpha>})"
+  unfolding neighborhood_def sorry
+  (* sledgehammer claims solved but solution times out: by (metis Collect_disj_eq Un_insert_left insert_is_Un singleton_conv) *)
 
 
 subsection\<open>Helper lemmas\<close>
