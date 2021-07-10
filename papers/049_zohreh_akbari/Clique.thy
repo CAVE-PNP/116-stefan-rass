@@ -37,9 +37,18 @@ lemma (in graph) singleton_clique:
   shows "clique G {v}"
   unfolding clique_def complete_digraph_def
 proof (intro conjI)
-  show "graph (G \<restriction> {v})" using assms graph_axioms sorry
-  show "card (verts (G \<restriction> {v})) = card {v}" sorry
-  show "arcs_ends (G \<restriction> {v}) = {(u, w). (u, w) \<in> verts (G \<restriction> {v}) \<times> verts (G \<restriction> {v}) \<and> u \<noteq> w}" sorry
+  let ?H = "G \<restriction> {v}"
+  have *:"card (verts ?H) = 1" by simp
+  then show "card (verts (G \<restriction> {v})) = card {v}" by simp
+
+  have "induced_subgraph ?H G" using assms induced_induce by simp
+  then show "graph (G \<restriction> {v})" using induced_graph_imp_graph
+    by (simp add: digraph.graphI digraphI_induced sym_digraph.sym_arcs)
+   
+  have "arcs_ends ?H = {}"
+    using wellformed_induce_subgraph no_loops by fastforce
+  then show "arcs_ends (G \<restriction> {v}) = {(u, w). (u, w) \<in> verts (G \<restriction> {v}) \<times> verts (G \<restriction> {v}) \<and> u \<noteq> w}"
+    using * by simp
 qed
 
 lemma neighbor_selfI: "\<alpha> \<in> verts (neighborhood G \<alpha>)" unfolding neighborhood_def by simp
