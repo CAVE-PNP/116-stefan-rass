@@ -88,6 +88,9 @@ lemma (in graph) inj_on_arc_to_ends [simp]: (* apparently, defining this using t
 lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A"
   using subset_UNIV by (subst inj_on_subset) blast+
 
+lemma (in wf_digraph) all_arcs: "arcs_ends G \<subseteq> verts G \<times> verts G" by auto
+lemma finite_tuples_finite: "finite A \<Longrightarrow> finite (A \<times> A)" by simp
+
 lemma complete_digraph_altdef:
   "complete_digraph n G \<longleftrightarrow> graph G \<and> n = card (verts G) \<and> (\<forall>v. v \<in> verts G \<longrightarrow> out_degree G v = n - 1)"
   (is "?lhs \<longleftrightarrow> ?rhs")
@@ -141,14 +144,31 @@ proof (intro iffI)
 
   with lhs1 and lhs2 show ?rhs by blast
 next
+  let ?V = "verts G" and ?E = "arcs_ends G"
+  let ?n = "card ?V"
   assume ?rhs
-  then have rhs1: "graph G" and rhs2: "n = card (verts G)" 
-    and rhs3: "v \<in> verts G \<Longrightarrow> out_degree G v = n - 1" for v by blast+
+  then have rhs1: "graph G" and rhs2: "n = ?n"
+  and rhs3: "v \<in> ?V \<Longrightarrow> out_degree G v = n - 1" for v by blast+
 
-  let ?V = "verts G" and ?E = "arcs_ends G" and ?n = "card (verts G)"
+  from \<open>graph G\<close> have "loopfree_digraph G"
+    by (simp add: digraph.axioms(2) graph.axioms(1))
+  then have loopfree: "\<And>e. e \<in> ?E \<Longrightarrow> let (u,v) = e in u \<noteq> v"
+    using loopfree_digraph_def loopfree_digraph_axioms_def by fastforce
+  from \<open>graph G\<close> have "wf_digraph G"
+    using digraph_def fin_digraph.axioms(1) graph.axioms(1) by blast
+  from \<open>graph G\<close> have "finite ?V"
+    using digraph_def fin_digraph.finite_verts graph.axioms(1) by auto
 
-  (* show ?lhs unfolding complete_digraph_def sorry *)
-  oops
-
+  have "?E = {(u, v) \<in> ?V \<times> ?V. u \<noteq> v}" (is "?E = ?R") proof -
+    have "?E \<subseteq> ?R" using loopfree \<open>wf_digraph G\<close> wf_digraph.all_arcs by auto
+    moreover have "card ?E = card ?R" sorry
+    moreover have "finite ?R"
+      using \<open>finite ?V\<close> finite_tuples_finite[of "?V"] finite_subset
+        Collect_subset[of "?V \<times> ?V"]
+      by (metis (no_types, lifting) case_prodD mem_Collect_eq subrelI)
+    ultimately show "?E = ?R" using card_subset_eq by simp
+  qed
+  then show ?lhs unfolding complete_digraph_def using rhs1 rhs2 by simp  
+qed
 
 end
