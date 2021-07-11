@@ -91,7 +91,7 @@ lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A"
 lemma (in nomulti_digraph) arc_ends_card: "card (arcs_ends G) = card (arcs G)"
   using inj_on_arc_to_ends by (simp add: arcs_ends_def card_image)
 
-lemma (in wf_digraph) all_arcs: "arcs_ends G \<subseteq> verts G \<times> verts G" by auto
+lemma (in wf_digraph) arc_ends_subset_cartesian: "arcs_ends G \<subseteq> verts G \<times> verts G" by auto
 
 lemma card_pairs:
   assumes "finite A"
@@ -118,8 +118,22 @@ proof -
 qed
 
 (* https://en.wikipedia.org/wiki/Directed_graph#Indegree_and_outdegree *)
-lemma (in fin_digraph) in_degree_sum: "card (arcs G) = sum (in_degree G) (verts G)" sorry
-lemma (in fin_digraph) out_degree_sum: "card (arcs G) = sum (out_degree G) (verts G)" sorry
+lemma (in fin_digraph) in_degree_sum: "card (arcs G) = sum (in_degree G) (verts G)" oops
+lemma (in fin_digraph) out_degree_sum: "sum (out_degree G) (verts G) = card (arcs G)"
+proof -
+  have 1: "\<forall>v\<in>verts G. \<forall>u\<in>verts G. u\<noteq>v \<longrightarrow> out_arcs G u \<inter> out_arcs G v = {}" by fastforce
+  have 2: "finite (verts G)" by simp
+  have 3: "\<forall>v\<in>verts G. finite (out_arcs G v)" by blast
+  have 4: "arcs G = (\<Union>v\<in>verts G. out_arcs G v)" by auto
+
+  have "sum (out_degree G) (verts G) = (\<Sum>v\<in>verts G. card (out_arcs G v))"
+    unfolding out_degree_def ..
+  also have "\<dots> = card (\<Union>v\<in>verts G. out_arcs G v)"
+    using 1 card_UN_disjoint[OF 2] 3 by fastforce
+  also have "\<dots> = card (arcs G)"
+    using 4 by simp
+  finally show ?thesis .
+qed
 
 lemma complete_digraph_altdef:
   "complete_digraph n G \<longleftrightarrow> graph G \<and> n = card (verts G) \<and> (\<forall>v. v \<in> verts G \<longrightarrow> out_degree G v = n - 1)"
@@ -195,7 +209,7 @@ next
     by (simp add: digraph.axioms(1) graph.axioms(1))
 
   have "?E = {(u, v) \<in> ?V\<times>?V. u\<noteq>v}" (is "?E = ?R") proof -
-    have "?E \<subseteq> ?R" using loopfree \<open>wf_digraph G\<close> wf_digraph.all_arcs by auto
+    have "?E \<subseteq> ?R" using loopfree \<open>wf_digraph G\<close> wf_digraph.arc_ends_subset_cartesian by auto
     moreover have "card ?E = card ?R" proof -
       have "card ?E = card (arcs G)"
         using \<open>nomulti_digraph G\<close> nomulti_digraph.arc_ends_card[of G] by simp 
