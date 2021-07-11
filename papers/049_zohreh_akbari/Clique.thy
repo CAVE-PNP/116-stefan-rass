@@ -88,8 +88,16 @@ lemma (in graph) inj_on_arc_to_ends [simp]: (* apparently, defining this using t
 lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A"
   using subset_UNIV by (subst inj_on_subset) blast+
 
+lemma (in nomulti_digraph) arc_ends_card: "card (arcs_ends G) = card (arcs G)"
+  using inj_on_arc_to_ends by (simp add: arcs_ends_def card_image)
+
 lemma (in wf_digraph) all_arcs: "arcs_ends G \<subseteq> verts G \<times> verts G" by auto
 lemma finite_tuples_finite: "finite A \<Longrightarrow> finite (A \<times> A)" by simp
+lemma count_pairs: "card {(u,v). (u,v) \<in> A \<times> A \<and> u \<noteq> v} = (let n = card A in n * (n - 1))" sorry
+
+(* https://en.wikipedia.org/wiki/Directed_graph#Indegree_and_outdegree *)
+lemma (in digraph) in_degree_sum: "card (arcs G) = sum (in_degree G) (verts G)" sorry
+lemma (in digraph) out_degree_sum: "card (arcs G) = sum (out_degree G) (verts G)" sorry
 
 lemma complete_digraph_altdef:
   "complete_digraph n G \<longleftrightarrow> graph G \<and> n = card (verts G) \<and> (\<forall>v. v \<in> verts G \<longrightarrow> out_degree G v = n - 1)"
@@ -150,6 +158,7 @@ next
   then have rhs1: "graph G" and rhs2: "n = ?n"
   and rhs3: "v \<in> ?V \<Longrightarrow> out_degree G v = n - 1" for v by blast+
 
+  (* there has to be a better way to do this *)
   from \<open>graph G\<close> have "loopfree_digraph G"
     by (simp add: digraph.axioms(2) graph.axioms(1))
   then have loopfree: "\<And>e. e \<in> ?E \<Longrightarrow> let (u,v) = e in u \<noteq> v"
@@ -158,17 +167,30 @@ next
     using digraph_def fin_digraph.axioms(1) graph.axioms(1) by blast
   from \<open>graph G\<close> have "finite ?V"
     using digraph_def fin_digraph.finite_verts graph.axioms(1) by auto
+  from \<open>graph G\<close> have "nomulti_digraph G"
+    by (simp add: digraph.axioms(3) graph.axioms(1))
+  from \<open>graph G\<close> have "digraph G" by (rule graph.axioms)
 
   have "?E = {(u, v) \<in> ?V \<times> ?V. u \<noteq> v}" (is "?E = ?R") proof -
     have "?E \<subseteq> ?R" using loopfree \<open>wf_digraph G\<close> wf_digraph.all_arcs by auto
-    moreover have "card ?E = card ?R" sorry
+    moreover have "card ?E = card ?R" proof -
+      have "card ?E = card (arcs G)"
+        using \<open>nomulti_digraph G\<close> nomulti_digraph.arc_ends_card[of G] by simp 
+      also have "\<dots> = sum (out_degree G) (verts G)"
+        using \<open>digraph G\<close> digraph.out_degree_sum[of G] by simp
+      also have "\<dots> = n * (n-1)"
+        using rhs3 rhs2 by simp
+      also have "\<dots> = card ?R"
+        using rhs2 count_pairs[of ?V] by metis
+      finally show "card ?E = card ?R" .
+    qed
     moreover have "finite ?R"
       using \<open>finite ?V\<close> finite_tuples_finite[of "?V"] finite_subset
         Collect_subset[of "?V \<times> ?V"]
       by (metis (no_types, lifting) case_prodD mem_Collect_eq subrelI)
     ultimately show "?E = ?R" using card_subset_eq by simp
   qed
-  then show ?lhs unfolding complete_digraph_def using rhs1 rhs2 by simp  
+  then show ?lhs unfolding complete_digraph_def using rhs1 rhs2 by simp
 qed
 
 end
