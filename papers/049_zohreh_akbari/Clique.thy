@@ -98,7 +98,7 @@ lemma card_pairs:
   shows "card {(u,v). (u,v)\<in>A\<times>A \<and> u\<noteq>v} = (let n=card A in n*(n-1))"
 proof -
   let ?n = "card A"
-  define M where "M \<equiv> {(u,v). (u,v)\<in>A\<times>A \<and> u\<noteq>v}"
+  define M  where "M  \<equiv> {(u,v). (u,v)\<in>A\<times>A \<and> u\<noteq>v}"
   define M' where "M' \<equiv> {(u,v). (u,v)\<in>A\<times>A \<and> u=v}"
   note defs = M_def M'_def
 
@@ -113,8 +113,8 @@ proof -
   moreover have "A \<times> A = M \<union> M'" and "M \<inter> M' = {}" unfolding defs by auto
   ultimately have 3: "card (A\<times>A) = card M  + card M'" using card_Un_disjoint by simp
 
-  from 1[symmetric] 2 3 show ?thesis using defs
-    using diff_add_inverse2 diff_mult_distrib2 nat_mult_1_right by presburger
+  from 1 2 3 show ?thesis using defs
+    by (metis add_diff_cancel_right' diff_mult_distrib2 mult.right_neutral)
 qed
 
 (* https://en.wikipedia.org/wiki/Directed_graph#Indegree_and_outdegree *)
@@ -189,43 +189,34 @@ proof (intro iffI)
   with lhs1 and lhs2 show ?rhs by blast
 next
   let ?V = "verts G" and ?E = "arcs_ends G"
-  let ?n = "card ?V"
   assume ?rhs
-  then have rhs1: "graph G" and rhs2: "n = ?n"
-  and rhs3: "v \<in> ?V \<Longrightarrow> out_degree G v = n - 1" for v by blast+
+  then have "graph G" and n_def: "n = card ?V" and *: "v \<in> ?V \<Longrightarrow> out_degree G v = n - 1" for v by blast+
 
-  (* there has to be a better way to do this *)
-  from \<open>graph G\<close> have "loopfree_digraph G"
-    by (simp add: digraph.axioms(2) graph.axioms(1))
-  then have loopfree: "\<And>e. e \<in> ?E \<Longrightarrow> let (u,v) = e in u\<noteq>v"
+  from \<open>graph G\<close>
+  have "loopfree_digraph G" and "wf_digraph G" and "finite ?V" and "nomulti_digraph G" and "fin_digraph G"
+    using graph.axioms digraph.axioms fin_digraph.axioms fin_digraph_axioms_def
+    by blast+
+  then have no_loops: "\<And>e. e \<in> ?E \<Longrightarrow> let (u,v) = e in u\<noteq>v"
     using loopfree_digraph_def loopfree_digraph_axioms_def by fastforce
-  from \<open>graph G\<close> have "wf_digraph G"
-    using digraph_def fin_digraph.axioms(1) graph.axioms(1) by blast
-  from \<open>graph G\<close> have "finite ?V"
-    using digraph_def fin_digraph.finite_verts graph.axioms(1) by auto
-  from \<open>graph G\<close> have "nomulti_digraph G"
-    by (simp add: digraph.axioms(3) graph.axioms(1))
-  from \<open>graph G\<close> have "fin_digraph G"
-    by (simp add: digraph.axioms(1) graph.axioms(1))
 
   have "?E = {(u, v) \<in> ?V\<times>?V. u\<noteq>v}" (is "?E = ?R") proof -
-    have "?E \<subseteq> ?R" using loopfree \<open>wf_digraph G\<close> wf_digraph.arc_ends_subset_cartesian by auto
+    have "?E \<subseteq> ?R" using no_loops \<open>wf_digraph G\<close> wf_digraph.arc_ends_subset_cartesian by auto
     moreover have "card ?E = card ?R" proof -
       have "card ?E = card (arcs G)"
         using \<open>nomulti_digraph G\<close> nomulti_digraph.arc_ends_card[of G] by simp 
       also have "\<dots> = sum (out_degree G) (verts G)"
         using \<open>fin_digraph G\<close> fin_digraph.out_degree_sum[of G] by simp
       also have "\<dots> = n * (n-1)"
-        using rhs3 rhs2 by simp
+        using n_def * by simp
       also have "\<dots> = card ?R"
-        using rhs2 card_pairs[of ?V] \<open>finite ?V\<close> by metis
+        using n_def card_pairs[of ?V] \<open>finite ?V\<close> by metis
       finally show "card ?E = card ?R" .
     qed
     moreover have "finite ?R"
       using \<open>finite ?V\<close> finite_cartesian_product[of ?V ?V] finite_subset[of ?R "?V\<times>?V"] by auto      
     ultimately show "?E = ?R" using card_subset_eq by simp
   qed
-  then show ?lhs unfolding complete_digraph_def using rhs1 rhs2 by simp
+  then show ?lhs unfolding complete_digraph_def using \<open>graph G\<close> n_def by simp
 qed
 
 end
