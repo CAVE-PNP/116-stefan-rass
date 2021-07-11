@@ -92,12 +92,34 @@ lemma (in nomulti_digraph) arc_ends_card: "card (arcs_ends G) = card (arcs G)"
   using inj_on_arc_to_ends by (simp add: arcs_ends_def card_image)
 
 lemma (in wf_digraph) all_arcs: "arcs_ends G \<subseteq> verts G \<times> verts G" by auto
-lemma finite_tuples_finite: "finite A \<Longrightarrow> finite (A \<times> A)" by simp
-lemma count_pairs: "card {(u,v). (u,v) \<in> A \<times> A \<and> u \<noteq> v} = (let n = card A in n * (n - 1))" sorry
+
+lemma card_pairs:
+  assumes "finite A"
+  shows "card {(u,v). (u,v)\<in>A\<times>A \<and> u\<noteq>v} = (let n=card A in n*(n-1))"
+proof -
+  let ?n = "card A"
+  define M where "M \<equiv> {(u,v). (u,v)\<in>A\<times>A \<and> u\<noteq>v}"
+  define M' where "M' \<equiv> {(u,v). (u,v)\<in>A\<times>A \<and> u=v}"
+  note defs = M_def M'_def
+
+  have 1: "card A = card M'"
+    using bij_betw_same_card[of "\<lambda>x. (x,x)" A M']
+    unfolding M'_def bij_betw_def inj_on_def by auto
+  have 2: "card (A\<times>A) = ?n * ?n" by (rule card_cartesian_product)
+
+  have "M \<subseteq> A\<times>A" and "M' \<subseteq> A\<times>A" unfolding defs by auto
+  hence "finite M" and "finite M'"
+    using assms finite_cartesian_product[of A A] finite_subset by blast+
+  moreover have "A \<times> A = M \<union> M'" and "M \<inter> M' = {}" unfolding defs by auto
+  ultimately have 3: "card (A\<times>A) = card M  + card M'" using card_Un_disjoint by simp
+
+  from 1[symmetric] 2 3 show ?thesis using defs
+    using diff_add_inverse2 diff_mult_distrib2 nat_mult_1_right by presburger
+qed
 
 (* https://en.wikipedia.org/wiki/Directed_graph#Indegree_and_outdegree *)
-lemma (in digraph) in_degree_sum: "card (arcs G) = sum (in_degree G) (verts G)" sorry
-lemma (in digraph) out_degree_sum: "card (arcs G) = sum (out_degree G) (verts G)" sorry
+lemma (in fin_digraph) in_degree_sum: "card (arcs G) = sum (in_degree G) (verts G)" sorry
+lemma (in fin_digraph) out_degree_sum: "card (arcs G) = sum (out_degree G) (verts G)" sorry
 
 lemma complete_digraph_altdef:
   "complete_digraph n G \<longleftrightarrow> graph G \<and> n = card (verts G) \<and> (\<forall>v. v \<in> verts G \<longrightarrow> out_degree G v = n - 1)"
@@ -161,7 +183,7 @@ next
   (* there has to be a better way to do this *)
   from \<open>graph G\<close> have "loopfree_digraph G"
     by (simp add: digraph.axioms(2) graph.axioms(1))
-  then have loopfree: "\<And>e. e \<in> ?E \<Longrightarrow> let (u,v) = e in u \<noteq> v"
+  then have loopfree: "\<And>e. e \<in> ?E \<Longrightarrow> let (u,v) = e in u\<noteq>v"
     using loopfree_digraph_def loopfree_digraph_axioms_def by fastforce
   from \<open>graph G\<close> have "wf_digraph G"
     using digraph_def fin_digraph.axioms(1) graph.axioms(1) by blast
@@ -169,25 +191,24 @@ next
     using digraph_def fin_digraph.finite_verts graph.axioms(1) by auto
   from \<open>graph G\<close> have "nomulti_digraph G"
     by (simp add: digraph.axioms(3) graph.axioms(1))
-  from \<open>graph G\<close> have "digraph G" by (rule graph.axioms)
+  from \<open>graph G\<close> have "fin_digraph G"
+    by (simp add: digraph.axioms(1) graph.axioms(1))
 
-  have "?E = {(u, v) \<in> ?V \<times> ?V. u \<noteq> v}" (is "?E = ?R") proof -
+  have "?E = {(u, v) \<in> ?V\<times>?V. u\<noteq>v}" (is "?E = ?R") proof -
     have "?E \<subseteq> ?R" using loopfree \<open>wf_digraph G\<close> wf_digraph.all_arcs by auto
     moreover have "card ?E = card ?R" proof -
       have "card ?E = card (arcs G)"
         using \<open>nomulti_digraph G\<close> nomulti_digraph.arc_ends_card[of G] by simp 
       also have "\<dots> = sum (out_degree G) (verts G)"
-        using \<open>digraph G\<close> digraph.out_degree_sum[of G] by simp
+        using \<open>fin_digraph G\<close> fin_digraph.out_degree_sum[of G] by simp
       also have "\<dots> = n * (n-1)"
         using rhs3 rhs2 by simp
       also have "\<dots> = card ?R"
-        using rhs2 count_pairs[of ?V] by metis
+        using rhs2 card_pairs[of ?V] \<open>finite ?V\<close> by metis
       finally show "card ?E = card ?R" .
     qed
     moreover have "finite ?R"
-      using \<open>finite ?V\<close> finite_tuples_finite[of "?V"] finite_subset
-        Collect_subset[of "?V \<times> ?V"]
-      by (metis (no_types, lifting) case_prodD mem_Collect_eq subrelI)
+      using \<open>finite ?V\<close> finite_cartesian_product[of ?V ?V] finite_subset[of ?R "?V\<times>?V"] by auto      
     ultimately show "?E = ?R" using card_subset_eq by simp
   qed
   then show ?lhs unfolding complete_digraph_def using rhs1 rhs2 by simp
