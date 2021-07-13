@@ -46,7 +46,7 @@ proof (intro conjI)
   have "induced_subgraph ?H G" using assms induced_induce by simp
   then show "graph (G \<restriction> {v})" using induced_graph_imp_graph
     by (simp add: digraph.graphI digraphI_induced sym_digraph.sym_arcs)
-   
+
   have "arcs_ends ?H = {}"
     using wellformed_induce_subgraph no_loops by fastforce
   then show "arcs_ends (G \<restriction> {v}) = {(u, w). (u, w) \<in> verts (G \<restriction> {v}) \<times> verts (G \<restriction> {v}) \<and> u \<noteq> w}"
@@ -198,7 +198,7 @@ next
     have "?E \<subseteq> ?R" using no_loops \<open>wf_digraph G\<close> wf_digraph.arc_ends_subset_cartesian by auto
     moreover have "card ?E = card ?R" proof -
       have "card ?E = card (arcs G)"
-        using \<open>nomulti_digraph G\<close> nomulti_digraph.arc_ends_card[of G] by simp 
+        using \<open>nomulti_digraph G\<close> nomulti_digraph.arc_ends_card[of G] by simp
       also have "\<dots> = sum (out_degree G) (verts G)"
         using \<open>fin_digraph G\<close> fin_digraph.out_degree_sum[of G] by simp
       also have "\<dots> = n * (n-1)"
@@ -208,10 +208,32 @@ next
       finally show "card ?E = card ?R" .
     qed
     moreover have "finite ?R"
-      using \<open>finite ?V\<close> finite_cartesian_product[of ?V ?V] finite_subset[of ?R "?V\<times>?V"] by auto      
+      using \<open>finite ?V\<close> finite_cartesian_product[of ?V ?V] finite_subset[of ?R "?V\<times>?V"] by auto
     ultimately show "?E = ?R" using card_subset_eq by simp
   qed
   then show ?lhs unfolding complete_digraph_def using \<open>graph G\<close> n_def by simp
 qed
+
+
+subsubsection\<open>Induction\<close>
+
+definition (in pre_digraph) is_empty :: "bool"
+  where "is_empty \<equiv> verts G = {}"
+
+lemma (in fin_digraph) verts_induct [case_names empty delete]:
+  assumes "\<And>G. pre_digraph.is_empty G \<Longrightarrow> P G"
+    and "\<And>G v. P (G \<restriction> (verts G - v)) \<Longrightarrow> P G"
+  shows "P G"
+  using assms unfolding pre_digraph.is_empty_def
+  by (metis Diff_cancel induce_subgraph_verts)
+
+lemma (in fin_digraph) verts_induct_non_empty [consumes 1, case_names empty delete]:
+  assumes "\<not> is_empty"
+    and "\<And>G. is_singleton (verts G) \<Longrightarrow> P G"
+    and "\<And>G v. P (G \<restriction> (verts G - v)) \<Longrightarrow> P G"
+  shows "P G"
+  using assms unfolding is_empty_def (* TODO tune this, or comment out if not useful *)
+  by (metis is_singletonI Diff_Diff_Int Int_insert_left_if1 induce_subgraph_verts inf_bot_left inf_commute least_degree_vertex_ex)
+
 
 end
