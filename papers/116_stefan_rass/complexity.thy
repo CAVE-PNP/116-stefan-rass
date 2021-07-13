@@ -2,11 +2,29 @@ theory complexity
   imports Main gn "Universal_Turing_Machine.UTM" "HOL-Library.Sublist" "HOL-Library.Discrete"
 begin
 
-subsection\<open>Termination\<close>
+
+text\<open>A Turing Machine (TM) as defined by Xu et al. [2013] is a list of states.
+  Each state is a pair of instructions (\<^typ>\<open>instr\<close>),
+  the first one executed when a blank cell (\<^term>\<open>Bk\<close>) is read,
+  the second one in case of an occupied cell (\<^term>\<open>Oc\<close>).
+  A TM is thus a list of instructions, as the pairs are flattened out
+  into a list with an even number of elements (see ibid. ch. 2 and eqn. (1)).
+  An instruction is an \<^typ>\<open>action\<close>
+  (write symbol (\<^term>\<open>W0\<close>, \<^term>\<open>W1\<close>), move head (\<^term>\<open>L\<close>, \<^term>\<open>R\<close>) or stall (\<^term>\<open>Nop\<close>))
+  and a reference to the "next state" (a natural number indicated the position in the list).
+  The state with number \<open>0\<close> is reserved as the halting state
+  (the first state in the list has the number \<open>1\<close>).\<close>
+type_synonym TM = "tprog0"
+
+
+subsection\<open>Basic Measures\<close>
 
 text\<open>The tape size can not use the universal function \<^term>\<open>size\<close>, since for any pair \<^term>\<open>p = (a, b)\<close>, \<^term>\<open>size p = 1\<close>.\<close>
 fun tape_size :: "tape \<Rightarrow> nat" \<comment> \<open>using \<open>fun\<close> since \<open>definition\<close> does not recognize patterns like \<^term>\<open>(l, r)\<close>\<close>
   where "tape_size (l, r) = length l + length r"
+
+
+subsubsection\<open>Time\<close>
 
 text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>, but includes a maximum number of steps.\<close>
 definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> tprog0 \<Rightarrow> bool"
@@ -19,9 +37,6 @@ definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> tprog0 \<Ri
 (* size of tape after M does n steps on input x *)
 abbreviation space0 where "space0 M x n \<equiv> let (_,tp) = steps0 (1, x) M n in tape_size tp"
 
-definition space_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> tprog0 \<Rightarrow> bool"
-  where "space_restricted T M \<equiv> \<forall>x. \<forall>n. space0 M x n \<le> T(tape_size x)"
-
 text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>
      or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>x\<close>\<close>
 definition time :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat option"
@@ -31,8 +46,6 @@ definition time :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat option"
       else None
     )"
 
-definition space :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat"
-  where "space M x = Max {space0 M x n | n. n\<in>\<nat>}"
 
 lemma time_restricted_altdef:
   "time_restricted T p \<longleftrightarrow> (\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp))"
@@ -67,6 +80,16 @@ qed
 corollary "time_restricted T p \<Longrightarrow> (\<forall>tp. \<exists>n. the (time p tp) \<le> T (tape_size tp))"
   unfolding time_restricted_altdef
   by (metis option.sel)
+
+
+subsubsection\<open>Space\<close>
+
+definition space_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> tprog0 \<Rightarrow> bool"
+  where "space_restricted T M \<equiv> \<forall>x. \<forall>n. space0 M x n \<le> T(tape_size x)"
+
+definition space :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat"
+  where "space M x = Max {space0 M x n | n. n\<in>\<nat>}"
+
 
 lemma update_space_one: "tape_size (update a (l,r)) \<le> 1 + tape_size (l,r)"
   by (induction a) simp_all
@@ -413,10 +436,7 @@ text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
 
   1. Exponential padding. "all but the most significant \<open>\<lceil>log(len(w))\<rceil>\<close> bits are ignored"
   2. Arbitrary-length \<open>1\<^sup>+0\<close> prefix. "from [the result] we drop all preceding 1-bits and the first 0-bit"
-  3. Code description. "let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form".
-
-  The somewhat obvious choice for \<open>\<rho>\<close> is to utilize \<^term>\<open>code\<close>, since it is already defined
-  and used as encoding by the universal TM \<^term>\<open>UTM\<close> (see @{thm UTM_halt_lemma2}).\<close>
+  3. Code description. "let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form".\<close>
 
 
 subsubsection\<open>Exponential Padding\<close>
@@ -452,7 +472,7 @@ proof -
   hence "finite M" using M_def finite_less_ub by simp
   moreover from M_def \<open>f 0 \<le> N\<close> have "M \<noteq> {}" by auto
   ultimately have "n \<in> M" unfolding n_def using Max_in[of M] by simp
-    
+
   then have "f n \<le> N" using n_def M_def by simp
   moreover have "\<forall>m. f m \<le> N \<longrightarrow> m \<le> n"
     using Max_ge \<open>finite M\<close> n_def M_def by blast
@@ -472,7 +492,7 @@ proof -
   define m where "m \<equiv> n - 2^k"
 
   have "n = 2^k + m" using m_def \<open>2^k \<le> n\<close> by simp
-  
+
   moreover have "m < 2^k" proof (rule ccontr)
     assume "\<not> m < 2^k"
     hence "2^(k+1) \<le> n" using m_def by simp
@@ -609,6 +629,8 @@ definition strip_al_prefix :: "word \<Rightarrow> word" where
 
 lemmas al_prefix_simps = add_al_prefix.simps has_al_prefix_def strip_al_prefix_def
 
+lemma add_alp_min: "add_al_prefix w \<noteq> Num.One" by (induction w) simp_all
+
 lemma add_alp_altdef: "add_al_prefix w = word_of_bin (bin_of_word w @ [False, True])"
   by (induction w) simp_all
 
@@ -680,17 +702,16 @@ qed
 
 subsubsection\<open>Code Description\<close>
 
-definition is_encoded_TM :: "word \<Rightarrow> bool"
-  where "is_encoded_TM w = (\<exists>M. code M = gn w)"
+text\<open>For this part, only a short description is given in ch. 3.1.
+  The somewhat obvious choice is to utilize \<^term>\<open>code\<close>, since it is already defined
+  and used as encoding by the universal TM \<^term>\<open>UTM\<close> (see @{thm UTM_halt_lemma2}).
 
-definition decode_TM :: "word \<Rightarrow> tprog0"
-  where "decode_TM w = (THE M. code M = gn w)"
+  This step is also used to implement the following requirement:
+  "every string over \<open>{0, 1}\<^sup>*\<close> represents some TM (easy to assure by executing
+  an invalid code as a canonic TM that instantly halts and rejects its input)"\<close>
 
 definition Rejecting_TM :: tprog0
   where "Rejecting_TM = [(W0, 0), (W0, 0)]"
-
-definition read_TM :: "word \<Rightarrow> tprog0"
-  where "read_TM w = (if is_encoded_TM w then decode_TM w else Rejecting_TM)"
 
 lemma rej_TM: "rejects Rejecting_TM w" unfolding rejects_def
 proof (intro Hoare_haltI exI conjI)
@@ -710,6 +731,73 @@ proof (intro Hoare_haltI exI conjI)
   show "(\<lambda>tp. head tp = Bk) holds_for steps0 (1, l, r) Rejecting_TM 1"
     unfolding step1 holds_for.simps by simp
 qed
+
+
+definition encode_TM :: "TM \<Rightarrow> word"
+  where "encode_TM M = gn_inv (code M)"
+
+\<comment> \<open>The following definitions are placeholders,
+  since apparently there is no defined inverse of \<^term>\<open>code\<close>.\<close>
+
+definition is_encoded_TM :: "word \<Rightarrow> bool"
+  where "is_encoded_TM w = (\<exists>M. w = encode_TM M)"
+
+definition decode_TM :: "word \<Rightarrow> TM"
+  where "decode_TM w = (if is_encoded_TM w then (THE M. w = encode_TM M) else Rejecting_TM)"
+
+
+(* this should hold, otherwise the gödel numbering would be wrong *)
+lemma code_inj: "inj code" sorry
+
+lemma encode_TM_inj: "inj encode_TM"
+  unfolding encode_TM_def using gn_inv_inj code_inj godel_code_great
+  by (metis (mono_tags, lifting) code.elims injD injI inv_gn_id is_gn_def)
+
+lemma codec_TM: "decode_TM (encode_TM M) = M" (is "?lhs = M")
+proof -
+  let ?e = "\<lambda>M. gn_inv (code M)"
+  have c: "\<exists>M'. ?e M = ?e M'" by blast
+  have "inj ?e" using encode_TM_inj unfolding encode_TM_def .
+  with injD have i: "gn_inv (code M) = gn_inv (code M') \<Longrightarrow> M = M'" for M M' .
+
+  have "?lhs = (if \<exists>M'. ?e M = ?e M' then THE M''. ?e M = ?e M'' else Rejecting_TM)"
+    unfolding decode_TM_def encode_TM_def is_encoded_TM_def ..
+  also have "... = (THE M''. ?e M = ?e M'')" using c by (rule if_P)
+  also have "... = M" by (blast dest: i)
+  finally show ?thesis .
+qed
+
+
+subsubsection\<open>Assembling components\<close>
+
+(* TODO These names are already confusing. Find less ambiguous ones *)
+
+definition TM_encode_pad :: "TM \<Rightarrow> word"
+  where "TM_encode_pad M = add_exp_pad (add_al_prefix (encode_TM M))"
+
+definition TM_decode_pad :: "word \<Rightarrow> TM"
+  where "TM_decode_pad w = decode_TM (strip_al_prefix (strip_exp_pad w))"
+
+
+lemma TM_codec: "TM_decode_pad (TM_encode_pad M) = M"
+  unfolding TM_decode_pad_def TM_encode_pad_def using add_alp_min
+  by (subst exp_pad_correct, unfold alp_correct codec_TM, blast+)
+
+text\<open>Proving required properties:
+
+  from ch. 3.1:
+  "The encoding that we will use [...] will have the following properties:
+
+  1. every string over \<open>{0, 1}\<^sup>*\<close> represents some TM [...],
+  2. every TM is represented by infinitely many strings. [...]"
+
+  from ch. 4.2:
+  "[The encoding] assures several properties [...]:
+
+  1. [...] an arbitrary word \<open>w'\<close> encoding a TM has at least
+             \<open>2^(ℓ - \<lceil>log ℓ\<rceil>) \<ge> 2^(ℓ - (log ℓ) - 1)\<close>      (7)
+     equivalents \<open>w\<close> in the set \<open>{0, 1}\<^sup>ℓ\<close> that map to \<open>w'\<close>.
+  2. [equivalent to 2. from ch. 3.1]"\<close>
 
 
 end
