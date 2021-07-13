@@ -41,15 +41,15 @@ lemma (in graph) singleton_clique:
 proof (intro conjI)
   let ?H = "G \<restriction> {v}"
   have *:"card (verts ?H) = 1" by simp
-  then show "card (verts (G \<restriction> {v})) = card {v}" by simp
+  then show "card (verts ?H) = card {v}" by simp
 
   have "induced_subgraph ?H G" using assms induced_induce by simp
-  then show "graph (G \<restriction> {v})" using induced_graph_imp_graph
+  then show "graph ?H" using induced_graph_imp_graph
     by (simp add: digraph.graphI digraphI_induced sym_digraph.sym_arcs)
    
   have "arcs_ends ?H = {}"
     using wellformed_induce_subgraph no_loops by fastforce
-  then show "arcs_ends (G \<restriction> {v}) = {(u, w). (u, w) \<in> verts (G \<restriction> {v}) \<times> verts (G \<restriction> {v}) \<and> u \<noteq> w}"
+  then show "arcs_ends ?H = {(u, w). (u, w) \<in> verts ?H \<times> verts ?H \<and> u \<noteq> w}"
     using * by simp
 qed
 
@@ -113,7 +113,6 @@ proof -
 qed
 
 (* https://en.wikipedia.org/wiki/Directed_graph#Indegree_and_outdegree *)
-lemma (in fin_digraph) in_degree_sum: "card (arcs G) = sum (in_degree G) (verts G)" oops
 lemma (in fin_digraph) out_degree_sum: "sum (out_degree G) (verts G) = card (arcs G)"
 proof -
   have 1: "\<forall>v\<in>verts G. \<forall>u\<in>verts G. u\<noteq>v \<longrightarrow> out_arcs G u \<inter> out_arcs G v = {}" by fastforce
@@ -129,6 +128,12 @@ proof -
     using 4 by simp
   finally show ?thesis .
 qed
+
+lemma (in fin_digraph) in_eq_out_degree: "sum (out_degree G) (verts G) = sum (in_degree G) (verts G)"
+  sorry
+
+lemma (in fin_digraph) in_degree_sum: "card (arcs G) = sum (in_degree G) (verts G)"
+  using out_degree_sum in_eq_out_degree by argo
 
 lemma complete_digraph_altdef:
   "complete_digraph n G \<longleftrightarrow> graph G \<and> n = card (verts G) \<and> (\<forall>v. v \<in> verts G \<longrightarrow> out_degree G v = n - 1)"
