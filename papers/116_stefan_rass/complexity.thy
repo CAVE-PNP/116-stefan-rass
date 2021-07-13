@@ -629,7 +629,7 @@ definition strip_al_prefix :: "word \<Rightarrow> word" where
 
 lemmas al_prefix_simps = add_al_prefix.simps has_al_prefix_def strip_al_prefix_def
 
-lemma add_alp_min: "add_al_prefix w \<noteq> Num.One" by (induction w) simp_all
+lemma add_alp_min: "add_al_prefix w \<noteq> num.One" by (induction w) simp_all
 
 lemma add_alp_altdef: "add_al_prefix w = word_of_bin (bin_of_word w @ [False, True])"
   by (induction w) simp_all
@@ -713,6 +713,8 @@ text\<open>For this part, only a short description is given in ch. 3.1.
 definition Rejecting_TM :: tprog0
   where "Rejecting_TM = [(W0, 0), (W0, 0)]"
 
+lemma rej_TM_wf: "tm_wf0 Rejecting_TM" unfolding Rejecting_TM_def tm_wf.simps by force
+
 lemma rej_TM: "rejects Rejecting_TM w" unfolding rejects_def
 proof (intro Hoare_haltI exI conjI)
   fix l r
@@ -742,8 +744,12 @@ definition encode_TM :: "TM \<Rightarrow> word"
 definition is_encoded_TM :: "word \<Rightarrow> bool"
   where "is_encoded_TM w = (\<exists>M. w = encode_TM M)"
 
+definition filter_wf_TMs :: "TM \<Rightarrow> TM" \<comment> \<open>only allow well-formed TMs\<close>
+  where "filter_wf_TMs M = (if tm_wf0 M then M else Rejecting_TM)"
+
 definition decode_TM :: "word \<Rightarrow> TM"
-  where "decode_TM w = (if is_encoded_TM w then (THE M. w = encode_TM M) else Rejecting_TM)"
+  where "decode_TM w =
+    (if is_encoded_TM w then filter_wf_TMs (THE M. w = encode_TM M) else Rejecting_TM)"
 
 
 (* this should hold, otherwise the gödel numbering would be wrong *)
@@ -753,19 +759,24 @@ lemma encode_TM_inj: "inj encode_TM"
   unfolding encode_TM_def using gn_inv_inj code_inj godel_code_great
   by (metis (mono_tags, lifting) code.elims injD injI inv_gn_id is_gn_def)
 
-lemma codec_TM: "decode_TM (encode_TM M) = M" (is "?lhs = M")
+lemma codec_TM: "tm_wf0 M \<Longrightarrow> decode_TM (encode_TM M) = M" (is "tm_wf0 M \<Longrightarrow> ?lhs = M")
 proof -
+  assume wf: "tm_wf0 M"
   let ?e = "\<lambda>M. gn_inv (code M)"
   have c: "\<exists>M'. ?e M = ?e M'" by blast
   have "inj ?e" using encode_TM_inj unfolding encode_TM_def .
   with injD have i: "gn_inv (code M) = gn_inv (code M') \<Longrightarrow> M = M'" for M M' .
 
-  have "?lhs = (if \<exists>M'. ?e M = ?e M' then THE M''. ?e M = ?e M'' else Rejecting_TM)"
+  have "?lhs = (if \<exists>M'. ?e M = ?e M' then filter_wf_TMs (THE M''. ?e M = ?e M'') else Rejecting_TM)"
     unfolding decode_TM_def encode_TM_def is_encoded_TM_def ..
-  also have "... = (THE M''. ?e M = ?e M'')" using c by (rule if_P)
-  also have "... = M" by (blast dest: i)
+  also have "... = filter_wf_TMs (THE M''. ?e M = ?e M'')" using c by (rule if_P)
+  also have "... = filter_wf_TMs M" by (rule arg_cong[where f=filter_wf_TMs], blast dest: i)
+  also have "... = M" unfolding filter_wf_TMs_def using wf by (rule if_P)
   finally show ?thesis .
 qed
+
+lemma decode_TM_wf: "tm_wf0 (decode_TM w)" unfolding decode_TM_def filter_wf_TMs_def
+  using rej_TM_wf by (cases "is_encoded_TM w", presburger+)
 
 
 subsubsection\<open>Assembling components\<close>
@@ -779,25 +790,62 @@ definition TM_decode_pad :: "word \<Rightarrow> TM"
   where "TM_decode_pad w = decode_TM (strip_al_prefix (strip_exp_pad w))"
 
 
-lemma TM_codec: "TM_decode_pad (TM_encode_pad M) = M"
+lemma TM_codec: "tm_wf0 M \<Longrightarrow> TM_decode_pad (TM_encode_pad M) = M"
   unfolding TM_decode_pad_def TM_encode_pad_def using add_alp_min
   by (subst exp_pad_correct, unfold alp_correct codec_TM, blast+)
+
+lemma wf_TM_has_enc: "tm_wf0 M \<Longrightarrow> \<exists>w. TM_decode_pad w = M"
+  using TM_codec by blast
 
 text\<open>Proving required properties:
 
   from ch. 3.1:
   "The encoding that we will use [...] will have the following properties:
 
-  1. every string over \<open>{0, 1}\<^sup>*\<close> represents some TM [...],
-  2. every TM is represented by infinitely many strings. [...]"
+  1. every string over \<open>{0, 1}\<^sup>*\<close> represents some TM [...],\<close>
 
-  from ch. 4.2:
+lemma TM_decode_pad_wf: "tm_wf0 (TM_decode_pad w)"
+  unfolding TM_decode_pad_def by (rule decode_TM_wf)
+
+text\<open>2. every TM is represented by infinitely many strings. [...]"\<close>
+
+lemma TM_inf_encs: "tm_wf0 M \<Longrightarrow> infinite {w. TM_decode_pad w = M}"
+proof (intro infinite_growing bexI CollectI)
+  \<comment> \<open>Proof sketch (see @{thm infinite_growing}}):
+    a set over a type with a linorder is infinite if is (a) non-empty
+    and (b) for each member x there is a (c) member y for which (d) \<open>x < y\<close>.
+    The linorder over \<^typ>\<open>word\<close> (=\<^typ>\<open>num\<close>) is defined
+    in terms of \<^typ>\<open>nat\<close> (see @{thm less_num_def}}).\<close>
+  assume wf: "tm_wf0 M"
+  with wf_TM_has_enc show (*a*) "{w. TM_decode_pad w = M} \<noteq> {}" by blast
+
+  fix x
+  assume (*b*) "x \<in> {w. TM_decode_pad w = M}"
+  then have "TM_decode_pad x = M" ..
+
+  define y where "y = num.Bit1 x"
+    (* This choice of y is likely incorrect, need to construct y by padding M
+       idea: choose length of 1+0 prefix to be "len w" *)
+  show (*d*) "x < y" unfolding y_def less_num_def sorry
+  show (*c*) "TM_decode_pad y = M" unfolding y_def TM_decode_pad_def sorry
+  oops
+
+text\<open>from ch. 4.2:
   "[The encoding] assures several properties [...]:
 
   1. [...] an arbitrary word \<open>w'\<close> encoding a TM has at least
              \<open>2^(ℓ - \<lceil>log ℓ\<rceil>) \<ge> 2^(ℓ - (log ℓ) - 1)\<close>      (7)
      equivalents \<open>w\<close> in the set \<open>{0, 1}\<^sup>ℓ\<close> that map to \<open>w'\<close>.
-  2. [equivalent to 2. from ch. 3.1]"\<close>
+     Thus, if a TM \<open>M\<close> is encoded within \<open>ℓ\<close> bits, then (7) counts
+     how many equivalent codes for \<open>M\<close> are found at least in \<open>{0, 1}\<^sup>ℓ\<close>.\<close>
+
+lemma num_equivalent_encodings:
+  fixes M w
+  assumes "TM_decode_pad w = M"
+  defines "l \<equiv> len w"
+  shows "card {w. len w = l \<and> TM_decode_pad w = M} \<ge> 2^(l - clog l)"
+  using assms
+  oops
 
 
 end
