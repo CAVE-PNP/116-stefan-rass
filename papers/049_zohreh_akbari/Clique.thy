@@ -76,12 +76,7 @@ subsection\<open>Helper lemmas\<close>
 
 lemma pair_inj: "inj (Pair a)" by (intro injI) (rule Pair_inject)
 
-lemma inj_on_arc_to_ends [simp]:
-  assumes "graph G"
-  shows "inj_on (arc_to_ends G) (arcs G)"
-  using nomulti_digraph.inj_on_arc_to_ends and digraph.axioms(3) and graph.axioms(1) and \<open>graph G\<close> .
-
-lemma (in graph) inj_on_arc_to_ends [simp]: (* apparently, defining this using the locale interferes with the [simp] annotation *)
+lemma (in graph) inj_on_arc_to_ends [simp]:
   shows "inj_on (arc_to_ends G) (arcs G)"
   using inj_on_arc_to_ends .
 
@@ -154,7 +149,7 @@ proof (intro iffI)
 
     also have "... = card (arc_to_ends G ` out_arcs G v)"
     proof -
-      from \<open>graph G\<close> have "inj_on (arc_to_ends G) (arcs G)" by simp
+      from \<open>graph G\<close> have "inj_on (arc_to_ends G) (arcs G)" by (simp add: graph.inj_on_arc_to_ends)
       then have "inj_on (arc_to_ends G) (out_arcs G v)"
         unfolding out_arcs_def by (subst inj_on_subset) blast+
       with sym[OF card_image] show ?thesis .
