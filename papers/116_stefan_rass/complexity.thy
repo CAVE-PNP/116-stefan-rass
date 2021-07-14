@@ -441,13 +441,7 @@ text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
 
 subsubsection\<open>Exponential Padding\<close>
 
-definition add_exp_pad :: "word \<Rightarrow> word"
-  where "add_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
-      False \<up> (2^l - l) @ b
-    ))"
-
 text\<open>Discrete ceiling log\<close>
-  \<comment> \<open>TODO prove that \<^term>\<open>Discrete.log (l-1) + 1 = \<lceil>log 2 l\<rceil>\<close>. see stub \<open>log_altdef_ceil\<close>\<close>
 abbreviation clog :: "nat \<Rightarrow> nat"
   where "clog n \<equiv> Discrete.log (n-1) + 1"
 
@@ -547,6 +541,11 @@ proof -
   qed
   then show ?thesis using assms dlog_altdef by simp
 qed
+
+definition add_exp_pad :: "word \<Rightarrow> word"
+  where "add_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
+      False \<up> (2^l - l) @ b
+    ))"
 
 definition strip_exp_pad :: "word \<Rightarrow> word"
   where "strip_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
@@ -751,9 +750,58 @@ definition decode_TM :: "word \<Rightarrow> TM"
   where "decode_TM w =
     (if is_encoded_TM w then filter_wf_TMs (THE M. w = encode_TM M) else Rejecting_TM)"
 
+lemma action_map_inj: "inj action_map"
+proof (intro injI)
+  fix x y
+  assume "action_map x = action_map y"
+  then show "x=y" by (cases x; cases y) simp_all
+qed
 
-(* this should hold, otherwise the gödel numbering would be wrong *)
-lemma code_inj: "inj code" sorry
+fun unroll :: "('a \<Rightarrow> 'c) \<Rightarrow> ('b \<Rightarrow> 'c) \<Rightarrow> ('a\<times>'b) list \<Rightarrow> 'c list" where
+  "unroll _ _ [] = []"
+| "unroll f g ((a,b)#t) = f a#g b#unroll f g t"
+
+corollary modify_tprog_unroll_def: "modify_tprog = unroll action_map (\<lambda>x. x)" sorry
+
+lemma unroll_inj:
+  fixes f::"'a \<Rightarrow> 'c" and g::"'b \<Rightarrow> 'c"
+  assumes "inj f" "inj g"
+  shows "inj (unroll f g)"
+proof (intro injI)
+  let ?F = "unroll f g"
+  fix xs ys
+  assume "?F xs = ?F ys"
+  then show "xs = ys" proof (induction xs arbitrary: ys)
+    case Nil
+    then have "?F ys = []" by simp
+    then show ?case
+      using unroll.elims list.distinct(1) by blast
+  next
+    case (Cons ab xs)
+    define a where "a \<equiv> fst ab"
+    define b where "b \<equiv> snd ab"
+    have ab_def: "ab = (a,b)" unfolding a_def b_def by simp
+    with Cons.prems have "\<exists>ys' a' b'. ys = (a',b')#ys' \<and> (?F ys' = ?F xs) \<and> f a' = f a \<and>  g b' = g b"
+        using list.discI list.sel unroll.elims case_prod_conv
+        by (smt (verit, del_insts) unroll.simps(2))
+    then obtain ys' a' b' where "ys = (a',b')#ys'" and "?F ys' = ?F xs" and "f a' = f a" and "g b' = g b"
+      by blast
+    note * = this
+    with assms have "(a,b) = (a',b')" unfolding inj_def using assms by simp
+    with Cons.IH * show ?case unfolding ab_def by force
+  qed
+qed
+
+corollary modify_tprog_inj: "inj modify_tprog"
+  unfolding modify_tprog_unroll_def
+  using unroll_inj[of action_map "\<lambda>x. x"] action_map_inj by simp
+
+lemma godel_inj: "inj godel_code" sorry
+
+lemma code_inj: "inj code"
+  using modify_tprog_inj godel_inj
+  and code.simps inj_compose[of godel_code modify_tprog]
+  by (metis comp_apply inj_on_cong)
 
 lemma encode_TM_inj: "inj encode_TM"
   unfolding encode_TM_def using gn_inv_inj code_inj godel_code_great
