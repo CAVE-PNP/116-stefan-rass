@@ -438,10 +438,7 @@ text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
   2. Arbitrary-length \<open>1\<^sup>+0\<close> prefix. "from [the result] we drop all preceding 1-bits and the first 0-bit"
   3. Code description. "let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form".\<close>
 
-
-subsubsection\<open>Exponential Padding\<close>
-
-text\<open>Discrete ceiling log\<close>
+subsubsection\<open>Discrete ceiling log\<close>
 abbreviation clog :: "nat \<Rightarrow> nat"
   where "clog n \<equiv> Discrete.log (n-1) + 1"
 
@@ -542,6 +539,8 @@ proof -
   then show ?thesis using assms dlog_altdef by simp
 qed
 
+subsubsection\<open>Exponential Padding\<close>
+
 definition add_exp_pad :: "word \<Rightarrow> word"
   where "add_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
       False \<up> (2^l - l) @ b
@@ -551,6 +550,9 @@ definition strip_exp_pad :: "word \<Rightarrow> word"
   where "strip_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
       drop (l - clog l) b
   ))"
+
+lemma exp_pad_Nil: "strip_exp_pad num.One = num.One"
+  unfolding strip_exp_pad_def bin_of_word.simps Let_def by simp
 
 lemmas exp_pad_simps = add_exp_pad_def strip_exp_pad_def
 
@@ -643,6 +645,8 @@ qed
 lemma alp_correct: "strip_al_prefix (add_al_prefix w) = w"
   unfolding strip_al_prefix_def add_alp_altdef by simp
 
+lemma alp_Nil: "strip_al_prefix num.One = num.One" unfolding strip_al_prefix_def by simp
+
 lemma replicate_takeWhile: "takeWhile (\<lambda>x. x = a) xs = a \<up> length (takeWhile (\<lambda>x. x = a) xs)"
 proof (intro replicate_eqI)
   fix y
@@ -667,8 +671,8 @@ proof
 
   obtain nO wO where "nO > 0" and "?w = wO @ [False] @ True \<up> nO"
     using \<open>has_al_prefix w\<close> unfolding has_al_prefix_def by blast
-  then have "rev ?w = True \<up> nO @ False # rev wO" by simp
-  moreover then have r1: "rev ?w = True \<up> nO @ ?dw" by (simp add: dropWhile_append3)
+  then have r0: "rev ?w = True \<up> nO @ False # rev wO" by simp
+  moreover from r0 have r1: "rev ?w = True \<up> nO @ ?dw" by (simp add: dropWhile_append3)
   ultimately have dw_split: "?dw = False # drop 1 ?dw" by simp
 
   have r2: "rev ?w = True \<up> n @ ?dw" unfolding n_def replicate_While ..
@@ -696,6 +700,92 @@ proof -
   also have "... = take m ?w" unfolding m_def rev_drop rev_rev_ident ..
   finally have "?bsw = take m ?w" . \<comment> \<open>for some \<open>m\<close>\<close>
   show "prefix ?bsw ?w" unfolding \<open>?bsw = take m ?w\<close> by (rule take_is_prefix)
+qed
+
+lemma strip_alp_altdef: "strip_al_prefix (word_of_bin (bin_of_word w @ False # True \<up> n)) = w"
+proof -
+  let ?b = bin_of_word and ?w = word_of_bin and ?T = "(\<lambda>b. b = True)" and ?Tn = "True \<up> n"
+  let ?a1 = "rev (?b w)" and ?a = "False # rev (?b w)"
+    and ?d = "dropWhile ?T (rev (?b w @ False # ?Tn))"
+
+  thm dropWhile_append2
+  have h0: "x \<in> set ?Tn \<Longrightarrow> ?T x" for x by simp
+
+  have "?d = dropWhile ?T (?Tn @ ?a)" by simp
+  also from h0 have "dropWhile ?T (?Tn @ ?a) = dropWhile ?T ?a" by (rule dropWhile_append2)
+  also have "dropWhile ?T ?a = ?a" by simp
+  finally have h1: "drop 1 ?d = ?a1" by simp
+  then have h2: "rev (drop 1 ?d) = ?b w" unfolding h1 by simp
+
+  show "strip_al_prefix (?w (?b w @ False # True \<up> n)) = w"
+    unfolding strip_al_prefix_def bin_word_bin_id word_bin_word_id h2 ..
+qed
+
+
+subsubsection\<open>Properties of \<^term>\<open>code\<close>\<close>
+
+lemma code_Nil: "code [] = 1" unfolding code.simps Let_def godel_code_eq_1 modify_tprog.simps ..
+lemma code_gt_0: "code M > 0" unfolding code.simps Let_def using godel_code_great .
+
+lemma godel_code'_mono2: "godel_code' ps n \<le> godel_code' ps (Suc n)"
+proof (induction n rule: godel_code'.induct)
+  case (1 n)
+  thus ?case unfolding godel_code'.simps ..
+next
+  case (2 x xs n)
+  from Pi_inc[of n] have "Pi n ^ x \<le> Pi (Suc n) ^ x" by (intro power_mono) simp_all
+  find_theorems "_ ^ _ < _ ^ _"
+  then show ?case unfolding godel_code'.simps using "2.IH" by (rule mult_le_mono)
+qed
+
+corollary Pi_pow_gr_1: "Pi n ^ p \<ge> 1"
+  using one_le_power[of "Pi n"] less_imp_le Pi_gr_1 unfolding One_nat_def .
+
+lemma godel_code'_mono1: "godel_code' ps n \<le> godel_code' (p#ps) n"
+proof -
+  have "(Suc 0) * godel_code' ps n \<le> Pi n ^ p * godel_code' ps (Suc n)"
+    using Pi_pow_gr_1 godel_code'_mono2 unfolding One_nat_def by (rule mult_le_mono)
+  then show ?thesis unfolding godel_code'.simps by simp
+qed
+
+lemma code_Cons: "code M < code (i # M)"
+proof -
+  obtain a n where i: "i = (a, n)" by (rule prod.exhaust)
+  let ?g = godel_code' and ?M = "modify_tprog M" and ?M' = "modify_tprog ((a, n) # M)"
+  have a: "2 ^ length ?M < (2::nat) ^ length ?M'" by (subst power_strict_increasing) simp_all
+
+  have "?g ?M (Suc 0) \<le> ?g ?M (Suc (Suc (Suc 0)))" using godel_code'_mono2 le_trans by blast
+  also have "... \<le> Pi (Suc 0) ^ action_map a * Pi (Suc (Suc 0)) ^ n * ..." using Pi_pow_gr_1 by simp
+  finally have b: "?g ?M (Suc 0) \<le> ?g ?M' (Suc 0)"
+    unfolding modify_tprog.simps godel_code'.simps mult.assoc .
+
+  have "code M = 2 ^ length ?M * ?g ?M (Suc 0)" unfolding code.simps godel_code.simps Let_def ..
+  also from a have "... < 2 ^ length ?M' * ?g ?M (Suc 0)" using godel_code'_nonzero by (rule mult_less_mono1)
+  also from b have "... \<le> 2 ^ length ?M' * ?g ?M' (Suc 0)" by (rule mult_le_mono2)
+  also have "... = code ((a, n) # M)" unfolding code.simps godel_code.simps Let_def ..
+  finally show ?thesis by (unfold i)
+qed
+
+lemma code_gt_1: "M \<noteq> [] \<Longrightarrow> code M > 1"
+proof (induction M rule: list_nonempty_induct)
+  case (single x)
+  have "1 = code []" using code_Nil ..
+  also have "... < code [x]" by (rule code_Cons)
+  finally show ?case .
+next
+  case (cons x xs)
+  note \<open>1 < code xs\<close>
+  also have "code xs < code (x # xs)" by (rule code_Cons)
+  finally show ?case .
+qed
+
+lemma code_1_iff: "code M = 1 \<longleftrightarrow> M = []"
+proof (intro iffI)
+  assume "code M = 1"
+  then show "M = []" using code_gt_1 by fastforce
+next
+  assume "M = []"
+  then show "code M = 1" using code_Nil by blast
 qed
 
 
@@ -826,6 +916,48 @@ qed
 lemma decode_TM_wf: "tm_wf0 (decode_TM w)" unfolding decode_TM_def filter_wf_TMs_def
   using rej_TM_wf by (cases "is_encoded_TM w", presburger+)
 
+lemma decode_TM_Nil: "decode_TM num.One = Rejecting_TM"
+proof -
+  \<comment> \<open>There is (exactly) one TM whose encoding is \<^term>\<open>num.One\<close>,
+    which is \<^term>\<open>[]::tprog0\<close>, the machine without instructions.
+    Since this machine is not well-formed (see \<^term>\<open>tm_wf0\<close>), however, this lemma holds.\<close>
+
+  (* this should probably be known to simp *)
+  have le1_split: "n \<le> 1 \<Longrightarrow> n = 0 \<or> n = 1" for n::nat by auto
+
+  have gn_inv_iff: "num.One = gn_inv n \<longleftrightarrow> n \<le> 1" for n
+  proof
+    assume "num.One = gn_inv n"
+    then show "n \<le> 1" proof (induction n)
+      case (Suc n)
+      have if_reverse1: "a = (if c then b else d) \<Longrightarrow> a \<noteq> b \<Longrightarrow> \<not> c"
+        for a b d :: 'a and c :: bool by argo
+
+      have "num.One \<noteq> Num.inc n" for n by (cases n) simp_all
+      with \<open>num.One = gn_inv (Suc n)\<close> have "\<not> 0 < n" unfolding gn_inv_def num_of_nat.simps by (rule if_reverse1)
+      then show "Suc n \<le> 1" by simp
+    qed (*case "n = 0" by *) simp
+  next
+    assume "n \<le> 1"
+    with le1_split have "n = 0 \<or> n = 1" .
+    then show "num.One = gn_inv n" by (elim disjE) simp_all
+  qed
+
+  have code_ge_1_iff: "code M \<le> 1 \<longleftrightarrow> code M = 1" for M
+    using code_gt_0[of M] by (intro iffI) simp_all
+
+  have "(THE M. num.One = encode_TM M) = (THE M. code M = 1)"
+    unfolding encode_TM_def gn_inv_iff code_ge_1_iff ..
+  also have "(THE M. code M = 1) = (THE M. M = [])" unfolding code_1_iff ..
+  finally have The_Nil: "(THE M. num.One = encode_TM M) = []" unfolding the_eq_trivial .
+
+  have "is_encoded_TM num.One" unfolding is_encoded_TM_def encode_TM_def
+    using code_Nil by (intro exI[where x="[]"]) simp
+  then have "decode_TM num.One = filter_wf_TMs []" unfolding decode_TM_def The_Nil by (rule if_P)
+  also have "... = Rejecting_TM" unfolding filter_wf_TMs_def tm_wf.simps by simp
+  finally show ?thesis .
+qed
+
 
 subsubsection\<open>Assembling components\<close>
 
@@ -837,7 +969,6 @@ definition TM_encode_pad :: "TM \<Rightarrow> word"
 definition TM_decode_pad :: "word \<Rightarrow> TM"
   where "TM_decode_pad w = decode_TM (strip_al_prefix (strip_exp_pad w))"
 
-
 lemma TM_codec: "tm_wf0 M \<Longrightarrow> TM_decode_pad (TM_encode_pad M) = M"
   unfolding TM_decode_pad_def TM_encode_pad_def using add_alp_min
   by (subst exp_pad_correct, unfold alp_correct codec_TM, blast+)
@@ -845,9 +976,13 @@ lemma TM_codec: "tm_wf0 M \<Longrightarrow> TM_decode_pad (TM_encode_pad M) = M"
 lemma wf_TM_has_enc: "tm_wf0 M \<Longrightarrow> \<exists>w. TM_decode_pad w = M"
   using TM_codec by blast
 
-text\<open>Proving required properties:
+lemma TM_decode_Nil: "TM_decode_pad num.One = Rejecting_TM"
+  unfolding TM_decode_pad_def exp_pad_Nil alp_Nil decode_TM_Nil ..
 
-  from ch. 3.1:
+
+subsubsection\<open>Proving required properties\<close>
+
+text\<open>from ch. 3.1:
   "The encoding that we will use [...] will have the following properties:
 
   1. every string over \<open>{0, 1}\<^sup>*\<close> represents some TM [...],\<close>
@@ -855,9 +990,10 @@ text\<open>Proving required properties:
 lemma TM_decode_pad_wf: "tm_wf0 (TM_decode_pad w)"
   unfolding TM_decode_pad_def by (rule decode_TM_wf)
 
+
 text\<open>2. every TM is represented by infinitely many strings. [...]"\<close>
 
-lemma TM_inf_encs: "tm_wf0 M \<Longrightarrow> infinite {w. TM_decode_pad w = M}"
+theorem TM_inf_encs: "tm_wf0 M \<Longrightarrow> infinite {w. TM_decode_pad w = M}"
 proof (intro infinite_growing bexI CollectI)
   \<comment> \<open>Proof sketch (see @{thm infinite_growing}}):
     a set over a type with a linorder is infinite if is (a) non-empty
@@ -871,12 +1007,42 @@ proof (intro infinite_growing bexI CollectI)
   assume (*b*) "x \<in> {w. TM_decode_pad w = M}"
   then have "TM_decode_pad x = M" ..
 
-  define y where "y = num.Bit1 x"
-    (* This choice of y is likely incorrect, need to construct y by padding M
-       idea: choose length of 1+0 prefix to be "len w" *)
-  show (*d*) "x < y" unfolding y_def less_num_def sorry
-  show (*c*) "TM_decode_pad y = M" unfolding y_def TM_decode_pad_def sorry
-  oops
+  \<comment> \<open>Constructing the larger word.\<close>
+  let ?e = encode_TM and ?b = bin_of_word and ?w = word_of_bin
+  define y where "y = add_exp_pad (?w (?b (?e M) @ False # True \<up> len x))"
+
+  \<comment> \<open>The following definitions enable handling large expressions in the next section.\<close>
+  define b where "b = ?b (?e M)"
+  let ?h = "length (b @ False # True \<up> len x)"
+  define a where "a = False \<up> (2 ^ ?h - ?h)"
+
+  have "len x < Suc (len x)" ..
+  also have "... = len (num.Bit0 x)" by simp
+  also have "... = len (word_of_bin (False # (bin_of_word x)))" by simp
+  also have "... = length (False # (bin_of_word x))" unfolding word_len_eq_bin_len by simp
+  also have "... = length (False # True \<up> len x)" unfolding word_len_eq_bin_len by simp
+  also have "... \<le> length (a @ b @ False # True \<up> len x)" by simp
+  also have "... = len y" unfolding y_def add_exp_pad_def bin_word_bin_id Let_def word_len_eq_bin_len'
+    unfolding a_def b_def ..
+  finally have "len x < len y" .
+  then have "nat_of_num x < nat_of_num y" by (rule num_of_nat_lengths)
+  then show (*d*) "x < y" unfolding less_num_def .
+
+  have "strip_al_prefix (?w (?b (?e M) @ False # True \<up> len x)) = ?w (?b (?e M))"
+    unfolding strip_alp_altdef by simp
+
+  have "TM_decode_pad y = decode_TM (strip_al_prefix (?w (?b (?e M) @ False # True \<up> len x)))"
+    unfolding y_def TM_decode_pad_def
+  proof (subst exp_pad_correct)
+    have "length (?b (?e M) @ False # True \<up> len x) > 0" by simp
+    then have "len (?w (?b (?e M) @ False # True \<up> len x)) > 0" by (unfold word_len_eq_bin_len')
+    then show "?w (?b (?e M) @ False # True \<up> len x) \<noteq> num.One" by fastforce
+  qed rule
+  also have "... = decode_TM (encode_TM M)" unfolding strip_alp_altdef ..
+  also have "... = M" using wf by (rule codec_TM)
+  finally show (*c*) "TM_decode_pad y = M" .
+qed
+
 
 text\<open>from ch. 4.2:
   "[The encoding] assures several properties [...]:

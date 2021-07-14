@@ -128,6 +128,10 @@ lemma word_len_eq_bin_len:
   "len w = length (bin_of_word w)"
   by (induction w) auto
 
+lemma word_len_eq_bin_len':
+  "len (word_of_bin b) = length b"
+  using word_len_eq_bin_len by simp
+
 lemma num_of_nat_double:
   assumes "n > 0"
   shows "num_of_nat (2 * n) = num.Bit0 (num_of_nat n)"
@@ -138,5 +142,19 @@ corollary bit_len_double:
   shows "bit_length (2 * n) = 1 + bit_length n"
   using assms num_of_nat_double by simp
 
+
+lemma nat_of_num_max: "nat_of_num n < 2 ^ (len n + 1)" by (induction n) auto
+lemma nat_of_num_min: "nat_of_num n \<ge> 2 ^ (len n)" by (induction n) auto
+
+lemma num_of_nat_lengths: "len n < len m \<Longrightarrow> nat_of_num n < nat_of_num m"
+proof -
+  assume "len n < len m"
+  then have l: "len n + 1 \<le> len m" by simp
+
+  have "nat_of_num n < 2 ^ (len n + 1)" using nat_of_num_max .
+  also have "... \<le> 2 ^ (len m)" using l by (subst power_increasing_iff) auto
+  also have "... \<le> nat_of_num m" using nat_of_num_min by simp
+  finally show ?thesis .
+qed
 
 end

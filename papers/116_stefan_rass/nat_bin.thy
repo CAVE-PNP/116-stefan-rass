@@ -37,6 +37,18 @@ lemma nat_of_bin_max: "nat_of_bin xs < 2 ^ (length xs)"
 lemma nat_of_bin_min: "ends_in True xs \<Longrightarrow> nat_of_bin xs \<ge> 2 ^ (length xs - 1)"
   by (auto simp add: nat_of_bin_app1)
 
+(* comparing lengths *)
+lemma nat_of_bin_lengths:
+  assumes e: "ends_in True ys"
+    and l: "length xs < length ys"
+  shows "nat_of_bin xs < nat_of_bin ys"
+proof -
+  have "nat_of_bin xs < 2 ^ (length xs)" by (rule nat_of_bin_max)
+  also have "... \<le> 2 ^ (length ys - 1)" using l by fastforce
+  also have "... \<le> nat_of_bin ys" using e by (rule nat_of_bin_min)
+  finally show ?thesis .
+qed
+
 (* nat to bin to nat*)
 lemma nat_of_bin_inc_S: "Suc (nat_of_bin xs) = nat_of_bin (inc xs)"
   by (induction xs) auto
