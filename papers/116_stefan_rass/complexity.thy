@@ -439,14 +439,8 @@ text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
   3. Code description. "let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form".\<close>
 
 
-subsubsection\<open>Exponential Padding\<close>
+subsubsection\<open>Discrete ceiling log\<close>
 
-definition add_exp_pad :: "word \<Rightarrow> word"
-  where "add_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
-      False \<up> (2^l - l) @ b
-    ))"
-
-text\<open>Discrete ceiling log\<close>
   \<comment> \<open>TODO prove that \<^term>\<open>Discrete.log (l-1) + 1 = \<lceil>log 2 l\<rceil>\<close>. see stub \<open>log_altdef_ceil\<close>\<close>
 abbreviation clog :: "nat \<Rightarrow> nat"
   where "clog n \<equiv> Discrete.log (n-1) + 1"
@@ -547,6 +541,14 @@ proof -
   qed
   then show ?thesis using assms dlog_altdef by simp
 qed
+
+
+subsubsection\<open>Exponential Padding\<close>
+
+definition add_exp_pad :: "word \<Rightarrow> word"
+  where "add_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
+      False \<up> (2^l - l) @ b
+    ))"
 
 definition strip_exp_pad :: "word \<Rightarrow> word"
   where "strip_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
