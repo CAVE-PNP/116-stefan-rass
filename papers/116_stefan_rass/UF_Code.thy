@@ -125,22 +125,41 @@ the length of the list is encoded in the power of 2
 godel_code [42, 1, 9] = 2^3 * 3^42 * 5^1 * 7^9
 *)
 
-lemma godel_code_altdef: "godel_code xs = godel_code' (length xs#xs) 0"
+lemma godel_code_altdef: "godel_code xs = godel_code' (length xs#xs) 0" (* delete *)
   using Pi.simps(1) godel_code'.simps(2) godel_code.simps by presburger
 
 lemma Prime_prime_eq: "UF.Prime n \<longleftrightarrow> Factorial_Ring.prime n"
   unfolding UF.Prime.simps(1) prime_nat_iff dvd_def
   by (metis Suc_lessI dvd_mult_cancel2 less_irrefl less_numeral_extra(1) less_trans mult.right_neutral n_less_m_mult_n n_less_n_mult_m nat_0_less_mult_iff nat_dvd_not_less)
 
+lemma coprime_multiplicity_zero: "coprime p n \<Longrightarrow> multiplicity p n = 0"
+  by (meson coprime_absorb_left multiplicity_unit_left not_dvd_imp_multiplicity_0)
+
+lemma godel_code'_no_twos: "multiplicity 2 (godel_code' xs (Suc 0)) = 0"
+proof -
+  from Pi_coprime_suf[of 0] Pi.simps(1)
+  have "coprime 2 (godel_code' xs (Suc 0))" by auto
+  thus ?thesis by (rule coprime_multiplicity_zero)
+qed
+             
 lemma godel_code_prime_factorization_len:
-  shows "count (prime_factorization(godel_code xs)) 2 = length xs"
-  sorry
+  shows "count (prime_factorization(godel_code xs)) 2 = length xs" (is "?lhs = ?lh")
+proof -
+  from two_is_prime_nat have "?lhs = multiplicity 2 (godel_code xs)"
+    using count_prime_factorization by metis
+  also have "\<dots> = length xs"
+    unfolding godel_code.simps
+    using godel_code'_no_twos[of xs]
+      prime_elem_multiplicity_mult_distrib[of 2 "2^?lh" "godel_code' xs (Suc 0)"]
+    by simp
+  ultimately show ?thesis by presburger
+qed
 
 lemma godel_code_prime_factorization:
   fixes i::nat
   assumes "i < length xs"
   shows "count (prime_factorization(godel_code xs)) (Pi (i+1)) = xs ! i"
-  sorry
+  sorry thm godel_code_in
 
 lemma godel_inj: "inj godel_code" (is "inj ?gn")
 proof (intro injI)
