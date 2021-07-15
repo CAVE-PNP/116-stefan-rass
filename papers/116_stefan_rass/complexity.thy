@@ -851,7 +851,16 @@ fun unroll :: "('a \<Rightarrow> 'c) \<Rightarrow> ('b \<Rightarrow> 'c) \<Right
   "unroll _ _ [] = []"
 | "unroll f g ((a,b)#t) = f a#g b#unroll f g t"
 
-corollary modify_tprog_unroll_def: "modify_tprog = unroll action_map (\<lambda>x. x)" sorry
+corollary modify_tprog_unroll_def: "modify_tprog = unroll action_map (\<lambda>b. b)"
+proof (* why is this so hard? *)
+  fix xs
+  note unroll_simps = unroll.simps[of action_map "\<lambda>b. b"]
+  show "modify_tprog xs = unroll action_map (\<lambda>b. b) xs" proof (induction xs)
+    case (Cons a xs)
+    then show ?case using unroll_simps(2) modify_tprog.simps(2)
+      by (smt (verit, best) list.discI list.sel(1) unroll.elims)
+  qed simp
+qed
 
 lemma unroll_inj:
   fixes f::"'a \<Rightarrow> 'c" and g::"'b \<Rightarrow> 'c"
