@@ -128,7 +128,7 @@ godel_code [42, 1, 9] = 2^3 * 3^42 * 5^1 * 7^9
 lemma godel_code_altdef: "godel_code xs = godel_code' (length xs#xs) 0" (* delete *)
   using Pi.simps(1) godel_code'.simps(2) godel_code.simps by presburger
 
-lemma Prime_prime_eq: "UF.Prime n \<longleftrightarrow> Factorial_Ring.prime n"
+lemma Prime_prime_eq: "UF.Prime n \<longleftrightarrow> Factorial_Ring.prime n" (* delete *)
   unfolding UF.Prime.simps(1) prime_nat_iff dvd_def
   by (metis Suc_lessI dvd_mult_cancel2 less_irrefl less_numeral_extra(1) less_trans mult.right_neutral n_less_m_mult_n n_less_n_mult_m nat_0_less_mult_iff nat_dvd_not_less)
 
@@ -152,14 +152,34 @@ proof -
     using godel_code'_no_twos[of xs]
       prime_elem_multiplicity_mult_distrib[of 2 "2^?lh" "godel_code' xs (Suc 0)"]
     by simp
-  ultimately show ?thesis by presburger
+  ultimately show ?thesis by simp
 qed
 
 lemma godel_code_prime_factorization:
   fixes i::nat
   assumes "i < length xs"
-  shows "count (prime_factorization(godel_code xs)) (Pi (i+1)) = xs ! i"
-  sorry thm godel_code_in
+  shows "count (prime_factorization(godel_code xs)) (Pi (Suc i)) = xs ! i" (is "?lhs = xs ! i")
+proof -
+  have *: "\<And>j. 0<j \<Longrightarrow> multiplicity (Pi j) (godel_code xs) = multiplicity (Pi j) (godel_code' xs 1)"
+  proof -
+    fix j::nat assume "0<j"
+    then have "odd (Pi j)"
+      by (metis Pi.simps(1) Pi_coprime coprime_left_2_iff_odd gr_implies_not0)
+    with \<open>0<j\<close> have "coprime (Pi j) (2^length xs)"
+      using prime_imp_power_coprime[of 2 "Pi j" "length xs"] two_is_prime_nat by fast
+    then show "multiplicity (Pi j) (godel_code xs) = multiplicity (Pi j) (godel_code' xs 1)"
+      using godel_code.simps coprime_dvd_mult_left_iff[of "Pi j" "2^(length xs)" "godel_code' xs 1"]
+      by (metis One_nat_def \<open>odd (Pi j)\<close> coprime_dvd_mult_right_iff even_power multiplicity_cong prime_imp_power_coprime two_is_prime_nat) 
+   qed
+    
+  have "prime (Pi (Suc i))" using Prime_prime_eq by auto
+  then have "?lhs = multiplicity (Pi (Suc i)) (godel_code xs)"
+    using count_prime_factorization by metis
+  also have "\<dots> = xs ! i"
+    using godel_code'_get_nth[of i xs] assms *[of "Suc i"] godel_finite
+    unfolding multiplicity_def by simp
+  ultimately show ?thesis by simp
+qed
 
 lemma godel_inj: "inj godel_code" (is "inj ?gn")
 proof (intro injI)
