@@ -128,12 +128,39 @@ godel_code [42, 1, 9] = 2^3 * 3^42 * 5^1 * 7^9
 lemma godel_code_altdef: "godel_code xs = godel_code' (length xs#xs) 0"
   using Pi.simps(1) godel_code'.simps(2) godel_code.simps by presburger
 
-lemma godel_code'_inj: "inj (\<lambda>xs. godel_code' xs n)" sorry
+lemma Prime_prime_eq: "UF.Prime n \<longleftrightarrow> Factorial_Ring.prime n"
+  unfolding UF.Prime.simps(1) prime_nat_iff dvd_def
+  by (metis Suc_lessI dvd_mult_cancel2 less_irrefl less_numeral_extra(1) less_trans mult.right_neutral n_less_m_mult_n n_less_n_mult_m nat_0_less_mult_iff nat_dvd_not_less)
 
-lemma godel_inj: "inj godel_code"
-  unfolding godel_code_altdef inj_def
-  using godel_code'_inj[of 0, THEN injD]
-  by blast
+lemma godel_code_prime_factorization_len:
+  shows "count (prime_factorization(godel_code xs)) 2 = length xs"
+  sorry
+
+lemma godel_code_prime_factorization:
+  fixes i::nat
+  assumes "i < length xs"
+  shows "count (prime_factorization(godel_code xs)) (Pi (i+1)) = xs ! i"
+  sorry
+
+lemma godel_inj: "inj godel_code" (is "inj ?gn")
+proof (intro injI)
+  fix xs ys
+  assume assm: "?gn xs = ?gn ys"
+  define "Fx" "Fy"
+    where "Fx \<equiv> prime_factorization (?gn xs)" and "Fy = prime_factorization (?gn ys)"
+    note F_def = this
+  show "xs = ys" proof (subst list_eq_iff_nth_eq, safe)
+    from godel_code_prime_factorization_len
+    show len_eq: "length xs = length ys" using assm F_def by metis
+  
+    fix i
+    assume "i < length xs"
+    moreover have "i < length ys" using calculation len_eq by simp
+
+    ultimately show "xs ! i = ys ! i"
+      using godel_code_prime_factorization assm by metis
+  qed
+qed
 
 lemma code_inj: "inj code"
   using modify_tprog_inj godel_inj
