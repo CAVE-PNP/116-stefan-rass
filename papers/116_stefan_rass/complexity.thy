@@ -932,6 +932,28 @@ text\<open>from ch. 4.2:
      Thus, if a TM \<open>M\<close> is encoded within \<open>ℓ\<close> bits, then (7) counts
      how many equivalent codes for \<open>M\<close> are found at least in \<open>{0, 1}\<^sup>ℓ\<close>.\<close>
 
+lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_def)
+
+lemma card_words_length_eq: "card {w. len w = l} = 2 ^ l"
+proof -
+  let ?bools = "UNIV :: bool set"
+
+  have "inj_on bin_of_word {w. len w = l}" using inj_imp_inj_on bij_is_inj bin_of_word_bij .
+  then have "card {w. len w = l} = card (bin_of_word ` {w. len w = l})" by (rule card_image[symmetric])
+  also have "... = card {w::bit_string. length w = l}" unfolding word_len_eq_bin_len
+  proof (intro arg_cong[where f=card] subset_antisym subsetI image_eqI)
+    (* direction "\<longleftarrow>" *)
+    fix x :: bit_string
+    assume "x \<in> {w. length w = l}"
+    thus "word_of_bin x \<in> {w. length (bin_of_word w) = l}" by simp
+    show "x = bin_of_word (word_of_bin x)" by simp
+  qed (* direction "\<longrightarrow>" by *) blast
+  also have "... = card {w. set w \<subseteq> ?bools \<and> length w = l}" by simp
+  also have "... = card ?bools ^ l" by (intro card_lists_length_eq) (rule finite)
+  also have "... = 2 ^ l" unfolding card_UNIV_bool ..
+  finally show ?thesis .
+qed
+
 lemma num_equivalent_encodings:
   fixes M w
   assumes "TM_decode_pad w = M"
