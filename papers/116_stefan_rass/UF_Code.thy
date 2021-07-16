@@ -12,7 +12,6 @@ proof (induction n rule: godel_code'.induct)
 next
   case (2 x xs n)
   from Pi_inc[of n] have "Pi n ^ x \<le> Pi (Suc n) ^ x" by (intro power_mono) simp_all
-  find_theorems "_ ^ _ < _ ^ _"
   then show ?case unfolding godel_code'.simps using "2.IH" by (rule mult_le_mono)
 qed
 
@@ -77,6 +76,18 @@ fun unroll :: "('a \<Rightarrow> 'c) \<Rightarrow> ('b \<Rightarrow> 'c) \<Right
   "unroll _ _ [] = []"
 | "unroll f g ((a,b)#t) = f a#g b#unroll f g t"
 
+\<comment> \<open>The following lemmas take the place of `<fun>.simps(2)`.
+  These are defined over \<^term>\<open>Pair\<close>s, which the simplifier is not able to automatically expand.
+  A similar issue has been noted at `lemma hoare_contr` in \<^file>\<open>complexity.thy\<close>\<close>
+lemma unroll_altdef: "unroll f g (st#t) = f (fst st) # g (snd st) # unroll f g t"
+proof (induction st) (* induction automatically inserts the definition *)
+  case (Pair a b)
+  then show ?case by simp
+qed
+
+lemma modify_tprog_altdef: "modify_tprog (st#nl) = action_map (fst st) # (snd st) # modify_tprog nl"
+  by (induction st) simp
+
 lemma unroll_inj:
   fixes f::"'a \<Rightarrow> 'c" and g::"'b \<Rightarrow> 'c"
   assumes "inj f" "inj g"
@@ -104,13 +115,11 @@ proof (intro injI)
 qed
 
 corollary modify_tprog_unroll_def: "modify_tprog = unroll action_map (\<lambda>b. b)"
-proof (* why is this so hard? *)
+proof (intro ext)
   fix xs
-  note unroll_simps = unroll.simps[of action_map "\<lambda>b. b"]
   show "modify_tprog xs = unroll action_map (\<lambda>b. b) xs" proof (induction xs)
     case (Cons a xs)
-    then show ?case using unroll_simps(2) modify_tprog.simps(2)
-      by (smt (verit, best) list.discI list.sel(1) unroll.elims)
+    thus ?case unfolding unroll_altdef modify_tprog_altdef by blast
   qed simp
 qed
 
