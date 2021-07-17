@@ -14,12 +14,5 @@ proof -
  qed
  thus ?thesis by fastforce
 qed
-
-lemma (in fin_digraph) verts_induct [case_names empty insert]:
-  assumes "P (G \<lparr>verts:={}\<rparr>)"
-      and "\<And>V v. V \<subseteq> verts G \<Longrightarrow> v \<in> verts G \<Longrightarrow> v \<notin> V \<Longrightarrow> P (G \<lparr> verts := V \<rparr>) \<Longrightarrow> P (G \<lparr> verts := insert v V \<rparr>)"
-    shows "P G"
-sorry
-
     
 end

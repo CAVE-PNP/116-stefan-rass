@@ -1,5 +1,5 @@
 theory Clique
-  imports "Graph_Theory.Graph_Theory" (* this requires a distribution of the AFP to be set up *)
+  imports "Graph_Theory.Graph_Theory"
 begin
 
 subsection\<open>Clique\<close>
@@ -127,22 +127,6 @@ proof -
     using 4 by simp
   finally show ?thesis .
 qed
-
-lemma (in wf_digraph) out_arcs_dominates: "arc_to_ends G ` out_arcs G w = {(u,v) \<in> verts G\<times>verts G. u=w \<and> w \<rightarrow>\<^bsub>G\<^esub> v}"
-  using in_arcs_imp_in_arcs_ends
-  unfolding out_arcs_def arc_to_ends_def
-  by auto
-
-corollary (in nomulti_digraph) out_degree_dominates : "out_degree G w = card {(u,v) \<in> verts G\<times>verts G. u=w \<and> w \<rightarrow>\<^bsub>G\<^esub> v}"
-  using inj_on_arc_to_ends out_arcs_dominates[of w]
-    card_image[of "arc_to_ends G" "out_arcs G w"] inj_on_subset[of "arc_to_ends G" "arcs G" "out_arcs G w"]
-  unfolding out_degree_def by force
-
-lemma (in fin_digraph) in_eq_out_degree: "sum (out_degree G) (verts G) = sum (in_degree G) (verts G)"
-  sorry
-
-lemma (in fin_digraph) in_degree_sum: "card (arcs G) = sum (in_degree G) (verts G)"
-  using out_degree_sum in_eq_out_degree by argo
 
 lemma complete_digraph_altdef:
   "complete_digraph n G \<longleftrightarrow> graph G \<and> n = card (verts G) \<and> (\<forall>v. v \<in> verts G \<longrightarrow> out_degree G v = n - 1)"
