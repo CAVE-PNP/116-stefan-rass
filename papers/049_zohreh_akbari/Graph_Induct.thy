@@ -2,17 +2,24 @@ theory Graph_Induct
   imports "Graph_Theory.Graph_Theory"
 begin
 
-lemma (in fin_digraph) arcs_induct [case_names empty delete]:
-  assumes "\<And>H. arcs H = {} \<Longrightarrow> P H"
-      and "\<And>H a. a \<in> arcs H \<Longrightarrow> P (H\<lparr> arcs := arcs H - {a} \<rparr>) \<Longrightarrow> P H"
+lemma (in fin_digraph) arcs_induct [case_names empty insert]:
+  assumes "P (G \<lparr>arcs:={}\<rparr>)"
+      and "\<And>A a. A \<subseteq> arcs G \<Longrightarrow> a \<in> arcs G \<Longrightarrow> a \<notin> A \<Longrightarrow> P (G \<lparr> arcs := A \<rparr>) \<Longrightarrow> P (G \<lparr> arcs := insert a A \<rparr>)"
     shows "P G"
 proof -
-  have "\<forall>A \<subseteq> arcs G. P (G\<lparr>arcs := A\<rparr>)" proof safe
+ have "\<forall>A \<subseteq> arcs G. P (G\<lparr>arcs := A\<rparr>)" proof safe
     fix A assume "A \<subseteq> arcs G"
     then have "finite A" using finite_subset[of A] by simp
-    then show "P (G\<lparr>arcs:=A\<rparr>)" using assms by (induction rule: finite_induct) force+
-  qed
-  thus ?thesis by fastforce
+    then show "P (G\<lparr>arcs:=A\<rparr>)" using \<open>A \<subseteq> arcs G\<close> assms by (induction rule: finite_induct; simp)
+ qed
+ thus ?thesis by fastforce
 qed
+
+lemma (in fin_digraph) verts_induct [case_names empty insert]:
+  assumes "P (G \<lparr>verts:={}\<rparr>)"
+      and "\<And>V v. V \<subseteq> verts G \<Longrightarrow> v \<in> verts G \<Longrightarrow> v \<notin> V \<Longrightarrow> P (G \<lparr> verts := V \<rparr>) \<Longrightarrow> P (G \<lparr> verts := insert v V \<rparr>)"
+    shows "P G"
+sorry
+
     
 end
