@@ -228,26 +228,4 @@ next
   then show ?lhs unfolding complete_digraph_def using \<open>graph G\<close> n_def by simp
 qed
 
-
-subsubsection\<open>Induction\<close>
-
-definition (in pre_digraph) is_empty :: "bool"
-  where "is_empty \<equiv> verts G = {}"
-
-lemma (in fin_digraph) verts_induct [case_names empty delete]:
-  assumes "\<And>G. pre_digraph.is_empty G \<Longrightarrow> P G"
-    and "\<And>G v. P (G \<restriction> (verts G - v)) \<Longrightarrow> P G"
-  shows "P G"
-  using assms unfolding pre_digraph.is_empty_def
-  by (metis Diff_cancel induce_subgraph_verts)
-
-lemma (in fin_digraph) verts_induct_non_empty [consumes 1, case_names empty delete]:
-  assumes "\<not> is_empty"
-    and "\<And>G. is_singleton (verts G) \<Longrightarrow> P G"
-    and "\<And>G v. P (G \<restriction> (verts G - v)) \<Longrightarrow> P G"
-  shows "P G"
-  using assms unfolding is_empty_def (* TODO tune this, or comment out if not useful *)
-  by (metis is_singletonI Diff_Diff_Int Int_insert_left_if1 induce_subgraph_verts inf_bot_left inf_commute least_degree_vertex_ex)
-
-
 end
