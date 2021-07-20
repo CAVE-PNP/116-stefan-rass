@@ -1098,7 +1098,8 @@ text\<open>2. The retraction of preceding 1-bits creates the needed infinitude o
 
 theorem embed_TM_in_len:
   fixes M l
-  assumes "clog l > len (encode_TM M)"
+  assumes "tm_wf0 M"
+    and "clog l > len (encode_TM M)" (* is this assumption sufficient? the al prefix requires at least 2 bits *)
   obtains w
   where "len w = l"
     and "TM_decode_pad w = M"
