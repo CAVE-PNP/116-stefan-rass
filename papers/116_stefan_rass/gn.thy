@@ -15,8 +15,6 @@ begin
 type_synonym word = "num"
 type_synonym lang = "word set"
 
-type_synonym bit_string = "bool list"
-
 (* gödel number *)
 definition gn :: "word \<Rightarrow> nat" where "gn \<equiv> nat_of_num"
 
@@ -59,15 +57,21 @@ lemma gn'D: "n > 0 \<Longrightarrow> gn' n = gn (num_of_nat n)"
 subsection\<open>bit-strings\<close>
 
 (* conversion to bit strings *)
-fun word_of_bin :: "bit_string \<Rightarrow> word" where
+fun word_of_bin :: "bin \<Rightarrow> word" where
   "word_of_bin Nil = num.One" |
   "word_of_bin (True # t) = num.Bit1 (word_of_bin t)" |
   "word_of_bin (False # t) = num.Bit0 (word_of_bin t)"
 
-fun bin_of_word :: "word \<Rightarrow> bit_string" where
+fun bin_of_word :: "word \<Rightarrow> bin" where
   "bin_of_word num.One = Nil" |
   "bin_of_word (num.Bit1 t) = True # (bin_of_word t)" |
   "bin_of_word (num.Bit0 t) = False # (bin_of_word t)"
+
+fun app :: "word \<Rightarrow> word \<Rightarrow> word" (infixr "@@" 65) where
+  "app v w = word_of_bin (bin_of_word v @ bin_of_word w)"
+
+fun drp :: "nat \<Rightarrow> word \<Rightarrow> word" where
+  "drp n w = word_of_bin (drop n (bin_of_word w))"
 
 (* correctness and relations *)
 lemma bin_word_bin_id [simp]: "bin_of_word (word_of_bin x) = x"
@@ -85,7 +89,6 @@ corollary word_bin_bij:
   shows word_of_bin_bij: "bij word_of_bin"
     and bin_of_word_bij: "bij bin_of_word"
   by (metis bijI' bin_word_bin_id word_bin_word_id)+
-
 
 (* relation to bin *)
 lemma gn_bin_eq: "gn w = nat_of_bin ((bin_of_word w) @ [True])"
@@ -131,6 +134,18 @@ lemma word_len_eq_bin_len:
 lemma word_len_eq_bin_len':
   "len (word_of_bin b) = length b"
   using word_len_eq_bin_len by simp
+
+lemmas word_bin_iso = word_len_eq_bin_len word_len_eq_bin_len' bin_word_bin_id word_bin_word_id
+
+lemma drp_len[simp]:
+  "len (drp n w) = len w - n"
+  unfolding drp.simps
+  using word_bin_iso by simp
+
+lemma drp_prefix[simp]:
+  "drp (len p) (p @@ w) = w"
+  unfolding drp.simps
+  using word_bin_iso by force
 
 lemma num_of_nat_double:
   assumes "n > 0"

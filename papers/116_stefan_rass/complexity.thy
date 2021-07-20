@@ -27,7 +27,7 @@ fun tape_size :: "tape \<Rightarrow> nat" \<comment> \<open>using \<open>fun\<cl
 subsubsection\<open>Time\<close>
 
 text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>, but includes a maximum number of steps.\<close>
-definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> tprog0 \<Rightarrow> bool"
+definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
   where "time_restricted T p \<equiv> \<forall>tp. \<exists>n.
             n \<le> T (tape_size tp)
           \<and> is_final (steps0 (1, tp) p n)"
@@ -39,10 +39,10 @@ abbreviation space0 where "space0 M x n \<equiv> let (_,tp) = steps0 (1, x) M n 
 
 text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>
      or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>x\<close>\<close>
-definition time :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat option"
-  where "time p tp = (
-    if \<exists>n. is_final (steps0 (1, tp) p n)
-      then Some (LEAST n. is_final (steps0 (1, tp) p n))
+definition time :: "TM \<Rightarrow> tape \<Rightarrow> nat option"
+  where "time M x = (
+    if \<exists>n. is_final (steps0 (1, x) M n)
+      then Some (LEAST n. is_final (steps0 (1, x) M n))
       else None
     )"
 
@@ -84,10 +84,10 @@ corollary "time_restricted T p \<Longrightarrow> (\<forall>tp. \<exists>n. the (
 
 subsubsection\<open>Space\<close>
 
-definition space_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> tprog0 \<Rightarrow> bool"
+definition space_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
   where "space_restricted T M \<equiv> \<forall>x. \<forall>n. space0 M x n \<le> T(tape_size x)"
 
-definition space :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat"
+definition space :: "TM \<Rightarrow> tape \<Rightarrow> nat"
   where "space M x = Max {space0 M x n | n. n\<in>\<nat>}"
 
 
@@ -155,16 +155,16 @@ text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^t
 
 abbreviation input where "input w \<equiv> (\<lambda>tp. tp = (([]::cell list), encode_word w))"
 
-definition halts :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
+definition halts :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "halts M w \<equiv> Hoare_halt (input w) M (\<lambda>_. True)"
 
-definition accepts :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
+definition accepts :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "accepts M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
 
-definition rejects :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
+definition rejects :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "rejects M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
 
-definition decides :: "tprog0 \<Rightarrow> lang  \<Rightarrow> bool"
+definition decides :: "TM \<Rightarrow> lang \<Rightarrow> bool"
   where "decides M L \<equiv> \<forall>w. (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
 
 
@@ -426,7 +426,7 @@ subsection\<open>Encoding TMs\<close>
   the "least significant bit is located at the right end".
   The recursive definitions for words result in somewhat unintuitive definitions here:
   The number 6 is 110 in binary, but as \<^typ>\<open>word\<close> it is \<^term>\<open>num.Bit0 (num.Bit1 num.One)\<close>.
-  Similarly, as \<^typ>\<open>bit_string\<close> (synonym for \<^typ>\<open>bool list\<close>), 6 is \<^term>\<open>[False, True]\<close>.\<close>
+  Similarly, as \<^typ>\<open>bin\<close> (synonym for \<^typ>\<open>bool list\<close>), 6 is \<^term>\<open>[False, True]\<close>.\<close>
 
 value "nat_of_num (num.Bit0 (num.Bit1 num.One))"
 value "nat_of_num (word_of_bin ([False, True]))"
@@ -731,7 +731,7 @@ text\<open>For this part, only a short description is given in ch. 3.1.
   "every string over \<open>{0, 1}\<^sup>*\<close> represents some TM (easy to assure by executing
   an invalid code as a canonic TM that instantly halts and rejects its input)"\<close>
 
-definition Rejecting_TM :: tprog0
+definition Rejecting_TM :: TM
   where "Rejecting_TM = [(W0, 0), (W0, 0)]"
 
 lemma rej_TM_wf: "tm_wf0 Rejecting_TM" unfolding Rejecting_TM_def tm_wf.simps by force
@@ -798,7 +798,7 @@ lemma decode_TM_wf: "tm_wf0 (decode_TM w)" unfolding decode_TM_def filter_wf_TMs
 lemma decode_TM_Nil: "decode_TM num.One = Rejecting_TM"
 proof -
   \<comment> \<open>There is (exactly) one TM whose encoding is \<^term>\<open>num.One\<close>,
-    which is \<^term>\<open>[]::tprog0\<close>, the machine without instructions.
+    which is \<^term>\<open>[]::TM\<close>, the machine without instructions.
     Since this machine is not well-formed (see \<^term>\<open>tm_wf0\<close>), however, this lemma holds.\<close>
 
   (* this should probably be known to simp *)
@@ -934,16 +934,16 @@ text\<open>from ch. 4.2:
 
 lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_def)
 
-lemma card_words_length_eq: "card {w. len w = l} = 2 ^ l"
+lemma card_words_len_eq: "card {w. len w = l} = 2 ^ l"
 proof -
   let ?bools = "UNIV :: bool set"
 
   have "inj_on bin_of_word {w. len w = l}" using inj_imp_inj_on bij_is_inj bin_of_word_bij .
   then have "card {w. len w = l} = card (bin_of_word ` {w. len w = l})" by (rule card_image[symmetric])
-  also have "... = card {w::bit_string. length w = l}" unfolding word_len_eq_bin_len
+  also have "... = card {w::bin. length w = l}" unfolding word_len_eq_bin_len
   proof (intro arg_cong[where f=card] subset_antisym subsetI image_eqI)
     (* direction "\<longleftarrow>" *)
-    fix x :: bit_string
+    fix x :: bin
     assume "x \<in> {w. length w = l}"
     thus "word_of_bin x \<in> {w. length (bin_of_word w) = l}" by simp
     show "x = bin_of_word (word_of_bin x)" by simp
@@ -954,13 +954,46 @@ proof -
   finally show ?thesis .
 qed
 
+lemma image_Collect_compose: "f ` {g x | x. P x} = {f (g x) | x. P x}"
+  using image_Collect
+  by blast
+
+corollary card_words_len_eq_prefix:
+  fixes p :: word
+  shows "card {p @@ w | w. len w = l} = 2^l" (is "card ?A = 2^l")
+proof -
+  let ?B = "{w. len w  = l}"
+  define f :: "word \<Rightarrow> word" where "f \<equiv> drp (len p)"
+  have "bij_betw f ?A ?B" unfolding bij_betw_def inj_on_def proof safe
+    fix x y assume "f (p @@ x) = f (p @@ y)"
+    thus "p@@x = p@@y"
+      unfolding f_def using drp_prefix by simp
+  next
+    fix x
+    show "len (f (p @@ x)) = len x"
+      unfolding f_def using drp_prefix by simp
+  next
+    have *: "f ` ?A = ?B"
+      using drp_prefix[of p] image_Collect_compose[of f "\<lambda>w. p @@ w"]
+      unfolding f_def by simp
+    fix x assume "l = len x"
+    with * show "x \<in> f ` {p @@ w |w. len w = len x}" by blast
+  qed
+  with card_words_len_eq show ?thesis
+    using bij_betw_same_card by fastforce
+qed 
+
 lemma num_equivalent_encodings:
   fixes M w
   assumes "TM_decode_pad w = M"
   defines "l \<equiv> len w"
-  shows "card {w. len w = l \<and> TM_decode_pad w = M} \<ge> 2^(l - clog l)"
-  using assms
-  oops
-
+  shows "2^(l - clog l) \<le> card {w. len w = l \<and> TM_decode_pad w = M}" (is "?lb \<le> card ?A")
+proof -
+  define B where "B \<equiv> { (strip_exp_pad w) @@ x | x. len x = l - clog l }"
+  with card_words_len_eq_prefix have "card B = ?lb" by fast
+  moreover have "finite ?A" sorry
+  moreover have "B \<subseteq> ?A" sorry
+  ultimately show ?thesis using card_mono[of ?A B] by simp
+qed
 
 end
