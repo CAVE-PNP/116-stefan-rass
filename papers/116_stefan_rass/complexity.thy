@@ -614,7 +614,6 @@ proof (intro drop_diff_length, fold word_len_eq_bin_len l_def)
   finally show "clog l \<le> l" .
 qed
 
-
 subsubsection\<open>Arbitrary-length \<open>1\<^sup>+0\<close> prefix\<close>
 
 fun add_al_prefix :: "word \<Rightarrow> word" where
@@ -1002,6 +1001,9 @@ proof -
     using inj_imp_inj_on bin_of_word_bij bij_def by blast
 qed
 
+lemma clog_le: "0 < n \<Longrightarrow> clog n \<le> n"
+  by (metis Nat.le_diff_conv2 diff_is_0_eq' discrete le_add_diff_inverse2 le_numeral_extra(4) log_le)
+
 lemma num_equivalent_encodings:
   fixes M w
   assumes "TM_decode_pad w = M"
@@ -1010,9 +1012,16 @@ lemma num_equivalent_encodings:
 proof - 
   define B where "B \<equiv> { (strip_exp_pad w) @@ x | x. len x = l - clog l }"
   with card_words_len_eq_prefix have "card B = ?lb" by fast
-  moreover have "finite ?A" using finite_words_len_eq finite_subset by fast
-  moreover have "B \<subseteq> ?A" sorry
-  ultimately show ?thesis using card_mono[of ?A B] by simp
+
+  have "finite ?A" using finite_words_len_eq finite_subset by fast
+  moreover have "B \<subseteq> ?A" unfolding B_def proof safe
+    fix x assume *: "len x = l - clog l"
+    then show "len (strip_exp_pad w @@ x) = l" sorry
+    show "TM_decode_pad (strip_exp_pad w @@ x) = M"
+      using * assms
+      unfolding TM_decode_pad_def sorry
+  qed
+  ultimately show ?thesis using card_mono[of ?A B] by (fold \<open>card B = ?lb\<close>)
 qed
 
 end

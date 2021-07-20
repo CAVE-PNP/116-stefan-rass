@@ -147,6 +147,10 @@ lemma drp_prefix[simp]:
   unfolding drp.simps
   using word_bin_iso by force
 
+lemma app_len[simp]: "len (w @@ v) = len w + len v"
+  unfolding app.simps
+  using word_bin_iso by force
+
 lemma num_of_nat_double:
   assumes "n > 0"
   shows "num_of_nat (2 * n) = num.Bit0 (num_of_nat n)"
