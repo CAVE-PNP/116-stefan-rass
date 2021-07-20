@@ -601,6 +601,10 @@ proof (cases "n > 0")
   with log_less show ?thesis by (intro less_imp_le)
 qed (* case "n = 0" by *) simp
 
+lemma strip_exp_pad_altdef: "strip_exp_pad w = (let l = len w in
+      word_of_bin (drop (l - clog l) (bin_of_word w)))"
+  unfolding strip_exp_pad_def Let_def word_len_eq_bin_len ..
+
 lemma strip_exp_pad_len:
   assumes "w \<noteq> num.One"
   defines "l \<equiv> len w"
@@ -611,7 +615,7 @@ proof (intro drop_diff_length, fold word_len_eq_bin_len l_def)
   have "Discrete.log (l-1) \<le> l-1" by (rule log_le)
   then have "clog l \<le> l-1 + 1" by (unfold add_le_cancel_right)
   also have "... = l" using \<open>l > 0\<close> by simp
-  finally show "clog l \<le> l" .
+  finally show "clog l \<le> l" . (* this is clog_le... *)
 qed
 
 subsubsection\<open>Arbitrary-length \<open>1\<^sup>+0\<close> prefix\<close>
@@ -755,6 +759,7 @@ proof (intro Hoare_haltI exI conjI)
 qed
 
 
+text\<open>The function that assigns a word to every TM, represented as \<open>\<rho>(M)\<close> in the paper.\<close>
 definition encode_TM :: "TM \<Rightarrow> word"
   where "encode_TM M = gn_inv (code M)"
 
@@ -865,7 +870,7 @@ text\<open>from ch. 3.1:
 
   1. every string over \<open>{0, 1}\<^sup>*\<close> represents some TM [...],\<close>
 
-lemma TM_decode_pad_wf: "tm_wf0 (TM_decode_pad w)"
+theorem TM_decode_pad_wf: "tm_wf0 (TM_decode_pad w)"
   unfolding TM_decode_pad_def by (rule decode_TM_wf)
 
 
@@ -933,10 +938,17 @@ text\<open>from ch. 4.2:
 
 lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_def)
 
-lemma card_words_len_eq: "card {w. len w = l} = 2 ^ l"
+lemma card_bin_len_eq: "card {w::bin. length w = l} = 2 ^ l"
 proof -
   let ?bools = "UNIV :: bool set"
+  have "card {w::bin. length w = l} = card {w. set w \<subseteq> ?bools \<and> length w = l}" by simp
+  also have "... = card ?bools ^ l" by (intro card_lists_length_eq) (rule finite)
+  also have "... = 2 ^ l" unfolding card_UNIV_bool ..
+  finally show ?thesis .
+qed
 
+lemma card_words_len_eq: "card {w. len w = l} = 2 ^ l"
+proof -
   have "inj_on bin_of_word {w. len w = l}" using inj_imp_inj_on bij_is_inj bin_of_word_bij .
   then have "card {w. len w = l} = card (bin_of_word ` {w. len w = l})" by (rule card_image[symmetric])
   also have "... = card {w::bin. length w = l}" unfolding word_len_eq_bin_len
@@ -947,15 +959,11 @@ proof -
     thus "word_of_bin x \<in> {w. length (bin_of_word w) = l}" by simp
     show "x = bin_of_word (word_of_bin x)" by simp
   qed (* direction "\<longrightarrow>" by *) blast
-  also have "... = card {w. set w \<subseteq> ?bools \<and> length w = l}" by simp
-  also have "... = card ?bools ^ l" by (intro card_lists_length_eq) (rule finite)
-  also have "... = 2 ^ l" unfolding card_UNIV_bool ..
+  also have "... = 2 ^ l" by (rule card_bin_len_eq)
   finally show ?thesis .
 qed
 
-lemma image_Collect_compose: "f ` {g x | x. P x} = {f (g x) | x. P x}"
-  using image_Collect
-  by blast
+lemma image_Collect_compose: "f ` {g x | x. P x} = {f (g x) | x. P x}" by blast
 
 corollary card_words_len_eq_prefix:
   fixes p :: word
@@ -1023,5 +1031,18 @@ proof -
   qed
   ultimately show ?thesis using card_mono[of ?A B] by (fold \<open>card B = ?lb\<close>)
 qed
+
+
+text\<open>2. The retraction of preceding 1-bits creates the needed infinitude of
+        equivalent encodings of every possible TM \<open>M\<close>, as \<^emph>\<open>we can embed any code \<open>\<rho>(M)\<close>
+        in a word of length \<open>ℓ\<close> for which \<open>log(ℓ) > len (\<rho>(M))\<close>.\<close> [...]\<close>
+
+theorem embed_TM_in_len:
+  fixes M l
+  assumes "clog l > len (encode_TM M)"
+  obtains w
+  where "len w = l"
+    and "TM_decode_pad w = M"
+  oops
 
 end
