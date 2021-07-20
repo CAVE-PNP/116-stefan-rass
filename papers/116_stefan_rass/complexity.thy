@@ -981,17 +981,36 @@ proof -
   qed
   with card_words_len_eq show ?thesis
     using bij_betw_same_card by fastforce
-qed 
+qed
+
+lemma finite_words_len_eq: "finite {w. len w = n}" (is "finite ?A")
+proof -
+  define B where "B \<equiv> {xs::bin. length xs = n}"
+
+  have "\<And>xs::bin. set xs \<subseteq> {True, False}" by fast
+  moreover have "finite {True, False}" by fast
+  ultimately have "finite B"
+    unfolding B_def using finite_lists_length_eq[of "{True, False}"]
+    by presburger 
+
+  moreover have "bin_of_word ` ?A = B"
+    unfolding B_def using word_bin_iso
+    by (smt (verit, best) Collect_cong Collect_mem_eq image_iff mem_Collect_eq)
+
+  ultimately show ?thesis
+    using finite_imageD[of bin_of_word ?A]
+    using inj_imp_inj_on bin_of_word_bij bij_def by blast
+qed
 
 lemma num_equivalent_encodings:
   fixes M w
   assumes "TM_decode_pad w = M"
   defines "l \<equiv> len w"
   shows "2^(l - clog l) \<le> card {w. len w = l \<and> TM_decode_pad w = M}" (is "?lb \<le> card ?A")
-proof -
+proof - 
   define B where "B \<equiv> { (strip_exp_pad w) @@ x | x. len x = l - clog l }"
   with card_words_len_eq_prefix have "card B = ?lb" by fast
-  moreover have "finite ?A" sorry
+  moreover have "finite ?A" using finite_words_len_eq finite_subset by fast
   moreover have "B \<subseteq> ?A" sorry
   ultimately show ?thesis using card_mono[of ?A B] by simp
 qed
