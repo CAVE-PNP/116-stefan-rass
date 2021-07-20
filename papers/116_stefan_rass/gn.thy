@@ -109,6 +109,8 @@ declare bit_length_def[simp]
 
 corollary len_gt_0: "w \<noteq> num.One \<Longrightarrow> len w > 0" by (cases w) simp_all
 
+corollary len_eq_0_iff: "w = num.One \<longleftrightarrow> len w = 0" by (cases w) simp_all
+
 corollary len_Cons_eq: "len (num.Bit0 w) = len (num.Bit1 w)" by simp
 
 lemma num_of_nat_double': "0 < n \<Longrightarrow> num_of_nat (n + n + 1) = num.Bit1 (num_of_nat n)"

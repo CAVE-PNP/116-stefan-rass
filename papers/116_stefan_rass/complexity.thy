@@ -1012,24 +1012,83 @@ qed
 lemma clog_le: "0 < n \<Longrightarrow> clog n \<le> n"
   by (metis Nat.le_diff_conv2 diff_is_0_eq' discrete le_add_diff_inverse2 le_numeral_extra(4) log_le)
 
-lemma num_equivalent_encodings:
+lemma inj_append:
+  fixes xs ys :: "'a list"
+  shows inj_append_L: "inj (\<lambda>xs. xs @ ys)" 
+    and inj_append_R: "inj (\<lambda>ys. xs @ ys)" 
+  using append_same_eq by (intro injI, simp)+
+
+lemma inj_app_L: "inj (\<lambda>a. a @@ b)"
+proof -
+  have *: "(\<lambda>a. a @@ b) = word_of_bin \<circ> (\<lambda>x. x @ bin_of_word b) \<circ> bin_of_word"
+    unfolding app.simps by force
+  show "inj (\<lambda>a. a @@ b)" unfolding * using inj_append_L[of "bin_of_word b"] word_bin_bij
+    by (intro inj_compose) (simp_all only: bij_is_inj)
+qed
+
+lemma inj_app_R: "inj (\<lambda>b. a @@ b)"
+proof -
+  have *: "(\<lambda>b. a @@ b) = word_of_bin \<circ> (\<lambda>x. bin_of_word a @ x) \<circ> bin_of_word"
+    unfolding app.simps by force
+  show "inj (\<lambda>b. a @@ b)" unfolding * using inj_append_R[of "bin_of_word a"] word_bin_bij
+    by (intro inj_compose) (simp_all only: bij_is_inj)
+qed
+  
+
+theorem num_equivalent_encodings:
   fixes M w
   assumes "TM_decode_pad w = M"
   defines "l \<equiv> len w"
-  shows "2^(l - clog l) \<le> card {w. len w = l \<and> TM_decode_pad w = M}" (is "?lb \<le> card ?A")
-proof - 
-  define B where "B \<equiv> { (strip_exp_pad w) @@ x | x. len x = l - clog l }"
-  with card_words_len_eq_prefix have "card B = ?lb" by fast
+  shows "2^(l - clog l) \<le> card {w. len w = l \<and> TM_decode_pad w = M}" (is "?lhs \<le> card ?A")
+proof (cases "l > 0")
+  case True
+  from \<open>l > 0\<close> have "w \<noteq> num.One" unfolding l_def unfolding len_eq_0_iff ..
+  from \<open>l > 0\<close> have "clog l \<le> l" by (rule clog_le)
 
-  have "finite ?A" using finite_words_len_eq finite_subset by fast
-  moreover have "B \<subseteq> ?A" unfolding B_def proof safe
-    fix x assume *: "len x = l - clog l"
-    then show "len (strip_exp_pad w @@ x) = l" sorry
-    show "TM_decode_pad (strip_exp_pad w @@ x) = M"
-      using * assms
-      unfolding TM_decode_pad_def sorry
+  define w' where "w' \<equiv> strip_exp_pad w"
+  have lw': "len w' = clog l" unfolding w'_def l_def using \<open>w \<noteq> num.One\<close> by (rule strip_exp_pad_len)
+  
+  have "?lhs = card {pad. len pad = l - clog l}" using card_words_len_eq ..
+  also have "... = card ((\<lambda>pad. pad @@ w') ` {pad. len pad = l - clog l})"
+    using card_image[symmetric] inj_imp_inj_on inj_app_L .
+  also have "... = card {pad @@ w' | pad. len pad = l - clog l}"
+    by (intro arg_cong[where f=card]) (rule image_Collect)
+  also have "... \<le> card {w. len w = l \<and> TM_decode_pad w = M}"
+  proof (intro card_mono)
+    show "finite {w. len w = l \<and> TM_decode_pad w = M}" using finite_words_len_eq by simp
+    show "{pad @@ w' | pad. len pad = l - clog l} \<subseteq> {w. len w = l \<and> TM_decode_pad w = M}"
+    proof safe
+      fix pad
+      assume lp: "len pad = l - clog l"
+      show lpw': "len (pad @@ w') = l" unfolding app_len lp lw'
+        using \<open>clog l \<le> l\<close> by (rule le_add_diff_inverse2)
+
+      have h1: "drop (l - clog l) (bin_of_word pad) = []" using lp
+        unfolding word_len_eq_bin_len by (intro drop_all) (rule eq_imp_le)
+      have h2: "l - clog l - length (bin_of_word pad) = 0"
+        unfolding word_len_eq_bin_len[symmetric] lp by simp
+      have h3: "drop (l - clog l) (bin_of_word (pad @@ w')) = bin_of_word w'"
+        unfolding app.simps word_bin_iso drop_append h1 h2 by simp
+      show "TM_decode_pad (pad @@ w') = M" unfolding TM_decode_pad_def strip_exp_pad_altdef
+        unfolding lpw' Let_def h3 word_bin_word_id unfolding w'_def
+        using \<open>TM_decode_pad w = M\<close> by (fold TM_decode_pad_def)
+    qed
   qed
-  ultimately show ?thesis using card_mono[of ?A B] by (fold \<open>card B = ?lb\<close>)
+  finally show ?thesis .
+next
+  case False
+  then have "l = 0" by blast
+  then have "w = num.One" unfolding l_def by (fold len_eq_0_iff)
+  have "M = Rejecting_TM" using \<open>TM_decode_pad w = M\<close> unfolding \<open>w = num.One\<close> TM_decode_Nil ..
+
+  have "2 ^ (l - clog l) = 1" unfolding \<open>l = 0\<close> by simp
+  also have "1 = card {num.One}" by simp
+  also have "... \<le> card {w. len w = l \<and> TM_decode_pad w = M}" unfolding \<open>l = 0\<close> \<open>M = Rejecting_TM\<close>
+  proof (intro card_mono)
+    show "finite {w. len w = 0 \<and> TM_decode_pad w = Rejecting_TM}" using finite_words_len_eq by simp
+    show "{num.One} \<subseteq> {w. len w = 0 \<and> TM_decode_pad w = Rejecting_TM}" using TM_decode_Nil by simp
+  qed
+  finally show ?thesis .
 qed
 
 
