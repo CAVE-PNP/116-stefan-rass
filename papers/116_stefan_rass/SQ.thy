@@ -739,7 +739,7 @@ proof (cases "up > 0", cases "lo > 0")
   also have "... = up * 2 ^ length (?lo @ ?zs) + lo" unfolding nat_of_bin_app by simp
   also have "... = ?lhs" unfolding lloz ..
   finally show ?thesis by (rule sym)
-qed (* cases "up = 0" and "lo = 0" by *) (simp_all add: nat_of_bin_app_zs)
+qed (* cases "up = 0" and "lo = 0" by *) (simp_all add: nat_of_bin_app_0s)
 
 corollary add_suffix_bin':
   fixes up lo k :: nat
@@ -749,8 +749,8 @@ corollary add_suffix_bin':
   (is "?lhs = ?lo @ ?zs @ ?up")
 proof -
   from bin_of_nat_end_True and \<open>up > 0\<close> have "ends_in True ?up" .
-  moreover from bin_of_nat_len and \<open>up > 0\<close> have "?up \<noteq> []" by blast
-  ultimately have "ends_in True (?lo @ ?zs @ ?up)" unfolding ends_in_app by simp
+  moreover from bin_of_nat_len_gt_0 and \<open>up > 0\<close> have "?up \<noteq> []" by blast
+  ultimately have "ends_in True (?lo @ ?zs @ ?up)" unfolding ends_in_append by simp
 
   with bin_nat_bin[symmetric] have "?lo @ ?zs @ ?up = bin_of_nat (nat_of_bin (?lo @ ?zs @ ?up))" .
   also have "... = ?lhs" using add_suffix_bin[of lo k up] assms by presburger

@@ -1,5 +1,5 @@
 theory gn
-  imports Main HOL.Num nat_bin
+  imports Main Binary
 begin
 
 (*
