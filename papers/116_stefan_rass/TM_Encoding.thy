@@ -45,14 +45,25 @@ subsubsection\<open>Discrete ceiling log\<close>
 abbreviation clog :: "nat \<Rightarrow> nat"
   where "clog n \<equiv> Discrete.log (n-1) + 1"
 
-lemma clog_exp: "0 < n \<Longrightarrow> clog (2^n) = n"
-proof (induction n rule: nat_induct_non_zero)
-  case (Suc n)
-  then show ?case using Discrete.log.simps by fastforce
-qed simp
+lemma log_exp_m1: "Discrete.log (2^k - 1) = k - 1" (* this has already been shown in the master branch *)
+proof (cases "k > 0")
+  case True show ?thesis
+  proof (intro log_eqI)
+    let ?Z = "2::nat"
+
+    from \<open>k > 0\<close> have "2^k \<ge> ?Z" using self_le_power[of 2 k] by fastforce
+    then show "?Z^k - 1 > 0" by (simp add: \<open>k > 0\<close>)
+    show "?Z^k - 1 < 2 * 2^(k - 1)" unfolding power_Suc[symmetric] by (simp add: \<open>k > 0\<close>)
+    have "?Z^(k-1) < 2^k" by (simp add: \<open>k > 0\<close>)
+    moreover have "a < b \<Longrightarrow> a \<le> b - 1" for a b :: nat by force
+    ultimately show "?Z^(k - 1) \<le> 2^k - 1" by blast
+  qed
+qed (* case "k = 0" by *) simp
+
+lemma clog_exp: "0 < n \<Longrightarrow> clog (2^n) = n" unfolding log_exp_m1 by fastforce
 
 lemma dlog_altdef: "1 \<le> n \<Longrightarrow> Discrete.log n = nat \<lfloor>log 2 n\<rfloor>"
-  using log_altdef by simp
+  unfolding log_altdef by (subst if_not_P) fastforce+
 
 lemma nat_strict_mono_greatest:
   fixes f::"nat \<Rightarrow> nat" and N::nat
@@ -121,25 +132,34 @@ lemma log_altdef_ceil:
 proof -
   from assms have "1 \<le> n" by simp
   with power_two_decompose obtain k m where km_def: "n = 2^k + m" "m < 2^k" .
-  have "1 + nat \<lfloor>log 2 (n-1)\<rfloor> = nat \<lceil>log 2 n\<rceil>" proof (cases "m = 0")
+
+  show "Discrete.log (n-1) + 1 = nat \<lceil>log 2 n\<rceil>" proof (cases "m = 0")
     case True
     then have k_def: "n = 2^k" using \<open>n = 2^k + m\<close> by simp
-    then have "nat \<lfloor>log 2 (n-1)\<rfloor> = k - 1"
-      using dlog_altdef[of "n-1"] clog_exp[of k] assms by fastforce
-    moreover have "nat \<lceil>log 2 n\<rceil> = k" using k_def by simp
-    moreover have \<open>1 \<le> k\<close> using assms k_def
-      by (smt (z3) One_nat_def int_zle_neg not_le not_less_eq numerals(2) of_nat_0_less_iff power_0)
-    ultimately show ?thesis by simp
+
+    have "Discrete.log (n-1) + 1 = (k-1) + 1" unfolding add_right_cancel k_def by (rule log_exp_m1)
+    also have "... = k"
+    proof (intro le_add_diff_inverse2)
+      have "(2::nat) ^ 1 \<le> 2 ^ k" using assms unfolding k_def by simp
+      then show "1 \<le> k" by (intro power_le_imp_le_exp) simp_all
+    qed
+    also have "... = Discrete.log (2^k)" using log_exp ..
+    also have "... = nat \<lceil>log 2 ((2::nat)^k)\<rceil>" by (subst dlog_altdef) simp_all
+    also have "... = nat \<lceil>log 2 n\<rceil>" unfolding k_def ..
+    finally show ?thesis .
   next
     case False
-    then have \<open>1\<le>m\<close> by simp
-    have "nat \<lfloor>log 2 (n-1)\<rfloor> = k"
-      using km_def \<open>1\<le>m\<close> log_eq1[of "m-1" k] dlog_altdef[of "n-1"] assms by simp
-    moreover have "nat \<lceil>log 2 n\<rceil> = 1 + k"
-      using km_def \<open>1\<le>m\<close> log_eq2 by simp
-    ultimately show ?thesis by simp
+    then have \<open>1 \<le> m\<close> \<open>0 \<le> m-1\<close> by simp_all
+    from \<open>m < 2^k\<close> have "m-1 < 2^k" by (rule less_imp_diff_less)
+
+    have "Discrete.log (n-1) = Discrete.log (2^k + (m-1))" unfolding km_def
+      using \<open>1 \<le> m\<close> by (subst diff_add_assoc) simp_all
+    also have "... = k" using \<open>0 \<le> m-1\<close> \<open>m-1 < 2^k\<close> by (rule log_eq1)
+    finally have "Discrete.log (n-1) + 1 = k + 1" unfolding add_right_cancel .
+    also have "... = nat \<lceil>log 2 n\<rceil>" unfolding km_def
+      using \<open>1 \<le> m\<close> \<open>m < 2^k\<close> by (subst log_eq2) simp_all
+    finally show ?thesis .
   qed
-  then show ?thesis using assms dlog_altdef by simp
 qed
 
 subsubsection\<open>Exponential Padding\<close>
@@ -209,18 +229,30 @@ lemma strip_exp_pad_altdef: "strip_exp_pad w = (let l = len w in
       word_of_bin (drop (l - clog l) (bin_of_word w)))"
   unfolding strip_exp_pad_def Let_def word_len_eq_bin_len ..
 
+lemma clog_le: "0 < n \<Longrightarrow> clog n \<le> n"
+proof -
+  assume "n > 0"
+  have "Discrete.log (n-1) \<le> n-1" by (rule log_le)
+  then have "clog n \<le> n-1 + 1" by (unfold add_le_cancel_right)
+  also have "... = n" using \<open>n > 0\<close> by simp
+  finally show "clog n \<le> n" .
+qed
+
 lemma strip_exp_pad_len:
   assumes "w \<noteq> num.One"
   defines "l \<equiv> len w"
-  shows "len (strip_exp_pad w) = clog (len w)"
-  unfolding word_len_eq_bin_len strip_exp_pad_def Let_def bin_word_bin_id
-proof (intro drop_diff_length, fold word_len_eq_bin_len l_def)
-  have "l > 0" unfolding l_def using \<open>w \<noteq> num.One\<close> by (rule len_gt_0)
-  have "Discrete.log (l-1) \<le> l-1" by (rule log_le)
-  then have "clog l \<le> l-1 + 1" by (unfold add_le_cancel_right)
-  also have "... = l" using \<open>l > 0\<close> by simp
-  finally show "clog l \<le> l" . (* this is clog_le... *)
+  shows "len (strip_exp_pad w) = clog l"
+proof -
+  from \<open>w \<noteq> num.One\<close> have "l > 0" unfolding l_def by (rule len_gt_0)
+  with clog_le have "clog l \<le> l" .
+
+  have "len (strip_exp_pad w) = l - (l - clog l)"
+    unfolding word_len_eq_bin_len strip_exp_pad_def Let_def bin_word_bin_id length_drop
+    by (fold word_len_eq_bin_len l_def) rule
+  also have "... = clog l" using \<open>clog l \<le> l\<close> by (rule diff_diff_cancel)
+  finally show ?thesis .
 qed
+
 
 subsubsection\<open>Arbitrary-length \<open>1\<^sup>+0\<close> prefix\<close>
 
@@ -364,8 +396,16 @@ definition decode_TM :: "word \<Rightarrow> TM"
     (if is_encoded_TM w then filter_wf_TMs (THE M. w = encode_TM M) else Rejecting_TM)"
 
 lemma encode_TM_inj: "inj encode_TM"
-  unfolding encode_TM_def using gn_inv_inj code_inj godel_code_great
-  by (metis (mono_tags, lifting) code.elims injD injI inv_gn_id is_gn_def)
+  unfolding encode_TM_def
+proof (intro injI)
+  fix x y
+  assume assm: "gn_inv (code x) = gn_inv (code y)"
+  have "code x = gn (gn_inv (code x))" using inv_gn_id[symmetric] code_gt_0 unfolding is_gn_def .
+  also have "... = gn (gn_inv (code y))" unfolding assm ..
+  also have "... = code y" using inv_gn_id code_gt_0 unfolding is_gn_def .
+  finally have "code x = code y" .
+  with code_inj show "x = y" by (rule injD)
+qed
 
 lemma codec_TM: "tm_wf0 M \<Longrightarrow> decode_TM (encode_TM M) = M" (is "tm_wf0 M \<Longrightarrow> ?lhs = M")
 proof -
@@ -550,6 +590,10 @@ proof -
   finally show ?thesis .
 qed
 
+corollary finite_words_len_eq: "finite {w. len w = l}"
+  using card_words_len_eq by (intro card_ge_0_finite) presburger
+
+
 lemma image_Collect_compose: "f ` {g x | x. P x} = {f (g x) | x. P x}" by blast
 
 corollary card_words_len_eq_prefix:
@@ -577,32 +621,10 @@ proof -
     using bij_betw_same_card by fastforce
 qed
 
-lemma finite_words_len_eq: "finite {w. len w = n}" (is "finite ?A")
-proof -
-  define B where "B \<equiv> {xs::bin. length xs = n}"
-
-  have "\<And>xs::bin. set xs \<subseteq> {True, False}" by fast
-  moreover have "finite {True, False}" by fast
-  ultimately have "finite B"
-    unfolding B_def using finite_lists_length_eq[of "{True, False}"]
-    by presburger 
-
-  moreover have "bin_of_word ` ?A = B"
-    unfolding B_def using word_bin_iso
-    by (smt (verit, best) Collect_cong Collect_mem_eq image_iff mem_Collect_eq)
-
-  ultimately show ?thesis
-    using finite_imageD[of bin_of_word ?A]
-    using inj_imp_inj_on bin_of_word_bij bij_def by blast
-qed
-
-lemma clog_le: "0 < n \<Longrightarrow> clog n \<le> n"
-  by (metis Nat.le_diff_conv2 diff_is_0_eq' discrete le_add_diff_inverse2 le_numeral_extra(4) log_le)
-
 lemma inj_append:
   fixes xs ys :: "'a list"
-  shows inj_append_L: "inj (\<lambda>xs. xs @ ys)" 
-    and inj_append_R: "inj (\<lambda>ys. xs @ ys)" 
+  shows inj_append_L: "inj (\<lambda>xs. xs @ ys)"
+    and inj_append_R: "inj (\<lambda>ys. xs @ ys)"
   using append_same_eq by (intro injI, simp)+
 
 lemma inj_app_L: "inj (\<lambda>a. a @@ b)"
@@ -620,7 +642,7 @@ proof -
   show "inj (\<lambda>b. a @@ b)" unfolding * using inj_append_R[of "bin_of_word a"] word_bin_bij
     by (intro inj_compose) (simp_all only: bij_is_inj)
 qed
-  
+
 
 theorem num_equivalent_encodings:
   fixes M w
@@ -634,7 +656,7 @@ proof (cases "l > 0")
 
   define w' where "w' \<equiv> strip_exp_pad w"
   have lw': "len w' = clog l" unfolding w'_def l_def using \<open>w \<noteq> num.One\<close> by (rule strip_exp_pad_len)
-  
+
   have "?lhs = card {pad. len pad = l - clog l}" using card_words_len_eq ..
   also have "... = card ((\<lambda>pad. pad @@ w') ` {pad. len pad = l - clog l})"
     using card_image[symmetric] inj_imp_inj_on inj_app_L .
@@ -726,7 +748,7 @@ proof
   finally show "len w = l" .
 
   have w_correct: "strip_exp_pad w = w'" unfolding strip_exp_pad_altdef \<open>len w = l\<close> Let_def
-    unfolding w_def bin_word_bin_id drop_append dexp exp_len by simp 
+    unfolding w_def bin_word_bin_id drop_append dexp exp_len by simp
 
   show "TM_decode_pad w = M" unfolding TM_decode_pad_def w_correct w'_correct
     using \<open>tm_wf0 M\<close> by (rule codec_TM)
