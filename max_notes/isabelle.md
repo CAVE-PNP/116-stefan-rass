@@ -70,9 +70,9 @@ Download the version of the AFP that corresponds to the version of Isabelle from
 Note that downloading the wrong version may result in errors and warnings in the underlying proofs.
 
 Follow the instructions at [Referring to AFP Entries](https://www.isa-afp.org/using.html).
-Note that for Windows, the command has to be entered in the cygwin terminal (`<isa install dir>/Cygwin-Terminal.bat`).
-Alternatively, the file `%userprofile%\.isabelle\Isabelle20xx\ROOTS` can be edited manually.
-Also, the path to the AFP installation has to be adapted to fit the cygwin scheme `/cygdrive/<drive letter>/path/to/afp/thys`.
+Note that for Windows, the command has to be entered in the cygwin terminal (`<isa install dir>/Cygwin-Terminal.bat`),
+and the path to the AFP installation has to be adapted to fit the cygwin scheme `/cygdrive/<drive letter>/path/to/afp/thys`.
+This is equivalent to adding the path manually to `$ISABELLE_HOME_USER/ROOTS`.
 
 After setup, AFP entries can be accessed like standard libraries.
 
@@ -90,22 +90,67 @@ Session images that are included with the distribution are stored in `<isa insta
 
 Note that while changing the session image may result in faster startup times, it prevents the semantic highlighting in Isabelle/jEdit to work properly for any theories of the loaded session
 (indicated by the warning `Cannot update finished theory ...`).
-To work around this, change the session image to `Pure` (pre-compiled) and restart Isabelle/jEdit.
+To work around this, change the session image to one that does not include the relevant theories and restart Isabelle/jEdit.
+Normally, the default `HOL` is sufficient; for inspecting parts of `HOL`, one may use `Pure`.
 
 The session `HOL-Proofs` is special in that the image includes the full proof terms of the entire `HOL-Library`.
 
-#### Creating Sessions
+#### Sessions Definitions
 
 In order for Isabelle to recognize a session, it has to be defined in a `ROOT` file (defines sessions), that in turn has to be referred to in a `ROOTS` file (points to `ROOT` files or further `ROOTS`).
 There are two main `ROOTS` for each Isabelle installation: one in the installation directory (`ISABELLE_HOME`), and one in `~/.isabelle/Isabelle20xx/` (`ISABELLE_HOME_USER`).
 Isabelle/jEdit provides semantic highlighting and checking for `ROOT` files.
 See `system.pdf` _ch. 2.1 Session ROOT specifications_ for `ROOT` file structure and syntax.
+In addition, the Isabelle CLI provides a command for adding paths to the main `ROOTS`: `isabelle components -u /path/to/thys`.
 
 During development of a session, it is advisable to only include _finalized_ theories when loading the session image at startup,
 as any files included in the image cannot be live-checked in Isabelle/jEdit
 (they can however, be imported as [local files](#local-files)).
 
+##### Dummy Development Sessions
+
+For developing libraries that depend on multiple sessions, such as `HOL-Analysis` and `Graph_Theory`,
+can normally only use one compiled session image, forcing jEdit to check at least one session at each startup.
+To avoid this, developers can create a dummy session containing only these dependencies.
+
+A simple setup for this looks as follows (with `project-root` included in a `ROOTS` file):
+
+```file-structure
+project-root/
+  thys/
+    My_Library.thy
+  ROOT
+  DEV.thy
+```
+
+File contents:
+
+```isabelle-root
+(* ROOT *)
+session "DEV_My_Library" = "<session1>" +
+  sessions "<session2>" "<session3>"
+  theories "DEV"
+```
+
+```isabelle
+(* DEV.thy *)
+theory DEV
+  imports "<session1>.<theory1>" "<session2>.<theory2>" "<session3>.<theory3>"
+begin
+end
+```
+
+An important choice is which session to choose as the "parent" session (`<session1>` in this example),
+as this session can be compiled independently of the `DEV` session.
+This should be the "largest" session, the one which takes the longest to compile, and, ideally already is compiled.
+For most purposes, this can be `HOL-Library` (because of its wide range) or a session that includes it.
+
 ## Proof methods (work in progress)
+
+The cookbook's section on [Proof Methods](https://isabelle.systems/cookbook/src/proofs/methods/) is recommended reading.
+For more information see the `isar-ref.pdf` _ch. 9 Generic tools and packages_, especially _chs. 9.2.1-9.2.2, 9.3.1, 9.4.3-9.4.4_.
+Refer to _chs. 12.1-12.2_ for more tools (see also _chs. 12.4-12.8_ for some more uncommon tactics).
+See _chs. 9.3.2, 9.4.2_ for theorem attributes that allow the automatic tools to use them effectively.
 
 **_TODO_** induct/induction
 

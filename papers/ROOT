@@ -1,0 +1,17 @@
+(* development session containing imports for all CAVE-PNP branches.
+ * use by adding this directory to the Isabelle ROOTS. see /max_notes/isabelle.md#Imports and https://www.isa-afp.org/using.html *)
+session "DEV_CAVE-PNP" = "HOL-Library" + 
+  sessions
+    (* 049 Clique *)
+    "Graph_Theory"
+    "HOL-Imperative_HOL"
+    (* 116 OWF *)
+    "Universal_Turing_Machine"
+    "HOL-Computational_Algebra"
+  theories DEV
+
+session "Clique" in "049_zohreh_akbari" = "DEV_CAVE-PNP" +
+  (* no finalized theories yet *)
+
+session "OWF" in "116_stefan_rass" = "DEV_CAVE-PNP" +
+  theories dens (* not fully finalized but close enough *)

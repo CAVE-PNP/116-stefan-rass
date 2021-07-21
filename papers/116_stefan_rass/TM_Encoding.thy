@@ -1,5 +1,5 @@
 theory TM_Encoding
-  imports gn UF_Code
+  imports gn SQ UF_Code
     "Universal_Turing_Machine.UTM" "HOL-Library.Sublist" "HOL-Library.Discrete"
 begin
 
@@ -44,21 +44,6 @@ text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
 subsubsection\<open>Discrete ceiling log\<close>
 abbreviation clog :: "nat \<Rightarrow> nat"
   where "clog n \<equiv> Discrete.log (n-1) + 1"
-
-lemma log_exp_m1: "Discrete.log (2^k - 1) = k - 1" (* this has already been shown in the master branch *)
-proof (cases "k > 0")
-  case True show ?thesis
-  proof (intro log_eqI)
-    let ?Z = "2::nat"
-
-    from \<open>k > 0\<close> have "2^k \<ge> ?Z" using self_le_power[of 2 k] by fastforce
-    then show "?Z^k - 1 > 0" by (simp add: \<open>k > 0\<close>)
-    show "?Z^k - 1 < 2 * 2^(k - 1)" unfolding power_Suc[symmetric] by (simp add: \<open>k > 0\<close>)
-    have "?Z^(k-1) < 2^k" by (simp add: \<open>k > 0\<close>)
-    moreover have "a < b \<Longrightarrow> a \<le> b - 1" for a b :: nat by force
-    ultimately show "?Z^(k - 1) \<le> 2^k - 1" by blast
-  qed
-qed (* case "k = 0" by *) simp
 
 lemma clog_exp: "0 < n \<Longrightarrow> clog (2^n) = n" unfolding log_exp_m1 by fastforce
 
