@@ -1,15 +1,19 @@
 theory complexity
-  imports Main gn "Universal_Turing_Machine.UTM"
+  imports Main gn "Universal_Turing_Machine.UTM" TM_Encoding
 begin
 
-subsection\<open>Termination\<close>
+
+subsection\<open>Basic Measures\<close>
 
 text\<open>The tape size can not use the universal function \<^term>\<open>size\<close>, since for any pair \<^term>\<open>p = (a, b)\<close>, \<^term>\<open>size p = 1\<close>.\<close>
 fun tape_size :: "tape \<Rightarrow> nat" \<comment> \<open>using \<open>fun\<close> since \<open>definition\<close> does not recognize patterns like \<^term>\<open>(l, r)\<close>\<close>
   where "tape_size (l, r) = length l + length r"
 
+
+subsubsection\<open>Time\<close>
+
 text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>, but includes a maximum number of steps.\<close>
-definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> tprog0 \<Rightarrow> bool"
+definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
   where "time_restricted T p \<equiv> \<forall>tp. \<exists>n.
             n \<le> T (tape_size tp)
           \<and> is_final (steps0 (1, tp) p n)"
@@ -19,23 +23,18 @@ definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> tprog0 \<Ri
 (* size of tape after M does n steps on input x *)
 abbreviation space0 where "space0 M x n \<equiv> let (_,tp) = steps0 (1, x) M n in tape_size tp"
 
-definition space_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> tprog0 \<Rightarrow> bool"
-  where "space_restricted T M \<equiv> \<forall>x. \<forall>n. space0 M x n \<le> T(tape_size x)"
-
 text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>
      or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>x\<close>\<close>
-definition time :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat option"
-  where "time p tp = (
-    if \<exists>n. is_final (steps0 (1, tp) p n)
-      then Some (LEAST n. is_final (steps0 (1, tp) p n))
+definition time :: "TM \<Rightarrow> tape \<Rightarrow> nat option"
+  where "time M x = (
+    if \<exists>n. is_final (steps0 (1, x) M n)
+      then Some (LEAST n. is_final (steps0 (1, x) M n))
       else None
     )"
 
-definition space :: "tprog0 \<Rightarrow> tape \<Rightarrow> nat"
-  where "space M x = Max {space0 M x n | n. n\<in>\<nat>}"
 
 lemma time_restricted_altdef:
-  "time_restricted T p \<longleftrightarrow> (\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp))" 
+  "time_restricted T p \<longleftrightarrow> (\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp))"
   unfolding time_restricted_def (* in order for the intros to work in direction "\<Longleftarrow>" *)
 proof (intro iffI allI exI conjI)
   fix tp
@@ -68,43 +67,53 @@ corollary "time_restricted T p \<Longrightarrow> (\<forall>tp. \<exists>n. the (
   unfolding time_restricted_altdef
   by (metis option.sel)
 
-lemma update_space_one: "tape_size (update a (l,r)) \<le> 1 + tape_size (l,r)"
-  by (cases a) simp_all
-lemma update_space_le: "tape_size (l,r) \<le> tape_size(update a (l,r))"
-  by (cases a) simp_all
 
-lemma step_space_mono: "space0 M x n \<le> space0 M x (Suc n)"    
+subsubsection\<open>Space\<close>
+
+definition space_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
+  where "space_restricted T M \<equiv> \<forall>x. \<forall>n. space0 M x n \<le> T(tape_size x)"
+
+definition space :: "TM \<Rightarrow> tape \<Rightarrow> nat"
+  where "space M x = Max {space0 M x n | n. n\<in>\<nat>}"
+
+
+lemma update_space_one: "tape_size (update a (l,r)) \<le> 1 + tape_size (l,r)"
+  by (induction a) simp_all
+lemma update_space_le: "tape_size (l,r) \<le> tape_size(update a (l,r))"
+  by (induction a) simp_all
+
+lemma step_space_mono: "space0 M x n \<le> space0 M x (Suc n)"
   oops
 
-lemma tape_size_mono: "n \<le> m \<Longrightarrow> tape_size(tape0 M x n) \<le> tape_size(tape0 M x m)"
+lemma tape_size_mono: "n \<le> m \<Longrightarrow> space0 M x n \<le> space0 M x m"
   oops
 
 
 subsection\<open>Encoding Words\<close>
 
-text\<open>Encoding binary words as TM tape cells: \<^term>\<open>Num.Bit1\<close> is encoded as \<^term>\<open>[Oc, Oc]\<close> and \<^term>\<open>Num.Bit1\<close> as term>\<open>[Oc, Bk]\<close>.
+text\<open>Encoding binary words as TM tape cells: \<^term>\<open>num.Bit1\<close> is encoded as \<^term>\<open>[Oc, Oc]\<close> and \<^term>\<open>num.Bit1\<close> as term>\<open>[Oc, Bk]\<close>.
   Thus, the ends of an encoded term can be marked with the pattern \<^term>\<open>[Bk, Bk]\<close>.\<close>
-fun encode_word :: "word \<Rightarrow> cell list"
-  where "encode_word Num.One = []"
-      | "encode_word (Num.Bit0 w) = Oc # Bk # encode_word w"
-      | "encode_word (Num.Bit1 w) = Oc # Oc # encode_word w"
+fun encode_word :: "word \<Rightarrow> cell list" where
+  "encode_word num.One = []"
+| "encode_word (num.Bit0 w) = Oc # Bk # encode_word w"
+| "encode_word (num.Bit1 w) = Oc # Oc # encode_word w"
 
-fun is_encoded_word :: "cell list \<Rightarrow> bool"
-  where "is_encoded_word [] = True"
-      | "is_encoded_word (Oc # _ # cs) = is_encoded_word cs"
-      | "is_encoded_word _ = False"
+fun is_encoded_word :: "cell list \<Rightarrow> bool" where
+  "is_encoded_word [] = True"
+| "is_encoded_word (Oc # _ # cs) = is_encoded_word cs"
+| "is_encoded_word _ = False"
 
-fun decode_word :: "cell list \<Rightarrow> word"
-  where "decode_word (Oc # Bk # cs) = Num.Bit0 (decode_word cs)"
-      | "decode_word (Oc # Oc # cs) = Num.Bit1 (decode_word cs)"
-      | "decode_word _ = Num.One"
+fun decode_word :: "cell list \<Rightarrow> word" where
+  "decode_word (Oc # Bk # cs) = num.Bit0 (decode_word cs)"
+| "decode_word (Oc # Oc # cs) = num.Bit1 (decode_word cs)"
+| "decode_word _ = num.One"
 
 
-lemma encode_decode_word: "decode_word (encode_word w) = w" 
+lemma encode_decode_word: "decode_word (encode_word w) = w"
   by (induction w) simp_all
 
 lemma decode_encode_word:
-  "is_encoded_word cs \<Longrightarrow> encode_word (decode_word cs) = cs" 
+  "is_encoded_word cs \<Longrightarrow> encode_word (decode_word cs) = cs"
   (is "?ie cs \<Longrightarrow> ?de cs = cs")
 proof (induction cs rule: is_encoded_word.induct)
   case (2 c cs) (* cs = Oc # c # cs *)
@@ -116,7 +125,7 @@ qed (* cases "cs = []", "cs = Bk # _", "cs = [_]" by *) simp_all
 
 subsection\<open>Deciding Languages\<close>
 
-\<comment> \<open>Since \<open>L\<close> is a typical name for unspecified languages in the literature, 
+\<comment> \<open>Since \<open>L\<close> is a typical name for unspecified languages in the literature,
     the synonymous constructor \<^term>\<open>L\<close> of type \<^typ>\<open>action\<close> ("move head left") is hidden.\<close>
 hide_const (open) L
 
@@ -132,24 +141,44 @@ text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^t
 
 abbreviation input where "input w \<equiv> (\<lambda>tp. tp = (([]::cell list), encode_word w))"
 
-definition halts :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
+definition halts :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "halts M w \<equiv> Hoare_halt (input w) M (\<lambda>_. True)"
 
-definition accepts :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
+definition accepts :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "accepts M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
 
-definition rejects :: "tprog0 \<Rightarrow> word \<Rightarrow> bool"
+definition rejects :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "rejects M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
 
-definition decides :: "tprog0 \<Rightarrow> lang  \<Rightarrow> bool"
+definition decides :: "TM \<Rightarrow> lang \<Rightarrow> bool"
   where "decides M L \<equiv> \<forall>w. (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
+
+
+lemma rej_TM: "rejects Rejecting_TM w" unfolding rejects_def
+proof (intro Hoare_haltI exI conjI)
+  fix l r
+  have fetch: "fetch Rejecting_TM 1 b = (W0, 0)" for b unfolding Rejecting_TM_def
+    by (cases b) (simp_all add: fetch.simps nth_of.simps)
+
+  have step1: "steps0 (1, (l, r)) Rejecting_TM 1 = (0, l, Bk # tl r)"
+  proof -
+    have "steps0 (1, (l, r)) Rejecting_TM 1 = step0 (1, l, r) Rejecting_TM" unfolding One_nat_def steps.simps ..
+    also have "... = (0, update W0 (l, r))" unfolding step.simps diff_zero fetch by simp
+    also have "... = (0, l, Bk # tl r)" by simp
+    finally show ?thesis .
+  qed
+
+  show "is_final (steps0 (1, l, r) Rejecting_TM 1)" unfolding step1 ..
+  show "(\<lambda>tp. head tp = Bk) holds_for steps0 (1, l, r) Rejecting_TM 1"
+    unfolding step1 holds_for.simps by simp
+qed
 
 
 lemma Hoare_haltE[elim]:
   fixes P M tp
   assumes "Hoare_halt P M Q"
     and "P tp"
-  obtains n 
+  obtains n
   where "is_final (steps0 (1, tp) M n)"
     and "Q holds_for steps0 (1, tp) M n"
   using assms unfolding Hoare_halt_def by blast
@@ -205,19 +234,19 @@ proof (intro Hoare_haltI)
   assume p: "P (l, r)" (is "P ?tp")
   from p h1 obtain n1
     where f1: "is_final (steps0 (1, ?tp) M n1)"
-    and q1: "Q1 holds_for steps0 (1, ?tp) M n1" by blast
+      and q1: "Q1 holds_for steps0 (1, ?tp) M n1" by blast
   from p h2 obtain n2
     where f2: "is_final (steps0 (1, ?tp) M n2)"
-    and q2: "Q2 holds_for steps0 (1, ?tp) M n2" by blast
+      and q2: "Q2 holds_for steps0 (1, ?tp) M n2" by blast
   define n where "n = max n1 n2"
 
-  have "is_final (steps0 (1, l, r) M n)" (is "?f n") 
+  have "is_final (steps0 (1, l, r) M n)" (is "?f n")
     unfolding n_def using f1 f2 by (rule max_cases)
   moreover have "(\<lambda>tp. Q1 tp \<and> Q2 tp) holds_for steps0 (1, l, r) M n" (is "?q n") unfolding n_def
   proof (intro holds_for_and)
-    show "Q1 holds_for steps0 (1, l, r) M (max n1 n2)" 
+    show "Q1 holds_for steps0 (1, l, r) M (max n1 n2)"
       using f1 q1 max.cobounded1 by (rule holds_for_le)
-    show "Q2 holds_for steps0 (1, l, r) M (max n1 n2)" 
+    show "Q2 holds_for steps0 (1, l, r) M (max n1 n2)"
       using f2 q2 max.cobounded2 by (rule holds_for_le)
   qed
   ultimately show "\<exists>n. ?f n \<and> ?q n" by blast
@@ -233,6 +262,10 @@ proof - \<comment> \<open>This one is tricky since the automatic solvers do not 
   moreover obtain s l r where "steps0 (1, tp) M n = (s, l, r)" using prod_cases3 .
   ultimately show "(\<lambda>_. False) (l, r)" (* \<equiv> False *) by simp
 qed
+
+lemma input_encoding: \<comment> \<open>Each word has an input encoding. Useful with @{thm hoare_contr}}\<close>
+  fixes w
+  shows "input w ([], encode_word (decode_word (encode_word w)))" unfolding encode_decode_word ..
 
 lemma holds_for_neg: "\<not> Q holds_for c \<longleftrightarrow> (\<lambda>tp. \<not> Q tp) holds_for c"
 proof -
@@ -252,11 +285,12 @@ lemma head_halt_inj:
     shows "x = y"
 proof (rule ccontr)
   assume "x \<noteq> y"
+  then have *: "a = x \<and> a = y \<longleftrightarrow> False" for a by blast
+
   from hoare_and have "Hoare_halt (input w) M (\<lambda>tp. head tp = x \<and> head tp = y)"
-    using assms by simp
-  then have "Hoare_halt (input w) M (\<lambda>_. False)" using \<open>x \<noteq> y\<close> 
-    by (smt (z3) Hoare_haltE holds_for.elims(2))
-  thus False using hoare_contr by blast
+    using assms .
+  then have "Hoare_halt (input w) M (\<lambda>_. False)" unfolding * .
+  thus False using input_encoding by (rule hoare_contr)
 qed
 
 lemma acc_not_rej:
@@ -264,12 +298,12 @@ lemma acc_not_rej:
   shows "\<not> rejects M w"
 proof (intro notI)
   assume "rejects M w"
-  
+
   have "Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
     using \<open>accepts M w\<close> unfolding accepts_def .
   moreover have "Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
     using \<open>rejects M w\<close> unfolding rejects_def .
-  ultimately show False using head_halt_inj[of w M Oc Bk] by simp
+  ultimately show False using head_halt_inj[of w M Oc Bk] by blast
 qed
 
 
@@ -277,7 +311,7 @@ lemma rejects_altdef:
   "rejects M w = (halts M w \<and> \<not> accepts M w)"
 proof (intro iffI conjI)
   assume "rejects M w"
-  then show "halts M w" unfolding rejects_def halts_def using hoare_true by simp
+  then show "halts M w" unfolding rejects_def halts_def using hoare_true by fast
   assume "rejects M w"
   then show "\<not> accepts M w" using acc_not_rej by auto
 next
@@ -317,7 +351,7 @@ next
 qed
 
 lemma decides_altdef2:
-  "decides M L \<longleftrightarrow> (\<forall>w. 
+  "decides M L \<longleftrightarrow> (\<forall>w.
     Hoare_halt (input w) M (\<lambda>tp. head tp = (if w \<in> L then Oc else Bk))
   )"
   (is "decides M L \<longleftrightarrow> ( \<forall>w. Hoare_halt (?pre w) M (?post w) )")
@@ -327,39 +361,35 @@ proof (intro iffI allI)
   from \<open>decides M L\<close> show "Hoare_halt (?pre w) M (?post w)"
     unfolding decides_def accepts_def rejects_def
   proof (cases "w \<in> L")
-    case True
-    from \<open>decides M L\<close> \<open>w \<in> L\<close> have "accepts M w" unfolding decides_def by simp
-    thus ?thesis unfolding accepts_def using \<open>w \<in> L\<close> by simp
-  next
     case False
-    from \<open>decides M L\<close> \<open>w \<notin> L\<close> have "rejects M w" unfolding decides_def by auto
-    thus ?thesis unfolding rejects_def using \<open>w \<notin> L\<close> by simp
-  qed
+    from \<open>decides M L\<close> \<open>w \<notin> L\<close> have "rejects M w" unfolding decides_def by blast
+    thus ?thesis unfolding rejects_def using \<open>w \<notin> L\<close> by presburger
+  qed (* case "w \<in> L" by *) presburger
 next
-assume assm: "\<forall>w. Hoare_halt (?pre w) M (?post w)"
-show "decides M L" unfolding decides_def proof (intro allI conjI)
-  fix w
-  show "w \<in> L \<longleftrightarrow> accepts M w" proof
-    assume "w \<in> L"
-    thus "accepts M w" unfolding accepts_def using assm by presburger
+  assume assm: "\<forall>w. Hoare_halt (?pre w) M (?post w)"
+  show "decides M L" unfolding decides_def proof (intro allI conjI)
+    fix w
+    show "w \<in> L \<longleftrightarrow> accepts M w" proof
+      assume "w \<in> L"
+      thus "accepts M w" unfolding accepts_def using assm by presburger
+    next
+      assume "accepts M w"
+      then have "Oc = (if w\<in>L then Oc else Bk)"
+        unfolding accepts_def using assm head_halt_inj[of w M Oc] by presburger
+      thus "w \<in> L" using cell.distinct(1) by presburger
+    qed
   next
-    assume "accepts M w"
-    then have "Oc = (if w\<in>L then Oc else Bk)"
-      unfolding accepts_def using assm head_halt_inj[of w M Oc] by simp
-    thus "w \<in> L" using cell.distinct(1) by presburger
+    fix w
+    show "w \<notin> L \<longleftrightarrow> rejects M w" proof
+      assume "w \<notin> L"
+      thus "rejects M w" unfolding rejects_def using assm by presburger
+    next
+      assume "rejects M w"
+      then have "Bk = (if w\<in>L then Oc else Bk)"
+        unfolding rejects_def using assm head_halt_inj[of w M Bk] by presburger
+      thus "w \<notin> L" by auto
+    qed
   qed
-next
-  fix w
-  show "w \<notin> L \<longleftrightarrow> rejects M w" proof
-    assume "w \<notin> L"
-    thus "rejects M w" unfolding rejects_def using assm by presburger
-  next
-    assume "rejects M w"
-    then have "Bk = (if w\<in>L then Oc else Bk)"
-      unfolding rejects_def using assm head_halt_inj[of w M Bk] by simp
-    thus "w \<notin> L" by auto
-  qed
-qed
 qed
 
 
@@ -381,7 +411,7 @@ lemma in_dtimeI[intro]:
 lemma in_dtimeE[elim]:
   assumes "L \<in> DTIME T"
   obtains M
-  where "decides M L" 
+  where "decides M L"
     and "time_restricted T M"
   using assms unfolding DTIME_def by blast
 
@@ -389,45 +419,6 @@ lemma in_dtimeE'[elim]:
   assumes "L \<in> DTIME T"
   shows "\<exists>M. decides M L \<and> time_restricted T M"
   using assms unfolding DTIME_def ..
-
-
-subsection\<open>Encoding TMs\<close>
-
-\<comment> \<open>An issue of the following definitions is that the existing definition \<^term>\<open>code\<close>
-  uses a naive Gödel numbering scheme that includes encoding list items as prime powers,
-  where each "next prime" \<^term>\<open>Np p\<close> is defined as \<^term>\<open>p! + 1\<close>
-  (see \<^term>\<open>godel_code'\<close>, \<^term>\<open>Pi\<close>, and \<^term>\<open>Np\<close>).\<close>
-
-definition is_encoded_TM :: "word \<Rightarrow> bool"
-  where "is_encoded_TM w = (\<exists>M. code M = gn w)"
-
-definition decode_TM :: "word \<Rightarrow> tprog0"
-  where "decode_TM w = (THE M. code M = gn w)"
-
-definition Rejecting_TM :: tprog0
-  where "Rejecting_TM = [(W0, 0), (W0, 0)]"
-
-definition read_TM :: "word \<Rightarrow> tprog0"
-  where "read_TM w = (if is_encoded_TM w then decode_TM w else Rejecting_TM)"
-
-lemma rej_TM: "rejects Rejecting_TM w" unfolding rejects_def
-proof (intro Hoare_haltI exI conjI)
-  fix l r
-  have fetch: "fetch Rejecting_TM 1 b = (W0, 0)" for b unfolding Rejecting_TM_def
-    by (cases b) (simp_all add: fetch.simps nth_of.simps)
-
-  have step1: "steps0 (1, (l, r)) Rejecting_TM 1 = (0, l, Bk # tl r)"
-  proof -
-    have "steps0 (1, (l, r)) Rejecting_TM 1 = step0 (1, l, r) Rejecting_TM" unfolding One_nat_def steps.simps ..
-    also have "... = (0, update W0 (l, r))" unfolding step.simps diff_zero fetch by simp
-    also have "... = (0, l, Bk # tl r)" by simp
-    finally show ?thesis .
-  qed
-
-  show "is_final (steps0 (1, l, r) Rejecting_TM 1)" unfolding step1 ..
-  show "(\<lambda>tp. head tp = Bk) holds_for steps0 (1, l, r) Rejecting_TM 1"
-    unfolding step1 holds_for.simps by simp
-qed
 
 
 end
