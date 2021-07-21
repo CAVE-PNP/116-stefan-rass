@@ -1099,10 +1099,50 @@ text\<open>2. The retraction of preceding 1-bits creates the needed infinitude o
 theorem embed_TM_in_len:
   fixes M l
   assumes "tm_wf0 M"
-    and "clog l > len (encode_TM M)" (* is this assumption sufficient? the al prefix requires at least 2 bits *)
+    and min_word_len: "clog l \<ge> len (encode_TM M) + 2"
+    \<comment> \<open>The \<open>+2\<close> bits are required for the \<open>1\<^sup>+0\<close>-prefix.
+        Note: this theorem technically also holds when the assumption @{thm min_word_len} reads
+        \<^term>\<open>clog l > len (encode_TM M) \<longleftrightarrow> clog l \<ge> len (encode_TM M) + 1\<close>,
+        but only due to \<^const>\<open>strip_al_prefix\<close> allowing the absence of preceding ones.
+        If it were to enforce the constraint of a correct \<open>1\<^sup>+0\<close>-prefix, this would no longer be the case.
+        Additionally, the weaker version allows the case of \<^term>\<open>l = 0\<close>,
+        which requires special treatment (it follows that \<^term>\<open>M = Rejecting_TM\<close>).\<close>
   obtains w
   where "len w = l"
     and "TM_decode_pad w = M"
-  oops
+proof
+  have "l > 0"
+  proof (rule ccontr)
+    assume "\<not> l > 0" hence "l = 0" ..
+    from min_word_len show False unfolding \<open>l = 0\<close> by force
+  qed
+  hence "clog l \<le> l" by (rule clog_le)
+
+  let ?\<rho>M = "encode_TM M" let ?l\<rho> = "len ?\<rho>M" let ?w = word_of_bin and ?b = bin_of_word
+  define al_prefix where "al_prefix \<equiv> False # True \<up> (clog l - ?l\<rho> - 1)"
+  define w' where "w' \<equiv> ?w (?b ?\<rho>M @ al_prefix)"
+  have w'_correct: "strip_al_prefix w' = ?\<rho>M" unfolding w'_def al_prefix_def strip_alp_altdef ..
+  have "len w' = ?l\<rho> + length al_prefix" unfolding w'_def word_len_eq_bin_len by simp
+  also have "... = ?l\<rho> + (clog l - ?l\<rho> - 1) + 1" unfolding add_left_cancel al_prefix_def
+      unfolding length_Cons length_replicate by presburger
+  also have "... = clog l" using min_word_len by force
+  finally have w'_len: "length (?b w') = clog l" unfolding word_len_eq_bin_len .
+
+  define exp_pad where "exp_pad \<equiv> False \<up> (l - clog l)"
+  define w where "w \<equiv> ?w (exp_pad @ ?b w')"
+  have exp_len: "length exp_pad = l - clog l" unfolding exp_pad_def by (rule length_replicate)
+  have dexp: "drop (l - clog l) exp_pad = []" unfolding exp_pad_def by force
+
+  have "len w = l - clog l + clog l" unfolding w_def word_len_eq_bin_len bin_word_bin_id length_append
+    unfolding exp_pad_def w'_len length_replicate ..
+  also have "... = l" using \<open>clog l \<le> l\<close> by (rule le_add_diff_inverse2)
+  finally show "len w = l" .
+
+  have w_correct: "strip_exp_pad w = w'" unfolding strip_exp_pad_altdef \<open>len w = l\<close> Let_def
+    unfolding w_def bin_word_bin_id drop_append dexp exp_len by simp 
+
+  show "TM_decode_pad w = M" unfolding TM_decode_pad_def w_correct w'_correct
+    using \<open>tm_wf0 M\<close> by (rule codec_TM)
+qed
 
 end
