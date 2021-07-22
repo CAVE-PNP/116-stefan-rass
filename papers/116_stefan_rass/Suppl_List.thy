@@ -10,8 +10,16 @@ lemma inj_append:
     and inj_append_R: "inj (\<lambda>ys. xs @ ys)"
   using append_same_eq by (intro injI, simp)+
 
+lemma infinite_lists:
+  assumes "\<forall>l. \<exists>xs\<in>X. length xs \<ge> l"
+  shows "infinite X"
+proof -
+  from assms have "\<nexists>n. \<forall>s\<in>X. length s < n" by (fold not_less) simp
+  then show "infinite X" using finite_maxlen by (rule contrapos_nn)
+qed
 
-subsection\<open>An Alternative to \<^const>\<open>last\<close>\<close>
+
+subsection\<open>\<open>ends_in\<close> - An Alternative to \<^const>\<open>last\<close>\<close>
 
 abbreviation (input) ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" where
   "ends_in x xs \<equiv> (\<exists>ys. xs = ys @ [x])"

@@ -1,5 +1,5 @@
 theory TM_Encoding
-  imports gn SQ UF_Code
+  imports Goedel_Numbering SQ UF_Code
     "Universal_Turing_Machine.UTM" "HOL-Library.Sublist" "HOL-Library.Discrete"
 begin
 
@@ -15,6 +15,7 @@ text\<open>A Turing Machine (TM) as defined by Xu et al. [2013] is a list of sta
   and a reference to the "next state" (a natural number indicated the position in the list).
   The state with number \<open>0\<close> is reserved as the halting state
   (the first state in the list has the number \<open>1\<close>).\<close>
+
 type_synonym TM = "tprog0"
 
 
@@ -150,49 +151,37 @@ qed
 subsubsection\<open>Exponential Padding\<close>
 
 definition add_exp_pad :: "word \<Rightarrow> word"
-  where "add_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
-      False \<up> (2^l - l) @ b
-    ))"
+  where "add_exp_pad w = (let l = length w in False \<up> (2^l - l) @ w)"
 
 definition strip_exp_pad :: "word \<Rightarrow> word"
-  where "strip_exp_pad w = (let b = bin_of_word w; l = length b in word_of_bin (
-      drop (l - clog l) b
-  ))"
+  where "strip_exp_pad w = (let l = length w in drop (l - clog l) w)"
 
-lemma exp_pad_Nil: "strip_exp_pad num.One = num.One"
-  unfolding strip_exp_pad_def bin_of_word.simps Let_def by simp
+lemmas exp_pad_simps[simp] = add_exp_pad_def strip_exp_pad_def
 
-lemmas exp_pad_simps = add_exp_pad_def strip_exp_pad_def
 
-lemma exp_pad_correct[simp]: "w \<noteq> num.One \<Longrightarrow> strip_exp_pad (add_exp_pad w) = w"
+lemma exp_pad_Nil: "strip_exp_pad [] = []" by force
+
+lemma exp_pad_correct[simp]: "w \<noteq> [] \<Longrightarrow> strip_exp_pad (add_exp_pad w) = w"
 proof -
-  let ?w = "bin_of_word w"
-  let ?l = "length ?w"
+  let ?l = "length w"
   let ?pad = "False \<up> (2 ^ ?l - ?l)"
-  let ?wp = "?pad @ ?w"
+  let ?wp = "?pad @ w"
 
-  assume "w \<noteq> num.One"
-  with len_gt_0 have "?l > 0" unfolding word_len_eq_bin_len .
-  then have l_clog: "clog (2^?l) = ?l" by (intro clog_exp)
+  assume "w \<noteq> []"
+  then have "?l > 0" ..
+  then have l_clog: "clog (2 ^ ?l) = ?l" by (intro clog_exp)
 
   have len_pad: "length ?pad = 2 ^ ?l - ?l" by simp
   have len_wp: "length ?wp = 2^?l" unfolding length_append len_pad by simp
 
   have *: "length ?wp - clog (length ?wp) = length ?pad" unfolding len_wp l_clog len_pad ..
-  show "strip_exp_pad (add_exp_pad w) = w"
-    unfolding exp_pad_simps Let_def bin_word_bin_id * by simp
+  show "strip_exp_pad (add_exp_pad w) = w" unfolding exp_pad_simps Let_def * by simp
 qed
 
-lemma exp_pad_suffix:
-  fixes w
-  defines "b \<equiv> bin_of_word w"
-    and "b_pad \<equiv> bin_of_word (add_exp_pad w)"
-  shows "suffix b b_pad"
-  unfolding assms add_exp_pad_def Let_def bin_word_bin_id
-  by (intro suffixI, unfold append_same_eq, rule)
+lemma exp_pad_suffix: "suffix w (add_exp_pad w)"
+  unfolding add_exp_pad_def Let_def by (intro suffixI, unfold append_same_eq, rule)
 
-lemma add_exp_pad_len: "len (add_exp_pad w) = 2 ^ len w"
-  unfolding word_len_eq_bin_len add_exp_pad_def Let_def by simp
+lemma add_exp_pad_len: "length (add_exp_pad w) = 2 ^ length w" by simp
 
 lemma drop_diff_length: "n \<le> length xs \<Longrightarrow> length (drop (length xs - n) xs) = n" by simp
 
@@ -210,10 +199,6 @@ proof (cases "n > 0")
   with log_less show ?thesis by (intro less_imp_le)
 qed (* case "n = 0" by *) simp
 
-lemma strip_exp_pad_altdef: "strip_exp_pad w = (let l = len w in
-      word_of_bin (drop (l - clog l) (bin_of_word w)))"
-  unfolding strip_exp_pad_def Let_def word_len_eq_bin_len ..
-
 lemma clog_le: "0 < n \<Longrightarrow> clog n \<le> n"
 proof -
   assume "n > 0"
@@ -224,16 +209,14 @@ proof -
 qed
 
 lemma strip_exp_pad_len:
-  assumes "w \<noteq> num.One"
-  defines "l \<equiv> len w"
-  shows "len (strip_exp_pad w) = clog l"
+  assumes "w \<noteq> []"
+  defines "l \<equiv> length w"
+  shows "length (strip_exp_pad w) = clog l"
 proof -
-  from \<open>w \<noteq> num.One\<close> have "l > 0" unfolding l_def by (rule len_gt_0)
+  from \<open>w \<noteq> []\<close> have "l > 0" unfolding l_def ..
   with clog_le have "clog l \<le> l" .
 
-  have "len (strip_exp_pad w) = l - (l - clog l)"
-    unfolding word_len_eq_bin_len strip_exp_pad_def Let_def bin_word_bin_id length_drop
-    by (fold word_len_eq_bin_len l_def) rule
+  have "length (strip_exp_pad w) = l - (l - clog l)" by simp (fold l_def, rule)
   also have "... = clog l" using \<open>clog l \<le> l\<close> by (rule diff_diff_cancel)
   finally show ?thesis .
 qed
@@ -241,35 +224,21 @@ qed
 
 subsubsection\<open>Arbitrary-length \<open>1\<^sup>+0\<close> prefix\<close>
 
-fun add_al_prefix :: "word \<Rightarrow> word" where
-  "add_al_prefix num.One = num.Bit0 (num.Bit1 num.One)"
-| "add_al_prefix (num.Bit0 w) = num.Bit0 (add_al_prefix w)"
-| "add_al_prefix (num.Bit1 w) = num.Bit1 (add_al_prefix w)"
+definition add_al_prefix :: "word \<Rightarrow> word" where
+  "add_al_prefix w = w @ [False, True]"
 
 definition has_al_prefix :: "word \<Rightarrow> bool"
-  where "has_al_prefix w = (\<exists>n>0. \<exists>w'. bin_of_word w = w' @ [False] @ True \<up> n)"
+  where "has_al_prefix w = (\<exists>n>0. \<exists>w'. w = w' @ [False] @ True \<up> n)"
 
-definition strip_al_prefix :: "word \<Rightarrow> word" where
-  "strip_al_prefix w = word_of_bin (rev (drop 1 (dropWhile (\<lambda>b. b = True) (rev (bin_of_word w)))))"
+definition strip_al_prefix :: "word \<Rightarrow> word"
+  where "strip_al_prefix w = rev (drop 1 (dropWhile (\<lambda>b. b = True) (rev w)))"
 
-lemmas al_prefix_simps = add_al_prefix.simps has_al_prefix_def strip_al_prefix_def
+lemmas alp_simps[simp] = add_al_prefix_def has_al_prefix_def strip_al_prefix_def
 
-lemma add_alp_min: "add_al_prefix w \<noteq> num.One" by (induction w) simp_all
-
-lemma add_alp_altdef: "add_al_prefix w = word_of_bin (bin_of_word w @ [False, True])"
-  by (induction w) simp_all
-
-lemma add_alp_correct: "has_al_prefix (add_al_prefix w)" unfolding has_al_prefix_def
-proof (intro exI conjI)
-  show "0 < Suc 0" ..
-  show "bin_of_word (add_al_prefix w) = (bin_of_word w) @ [False] @ True \<up> (Suc 0)"
-    unfolding add_alp_altdef by simp
-qed
-
-lemma alp_correct: "strip_al_prefix (add_al_prefix w) = w"
-  unfolding strip_al_prefix_def add_alp_altdef by simp
-
-lemma alp_Nil: "strip_al_prefix num.One = num.One" unfolding strip_al_prefix_def by simp
+lemma add_alp_min: "add_al_prefix w \<noteq> []"
+  and add_alp_correct: "has_al_prefix (add_al_prefix w)"
+  and alp_correct: "strip_al_prefix (add_al_prefix w) = w"
+  and alp_Nil: "strip_al_prefix [] = []" by force+
 
 lemma replicate_takeWhile: "takeWhile (\<lambda>x. x = a) xs = a \<up> length (takeWhile (\<lambda>x. x = a) xs)"
 proof (intro replicate_eqI)
@@ -284,27 +253,23 @@ lemma replicate_While: "(a \<up> length (takeWhile (\<lambda>x. x = a) xs)) @ dr
 lemma strip_alp_correct1:
   assumes "has_al_prefix w"
   obtains n where "n > 0"
-    and "bin_of_word w = bin_of_word (strip_al_prefix w) @ [False] @ True \<up> n"
+    and "w = strip_al_prefix w @ [False] @ True \<up> n"
 proof
-  let ?w = "bin_of_word w"
-  let ?dw = "dropWhile (\<lambda>b. b = True) (rev ?w)"
-  define n where "n \<equiv> length (takeWhile (\<lambda>b. b = True) (rev ?w))"
+  let ?dw = "dropWhile (\<lambda>b. b = True) (rev w)"
+  define n where "n \<equiv> length (takeWhile (\<lambda>b. b = True) (rev w))"
 
-  have *: "bin_of_word (strip_al_prefix w) = rev (drop 1 ?dw)"
-    unfolding strip_al_prefix_def rev_rev_ident bin_word_bin_id ..
-
-  obtain nO wO where "nO > 0" and "?w = wO @ [False] @ True \<up> nO"
+  obtain nO wO where "nO > 0" and "w = wO @ [False] @ True \<up> nO"
     using \<open>has_al_prefix w\<close> unfolding has_al_prefix_def by blast
-  then have r0: "rev ?w = True \<up> nO @ False # rev wO" by simp
-  moreover from r0 have r1: "rev ?w = True \<up> nO @ ?dw" by (simp add: dropWhile_append3)
+  then have r0: "rev w = True \<up> nO @ False # rev wO" by simp
+  moreover from r0 have r1: "rev w = True \<up> nO @ ?dw" by (simp add: dropWhile_append3)
   ultimately have dw_split: "?dw = False # drop 1 ?dw" by simp
 
-  have r2: "rev ?w = True \<up> n @ ?dw" unfolding n_def replicate_While ..
+  have r2: "rev w = True \<up> n @ ?dw" unfolding n_def replicate_While ..
   also have "... = True \<up> n @ False # drop 1 ?dw" by (fold dw_split) rule
-  finally have "?w = rev (True \<up> n @ False # drop 1 ?dw)" by (unfold rev_swap)
+  finally have "w = rev (True \<up> n @ False # drop 1 ?dw)" by (unfold rev_swap)
 
-  also have "... = rev (drop 1 ?dw) @ [False] @ True \<up> n" by simp
-  finally show "?w = bin_of_word (strip_al_prefix w) @ [False] @ True \<up> n" unfolding * .
+  also have "... = strip_al_prefix w @ [False] @ True \<up> n" by force
+  finally show "w = strip_al_prefix w @ [False] @ True \<up> n" .
 
   from r1 r2 have "True \<up> nO @ ?dw = True \<up> n @ ?dw" by (rule subst)
   then have "n = nO" unfolding append_same_eq by simp
@@ -312,38 +277,33 @@ proof
 qed
 
 lemma strip_alp_correct2:
-  "prefix (bin_of_word (strip_al_prefix w)) (bin_of_word w)" (is "prefix ?bsw ?w")
+  "prefix (strip_al_prefix w) w" (is "prefix ?bsw w")
 proof -
   \<comment> \<open>The following definitions are constructed to fit in the following proof;
     their values are not important.\<close>
-  define n where "n \<equiv> Suc (length (takeWhile (\<lambda>b. b) (rev ?w)))"
-  define m where "m \<equiv> length (rev ?w) - n"
+  define n where "n \<equiv> Suc (length (takeWhile (\<lambda>b. b) (rev w)))"
+  define m where "m \<equiv> length (rev w) - n"
 
-  have "bin_of_word (strip_al_prefix w) = rev (drop n (rev ?w))"
-    unfolding n_def strip_al_prefix_def bin_word_bin_id dropWhile_eq_drop by simp
-  also have "... = take m ?w" unfolding m_def rev_drop rev_rev_ident ..
-  finally have "?bsw = take m ?w" . \<comment> \<open>for some \<open>m\<close>\<close>
-  show "prefix ?bsw ?w" unfolding \<open>?bsw = take m ?w\<close> by (rule take_is_prefix)
+  have "?bsw = rev (drop n (rev w))" unfolding n_def strip_al_prefix_def dropWhile_eq_drop by force
+  also have "... = take m w" unfolding m_def rev_drop rev_rev_ident ..
+  finally have "?bsw = take m w" . \<comment> \<open>for some \<open>m\<close>\<close>
+  show "prefix ?bsw w" unfolding \<open>?bsw = take m w\<close> by (rule take_is_prefix)
 qed
 
-lemma strip_alp_altdef: "strip_al_prefix (word_of_bin (bin_of_word w @ False # True \<up> n)) = w"
+lemma strip_alp_altdef: "strip_al_prefix (w @ False # True \<up> n) = w"
 proof -
-  let ?b = bin_of_word and ?w = word_of_bin and ?T = "(\<lambda>b. b = True)" and ?Tn = "True \<up> n"
-  let ?a1 = "rev (?b w)" and ?a = "False # rev (?b w)"
-    and ?d = "dropWhile ?T (rev (?b w @ False # ?Tn))"
-
-  thm dropWhile_append2
+  let ?T = "(\<lambda>b. b = True)" and ?Tn = "True \<up> n"
+  let ?d = "dropWhile ?T (rev (w @ False # ?Tn))"
   have h0: "x \<in> set ?Tn \<Longrightarrow> ?T x" for x by simp
 
-  have "?d = dropWhile ?T (?Tn @ ?a)" by simp
-  also from h0 have "dropWhile ?T (?Tn @ ?a) = dropWhile ?T ?a" by (rule dropWhile_append2)
-  also have "dropWhile ?T ?a = ?a" by simp
-  finally have h1: "drop 1 ?d = ?a1" by simp
-  then have h2: "rev (drop 1 ?d) = ?b w" unfolding h1 by simp
-
-  show "strip_al_prefix (?w (?b w @ False # True \<up> n)) = w"
-    unfolding strip_al_prefix_def bin_word_bin_id word_bin_word_id h2 ..
+  have "?d = dropWhile ?T (?Tn @ False # rev w)" by simp
+  also have "... = dropWhile ?T (False # rev w)" using h0 by (rule dropWhile_append2)
+  also have "... = False # rev w" by simp
+  finally have h1: "drop 1 ?d = rev w" by (rule forw_subst) force
+  show "strip_al_prefix (w @ False # True \<up> n) = w"
+    unfolding strip_al_prefix_def h1 by (rule rev_rev_ident)
 qed
+
 
 subsubsection\<open>Code Description\<close>
 
@@ -385,9 +345,9 @@ lemma encode_TM_inj: "inj encode_TM"
 proof (intro injI)
   fix x y
   assume assm: "gn_inv (code x) = gn_inv (code y)"
-  have "code x = gn (gn_inv (code x))" using inv_gn_id[symmetric] code_gt_0 unfolding is_gn_def .
+  have "code x = gn (gn_inv (code x))" using inv_gn_id[symmetric] code_gt_0 .
   also have "... = gn (gn_inv (code y))" unfolding assm ..
-  also have "... = code y" using inv_gn_id code_gt_0 unfolding is_gn_def .
+  also have "... = code y" using inv_gn_id code_gt_0 .
   finally have "code x = code y" .
   with code_inj show "x = y" by (rule injD)
 qed
@@ -411,7 +371,7 @@ qed
 lemma decode_TM_wf: "tm_wf0 (decode_TM w)" unfolding decode_TM_def filter_wf_TMs_def
   using rej_TM_wf by (cases "is_encoded_TM w", presburger+)
 
-lemma decode_TM_Nil: "decode_TM num.One = Rejecting_TM"
+lemma decode_TM_Nil: "decode_TM [] = Rejecting_TM"
 proof -
   \<comment> \<open>There is (exactly) one TM whose encoding is \<^term>\<open>num.One\<close>,
     which is \<^term>\<open>[]::TM\<close>, the machine without instructions.
@@ -420,35 +380,36 @@ proof -
   (* this should probably be known to simp *)
   have le1_split: "n \<le> 1 \<Longrightarrow> n = 0 \<or> n = 1" for n::nat by auto
 
-  have gn_inv_iff: "num.One = gn_inv n \<longleftrightarrow> n \<le> 1" for n
+  have gn_inv_iff: "[] = gn_inv n \<longleftrightarrow> n \<le> 1" for n
   proof
-    assume "num.One = gn_inv n"
-    then show "n \<le> 1" proof (induction n)
-      case (Suc n)
-      have if_reverse1: "a = (if c then b else d) \<Longrightarrow> a \<noteq> b \<Longrightarrow> \<not> c"
-        for a b d :: 'a and c :: bool by argo
+    assume "[] = gn_inv n"
+    then have "length (gn_inv n) = 0" by force
+    then have "bit_length n \<le> 1" unfolding gn_inv_def length_butlast by force
 
-      have "num.One \<noteq> Num.inc n" for n by (cases n) simp_all
-      with \<open>num.One = gn_inv (Suc n)\<close> have "\<not> 0 < n" unfolding gn_inv_def num_of_nat.simps by (rule if_reverse1)
-      then show "Suc n \<le> 1" by simp
-    qed (*case "n = 0" by *) simp
+    show "n \<le> 1"
+    proof (rule ccontr)
+      assume "\<not> n \<le> 1" hence "n \<ge> 2" by force
+      have bl2: "2 = bit_length 2" unfolding numerals(2) by simp
+      also have "... \<le> bit_length n" using bit_length_mono \<open>n \<ge> 2\<close> ..
+      finally show "False" using \<open>bit_length n \<le> 1\<close> by force
+    qed
   next
     assume "n \<le> 1"
     with le1_split have "n = 0 \<or> n = 1" .
-    then show "num.One = gn_inv n" by (elim disjE) simp_all
+    then show "[] = gn_inv n" by (elim disjE) simp_all
   qed
 
   have code_ge_1_iff: "code M \<le> 1 \<longleftrightarrow> code M = 1" for M
     using code_gt_0[of M] by (intro iffI) simp_all
 
-  have "(THE M. num.One = encode_TM M) = (THE M. code M = 1)"
+  have "(THE M. [] = encode_TM M) = (THE M. code M = 1)"
     unfolding encode_TM_def gn_inv_iff code_ge_1_iff ..
   also have "(THE M. code M = 1) = (THE M. M = [])" unfolding code_1_iff ..
-  finally have The_Nil: "(THE M. num.One = encode_TM M) = []" unfolding the_eq_trivial .
+  finally have The_Nil: "(THE M. [] = encode_TM M) = []" unfolding the_eq_trivial .
 
-  have "is_encoded_TM num.One" unfolding is_encoded_TM_def encode_TM_def
+  have "is_encoded_TM []" unfolding is_encoded_TM_def encode_TM_def
     using code_Nil by (intro exI[where x="[]"]) simp
-  then have "decode_TM num.One = filter_wf_TMs []" unfolding decode_TM_def The_Nil by (rule if_P)
+  then have "decode_TM [] = filter_wf_TMs []" unfolding decode_TM_def The_Nil by (rule if_P)
   also have "... = Rejecting_TM" unfolding filter_wf_TMs_def tm_wf.simps by simp
   finally show ?thesis .
 qed
@@ -471,7 +432,7 @@ lemma TM_codec: "tm_wf0 M \<Longrightarrow> TM_decode_pad (TM_encode_pad M) = M"
 lemma wf_TM_has_enc: "tm_wf0 M \<Longrightarrow> \<exists>w. TM_decode_pad w = M"
   using TM_codec by blast
 
-lemma TM_decode_Nil: "TM_decode_pad num.One = Rejecting_TM"
+lemma TM_decode_Nil: "TM_decode_pad [] = Rejecting_TM"
   unfolding TM_decode_pad_def exp_pad_Nil alp_Nil decode_TM_Nil ..
 
 
@@ -489,53 +450,19 @@ theorem TM_decode_pad_wf: "tm_wf0 (TM_decode_pad w)"
 text\<open>2. every TM is represented by infinitely many strings. [...]"\<close>
 
 theorem TM_inf_encs: "tm_wf0 M \<Longrightarrow> infinite {w. TM_decode_pad w = M}"
-proof (intro infinite_growing bexI CollectI)
-  \<comment> \<open>Proof sketch (see @{thm infinite_growing}}):
-    a set over a type with a linorder is infinite if is (a) non-empty
-    and (b) for each member x there is a (c) member y for which (d) \<open>x < y\<close>.
-    The linorder over \<^typ>\<open>word\<close> (=\<^typ>\<open>num\<close>) is defined
-    in terms of \<^typ>\<open>nat\<close> (see @{thm less_num_def}}).\<close>
+proof (intro infinite_lists allI bexI CollectI)
   assume wf: "tm_wf0 M"
-  with wf_TM_has_enc show (*a*) "{w. TM_decode_pad w = M} \<noteq> {}" by blast
+  fix l
+  define w' where w': "w' = (encode_TM M) @ False # True \<up> l"
+  define w where w: "w = add_exp_pad w'"
 
-  fix x
-  assume (*b*) "x \<in> {w. TM_decode_pad w = M}"
-  then have "TM_decode_pad x = M" ..
+  show "l \<le> length w" unfolding w w' by simp
 
-  \<comment> \<open>Constructing the larger word.\<close>
-  let ?e = encode_TM and ?b = bin_of_word and ?w = word_of_bin
-  define y where "y = add_exp_pad (?w (?b (?e M) @ False # True \<up> len x))"
-
-  \<comment> \<open>The following definitions enable handling large expressions in the next section.\<close>
-  define b where "b = ?b (?e M)"
-  let ?h = "length (b @ False # True \<up> len x)"
-  define a where "a = False \<up> (2 ^ ?h - ?h)"
-
-  have "len x < Suc (len x)" ..
-  also have "... = len (num.Bit0 x)" by simp
-  also have "... = len (word_of_bin (False # (bin_of_word x)))" by simp
-  also have "... = length (False # (bin_of_word x))" unfolding word_len_eq_bin_len by simp
-  also have "... = length (False # True \<up> len x)" unfolding word_len_eq_bin_len by simp
-  also have "... \<le> length (a @ b @ False # True \<up> len x)" by simp
-  also have "... = len y" unfolding y_def add_exp_pad_def bin_word_bin_id Let_def word_len_eq_bin_len'
-    unfolding a_def b_def ..
-  finally have "len x < len y" .
-  then have "nat_of_num x < nat_of_num y" by (rule num_of_nat_lengths)
-  then show (*d*) "x < y" unfolding less_num_def .
-
-  have "strip_al_prefix (?w (?b (?e M) @ False # True \<up> len x)) = ?w (?b (?e M))"
-    unfolding strip_alp_altdef by simp
-
-  have "TM_decode_pad y = decode_TM (strip_al_prefix (?w (?b (?e M) @ False # True \<up> len x)))"
-    unfolding y_def TM_decode_pad_def
-  proof (subst exp_pad_correct)
-    have "length (?b (?e M) @ False # True \<up> len x) > 0" by simp
-    then have "len (?w (?b (?e M) @ False # True \<up> len x)) > 0" by (unfold word_len_eq_bin_len')
-    then show "?w (?b (?e M) @ False # True \<up> len x) \<noteq> num.One" by fastforce
-  qed rule
-  also have "... = decode_TM (encode_TM M)" unfolding strip_alp_altdef ..
-  also have "... = M" using wf by (rule codec_TM)
-  finally show (*c*) "TM_decode_pad y = M" .
+  have "TM_decode_pad w = decode_TM (strip_al_prefix w')" unfolding w w' TM_decode_pad_def
+    by (subst exp_pad_correct) blast+
+  also have "... = decode_TM (encode_TM M)" unfolding w' strip_alp_altdef ..
+  also have "... = M" using \<open>tm_wf0 M\<close> by (rule codec_TM)
+  finally show "TM_decode_pad w = M" .
 qed
 
 
@@ -559,52 +486,12 @@ proof -
   finally show ?thesis .
 qed
 
-lemma card_words_len_eq: "card {w. len w = l} = 2 ^ l"
-proof -
-  have "inj_on bin_of_word {w. len w = l}" using inj_imp_inj_on bij_is_inj bin_of_word_bij .
-  then have "card {w. len w = l} = card (bin_of_word ` {w. len w = l})" by (rule card_image[symmetric])
-  also have "... = card {w::bin. length w = l}" unfolding word_len_eq_bin_len
-  proof (intro arg_cong[where f=card] subset_antisym subsetI image_eqI)
-    (* direction "\<longleftarrow>" *)
-    fix x :: bin
-    assume "x \<in> {w. length w = l}"
-    thus "word_of_bin x \<in> {w. length (bin_of_word w) = l}" by simp
-    show "x = bin_of_word (word_of_bin x)" by simp
-  qed (* direction "\<longrightarrow>" by *) blast
-  also have "... = 2 ^ l" by (rule card_bin_len_eq)
-  finally show ?thesis .
-qed
-
-corollary finite_words_len_eq: "finite {w. len w = l}"
-  using card_words_len_eq by (intro card_ge_0_finite) presburger
+corollary finite_words_len_eq: "finite {w::bin. length w = l}"
+  using card_bin_len_eq by (intro card_ge_0_finite) presburger
 
 
 lemma image_Collect_compose: "f ` {g x | x. P x} = {f (g x) | x. P x}" by blast
 
-corollary card_words_len_eq_prefix:
-  fixes p :: word
-  shows "card {p @@ w | w. len w = l} = 2^l" (is "card ?A = 2^l")
-proof -
-  let ?B = "{w. len w  = l}"
-  define f :: "word \<Rightarrow> word" where "f \<equiv> drp (len p)"
-  have "bij_betw f ?A ?B" unfolding bij_betw_def inj_on_def proof safe
-    fix x y assume "f (p @@ x) = f (p @@ y)"
-    thus "p@@x = p@@y"
-      unfolding f_def using drp_prefix by simp
-  next
-    fix x
-    show "len (f (p @@ x)) = len x"
-      unfolding f_def using drp_prefix by simp
-  next
-    have *: "f ` ?A = ?B"
-      using drp_prefix[of p] image_Collect_compose[of f "\<lambda>w. p @@ w"]
-      unfolding f_def by simp
-    fix x assume "l = len x"
-    with * show "x \<in> f ` {p @@ w |w. len w = len x}" by blast
-  qed
-  with card_words_len_eq show ?thesis
-    using bij_betw_same_card by fastforce
-qed
 
 lemma inj_append:
   fixes xs ys :: "'a list"
@@ -612,59 +499,40 @@ lemma inj_append:
     and inj_append_R: "inj (\<lambda>ys. xs @ ys)"
   using append_same_eq by (intro injI, simp)+
 
-lemma inj_app_L: "inj (\<lambda>a. a @@ b)"
-proof -
-  have *: "(\<lambda>a. a @@ b) = word_of_bin \<circ> (\<lambda>x. x @ bin_of_word b) \<circ> bin_of_word"
-    unfolding app.simps by force
-  show "inj (\<lambda>a. a @@ b)" unfolding * using inj_append_L[of "bin_of_word b"] word_bin_bij
-    by (intro inj_compose) (simp_all only: bij_is_inj)
-qed
-
-lemma inj_app_R: "inj (\<lambda>b. a @@ b)"
-proof -
-  have *: "(\<lambda>b. a @@ b) = word_of_bin \<circ> (\<lambda>x. bin_of_word a @ x) \<circ> bin_of_word"
-    unfolding app.simps by force
-  show "inj (\<lambda>b. a @@ b)" unfolding * using inj_append_R[of "bin_of_word a"] word_bin_bij
-    by (intro inj_compose) (simp_all only: bij_is_inj)
-qed
-
 
 theorem num_equivalent_encodings:
   fixes M w
   assumes "TM_decode_pad w = M"
-  defines "l \<equiv> len w"
-  shows "2^(l - clog l) \<le> card {w. len w = l \<and> TM_decode_pad w = M}" (is "?lhs \<le> card ?A")
+  defines "l \<equiv> length w"
+  shows "2^(l - clog l) \<le> card {w. length w = l \<and> TM_decode_pad w = M}" (is "?lhs \<le> card ?A")
 proof (cases "l > 0")
   case True
-  from \<open>l > 0\<close> have "w \<noteq> num.One" unfolding l_def unfolding len_eq_0_iff ..
+  from \<open>l > 0\<close> have "w \<noteq> []" unfolding l_def ..
   from \<open>l > 0\<close> have "clog l \<le> l" by (rule clog_le)
 
   define w' where "w' \<equiv> strip_exp_pad w"
-  have lw': "len w' = clog l" unfolding w'_def l_def using \<open>w \<noteq> num.One\<close> by (rule strip_exp_pad_len)
+  have lw': "length w' = clog l" unfolding w'_def l_def using \<open>w \<noteq> []\<close> by (rule strip_exp_pad_len)
 
-  have "?lhs = card {pad. len pad = l - clog l}" using card_words_len_eq ..
-  also have "... = card ((\<lambda>pad. pad @@ w') ` {pad. len pad = l - clog l})"
-    using card_image[symmetric] inj_imp_inj_on inj_app_L .
-  also have "... = card {pad @@ w' | pad. len pad = l - clog l}"
+  have "?lhs = card {pad::bin. length pad = l - clog l}" using card_bin_len_eq ..
+  also have "... = card ((\<lambda>pad. pad @ w') ` {pad. length pad = l - clog l})"
+    using card_image[symmetric] inj_imp_inj_on inj_append_L .
+  also have "... = card {pad @ w' | pad. length pad = l - clog l}"
     by (intro arg_cong[where f=card]) (rule image_Collect)
-  also have "... \<le> card {w. len w = l \<and> TM_decode_pad w = M}"
+  also have "... \<le> card {w. length w = l \<and> TM_decode_pad w = M}"
   proof (intro card_mono)
-    show "finite {w. len w = l \<and> TM_decode_pad w = M}" using finite_words_len_eq by simp
-    show "{pad @@ w' | pad. len pad = l - clog l} \<subseteq> {w. len w = l \<and> TM_decode_pad w = M}"
+    show "finite {w. length w = l \<and> TM_decode_pad w = M}" using finite_words_len_eq by simp
+    show "{pad @ w' | pad. length pad = l - clog l} \<subseteq> {w. length w = l \<and> TM_decode_pad w = M}"
     proof safe
-      fix pad
-      assume lp: "len pad = l - clog l"
-      show lpw': "len (pad @@ w') = l" unfolding app_len lp lw'
+      fix pad::bin
+      assume lp: "length pad = l - clog l"
+      show lpw': "length (pad @ w') = l" unfolding length_append lp lw'
         using \<open>clog l \<le> l\<close> by (rule le_add_diff_inverse2)
 
-      have h1: "drop (l - clog l) (bin_of_word pad) = []" using lp
-        unfolding word_len_eq_bin_len by (intro drop_all) (rule eq_imp_le)
-      have h2: "l - clog l - length (bin_of_word pad) = 0"
-        unfolding word_len_eq_bin_len[symmetric] lp by simp
-      have h3: "drop (l - clog l) (bin_of_word (pad @@ w')) = bin_of_word w'"
-        unfolding app.simps word_bin_iso drop_append h1 h2 by simp
-      show "TM_decode_pad (pad @@ w') = M" unfolding TM_decode_pad_def strip_exp_pad_altdef
-        unfolding lpw' Let_def h3 word_bin_word_id unfolding w'_def
+      have h1: "drop (l - clog l)  pad = []" using lp by (intro drop_all) (rule eq_imp_le)
+      have h2: "l - clog l - length pad = 0" unfolding lp by simp
+      have h3: "drop (l - clog l) (pad @ w') = w'" unfolding drop_append h1 h2 by simp
+      show "TM_decode_pad (pad @ w') = M" unfolding TM_decode_pad_def strip_exp_pad_def
+        unfolding lpw' Let_def h3 unfolding w'_def
         using \<open>TM_decode_pad w = M\<close> by (fold TM_decode_pad_def)
     qed
   qed
@@ -672,15 +540,15 @@ proof (cases "l > 0")
 next
   case False
   then have "l = 0" by blast
-  then have "w = num.One" unfolding l_def by (fold len_eq_0_iff)
-  have "M = Rejecting_TM" using \<open>TM_decode_pad w = M\<close> unfolding \<open>w = num.One\<close> TM_decode_Nil ..
+  then have "w = []" unfolding l_def ..
+  have "M = Rejecting_TM" using \<open>TM_decode_pad w = M\<close> unfolding \<open>w = []\<close> TM_decode_Nil ..
 
   have "2 ^ (l - clog l) = 1" unfolding \<open>l = 0\<close> by simp
-  also have "1 = card {num.One}" by simp
-  also have "... \<le> card {w. len w = l \<and> TM_decode_pad w = M}" unfolding \<open>l = 0\<close> \<open>M = Rejecting_TM\<close>
+  also have "1 = card {[]::bin}" by simp
+  also have "... \<le> card {w. length w = l \<and> TM_decode_pad w = M}" unfolding \<open>l = 0\<close> \<open>M = Rejecting_TM\<close>
   proof (intro card_mono)
-    show "finite {w. len w = 0 \<and> TM_decode_pad w = Rejecting_TM}" using finite_words_len_eq by simp
-    show "{num.One} \<subseteq> {w. len w = 0 \<and> TM_decode_pad w = Rejecting_TM}" using TM_decode_Nil by simp
+    show "finite {w. length w = 0 \<and> TM_decode_pad w = Rejecting_TM}" using finite_words_len_eq by simp
+    show "{[]} \<subseteq> {w. length w = 0 \<and> TM_decode_pad w = Rejecting_TM}" using TM_decode_Nil by simp
   qed
   finally show ?thesis .
 qed
@@ -693,16 +561,17 @@ text\<open>2. The retraction of preceding 1-bits creates the needed infinitude o
 theorem embed_TM_in_len:
   fixes M l
   assumes "tm_wf0 M"
-    and min_word_len: "clog l \<ge> len (encode_TM M) + 2"
+    and min_word_len: "clog l \<ge> length (encode_TM M) + 2"
     \<comment> \<open>The \<open>+2\<close> bits are required for the \<open>1\<^sup>+0\<close>-prefix.
         Note: this theorem technically also holds when the assumption @{thm min_word_len} reads
-        \<^term>\<open>clog l > len (encode_TM M) \<longleftrightarrow> clog l \<ge> len (encode_TM M) + 1\<close>,
+        \<^term>\<open>clog l > length (encode_TM M) \<longleftrightarrow> clog l \<ge> length (encode_TM M) + 1\<close>,
         but only due to \<^const>\<open>strip_al_prefix\<close> allowing the absence of preceding ones.
-        If it were to enforce the constraint of a correct \<open>1\<^sup>+0\<close>-prefix, this would no longer be the case.
+        If it were to enforce the constraint of a correct \<open>1\<^sup>+0\<close>-prefix,
+        this would no longer be the case.
         Additionally, the weaker version allows the case of \<^term>\<open>l = 0\<close>,
         which requires special treatment (it follows that \<^term>\<open>M = Rejecting_TM\<close>).\<close>
   obtains w
-  where "len w = l"
+  where "length w = l"
     and "TM_decode_pad w = M"
 proof
   have "l > 0"
@@ -712,28 +581,28 @@ proof
   qed
   hence "clog l \<le> l" by (rule clog_le)
 
-  let ?\<rho>M = "encode_TM M" let ?l\<rho> = "len ?\<rho>M" let ?w = word_of_bin and ?b = bin_of_word
+  let ?\<rho>M = "encode_TM M" let ?l\<rho> = "length ?\<rho>M"
   define al_prefix where "al_prefix \<equiv> False # True \<up> (clog l - ?l\<rho> - 1)"
-  define w' where "w' \<equiv> ?w (?b ?\<rho>M @ al_prefix)"
+  define w' where "w' \<equiv> ?\<rho>M @ al_prefix"
   have w'_correct: "strip_al_prefix w' = ?\<rho>M" unfolding w'_def al_prefix_def strip_alp_altdef ..
-  have "len w' = ?l\<rho> + length al_prefix" unfolding w'_def word_len_eq_bin_len by simp
+  have "length w' = ?l\<rho> + length al_prefix" unfolding w'_def by simp
   also have "... = ?l\<rho> + (clog l - ?l\<rho> - 1) + 1" unfolding add_left_cancel al_prefix_def
       unfolding length_Cons length_replicate by presburger
   also have "... = clog l" using min_word_len by force
-  finally have w'_len: "length (?b w') = clog l" unfolding word_len_eq_bin_len .
+  finally have w'_len: "length w' = clog l" .
 
   define exp_pad where "exp_pad \<equiv> False \<up> (l - clog l)"
-  define w where "w \<equiv> ?w (exp_pad @ ?b w')"
+  define w where "w \<equiv> exp_pad @ w'"
   have exp_len: "length exp_pad = l - clog l" unfolding exp_pad_def by (rule length_replicate)
   have dexp: "drop (l - clog l) exp_pad = []" unfolding exp_pad_def by force
 
-  have "len w = l - clog l + clog l" unfolding w_def word_len_eq_bin_len bin_word_bin_id length_append
+  have "length w = l - clog l + clog l" unfolding w_def length_append
     unfolding exp_pad_def w'_len length_replicate ..
   also have "... = l" using \<open>clog l \<le> l\<close> by (rule le_add_diff_inverse2)
-  finally show "len w = l" .
+  finally show "length w = l" .
 
-  have w_correct: "strip_exp_pad w = w'" unfolding strip_exp_pad_altdef \<open>len w = l\<close> Let_def
-    unfolding w_def bin_word_bin_id drop_append dexp exp_len by simp
+  have w_correct: "strip_exp_pad w = w'" unfolding strip_exp_pad_def \<open>length w = l\<close> Let_def
+    unfolding w_def drop_append dexp exp_len by simp
 
   show "TM_decode_pad w = M" unfolding TM_decode_pad_def w_correct w'_correct
     using \<open>tm_wf0 M\<close> by (rule codec_TM)

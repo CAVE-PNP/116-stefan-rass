@@ -525,11 +525,6 @@ lemma adj_sq_correct': "gn_inv (adj_square n) \<in> SQ" unfolding SQ_def
 definition bin_prefix :: "bin \<Rightarrow> nat \<Rightarrow> bool"
   where "bin_prefix ps n \<equiv> suffix ps (bin_of_nat n)"
 
-definition bin_len :: "nat \<Rightarrow> nat"
-  where "bin_len n = length (bin_of_nat n)"
-
-declare bin_prefix_def[simp] bin_len_def[simp]
-
 definition shared_bin_prefix :: "nat \<Rightarrow> nat \<Rightarrow> nat \<Rightarrow> bool"
   where "shared_bin_prefix l a b = (\<exists>ps. length ps = l \<and> bin_prefix ps a \<and> bin_prefix ps b)"
 
@@ -545,14 +540,14 @@ lemma shared_bin_prefixI[intro]:
 
 lemma shared_bin_prefixI':
   fixes l a b :: nat
-  defines "k \<equiv> bin_len a - l"
+  defines "k \<equiv> bit_length a - l"
   defines "ps \<equiv> drop k (bin_of_nat a)"
-  assumes "bin_len a \<ge> l"
+  assumes "bit_length a \<ge> l"
     and "bin_prefix ps b"
   shows "shared_bin_prefix l a b"
 proof (intro shared_bin_prefixI)
   let ?a = "bin_of_nat a"
-  from \<open>bin_len a \<ge> l\<close> show "length ps = l" unfolding ps_def k_def by simp
+  from \<open>bit_length a \<ge> l\<close> show "length ps = l" unfolding ps_def k_def by simp
   show "bin_prefix ps a" unfolding ps_def bin_prefix_def using suffix_drop .
   show "bin_prefix ps b" using \<open>bin_prefix ps b\<close> .
 qed
@@ -566,28 +561,28 @@ lemma shared_bin_prefixE[elim]:
 
 lemma shared_bin_max_len1:
   assumes "shared_bin_prefix l a b"
-  shows "l \<le> bin_len a"
+  shows "l \<le> bit_length a"
 proof -
   from assms obtain ps
     where psl: "length ps = l"
     and psa: "bin_prefix ps a" ..
-  from suffix_length_le[of ps] and psa show ?thesis unfolding bin_prefix_def bin_len_def psl .
+  from suffix_length_le[of ps] and psa show ?thesis unfolding bin_prefix_def psl .
 qed
 
 lemma shared_bin_max_len2:
   assumes "shared_bin_prefix l a b"
-  shows "l \<le> bin_len b"
+  shows "l \<le> bit_length b"
 proof -
   from assms obtain ps
     where psl: "length ps = l"
     and psb: "bin_prefix ps b" ..
-  from suffix_length_le[of ps] and psb show ?thesis unfolding bin_prefix_def bin_len_def psl .
+  from suffix_length_le[of ps] and psb show ?thesis unfolding bin_prefix_def psl .
 qed
 
 lemma shared_bin_prefixE'[elim]:
   assumes ab: "shared_bin_prefix l a b"
-  defines "psa \<equiv> drop (bin_len a - l) (bin_of_nat a)"
-  defines "psb \<equiv> drop (bin_len b - l) (bin_of_nat b)"
+  defines "psa \<equiv> drop (bit_length a - l) (bin_of_nat a)"
+  defines "psb \<equiv> drop (bit_length b - l) (bin_of_nat b)"
   shows "psa = psb"
     and "length psa = l"
     and "bin_prefix psa a"
@@ -601,14 +596,14 @@ proof -
   show psa: "bin_prefix psa a" unfolding bin_prefix_def psa_def using suffix_drop .
   have psb: "bin_prefix psb b" unfolding bin_prefix_def psb_def using suffix_drop .
 
-  have "l \<le> bin_len a" using shared_bin_max_len1 \<open>shared_bin_prefix l a b\<close> .
-  with diff_diff_cancel show "length psa = l" unfolding psa_def length_drop bin_len_def .
+  have "l \<le> bit_length a" using shared_bin_max_len1 \<open>shared_bin_prefix l a b\<close> .
+  with diff_diff_cancel show "length psa = l" unfolding psa_def length_drop .
   with psl' have psl: "length ps' = length psa" ..
   with suffix_length_unique psa' psa have psaeq: "ps' = psa" unfolding bin_prefix_def .
   from psb' show "bin_prefix psa b" unfolding psaeq .
 
-  have "l \<le> bin_len b" using shared_bin_max_len2 \<open>shared_bin_prefix l a b\<close> .
-  with diff_diff_cancel have "length psb = l" unfolding psb_def length_drop bin_len_def .
+  have "l \<le> bit_length b" using shared_bin_max_len2 \<open>shared_bin_prefix l a b\<close> .
+  with diff_diff_cancel have "length psb = l" unfolding psb_def length_drop .
   with psl' have psl: "length ps' = length psb" ..
   with suffix_length_unique psb' psb have psbeq: "ps' = psb" unfolding bin_prefix_def .
 
@@ -852,15 +847,15 @@ lemma shared_prefix_len:
     and ls: "l1 \<ge> l2"
   shows "shared_bin_prefix l2 a b"
 proof (intro shared_bin_prefixI')
-  define psa1 where "psa1 = drop (bin_len a - l1) (bin_of_nat a)"
-  define psa2 where "psa2 = drop (bin_len a - l2) (bin_of_nat a)"
+  define psa1 where "psa1 = drop (bit_length a - l1) (bin_of_nat a)"
+  define psa2 where "psa2 = drop (bit_length a - l2) (bin_of_nat a)"
   from ab have "length psa1 = l1" unfolding psa1_def ..
   from ab have psa1b: "bin_prefix psa1 b" unfolding psa1_def ..
 
-  from shared_bin_max_len1 ab have "l1 \<le> bin_len a" .
-  with le_trans ls show "l2 \<le> bin_len a" .
+  from shared_bin_max_len1 ab have "l1 \<le> bit_length a" .
+  with le_trans ls show "l2 \<le> bit_length a" .
 
-  from \<open>l1 \<ge> l2\<close> have "bin_len a - l1 \<le> bin_len a - l2" by (rule diff_le_mono2)
+  from \<open>l1 \<ge> l2\<close> have "bit_length a - l1 \<le> bit_length a - l2" by (rule diff_le_mono2)
   then have "suffix psa2 psa1" unfolding psa1_def psa2_def by (rule suffix_drop_le)
 
   with suffix_order.order_trans show "bin_prefix psa2 b" using psa1b unfolding bin_prefix_def .

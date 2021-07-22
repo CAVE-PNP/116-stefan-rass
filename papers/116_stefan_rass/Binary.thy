@@ -45,6 +45,7 @@ fun bin_of_nat :: "nat \<Rightarrow> bin" where
 
 subsection\<open>Numeric Properties\<close>
 
+lemma inc_not_Nil: "inc xs \<noteq> []" by (induction xs) auto
 lemma inc_Suc: "Suc (nat_of_bin xs) = nat_of_bin (inc xs)" by (induction xs) auto
 lemma inc_inc: "xs \<noteq> [] \<Longrightarrow> inc (inc (x # xs)) = x # (inc xs)" by force
 
@@ -166,11 +167,12 @@ subsubsection\<open>Bit-Length\<close>
 
 text\<open>The number of bits in the binary representation.
   This does not count any leading zeroes; the bit-length of \<open>0\<close> is \<open>0\<close>.\<close>
+
 abbreviation (input) bit_length :: "nat \<Rightarrow> nat" where
   "bit_length n \<equiv> length (bin_of_nat n)"
 
 
-lemma bin_of_nat_len_mono: "mono bit_length"
+lemma bit_length_mono: "mono bit_length"
 proof (subst mono_iff_le_Suc, intro allI)
   fix n
   have "bit_length n \<le> length (inc (bin_of_nat n))" using inc_len .
@@ -292,7 +294,7 @@ next
 
   from \<open>n > 1\<close> have "n \<ge> 2" by simp
   have "1 < length (bin_of_nat 2)" unfolding numeral_2_eq_2 by simp
-  also have "... \<le> length w" unfolding w_def using bin_of_nat_len_mono \<open>n \<ge> 2\<close> ..
+  also have "... \<le> length w" unfolding w_def using bit_length_mono \<open>n \<ge> 2\<close> ..
   finally have "length w > 1" .
 
   with less_trans zero_less_one have "w \<noteq> []" by (fold length_greater_0_conv)
