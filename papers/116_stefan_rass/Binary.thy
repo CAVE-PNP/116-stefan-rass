@@ -198,6 +198,9 @@ qed (* direction "\<longleftarrow>" by *) simp
 corollary bit_len_gt_0_iff[iff]: "bit_length n > 0 \<longleftrightarrow> n > 0" using bit_len_eq_0_iff by simp
 
 
+corollary bit_len_double: "n > 0 \<Longrightarrow> bit_length (2 * n) = bit_length n + 1"
+  unfolding bin_of_nat_double by simp
+
 lemma bit_len_even_odd: "n > 0 \<Longrightarrow> bit_length (2 * n) = bit_length (2 * n + 1)"
 proof -
   assume "n > 0"
