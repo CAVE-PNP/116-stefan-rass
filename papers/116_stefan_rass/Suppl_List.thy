@@ -4,12 +4,20 @@ begin
 
 lemma len_tl_Cons: "xs \<noteq> [] \<Longrightarrow> length (x # tl xs) = length xs" by simp
 
+lemma inj_append:
+  fixes xs ys :: "'a list"
+  shows inj_append_L: "inj (\<lambda>xs. xs @ ys)"
+    and inj_append_R: "inj (\<lambda>ys. xs @ ys)"
+  using append_same_eq by (intro injI, simp)+
+
 
 subsection\<open>An Alternative to \<^const>\<open>last\<close>\<close>
 
 abbreviation (input) ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" where
   "ends_in x xs \<equiv> (\<exists>ys. xs = ys @ [x])"
 
+
+lemma ends_inI[intro]: "ends_in x (xs @ [x])" by blast
 
 lemma ends_in_Cons: "ends_in y (x # xs) \<Longrightarrow> xs \<noteq> [] \<Longrightarrow> ends_in y xs"
   by (simp add: Cons_eq_append_conv)

@@ -748,7 +748,7 @@ corollary add_suffix_bin':
   shows "bin_of_nat (up * 2^k + lo) = (bin_of_nat lo) @ (replicate (k - (length (bin_of_nat lo))) False) @ (bin_of_nat up)"
   (is "?lhs = ?lo @ ?zs @ ?up")
 proof -
-  from bin_of_nat_end_True and \<open>up > 0\<close> have "ends_in True ?up" .
+  from \<open>up > 0\<close> have "ends_in True ?up" unfolding bin_of_nat_end_True .
   moreover from bin_of_nat_len_gt_0 and \<open>up > 0\<close> have "?up \<noteq> []" by blast
   ultimately have "ends_in True (?lo @ ?zs @ ?up)" unfolding ends_in_append by simp
 
@@ -864,7 +864,8 @@ proof (intro shared_bin_prefixI)
   moreover have "up > 0" proof -
     from \<open>bit_length n > k\<close> have "length ?n - 1 \<ge> k" unfolding l_eq by simp
     then have "(2::nat)^k \<le> 2^(length ?n - 1)" by simp
-    also have "... \<le> n" using nat_of_bin_min[of ?n] bin_of_nat_end_True \<open>n > 0\<close> unfolding nat_bin_nat .
+    also have "... \<le> n" using nat_of_bin_min[of ?n] \<open>n > 0\<close>
+      unfolding nat_bin_nat bin_of_nat_end_True .
     finally have "n \<ge> 2^k" .
 
     have "(1::nat) = 2^k div 2^k" by simp

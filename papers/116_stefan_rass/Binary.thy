@@ -67,8 +67,7 @@ lemma nat_of_bin_div2': "nat_of_bin xs div 2 = nat_of_bin (tl xs)" by (cases xs)
 lemma nat_of_bin_div2[simp]: "nat_of_bin (a # xs) div 2 = nat_of_bin xs"
   unfolding nat_of_bin_div2' by simp
 
-lemma nat_of_bin_max: "nat_of_bin xs < 2 ^ (length xs)"
-  by (induction xs) auto
+lemma nat_of_bin_max: "nat_of_bin xs < 2 ^ (length xs)" by (induction xs) auto
 lemma nat_of_bin_min: "ends_in True xs \<Longrightarrow> nat_of_bin xs \<ge> 2 ^ (length xs - 1)"
   by (auto simp add: nat_of_bin_app1)
 
@@ -108,7 +107,7 @@ text\<open>\<^typ>\<open>bin\<close> enables arbitrary string manipulation, but 
   at the cost of being able to represent arbitrary strings.)
   To remedy this limitation when handling numeric values, we make use of \<^const>\<open>ends_in\<close>.\<close>
 
-lemma inc_end_True:
+lemma inc_end_True[simp]:
   fixes xs
   assumes "ends_in True xs"
   shows "ends_in True (inc xs)"
@@ -128,14 +127,14 @@ proof (induction xs)
   qed
 qed (* case "xs = []" by *) simp
 
-lemma bin_of_nat_end_True[simp]: "n > 0 \<Longrightarrow> ends_in True (bin_of_nat n)"
+lemma bin_of_nat_gt_0_end_True[simp]: "n > 0 \<Longrightarrow> ends_in True (bin_of_nat n)"
 proof (induction n rule: nat_induct_non_zero)
   case (Suc n)
   from \<open>ends_in True (bin_of_nat n)\<close> show ?case
     unfolding bin_of_nat.simps by (rule inc_end_True)
 qed (* case "n = 1" by *) simp
 
-lemma ends_in_True_gt_0:
+lemma nat_of_bin_gt_0_end_True[simp]:
   assumes eTw: "ends_in True w"
   shows "nat_of_bin w > 0"
 proof -
@@ -162,20 +161,24 @@ proof -
   finally show ?thesis .
 qed
 
-lemma bin_of_nat_len_mono:
-  "mono (\<lambda>w. length (bin_of_nat w))"
-  (is "mono (\<lambda>w. ?lb w)")
+
+subsubsection\<open>Bit-Length\<close>
+
+text\<open>The number of bits in the binary representation.
+  This does not count any leading zeroes; the bit-length of \<open>0\<close> is \<open>0\<close>.\<close>
+abbreviation (input) bit_length :: "nat \<Rightarrow> nat" where
+  "bit_length n \<equiv> length (bin_of_nat n)"
+
+
+lemma bin_of_nat_len_mono: "mono bit_length"
 proof (subst mono_iff_le_Suc, intro allI)
   fix n
-  have "?lb n \<le> length (inc (bin_of_nat n))" using inc_len .
-  also have "... = ?lb (Suc n)" by simp
-  finally show "?lb n \<le> ?lb (Suc n)" .
+  have "bit_length n \<le> length (inc (bin_of_nat n))" using inc_len .
+  also have "... = bit_length (Suc n)" by simp
+  finally show "bit_length n \<le> bit_length (Suc n)" .
 qed
 
-lemma bin_of_nat_len_gt_0[simp]:
-  assumes "n > 0"
-  shows "length (bin_of_nat n) > 0"
-  using assms
+lemma bin_of_nat_len_gt_0[simp]: "n > 0 \<Longrightarrow> bit_length n > 0"
 proof (induction n rule: nat_induct_non_zero)
   case (Suc n)
   have "0 < length (bin_of_nat n)" using Suc.IH .
@@ -183,6 +186,26 @@ proof (induction n rule: nat_induct_non_zero)
   also have "... = length (bin_of_nat (Suc n))" by simp
   finally show ?case .
 qed (* case "n = 1" by *) simp
+
+lemma bit_len_eq_0_iff[iff]: "bit_length n = 0 \<longleftrightarrow> n = 0" using bin_of_nat_len_gt_0
+proof (intro iffI)
+  assume "bit_length n = 0"
+  then have "\<not> bit_length n > 0" ..
+  then have "\<not> n > 0" using bin_of_nat_len_gt_0 by (rule contrapos_nn)
+  then show "n = 0" ..
+qed (* direction "\<longleftarrow>" by *) simp
+
+corollary bit_len_gt_0_iff[iff]: "bit_length n > 0 \<longleftrightarrow> n > 0" using bit_len_eq_0_iff by simp
+
+
+lemma bit_len_even_odd: "n > 0 \<Longrightarrow> bit_length (2 * n) = bit_length (2 * n + 1)"
+proof -
+  assume "n > 0"
+  then have "bit_length (2 * n) = length (False # bin_of_nat n)" by (subst bin_of_nat_double) simp_all
+  also have "... = length (True # bin_of_nat n)" by simp
+  also have "... = bit_length (2 * n + 1)" unfolding bin_of_nat_double_p1 ..
+  finally show ?thesis .
+qed
 
 
 subsection\<open>Inverses\<close>
@@ -196,8 +219,7 @@ proof (induction n)
   finally show ?case .
 qed (* case "n = 0" by *) simp
 
-corollary nat_of_bin_surj: "surj nat_of_bin"
-  using nat_bin_nat by (intro surjI)
+corollary surj_nat_of_bin: "surj nat_of_bin" using nat_bin_nat by (intro surjI)
 
 lemma bin_nat_bin[simp]: "ends_in True w \<Longrightarrow> bin_of_nat (nat_of_bin w) = w"
 proof (induction w)
@@ -212,7 +234,7 @@ proof (induction w)
   next
     case (Cons a' w')
     with prems1 have "ends_in True w" by (intro ends_in_Cons) blast+
-    with ends_in_True_gt_0 have "?n w > 0" .
+    with nat_of_bin_gt_0_end_True have "?n w > 0" .
     show ?thesis
     proof (cases a)
       case True
@@ -231,6 +253,25 @@ proof (induction w)
     qed
   qed
 qed (* case "w = []" by *) simp
+
+corollary inj_on_nat_of_bin: "inj_on nat_of_bin {w. ends_in True w}"
+  by (intro inj_on_inverseI, elim CollectE) (rule bin_nat_bin)
+
+lemma bij_nat_of_bin: "bij_betw nat_of_bin {w. ends_in True w} {0<..}" using inj_on_nat_of_bin
+proof (intro bij_betw_imageI)
+  show "nat_of_bin ` {w. ends_in True w} = {0<..}"
+  proof safe (* intro subset_antisym subsetI, unfold greaterThan_iff, elim imageE forw_subst CollectE exE *)
+    fix w
+    show "nat_of_bin (w @ [True]) > 0" by (intro nat_of_bin_gt_0_end_True) blast
+  next
+    fix n::nat assume "n > 0"
+    show "n \<in> nat_of_bin ` {w. ends_in True w}"
+    proof (intro image_eqI[where x="bin_of_nat n"] CollectI)
+      show "n = nat_of_bin (bin_of_nat n)" by simp
+      show "ends_in True (bin_of_nat n)" using \<open>n > 0\<close> by (rule bin_of_nat_gt_0_end_True)
+    qed
+  qed
+qed
 
 
 subsection\<open>Advanced Properties\<close>
@@ -254,7 +295,7 @@ next
   with less_trans zero_less_one have "w \<noteq> []" by (fold length_greater_0_conv)
   with hd_Cons_tl have w_split: "hd w # tl w = w" .
 
-  have eTw: "ends_in True w" unfolding w_def using bin_of_nat_end_True \<open>n > 1\<close> by simp
+  have eTw: "ends_in True w" unfolding w_def using bin_of_nat_gt_0_end_True \<open>n > 1\<close> by simp
   then have "ends_in True (hd w # tl w)" unfolding w_split .
 
   from \<open>length w > 1\<close> have "length (tl w) > 0" unfolding length_tl less_diff_conv add_0 .
@@ -270,7 +311,7 @@ qed
 corollary bin_of_nat_div2_times2: "n > 1 \<Longrightarrow> bin_of_nat (2 * (n div 2)) = False # tl (bin_of_nat n)"
   using bin_of_nat_div2 bin_of_nat_double by simp
 
-corollary bin_of_nat_div2_times2_len: "n > 1 \<Longrightarrow> length (bin_of_nat (2 * (n div 2))) =  length (bin_of_nat n)"
+corollary bin_of_nat_div2_times2_len: "n > 1 \<Longrightarrow> bit_length (2 * (n div 2)) =  bit_length n"
 proof -
   assume "n > 1"
   then have l: "bin_of_nat n \<noteq> []" using bin_of_nat_len_gt_0 by simp
@@ -287,7 +328,7 @@ lemma bin_of_nat_app_0s:
   (is "?lhs = ?zs @ ?n")
 proof -
   from \<open>n > 0\<close> have "?n \<noteq> []" using bin_of_nat_len_gt_0 by simp
-  moreover from \<open>n > 0\<close> have "ends_in True ?n" by simp
+  moreover from \<open>n > 0\<close> have "ends_in True ?n" by (rule bin_of_nat_gt_0_end_True)
   ultimately have eTr: "ends_in True (?zs @ ?n)" unfolding ends_in_append by simp
 
   have "?lhs = bin_of_nat (nat_of_bin ?n * 2^k)" by simp
@@ -313,6 +354,12 @@ proof (induction n)
   also have "\<dots> = nat_of_bin xs * 2^(Suc n) + 2^(Suc n) - 1" by (subst h3) simp_all
   finally show ?case .
 qed (* case "n = 0" by *) simp
+
+lemma bin_of_nat_end_True[iff]: "ends_in True (bin_of_nat n) \<longleftrightarrow> n > 0" (is "?lhs \<longleftrightarrow> ?rhs")
+proof (intro iffI)
+  show "?lhs \<Longrightarrow> ?rhs" by (drule nat_of_bin_gt_0_end_True) (unfold nat_bin_nat)
+  show "?rhs \<Longrightarrow> ?lhs" by (rule bin_of_nat_gt_0_end_True)
+qed
 
 
 end
