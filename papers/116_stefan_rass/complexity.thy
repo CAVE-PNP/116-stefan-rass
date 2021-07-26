@@ -91,8 +91,8 @@ lemma tape_size_mono: "n \<le> m \<Longrightarrow> space0 M x n \<le> space0 M x
 
 subsection\<open>Encoding Words\<close>
 
-text\<open>Encoding binary words as TM tape cells: \<^term>\<open>num.Bit1\<close> is encoded as \<^term>\<open>[Oc, Oc]\<close>
-  and \<^term>\<open>num.Bit1\<close> as \<^term>\<open>[Oc, Bk]\<close>.
+text\<open>Encoding binary words as TM tape cells: \<^term>\<open>True\<close> is encoded as \<^term>\<open>[Oc, Oc]\<close>
+  and \<^term>\<open>False\<close> as \<^term>\<open>[Oc, Bk]\<close>.
   Thus, the ends of an encoded term can be marked with the pattern \<^term>\<open>[Bk, Bk]\<close>.\<close>
 
 fun encode_word :: "word \<Rightarrow> cell list" where

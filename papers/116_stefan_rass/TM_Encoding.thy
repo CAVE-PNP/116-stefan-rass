@@ -21,28 +21,20 @@ type_synonym TM = "tprog0"
 
 subsection\<open>Encoding TMs\<close>
 
-\<comment> \<open>An issue of the following definitions is that the existing definition \<^term>\<open>code\<close>
-  uses a naive Gödel numbering scheme that includes encoding list items as prime powers,
-  where each "next prime" \<^term>\<open>Np n\<close> is searched naively starting from \<^term>\<open>Pi n\<close>
-  (see \<^term>\<open>godel_code'\<close>, \<^term>\<open>Pi\<close>, and \<^term>\<open>Np\<close>).\<close>
-
-\<comment> \<open>Reminder: For binary numbers, as stated in the paper (ch. 1, p. 2),
-  the "least significant bit is located at the right end".
-  The recursive definitions for words result in somewhat unintuitive definitions here:
-  The number 6 is 110 in binary, but as \<^typ>\<open>word\<close> it is \<^term>\<open>num.Bit0 (num.Bit1 num.One)\<close>.
-  Similarly, as \<^typ>\<open>bin\<close> (synonym for \<^typ>\<open>bool list\<close>), 6 is \<^term>\<open>[False, True]\<close>.\<close>
-
-value "nat_of_num (num.Bit0 (num.Bit1 num.One))"
-value "nat_of_num (word_of_bin ([False, True]))"
-
 text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
   the decoding of a TM \<open>M\<close> from a binary word \<open>w\<close> includes:
 
   1. Exponential padding. "all but the most significant \<open>\<lceil>log(len(w))\<rceil>\<close> bits are ignored"
   2. Arbitrary-length \<open>1\<^sup>+0\<close> prefix. "from [the result] we drop all preceding 1-bits and the first 0-bit"
-  3. Code description. "let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form".\<close>
+  3. Code description. "let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form".
+
+  Recall the definition of \<^typ>\<open>bin\<close> (see \<^file>\<open>Binary.thy\<close>),
+  which causes the MSB to be the \<^const>\<open>last\<close> element of the list,
+  which is the \<^emph>\<open>rightmost\<close> one when explicitly referring to lists in Isabelle.\<close>
+
 
 subsubsection\<open>Discrete ceiling log\<close>
+
 abbreviation clog :: "nat \<Rightarrow> nat"
   where "clog n \<equiv> Discrete.log (n-1) + 1"
 
@@ -323,7 +315,14 @@ definition Rejecting_TM :: TM
 lemma rej_TM_wf: "tm_wf0 Rejecting_TM" unfolding Rejecting_TM_def tm_wf.simps by force
 
 
+
+\<comment> \<open>An issue of the following definitions is that the existing definition \<^term>\<open>code\<close>
+  uses a naive Gödel numbering scheme that includes encoding list items as prime powers,
+  where each "next prime" \<^term>\<open>Np n\<close> is searched naively starting from \<^term>\<open>Pi n\<close>
+  (see \<^term>\<open>godel_code'\<close>, \<^term>\<open>Pi\<close>, and \<^term>\<open>Np\<close>).\<close>
+
 text\<open>The function that assigns a word to every TM, represented as \<open>\<rho>(M)\<close> in the paper.\<close>
+
 definition encode_TM :: "TM \<Rightarrow> word"
   where "encode_TM M = gn_inv (code M)"
 
@@ -373,9 +372,9 @@ lemma decode_TM_wf: "tm_wf0 (decode_TM w)" unfolding decode_TM_def filter_wf_TMs
 
 lemma decode_TM_Nil: "decode_TM [] = Rejecting_TM"
 proof -
-  \<comment> \<open>There is (exactly) one TM whose encoding is \<^term>\<open>num.One\<close>,
-    which is \<^term>\<open>[]::TM\<close>, the machine without instructions.
-    Since this machine is not well-formed (see \<^term>\<open>tm_wf0\<close>), however, this lemma holds.\<close>
+  \<comment> \<open>There is (exactly) one TM whose encoding is \<^term>\<open>[]::bin\<close>;
+    and that is \<^term>\<open>[]::TM\<close>, the machine without instructions.
+    However, since this machine is not well-formed (see \<^term>\<open>tm_wf0\<close>), this lemma holds.\<close>
 
   (* this should probably be known to simp *)
   have le1_split: "n \<le> 1 \<Longrightarrow> n = 0 \<or> n = 1" for n::nat by auto

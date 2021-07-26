@@ -24,13 +24,13 @@ text\<open>In the paper "On the Existence of Weak One-Way Functions",
 type_synonym bin = "bool list"
 
 text\<open>We follow the classical conventions of \<open>0 := False, 1 := True\<close>
-  (we choose booleans for being a well known two-valued type commonly associated with binary digits)
-  and (unintuitively) let the most-significant-bit (MSB) be the \<^emph>\<open>last\<close> element of the list
-  (as otherwise association to natural numbers would be more complex).
+  (we choose booleans for being a well-known two-valued type commonly associated with binary digits)
+  and (unintuitively) let the most-significant-bit (MSB) be the \<^emph>\<open>last\<close> element of the list,
+  to keep the following definitions from becoming overly complex.
   This results in representing strings mirrored compared to the common convention
   of having the MSB be the leftmost one.\<close>
 
-fun nat_of_bin :: "bin \<Rightarrow> nat" where
+fun nat_of_bin :: "bin \<Rightarrow> nat" ("'(_')\<^sub>2") where
   "nat_of_bin [] = 0" |
   "nat_of_bin (a # xs) = (if a then 1 else 0) + 2 * nat_of_bin xs"
 
@@ -41,6 +41,17 @@ fun inc :: "bin \<Rightarrow> bin" where
 fun bin_of_nat :: "nat \<Rightarrow> bin" where
   "bin_of_nat 0 = []" |
   "bin_of_nat (Suc n) = inc (bin_of_nat n)"
+
+\<comment> \<open>For binary numbers, as stated in the paper (ch. 1, p. 2),
+  the "least significant bit is located at the right end".
+  The recursive definitions for binary strings result in somewhat unintuitive definitions:
+  The number \<open>6\<^sub>1\<^sub>0\<close> is written \<open>110\<^sub>2\<close> in binary, but as \<^typ>\<open>bin\<close>,
+  it is \<^term>\<open>[False, True, True]\<close> (an abbreviation for \<^term>\<open>False # True # True # []\<close>).
+  This results in some strange properties including swapping prefix and suffix:
+  the concepts of \<^const>\<open>prefix\<close> and \<^const>\<open>suffix\<close> defined over lists (see \<^theory>\<open>HOL-Library.Sublist\<close>)
+  mean their exact opposites when applied to our definition of \<^typ>\<open>bin\<close>.\<close>
+
+value "([False, True, True])\<^sub>2"
 
 
 subsection\<open>Numeric Properties\<close>
