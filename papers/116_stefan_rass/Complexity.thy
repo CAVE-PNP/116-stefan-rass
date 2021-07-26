@@ -1,5 +1,6 @@
-theory complexity
-  imports Main gn "Universal_Turing_Machine.UTM" TM_Encoding
+theory Complexity
+  imports Goedel_Numbering TM_Encoding
+    "Universal_Turing_Machine.UTM"
 begin
 
 
