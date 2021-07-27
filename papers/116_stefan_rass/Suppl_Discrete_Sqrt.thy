@@ -1,5 +1,5 @@
 theory Suppl_Discrete_Sqrt
-  imports "HOL-Library.Discrete" Suppl_Discrete_Log Suppl_Fun
+  imports "HOL-Library.Discrete"
 begin
 
 

@@ -128,7 +128,7 @@ lemma power_two_decompose:
   where "n = 2^k + m" and "m < 2^k"
 proof -
   have "strict_mono (\<lambda>k. (2::nat)^k)" by (intro strict_monoI) simp
-  then obtain k where "2^k \<le> n" and *:"\<forall>k'. 2^k' \<le> n \<longrightarrow> k' \<le> k"
+  then obtain k where "2^k \<le> n" and *: "\<forall>k'. 2^k' \<le> n \<longrightarrow> k' \<le> k"
     using assms nat_strict_mono_greatest[of "\<lambda>k. 2^k" n] by auto
 
   define m where "m \<equiv> n - 2^k"

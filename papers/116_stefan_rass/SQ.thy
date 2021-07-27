@@ -317,7 +317,7 @@ proof (cases "n > 0")
   proof -
     have "2 + log 2 (real n) / 2 \<le> 4 + \<lfloor>\<lfloor>log 2 (real n)\<rfloor> / 2\<rfloor>" by linarith
     also have "... = 4 + \<lfloor>log 2 (real n)\<rfloor> div 2"
-      by (metis floor_divide_of_int_eq of_int_numeral)
+      unfolding floor_divide_of_int_eq[of _ 2, unfolded of_int_numeral] ..
     also have "... = 4 + dlog n div 2"
     proof -
       from \<open>n > 0\<close> have "n \<noteq> 0" ..
@@ -407,7 +407,7 @@ lemma shared_bin_max_len1:
 proof -
   from assms obtain ps
     where psl: "length ps = l"
-    and psa: "bin_prefix ps a" ..
+      and psa: "bin_prefix ps a" ..
   from suffix_length_le[of ps] and psa show ?thesis unfolding bin_prefix_def psl .
 qed
 
@@ -417,7 +417,7 @@ lemma shared_bin_max_len2:
 proof -
   from assms obtain ps
     where psl: "length ps = l"
-    and psb: "bin_prefix ps b" ..
+      and psb: "bin_prefix ps b" ..
   from suffix_length_le[of ps] and psb show ?thesis unfolding bin_prefix_def psl .
 qed
 
@@ -431,9 +431,9 @@ lemma shared_bin_prefixE'[elim]:
     and "bin_prefix psa b"
 proof -
   from ab obtain ps'
-    where psl':"length ps' = l"
-    and psa': "bin_prefix ps' a"
-    and psb':"bin_prefix ps' b" ..
+    where psl': "length ps' = l"
+      and psa': "bin_prefix ps' a"
+      and psb': "bin_prefix ps' b" ..
 
   show psa: "bin_prefix psa a" unfolding bin_prefix_def psa_def using suffix_drop .
   have psb: "bin_prefix psb b" unfolding bin_prefix_def psb_def using suffix_drop .
@@ -495,7 +495,7 @@ lemma add_suffix_bin:
   fixes up lo k :: nat
   assumes "lo < 2^k"
   shows "up * 2^k + lo = nat_of_bin ((bin_of_nat lo) @ (replicate (k - (length (bin_of_nat lo))) False) @ (bin_of_nat up))"
-  (is "?lhs = nat_of_bin (?lo @ ?zs @ ?up)")
+    (is "?lhs = nat_of_bin (?lo @ ?zs @ ?up)")
 proof (cases "up > 0", cases "lo > 0")
   assume "up > 0" and "lo > 0"
   let ?n = nat_of_bin
@@ -527,7 +527,7 @@ corollary add_suffix_bin':
   assumes "up > 0" (* required to prevent leading zeroes *)
     and "lo < 2^k"
   shows "bin_of_nat (up * 2^k + lo) = (bin_of_nat lo) @ (replicate (k - (length (bin_of_nat lo))) False) @ (bin_of_nat up)"
-  (is "?lhs = ?lo @ ?zs @ ?up")
+    (is "?lhs = ?lo @ ?zs @ ?up")
 proof -
   from \<open>up > 0\<close> have "ends_in True ?up" unfolding bin_of_nat_end_True .
   moreover from bin_of_nat_len_gt_0 and \<open>up > 0\<close> have "?up \<noteq> []" by simp
@@ -725,7 +725,7 @@ theorem adj_sq_shared_prefix_log:
   defines "l \<equiv> nat \<lceil>log 2 (bit_length n)\<rceil>"
   defines "sq \<equiv> adj_square n"
   shows "shared_bin_prefix l n sq"
-  (is "?sp l n sq")
+    (is "?sp l n sq")
 proof -
   define bln where "bln = bit_length n"
   let ?lh = "bln - (4 + bln div 2)"

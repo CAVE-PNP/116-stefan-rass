@@ -37,8 +37,7 @@ proof - (* shorter proof by Moritz Hiebler *)
   let ?A = "{w\<in>L. gn w \<le> x}"
   have gn_inj_on: "inj_on gn ?A"
     using inj_gn inj_spec by blast
-  have "gn ` ?A \<subseteq> {0<..x}"
-    using nat_of_num_pos by auto
+  have "gn ` ?A \<subseteq> {0<..x}" by auto
   then have "card ?A \<le> card {0<..x}" using gn_inj_on finite_greaterThanAtMost
     by (intro card_inj_on_le) assumption
   then show ?thesis by (unfold card_greaterThanAtMost dens_def minus_nat.diff_0)

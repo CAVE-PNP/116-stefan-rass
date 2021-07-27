@@ -78,7 +78,8 @@ proof -
   from \<open>w \<noteq> []\<close> have "l > 0" unfolding l_def ..
   with clog_le have "clog l \<le> l" .
 
-  have "length (strip_exp_pad w) = l - (l - clog l)" by simp (fold l_def, rule)
+  have "length (strip_exp_pad w) = l - (l - clog l)"
+    unfolding strip_exp_pad_def l_def[symmetric] Let_def length_drop ..
   also have "... = clog l" using \<open>clog l \<le> l\<close> by (rule diff_diff_cancel)
   finally show ?thesis .
 qed
@@ -444,8 +445,10 @@ proof
   have w'_correct: "strip_al_prefix w' = ?\<rho>M" unfolding w'_def al_prefix_def strip_alp_altdef ..
   have "length w' = ?l\<rho> + length al_prefix" unfolding w'_def by simp
   also have "... = ?l\<rho> + (clog l - ?l\<rho> - 1) + 1" unfolding add_left_cancel al_prefix_def
-      unfolding length_Cons length_replicate by presburger
-  also have "... = clog l" using min_word_len by force
+    unfolding length_Cons length_replicate by presburger
+  also have "... = clog l - 1 + 1" unfolding add_right_cancel using min_word_len
+    by (subst diff_commute, intro le_add_diff_inverse) simp
+  also have "... = clog l" by (intro le_add_diff_inverse2) simp
   finally have w'_len: "length w' = clog l" .
 
   define exp_pad where "exp_pad \<equiv> False \<up> (l - clog l)"

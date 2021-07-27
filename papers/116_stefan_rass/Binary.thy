@@ -327,7 +327,7 @@ qed
 corollary bin_of_nat_div2_times2: "n > 1 \<Longrightarrow> bin_of_nat (2 * (n div 2)) = False # tl (bin_of_nat n)"
   using bin_of_nat_div2 bin_of_nat_double by simp
 
-corollary bin_of_nat_div2_times2_len: "n > 1 \<Longrightarrow> bit_length (2 * (n div 2)) =  bit_length n"
+corollary bin_of_nat_div2_times2_len: "n > 1 \<Longrightarrow> bit_length (2 * (n div 2)) = bit_length n"
 proof -
   assume "n > 1"
   then have l: "bin_of_nat n \<noteq> []" using bin_of_nat_len_gt_0 by simp
@@ -341,7 +341,7 @@ qed
 lemma bin_of_nat_app_0s:
   assumes "n > 0"
   shows "bin_of_nat (n * 2^k) = replicate k False @ bin_of_nat n"
-  (is "?lhs = ?zs @ ?n")
+    (is "?lhs = ?zs @ ?n")
 proof -
   from \<open>n > 0\<close> have "?n \<noteq> []" using bin_of_nat_len_gt_0 by simp
   moreover from \<open>n > 0\<close> have "ends_in True ?n" by (rule bin_of_nat_gt_0_end_True)

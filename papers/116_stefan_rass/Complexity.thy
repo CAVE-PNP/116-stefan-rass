@@ -57,16 +57,21 @@ next
   assume "\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp)"
   then obtain n where n_some: "time p tp = Some n" and n_le: "n \<le> T (tape_size tp)" by blast
 
-  have n_ex: "\<exists>n. ?f n" by (metis n_some option.discI time_def)
+  from n_some have "time p tp \<noteq> None" by (rule option.discI)
+  then have n_ex: "\<exists>n. ?f n" unfolding time_def by argo
   with n_some have "?lf = n" unfolding time_def by simp
 
   show "?f ?lf" using LeastI_ex n_ex .
   show "?lf \<le> T (tape_size tp)" unfolding \<open>?lf = n\<close> using n_le .
 qed
 
-corollary "time_restricted T p \<Longrightarrow> (\<forall>tp. \<exists>n. the (time p tp) \<le> T (tape_size tp))"
+corollary "time_restricted T p \<Longrightarrow> (\<forall>tp. the (time p tp) \<le> T (tape_size tp))"
   unfolding time_restricted_altdef
-  by (metis option.sel)
+proof (intro allI, elim allE exE conjE)
+  fix tp n
+  assume some_n: "time p tp = Some n" and n_le: "n \<le> T (tape_size tp)"
+  from n_le show "the (time p tp) \<le> T (tape_size tp)" unfolding some_n option.sel .
+qed
 
 
 subsubsection\<open>Space\<close>
