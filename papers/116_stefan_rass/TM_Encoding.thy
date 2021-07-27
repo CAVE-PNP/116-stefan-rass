@@ -1,6 +1,6 @@
 theory TM_Encoding
-  imports Goedel_Numbering SQ UF_Code
-    "Universal_Turing_Machine.UTM" "HOL-Library.Sublist" "HOL-Library.Discrete"
+  imports Goedel_Numbering SQ UF_Code Suppl_Fun
+    "Universal_Turing_Machine.UTM" "HOL-Library.Sublist"
 begin
 
 
@@ -32,113 +32,6 @@ text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
   which causes the MSB to be the \<^const>\<open>last\<close> element of the list,
   which is the \<^emph>\<open>rightmost\<close> one when explicitly referring to lists in Isabelle.\<close>
 
-
-subsubsection\<open>Discrete ceiling log\<close>
-
-abbreviation clog :: "nat \<Rightarrow> nat"
-  where "clog n \<equiv> Discrete.log (n-1) + 1"
-
-lemma clog_exp: "0 < n \<Longrightarrow> clog (2^n) = n" unfolding log_exp_m1 by fastforce
-
-lemma dlog_altdef: "1 \<le> n \<Longrightarrow> Discrete.log n = nat \<lfloor>log 2 n\<rfloor>"
-  unfolding log_altdef by (subst if_not_P) fastforce+
-
-lemma nat_strict_mono_greatest:
-  fixes f::"nat \<Rightarrow> nat" and N::nat
-  assumes "strict_mono f" "f 0 \<le> N"
-  obtains n where "f n \<le> N" and "\<forall>m. f m \<le> N \<longrightarrow> m \<le> n"
-proof -
-  define M where "M \<equiv> {m. f m \<le> N}"
-  define n where "n = Max M"
-
-  from \<open>strict_mono f\<close> have "\<And>n. n \<le> f n" by (rule strict_mono_imp_increasing)
-  hence "finite M" using M_def finite_less_ub by simp
-  moreover from M_def \<open>f 0 \<le> N\<close> have "M \<noteq> {}" by auto
-  ultimately have "n \<in> M" unfolding n_def using Max_in[of M] by simp
-
-  then have "f n \<le> N" using n_def M_def by simp
-  moreover have "\<forall>m. f m \<le> N \<longrightarrow> m \<le> n"
-    using Max_ge \<open>finite M\<close> n_def M_def by blast
-  ultimately show thesis using that by simp
-qed
-
-lemma power_two_decompose:
-  fixes n::nat
-  assumes "1 \<le> n"
-  obtains k m::nat
-  where "n = 2^k + m" and "m < 2^k"
-proof -
-  have "strict_mono (\<lambda>k. (2::nat)^k)" by (intro strict_monoI) simp
-  then obtain k where "2^k \<le> n" and *:"\<forall>k'. 2^k' \<le> n \<longrightarrow> k' \<le> k"
-    using assms nat_strict_mono_greatest[of "\<lambda>k. 2^k" n] by auto
-
-  define m where "m \<equiv> n - 2^k"
-
-  have "n = 2^k + m" using m_def \<open>2^k \<le> n\<close> by simp
-
-  moreover have "m < 2^k" proof (rule ccontr)
-    assume "\<not> m < 2^k"
-    hence "2^(k+1) \<le> n" using m_def by simp
-    thus False using * by fastforce
-  qed
-
-  ultimately show thesis using that by simp
-qed
-
-lemma log_eq1:
-  fixes k m::nat
-  assumes "0 \<le> m" "m < 2^k"
-  shows "Discrete.log (2^k + m) = k"
-  using assms log_eqI by force
-
-lemma log_eq2:
-  fixes k m::nat
-  assumes "1 \<le> m" "m < 2^k"
-  shows "nat \<lceil>log 2 (2^k + m)\<rceil> = k + 1"
-proof -
-  let ?n = "2^k+m"
-  have "k < log 2 ?n"
-    using assms less_log2_of_power[of k ?n] by simp
-  moreover have "log 2 ?n \<le> k+1"
-    using assms log2_of_power_le[of ?n "k+1"] by simp
-  ultimately show ?thesis by linarith
-qed
-
-lemma log_altdef_ceil:
-  assumes "2 \<le> (n::nat)"
-  shows "clog n = nat \<lceil>log 2 n\<rceil>"
-proof -
-  from assms have "1 \<le> n" by simp
-  with power_two_decompose obtain k m where km_def: "n = 2^k + m" "m < 2^k" .
-
-  show "Discrete.log (n-1) + 1 = nat \<lceil>log 2 n\<rceil>" proof (cases "m = 0")
-    case True
-    then have k_def: "n = 2^k" using \<open>n = 2^k + m\<close> by simp
-
-    have "Discrete.log (n-1) + 1 = (k-1) + 1" unfolding add_right_cancel k_def by (rule log_exp_m1)
-    also have "... = k"
-    proof (intro le_add_diff_inverse2)
-      have "(2::nat) ^ 1 \<le> 2 ^ k" using assms unfolding k_def by simp
-      then show "1 \<le> k" by (intro power_le_imp_le_exp) simp_all
-    qed
-    also have "... = Discrete.log (2^k)" using log_exp ..
-    also have "... = nat \<lceil>log 2 ((2::nat)^k)\<rceil>" by (subst dlog_altdef) simp_all
-    also have "... = nat \<lceil>log 2 n\<rceil>" unfolding k_def ..
-    finally show ?thesis .
-  next
-    case False
-    then have \<open>1 \<le> m\<close> \<open>0 \<le> m-1\<close> by simp_all
-    from \<open>m < 2^k\<close> have "m-1 < 2^k" by (rule less_imp_diff_less)
-
-    have "Discrete.log (n-1) = Discrete.log (2^k + (m-1))" unfolding km_def
-      using \<open>1 \<le> m\<close> by (subst diff_add_assoc) simp_all
-    also have "... = k" using \<open>0 \<le> m-1\<close> \<open>m-1 < 2^k\<close> by (rule log_eq1)
-    finally have "Discrete.log (n-1) + 1 = k + 1" unfolding add_right_cancel .
-    also have "... = nat \<lceil>log 2 n\<rceil>" unfolding km_def
-      using \<open>1 \<le> m\<close> \<open>m < 2^k\<close> by (subst log_eq2) simp_all
-    finally show ?thesis .
-  qed
-qed
 
 subsubsection\<open>Exponential Padding\<close>
 
@@ -176,29 +69,6 @@ lemma exp_pad_suffix: "suffix w (add_exp_pad w)"
 lemma add_exp_pad_len: "length (add_exp_pad w) = 2 ^ length w" by simp
 
 lemma drop_diff_length: "n \<le> length xs \<Longrightarrow> length (drop (length xs - n) xs) = n" by simp
-
-lemma log_less: "n > 0 \<Longrightarrow> Discrete.log n < n" (* complements "HOL-Library.Discrete" *)
-proof -
-  assume "n > 0"
-  have "Discrete.log n < 2 ^ Discrete.log n" by (rule less_exp)
-  also have "... \<le> n" using \<open>n > 0\<close> by (rule log_exp2_le)
-  finally show ?thesis .
-qed
-
-lemma log_le: "Discrete.log n \<le> n" (* complements "HOL-Library.Discrete" *)
-proof (cases "n > 0")
-  assume "n > 0"
-  with log_less show ?thesis by (intro less_imp_le)
-qed (* case "n = 0" by *) simp
-
-lemma clog_le: "0 < n \<Longrightarrow> clog n \<le> n"
-proof -
-  assume "n > 0"
-  have "Discrete.log (n-1) \<le> n-1" by (rule log_le)
-  then have "clog n \<le> n-1 + 1" by (unfold add_le_cancel_right)
-  also have "... = n" using \<open>n > 0\<close> by simp
-  finally show "clog n \<le> n" .
-qed
 
 lemma strip_exp_pad_len:
   assumes "w \<noteq> []"
@@ -474,8 +344,6 @@ text\<open>from ch. 4.2:
      Thus, if a TM \<open>M\<close> is encoded within \<open>ℓ\<close> bits, then (7) counts
      how many equivalent codes for \<open>M\<close> are found at least in \<open>{0, 1}\<^sup>ℓ\<close>.\<close>
 
-lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_def)
-
 lemma card_bin_len_eq: "card {w::bin. length w = l} = 2 ^ l"
 proof -
   let ?bools = "UNIV :: bool set"
@@ -487,16 +355,6 @@ qed
 
 corollary finite_words_len_eq: "finite {w::bin. length w = l}"
   using card_bin_len_eq by (intro card_ge_0_finite) presburger
-
-
-lemma image_Collect_compose: "f ` {g x | x. P x} = {f (g x) | x. P x}" by blast
-
-
-lemma inj_append:
-  fixes xs ys :: "'a list"
-  shows inj_append_L: "inj (\<lambda>xs. xs @ ys)"
-    and inj_append_R: "inj (\<lambda>ys. xs @ ys)"
-  using append_same_eq by (intro injI, simp)+
 
 
 theorem num_equivalent_encodings:
@@ -527,7 +385,7 @@ proof (cases "l > 0")
       show lpw': "length (pad @ w') = l" unfolding length_append lp lw'
         using \<open>clog l \<le> l\<close> by (rule le_add_diff_inverse2)
 
-      have h1: "drop (l - clog l)  pad = []" using lp by (intro drop_all) (rule eq_imp_le)
+      have h1: "drop (l - clog l) pad = []" using lp by (intro drop_all) (rule eq_imp_le)
       have h2: "l - clog l - length pad = 0" unfolding lp by simp
       have h3: "drop (l - clog l) (pad @ w') = w'" unfolding drop_append h1 h2 by simp
       show "TM_decode_pad (pad @ w') = M" unfolding TM_decode_pad_def strip_exp_pad_def

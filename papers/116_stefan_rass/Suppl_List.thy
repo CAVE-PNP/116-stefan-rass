@@ -1,5 +1,5 @@
 theory Suppl_List
-  imports Main
+  imports HOL.List
 begin
 
 lemma len_tl_Cons: "xs \<noteq> [] \<Longrightarrow> length (x # tl xs) = length xs" by simp
