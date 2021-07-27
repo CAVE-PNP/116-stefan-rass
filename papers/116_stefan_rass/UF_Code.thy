@@ -103,12 +103,11 @@ proof (intro injI)
     case (Cons ab xs)
     define a b where "a \<equiv> fst ab" and "b \<equiv> snd ab"
     have ab_def: "ab = (a,b)" unfolding a_def b_def by simp
-    with Cons.prems have "\<exists>ys' a' b'. ys = (a',b')#ys' \<and> (?F ys' = ?F xs) \<and> f a' = f a \<and>  g b' = g b"
-        using list.discI list.sel unroll.elims case_prod_conv
-        by (smt (verit, del_insts) unroll.simps(2))
-    then obtain ys' a' b' where "ys = (a',b')#ys'" and "?F ys' = ?F xs" and "f a' = f a" and "g b' = g b"
+    with Cons.prems have "\<exists>ys' a' b'. ys = (a',b')#ys' \<and> (?F ys' = ?F xs) \<and> f a' = f a \<and> g b' = g b"
+      using list.discI list.sel unroll.elims case_prod_conv
+      by (smt (verit, del_insts) unroll.simps(2))
+    then obtain ys' a' b' where *: "ys = (a',b')#ys'" "?F ys' = ?F xs" "f a' = f a" "g b' = g b"
       by blast
-    note * = this
     with assms have "(a,b) = (a',b')" unfolding inj_def by simp
     with Cons.IH * show ?case unfolding ab_def by force
   qed
@@ -150,7 +149,7 @@ proof -
   have "coprime 2 (godel_code' xs (Suc 0))" by auto
   thus ?thesis by (rule coprime_multiplicity_zero)
 qed
-             
+
 lemma godel_code_prime_factorization_len:
   shows "count (prime_factorization(godel_code xs)) 2 = length xs" (is "?lhs = ?lh")
 proof -
@@ -178,9 +177,9 @@ proof -
       using prime_imp_power_coprime[of 2 "Pi j" "length xs"] two_is_prime_nat by fast
     then show "multiplicity (Pi j) (godel_code xs) = multiplicity (Pi j) (godel_code' xs 1)"
       using godel_code.simps coprime_dvd_mult_left_iff[of "Pi j" "2^(length xs)" "godel_code' xs 1"]
-      by (metis One_nat_def \<open>odd (Pi j)\<close> coprime_dvd_mult_right_iff even_power multiplicity_cong prime_imp_power_coprime two_is_prime_nat) 
-   qed
-    
+      by (metis One_nat_def \<open>odd (Pi j)\<close> coprime_dvd_mult_right_iff even_power multiplicity_cong prime_imp_power_coprime two_is_prime_nat)
+  qed
+
   have "prime (Pi (Suc i))" using Prime_prime_eq by auto
   then have "?lhs = multiplicity (Pi (Suc i)) (godel_code xs)"
     using count_prime_factorization by metis
@@ -195,12 +194,11 @@ proof (intro injI)
   fix xs ys
   assume assm: "?gn xs = ?gn ys"
   define "Fx" "Fy"
-    where "Fx \<equiv> prime_factorization (?gn xs)" and "Fy = prime_factorization (?gn ys)"
-    note F_def = this
+    where F_def: "Fx \<equiv> prime_factorization (?gn xs)" "Fy = prime_factorization (?gn ys)"
   show "xs = ys" proof (subst list_eq_iff_nth_eq, safe)
     from godel_code_prime_factorization_len
     show len_eq: "length xs = length ys" using assm F_def by metis
-  
+
     fix i
     assume "i < length xs"
     moreover have "i < length ys" using calculation len_eq by simp
@@ -212,7 +210,7 @@ qed
 
 lemma code_inj: "inj code"
   using modify_tprog_inj godel_inj
-  and code.simps inj_compose[of godel_code modify_tprog]
+    and code.simps inj_compose[of godel_code modify_tprog]
   by (metis comp_apply inj_on_cong)
- 
+
 end
