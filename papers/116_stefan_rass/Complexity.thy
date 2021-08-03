@@ -35,8 +35,22 @@ definition time :: "TM \<Rightarrow> tape \<Rightarrow> nat option"
       else None
     )"
 
-definition time_constructible :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "time_constructible T \<equiv> \<exists>M. \<forall>n. time M ([], <n>) = Some (T (bit_length n))"
+
+text\<open>Notion of time-constructible from Hopcroft ch. 12.3, p. 299:
+  "A function T(n) is said to be time constructible if there exists a T(n) time-
+  bounded multitape Turing machine M such that for each n there exists some input
+  on which M actually makes T(n) moves."\<close>
+definition tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "tconstr T \<equiv> \<exists>M. \<forall>n. \<exists>w. time M ([], w) = Some (T n)"
+
+text\<open>Fully time-constructible, ibid.:
+  "We say that T(n) is fully time-constructible if there is a TM 
+  that uses T(n) time on all inputs of length n."\<close>
+definition fully_tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "fully_tconstr T \<equiv> \<exists>M. \<forall>n. \<forall>w. length w = n \<longrightarrow> time M ([], w) = Some (T n)"
+
+lemma ftc_altdef: "fully_tconstr T \<longleftrightarrow> (\<exists>M. \<forall>w. time M ([], w) = Some (T (length w)))"
+  unfolding fully_tconstr_def by simp
 
 
 lemma time_restricted_altdef:
@@ -443,15 +457,15 @@ subsection\<open>Classical Results from Complexity Theory\<close>
 
 theorem time_hierarchy_theorem:
   fixes T t :: "nat \<Rightarrow> nat"
-  assumes "time_constructible T"
-    and "mono t"
+  assumes "fully_tconstr T"
+    and "mono t" (* is this assumption necessary? *)
     and "lim (\<lambda>l. t l * log 2 (t l) / T l) = 0"
   shows "DTIME t \<subset> DTIME T"
   sorry
 
 corollary
   fixes T t :: "nat \<Rightarrow> nat"
-  assumes "time_constructible T"
+  assumes "fully_tconstr T"
     and "mono t"
     and "lim (\<lambda>l. t l * log 2 (t l) / T l) = 0"
   obtains L where "L \<in> DTIME T" and "L \<notin> DTIME t"
