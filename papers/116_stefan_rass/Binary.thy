@@ -1,5 +1,5 @@
 theory Binary
-  imports Main Suppl_List Suppl_Discrete_Log "HOL-Library.Sublist"
+  imports Main "Supplementary/Lists" "Supplementary/Discrete_Log" "HOL-Library.Sublist"
 begin
 
 

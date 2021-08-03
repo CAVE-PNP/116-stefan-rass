@@ -1,4 +1,4 @@
-theory Suppl_List
+theory Lists
   imports HOL.List
 begin
 

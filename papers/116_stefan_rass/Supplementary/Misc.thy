@@ -1,4 +1,4 @@
-theory Suppl_Fun
+theory Misc
   imports Main
 begin
 

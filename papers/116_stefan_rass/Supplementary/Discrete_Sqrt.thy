@@ -1,4 +1,4 @@
-theory Suppl_Discrete_Sqrt
+theory Discrete_Sqrt
   imports "HOL-Library.Discrete"
 begin
 

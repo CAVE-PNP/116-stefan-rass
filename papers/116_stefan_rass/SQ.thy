@@ -1,5 +1,5 @@
 theory SQ
-  imports Language_Density Suppl_Discrete_Log Suppl_Discrete_Sqrt
+  imports Language_Density "Supplementary/Discrete_Log" "Supplementary/Discrete_Sqrt"
     "HOL-Library.Sublist"
 begin
 

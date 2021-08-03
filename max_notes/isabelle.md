@@ -58,6 +58,7 @@ The session `HOL` is active per default (see [Mechanics](#mechanics-and-session-
 
 Files in the same directory as the importing file can be accessed by just the theory name.
 So for instance a session called `OtherExample.thy` can be imported as `OtherExample`, or (in case of name conflicts) through its qualified name in the virtual package `Draft` as `Draft.OtherExample`.
+Files in other directories can be imported using their relative paths, for example `"Dir1/Thy1"` (the quotes are required, as the slash `/` is a special character).
 
 See also [Creating Sessions](#creating-sessions) below for a way to make theories available for import in other sessions.
 

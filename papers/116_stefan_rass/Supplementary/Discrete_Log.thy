@@ -1,5 +1,5 @@
-theory Suppl_Discrete_Log
-  imports "HOL-Library.Discrete" Suppl_Fun
+theory Discrete_Log
+  imports "./Misc" "HOL-Library.Discrete"
 begin
 
 
