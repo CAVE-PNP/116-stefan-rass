@@ -1,6 +1,0 @@
-(* Isabelle/jEdit provides an edit mode for ROOT files *)
-chapter "CAVE-PNP"
-
-session "OWF" = "HOL-Library" +
-  theories
-    SQ
