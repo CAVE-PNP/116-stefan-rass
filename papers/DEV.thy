@@ -8,5 +8,6 @@ theory DEV
     (* 116 OWF *)
     "Universal_Turing_Machine.UTM"
     "HOL-Computational_Algebra.Primes"
+    "HOL-Library.Sublist"
 begin
 end

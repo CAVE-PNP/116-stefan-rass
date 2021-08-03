@@ -7,6 +7,8 @@
 
 session "DEV_CAVE-PNP" = "Universal_Turing_Machine" + 
   sessions
+    "HOL-Library"
+
     \<comment> \<open>for paper #49 (Zohreh Akbari)\<close>
     "Graph_Theory"
     "HOL-Imperative_HOL"
