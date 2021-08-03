@@ -6,14 +6,18 @@ begin
 
 subsection\<open>Basic Measures\<close>
 
-text\<open>The tape size can not use the universal function \<^term>\<open>size\<close>, since for any pair \<^term>\<open>p = (a, b)\<close>, \<^term>\<open>size p = 1\<close>.\<close>
+text\<open>The tape size can not use the universal function \<^term>\<open>size\<close>,
+  since for any pair \<^term>\<open>p = (a, b)\<close>, \<^term>\<open>size p = 1\<close>.\<close>
+
 fun tape_size :: "tape \<Rightarrow> nat" \<comment> \<open>using \<open>fun\<close> since \<open>definition\<close> does not recognize patterns like \<^term>\<open>(l, r)\<close>\<close>
   where "tape_size (l, r) = length l + length r"
 
 
 subsubsection\<open>Time\<close>
 
-text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>, but includes a maximum number of steps.\<close>
+text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>,
+  but includes a maximum number of steps.\<close>
+
 definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
   where "time_restricted T p \<equiv> \<forall>tp. \<exists>n.
             n \<le> T (tape_size tp)
@@ -21,17 +25,18 @@ definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Righta
 
 (* TODO (?) notation: \<open>p terminates_in_time T\<close> *)
 
-(* size of tape after M does n steps on input x *)
-abbreviation space0 where "space0 M x n \<equiv> let (_,tp) = steps0 (1, x) M n in tape_size tp"
+text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>,
+  or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>x\<close>.\<close>
 
-text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>
-     or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>x\<close>\<close>
 definition time :: "TM \<Rightarrow> tape \<Rightarrow> nat option"
-  where "time M x = (
+  where "time M x \<equiv> (
     if \<exists>n. is_final (steps0 (1, x) M n)
       then Some (LEAST n. is_final (steps0 (1, x) M n))
       else None
     )"
+
+definition time_constructible :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "time_constructible T \<equiv> \<exists>M. \<forall>n. time M ([], <n>) = Some (T (bit_length n))"
 
 
 lemma time_restricted_altdef:
@@ -75,6 +80,9 @@ qed
 
 
 subsubsection\<open>Space\<close>
+
+(* size of tape after M does n steps on input x *)
+abbreviation space0 where "space0 M x n \<equiv> let (_,tp) = steps0 (1, x) M n in tape_size tp"
 
 definition space_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
   where "space_restricted T M \<equiv> \<forall>x. \<forall>n. space0 M x n \<le> T(tape_size x)"
@@ -430,5 +438,31 @@ lemma in_dtimeE'[elim]:
   shows "\<exists>M. decides M L \<and> time_restricted T M"
   using assms unfolding DTIME_def ..
 
+
+subsection\<open>Classical Results from Complexity Theory\<close>
+
+theorem time_hierarchy_theorem:
+  fixes T t :: "nat \<Rightarrow> nat"
+  assumes "time_constructible T"
+    and "mono t"
+    and "lim (\<lambda>l. t l * log 2 (t l) / T l) = 0"
+  shows "DTIME t \<subset> DTIME T"
+  sorry
+
+corollary
+  fixes T t :: "nat \<Rightarrow> nat"
+  assumes "time_constructible T"
+    and "mono t"
+    and "lim (\<lambda>l. t l * log 2 (t l) / T l) = 0"
+  obtains L where "L \<in> DTIME T" and "L \<notin> DTIME t"
+proof -
+  from assms have "DTIME t \<subset> DTIME T" by (rule time_hierarchy_theorem)
+  then have "\<exists>L. L \<in> DTIME T - DTIME t" by (rule psubset_imp_ex_mem)
+  then have "\<exists>L. L \<in> DTIME T \<and> L \<notin> DTIME t" by (elim exE DiffE) (intro exI conjI)
+  then show ?thesis using that by blast
+qed
+
+
+corollary False using time_hierarchy_theorem oops
 
 end
