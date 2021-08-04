@@ -505,31 +505,4 @@ lemma in_dtimeE'[elim]:
   shows "\<exists>M. decides M L \<and> time_restricted T M"
   using assms unfolding DTIME_def ..
 
-
-subsection\<open>Classical Results from Complexity Theory\<close>
-
-theorem time_hierarchy_theorem:
-  fixes T t :: "nat \<Rightarrow> nat"
-  assumes "fully_tconstr T"
-    and "mono t" (* is this assumption necessary? *)
-    and "lim (\<lambda>l. t l * log 2 (t l) / T l) = 0"
-  shows "DTIME t \<subset> DTIME T"
-  sorry
-
-corollary
-  fixes T t :: "nat \<Rightarrow> nat"
-  assumes "fully_tconstr T"
-    and "mono t"
-    and "lim (\<lambda>l. t l * log 2 (t l) / T l) = 0"
-  obtains L where "L \<in> DTIME T" and "L \<notin> DTIME t"
-proof -
-  from assms have "DTIME t \<subset> DTIME T" by (rule time_hierarchy_theorem)
-  then have "\<exists>L. L \<in> DTIME T - DTIME t" by (rule psubset_imp_ex_mem)
-  then have "\<exists>L. L \<in> DTIME T \<and> L \<notin> DTIME t" by (elim exE DiffE) (intro exI conjI)
-  then show ?thesis using that by blast
-qed
-
-
-corollary False using time_hierarchy_theorem oops
-
 end
