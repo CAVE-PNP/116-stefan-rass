@@ -35,7 +35,7 @@ abbreviation (input) tcomp :: "(nat \<Rightarrow> nat) \<Rightarrow> nat \<Right
   where "tcomp T n \<equiv> max (n + 1) (T n)"
 
 definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
-  where "time_restricted T p \<equiv> \<forall>tp. \<exists>n. 
+  where "time_restricted T p \<equiv> \<forall>tp. \<exists>n.
             n \<le> tcomp T (tape_size tp)
           \<and> is_final (steps0 (1, tp) p n)"
 
@@ -61,7 +61,7 @@ definition tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
   where "tconstr T \<equiv> \<exists>M. \<forall>n. \<exists>w. time M ([], w) = Some (T n)"
 
 text\<open>Fully time-constructible, ibid.:
-  "We say that T(n) is fully time-constructible if there is a TM 
+  "We say that T(n) is fully time-constructible if there is a TM
   that uses T(n) time on all inputs of length n."\<close>
 
 definition fully_tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"

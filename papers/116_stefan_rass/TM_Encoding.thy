@@ -195,7 +195,7 @@ lemma rej_TM_wf: "tm_wf0 Rejecting_TM" unfolding Rejecting_TM_def tm_wf.simps by
 text\<open>The function that assigns a word to every TM, represented as \<open>\<rho>(M)\<close> in the paper.\<close>
 
 definition encode_TM :: "TM \<Rightarrow> word"
-  where "encode_TM M = gn_inv (code M)"
+  where "encode_TM M = gn_inv (code M)" (* is gn_inv correct here or should it be replaced? *)
 
 \<comment> \<open>The following definitions are placeholders,
   since apparently there is no defined inverse of \<^term>\<open>code\<close>.\<close>
@@ -210,15 +210,13 @@ definition decode_TM :: "word \<Rightarrow> TM"
   where "decode_TM w =
     (if is_encoded_TM w then filter_wf_TMs (THE M. w = encode_TM M) else Rejecting_TM)"
 
-lemma encode_TM_inj: "inj encode_TM"
-  unfolding encode_TM_def
+
+lemma encode_TM_inj: "inj encode_TM" unfolding encode_TM_def
 proof (intro injI)
   fix x y
-  assume assm: "gn_inv (code x) = gn_inv (code y)"
-  have "code x = gn (gn_inv (code x))" using inv_gn_id[symmetric] code_gt_0 .
-  also have "... = gn (gn_inv (code y))" unfolding assm ..
-  also have "... = code y" using inv_gn_id code_gt_0 .
-  finally have "code x = code y" .
+  assume "gn_inv (code x) = gn_inv (code y)"
+  then have "code x = code y" using gn_inv_inj code_gt_0
+    by (subst (asm) inj_on_eq_iff[where f=gn_inv]) fast+
   with code_inj show "x = y" by (rule injD)
 qed
 
