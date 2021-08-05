@@ -398,4 +398,24 @@ lemma bit_length_eq_log:
   using assms log_altdef bit_len_eq_dlog by auto
 
 
+subsection\<open>Order\<close>
+
+text\<open>From ch. 4.4, p14: "we will order two words \<open>u, v \<in> \<Sigma>\<^sup>*\<close> as \<open>u \<le> v \<Longleftrightarrow> (u)\<^sub>2 \<le> (v)\<^sub>2\<close>."
+  Note: defining the \<^const>\<open>less\<close> relation is necessary for \<^class>\<open>ord\<close>
+  (of which \<^class>\<open>preorder\<close> is a subclass).
+  As anti-symmetry is not given, no partial order (\<^class>\<open>order\<close>) can be established.\<close>
+
+definition bin_less :: "bin \<Rightarrow> bin \<Rightarrow> bool"
+  where "bin_less a b \<equiv> (a)\<^sub>2 < (b)\<^sub>2"
+
+definition bin_less_eq :: "bin \<Rightarrow> bin \<Rightarrow> bool"
+  where "bin_less_eq a b \<equiv> (a)\<^sub>2 \<le> (b)\<^sub>2"
+
+\<comment> \<open>The following approach (locale interpretation instead of class instantiation)
+  is necessary as \<^typ>\<open>bin\<close> is defined as a type-synonym and not as independent type.\<close>
+interpretation bin_preorder:
+  preorder bin_less_eq bin_less unfolding bin_less_def bin_less_eq_def
+  by (intro class.preorder.intro) fastforce+ (* TODO tune proof *)
+
+
 end
