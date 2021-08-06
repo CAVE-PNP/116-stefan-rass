@@ -46,7 +46,10 @@ next
 qed
 
 
-lemma lemma_4_2: "dens SQ x = dsqrt x"
+text\<open>"Lemma 4.2. The language of squares \<open>SQ = {y. y = x\<^sup>2 \<and> x \<in> \<nat>}\<close>
+  has a density function \<open>dens\<^sub>S\<^sub>Q(x) \<in> \<Theta>(\<surd>x)\<close>."\<close>
+
+theorem dens_SQ: "dens SQ x = dsqrt x"
 proof -
   have eq: "{w\<in>SQ. gn w \<le> x} = gn_inv ` power2 ` {0<..dsqrt x}"
   proof (intro subset_antisym subsetI image_eqI CollectI conjI)

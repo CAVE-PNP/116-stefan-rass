@@ -17,11 +17,27 @@ text\<open>\<open>L\<^sub>D\<close>, defined as part of the proof for the Time H
   "The “diagonal-language” \<open>L\<^sub>D\<close> is thus defined over the alphabet \<open>\<Sigma> = {0, 1}\<close> as
        \<open>LD := {w \<in> \<Sigma>\<^sup>*: M\<^sub>w halts and rejects w within \<le> T(len(w)) steps}\<close>.    (9)"\<close>
 
-(* this is incorrect as it still depends on the whole \<open>w\<close> and not just the portion *)
-
 definition L\<^sub>D :: "lang"
   where LD_def[simp]: "L\<^sub>D \<equiv> {w. let M\<^sub>w = TM_decode_pad w in
                   rejects M\<^sub>w w \<and> the (time M\<^sub>w <w>\<^sub>t\<^sub>p) \<le> tcomp T (length w)}"
+
+\<comment> \<open>In the above definition, membership is dependent on the whole word \<open>w\<close>,
+  as this is the input for \<open>M\<^sub>w\<close>.
+  Since no assumptions can be made about the inner workings of \<open>M\<^sub>w\<close>,
+  the result of its computation on \<open>w\<close> could depend on the contents of the padding.
+  Therefore, the membership of some \<open>w'\<close> with \<open>TM_decode_pad w' = M\<^sub>w\<close>
+  is not equivalent to that of \<open>w\<close>.
+
+  To illustrate this, consider a TM that decides word only based on the value of their last bit;
+  accepting if it is \<open>1\<close> and rejecting otherwise.
+  This TM will reject exactly half of its encodings, causing only these to be members of \<open>L\<^sub>D\<close>.\<close>
+
+text\<open>Alternative formulation: \<open>L\<^sub>D' := {w \<in> \<Sigma>\<^sup>*: M\<^sub>w halts and rejects w' within \<le> T(len(w)) steps}\<close>,
+  where \<open>w' := strip_al_prefix (strip_exp_pad w)\<close>.\<close>
+
+definition L\<^sub>D' :: "lang"
+  where LD'_def[simp]: "L\<^sub>D' \<equiv> {w. let M\<^sub>w = TM_decode_pad w; w' = strip_al_prefix (strip_exp_pad w) in
+                  rejects M\<^sub>w w' \<and> the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp T (length w)}"
 
 lemma L\<^sub>DE[elim]:
   fixes w
@@ -43,20 +59,28 @@ proof -
   ultimately show "\<exists>n. time M\<^sub>w <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp T (length w)" by blast
 qed
 
+lemma L\<^sub>D'E[elim]:
+  fixes w
+  assumes "w \<in> L\<^sub>D'"
+  defines "M\<^sub>w \<equiv> TM_decode_pad w"
+    and "w' \<equiv> strip_al_prefix (strip_exp_pad w)"
+  shows "rejects M\<^sub>w w'"
+    and "halts M\<^sub>w w'"
+    and "the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp T (length w)"
+    and "\<exists>n. time M\<^sub>w <w'>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp T (length w)"
+proof -
+  from \<open>w \<in> L\<^sub>D'\<close> show "rejects M\<^sub>w w'" unfolding M\<^sub>w_def LD'_def w'_def Let_def by blast
+  then show "halts M\<^sub>w w'" unfolding rejects_def halts_def by (rule hoare_true)
 
-lemma tht_h1: "DTIME t \<subseteq> DTIME T" sorry
-
-lemma tht_h2: "L\<^sub>D \<in> DTIME T" "L\<^sub>D \<notin> DTIME t" sorry
-
-(* this formulation is used in Hopcroft's Thm. 12.9 *)
-lemma tht_h2': "L\<^sub>D \<in> DTIME T - DTIME t" oops
-
-theorem time_hierarchy: "DTIME t \<subset> DTIME T"
-proof
-  show "DTIME t \<subseteq> DTIME T" by (rule tht_h1)
-  have "L\<^sub>D \<in> DTIME T" and "L\<^sub>D \<notin> DTIME t" by (rule tht_h2)+
-  then show "DTIME t \<noteq> DTIME T" by blast
+  define n where "n = the (time M\<^sub>w <w'>\<^sub>t\<^sub>p)"
+  from \<open>w \<in> L\<^sub>D'\<close> show time_T: "the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp T (length w)"
+    unfolding M\<^sub>w_def LD'_def w'_def Let_def by blast
+  then have "n \<le> tcomp T (length w)" unfolding n_def .
+  moreover from \<open>halts M\<^sub>w w'\<close> have "time M\<^sub>w <w'>\<^sub>t\<^sub>p = Some n" unfolding n_def halts_altdef by force
+  ultimately show "\<exists>n. time M\<^sub>w <w'>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp T (length w)" by blast
 qed
+
+theorem time_hierarchy: "L\<^sub>D \<in> DTIME T - DTIME t" sorry
 
 end \<comment> \<open>\<^locale>\<open>tht_assms\<close>\<close>
 
@@ -74,42 +98,108 @@ locale tht_sq_assms = tht_assms +
   assumes "T n \<ge> n^3"
 begin
 
+
 definition L\<^sub>0 :: lang
   where L0_def[simp]: "L\<^sub>0 \<equiv> L\<^sub>D \<inter> SQ"
 
+definition L\<^sub>0' :: lang
+  where L0'_def[simp]: "L\<^sub>0' \<equiv> L\<^sub>D' \<inter> SQ"
+
+
+definition adj_sq\<^sub>w :: "word \<Rightarrow> word"
+  where adj_sq_word_def[simp]: "adj_sq\<^sub>w w \<equiv> gn_inv (adj_square (gn w))"
+
+
+lemma adj_sq_word_correct: "adj_sq\<^sub>w w \<in> SQ" unfolding adj_sq_word_def SQ_def
+  using adj_sq_correct and adj_sq_gt_0 by (intro CollectI) (subst inv_gn_id)
+
+lemma adj_sq_word_length: 
+  fixes w
+  assumes "length w \<ge> 7"
+    \<comment> \<open>Otherwise, \<^term>\<open>2 ^ suffix_len (gn w) > bit_length (gn w)\<close>,
+        and \<^term>\<open>(gn w) - (gn w) mod 2^(suffix_len (gn w)) = 0\<close>.\<close>
+  shows "length (adj_sq\<^sub>w w) = length w" sorry
+\<comment> \<open>Proof idea: one bit is added in \<^const>\<open>gn\<close>, one removed in \<^const>\<open>gn_inv\<close>.
+    As \<^const>\<open>gn\<close> appends a \<open>1\<close>, possible leading zeroes are avoided.\<close>
+
+
+lemma adj_sq_exp_pad:
+  fixes w
+  assumes "length w \<ge> 18"
+  defines "w' \<equiv> adj_sq\<^sub>w w"
+  shows "strip_exp_pad w' = strip_exp_pad w"
+proof -
+  define l where "l \<equiv> length w"
+  have len_eq: "length w' = l" unfolding l_def w'_def using \<open>length w \<ge> 18\<close>
+    by (intro adj_sq_word_length) linarith
+
+  have "strip_exp_pad w' = drop (l - clog l) w'" unfolding strip_exp_pad_def len_eq Let_def ..
+  also have "... = drop (l - clog l) w" sorry (* shared prefix *)
+  also have "... = strip_exp_pad w" unfolding strip_exp_pad_def l_def[symmetric] Let_def ..
+  finally show ?thesis .
+qed
+
+corollary adj_sq_TM_dec:
+  fixes w
+  assumes "length w \<ge> 18"
+  defines "w' \<equiv> adj_sq\<^sub>w w"
+  shows "TM_decode_pad w' = TM_decode_pad w"
+  unfolding TM_decode_pad_def w'_def using \<open>length w \<ge> 18\<close> by (subst adj_sq_exp_pad) fast+
 
 lemma L\<^sub>D_adj_sq_iff:
   fixes w
-  defines "w' \<equiv> gn_inv (adj_square (gn w))"
-  shows "w \<in> L\<^sub>D \<longleftrightarrow> w' \<in> L\<^sub>D"
+  assumes "length w \<ge> 18"
+  defines "w' \<equiv> adj_sq\<^sub>w w"
+  shows "w' \<in> L\<^sub>D \<longleftrightarrow> w \<in> L\<^sub>D"
     \<comment> \<open>Idea: since \<open>n\<close> and \<open>adj_square n\<close> share their prefix (@{thm adj_sq_shared_prefix_log}),
   the relevant parts are identical and this lemma should hold.
 
   Note: with the current definition of \<^const>\<open>L\<^sub>D\<close>, this likely does not hold,
         as the whole word \<open>w\<close> is referenced in the definition.\<close>
+  oops
 
-  thm adj_sq_shared_prefix_log
-  sorry
 
-lemma L\<^sub>D_L\<^sub>0_adj_sq_iff:
+lemma L\<^sub>D'_adj_sq_iff:
   fixes w
-  defines "w' \<equiv> gn_inv (adj_square (gn w))"
-  shows "w \<in> L\<^sub>D \<longleftrightarrow> w' \<in> L\<^sub>0"
-proof
-  assume "w \<in> L\<^sub>D"
-  then have "w' \<in> L\<^sub>D" unfolding w'_def by (fold L\<^sub>D_adj_sq_iff)
-  moreover have "w' \<in> SQ" unfolding w'_def SQ_def
-    using adj_sq_correct and adj_sq_gt_0 by (intro CollectI) (subst inv_gn_id)
-  ultimately show "w' \<in> L\<^sub>0" unfolding L0_def ..
-next
-  assume "w' \<in> L\<^sub>0"
-  then have "w' \<in> L\<^sub>D" unfolding L0_def ..
-  then show "w \<in> L\<^sub>D" unfolding w'_def by (fold L\<^sub>D_adj_sq_iff)
+  assumes l: "length w \<ge> 18"
+  defines w': "w' \<equiv> adj_sq\<^sub>w w"
+  shows "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'"
+proof -
+  from l have dec: "TM_decode_pad w' = TM_decode_pad w" unfolding w' by (rule adj_sq_TM_dec)
+  from l have pad: "strip_exp_pad w' = strip_exp_pad w" unfolding w' by (rule adj_sq_exp_pad)
+  from l have len: "length w' = length w" unfolding w' by (intro adj_sq_word_length) force
+  show "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'" unfolding LD'_def mem_Collect_eq unfolding dec pad len ..
 qed
 
-(* Lemma 4.6, p15 *)
-theorem dens_L0: "dens L\<^sub>0 n \<le> dsqrt n" oops
+lemma L\<^sub>D'_L\<^sub>0'_adj_sq_iff:
+  fixes w
+  assumes l: "length w \<ge> 18"
+  defines "w' \<equiv> adj_sq\<^sub>w w"
+  shows "w \<in> L\<^sub>D' \<longleftrightarrow> w' \<in> L\<^sub>0'"
+proof
+  assume "w \<in> L\<^sub>D'"
+  then have "w' \<in> L\<^sub>D'" unfolding w'_def using l by (subst L\<^sub>D'_adj_sq_iff)
+  moreover have "w' \<in> SQ" unfolding w'_def by (rule adj_sq_word_correct)
+  ultimately show "w' \<in> L\<^sub>0'" unfolding L0'_def ..
+next
+  assume "w' \<in> L\<^sub>0'"
+  then have "w' \<in> L\<^sub>D'" unfolding L0'_def ..
+  then show "w \<in> L\<^sub>D'" unfolding w'_def using l by (subst (asm) L\<^sub>D'_adj_sq_iff)
+qed
 
+
+text\<open>Lemma 4.6. Let \<open>t\<close>, \<open>T\<close> be as in Assumption 4.4 and assume \<open>T(n) \<ge> n\<^sup>3\<close>.
+  Then, there exists a language \<open>L\<^sub>0 \<in> DTIME(T) - DTIME(t)\<close> for which \<open>dens\<^sub>L\<^sub>0(x) \<le> \<surd>x\<close>.\<close>
+
+theorem L0_time_hierarchy: "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" oops
+
+theorem dens_L0: "dens L\<^sub>0 n \<le> dsqrt n"
+proof -
+  have "dens L\<^sub>0 n = dens (L\<^sub>D \<inter> SQ) n" unfolding L0_def ..
+  also have "... \<le> dens SQ n" by (subst Int_commute) (rule dens_intersect_le)
+  also have "... = dsqrt n" by (rule dens_SQ)
+  finally show ?thesis .
+qed
 
 end \<comment> \<open>\<^locale>\<open>tht_sq_assms\<close>\<close>
 

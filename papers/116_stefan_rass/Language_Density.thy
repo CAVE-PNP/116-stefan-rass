@@ -5,7 +5,7 @@ begin
 type_synonym lang = "word set"
 
 \<comment> \<open>The empty word.\<close>
-abbreviation \<epsilon> :: word where "\<epsilon> \<equiv> []"
+abbreviation (input) \<epsilon> :: word where "\<epsilon> \<equiv> []"
 
 
 section\<open>Language Density\<close>
