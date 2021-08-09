@@ -27,5 +27,7 @@ proof -
   ultimately show thesis using that by simp
 qed
 
+lemma subset_card_eq: "finite B \<Longrightarrow> {A\<in>Pow B. card A = card B} = {B}"
+  sorry
 
 end
