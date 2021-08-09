@@ -181,7 +181,7 @@ text\<open>For this part, only a short description is given in ch. 3.1.
 definition Rejecting_TM :: TM
   where "Rejecting_TM = [(W0, 0), (W0, 0)]"
 
-\<comment> \<open>The proof of correctness for the \<^const>\<open>Rejecting_TM\<close> is found in \<^file>\<open>complexity.thy\<close>.\<close>
+\<comment> \<open>The proof of correctness for the \<^const>\<open>Rejecting_TM\<close> is found in \<^file>\<open>Complexity.thy\<close>.\<close>
 
 lemma rej_TM_wf: "tm_wf0 Rejecting_TM" unfolding Rejecting_TM_def tm_wf.simps by force
 

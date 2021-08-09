@@ -78,7 +78,7 @@ fun unroll :: "('a \<Rightarrow> 'c) \<Rightarrow> ('b \<Rightarrow> 'c) \<Right
 
 \<comment> \<open>The following lemmas take the place of `<fun>.simps(2)`.
   These are defined over \<^term>\<open>Pair\<close>s, which the simplifier is not able to automatically expand.
-  A similar issue has been noted at `lemma hoare_contr` in \<^file>\<open>../complexity.thy\<close>\<close>
+  A similar issue has been noted at `lemma hoare_contr` in \<^file>\<open>../Complexity.thy\<close>\<close>
 lemma unroll_altdef: "unroll f g (st#t) = f (fst st) # g (snd st) # unroll f g t"
 proof (induction st) (* induction automatically inserts the definition *)
   case (Pair a b)
