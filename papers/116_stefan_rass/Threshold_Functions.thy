@@ -6,7 +6,7 @@ definition mono
   where "mono Q \<equiv> \<forall>A B. A \<subseteq> B \<longrightarrow> Q A \<longrightarrow> Q B"
 
 definition nontriv
-  where "nontriv Q \<equiv> \<exists>A B. Q A \<and> ~ Q B"
+  where "nontriv Q \<equiv> \<exists>A B. finite A \<and> Q A \<and> finite B \<and> ~ Q B"
 
 lemma mono_nontriv_empty: "mono Q \<Longrightarrow> nontriv Q \<Longrightarrow> ~ Q {}"
   unfolding mono_def nontriv_def by blast
@@ -17,28 +17,35 @@ definition P_k
 
 lemma
   assumes "mono Q" and "nontriv Q"
-  shows mono_non_triv_0: "P_k n 0 Q = 0"
-    and mono_non_triv_n: "P_k n n Q = 1"
+  shows mono_non_triv_0: "\<forall>n. P_k n 0 Q = 0"
+    and mono_non_triv_n: "\<exists>n. P_k n n Q = 1"
   using assms proof -
   fix Q::"nat set \<Rightarrow> bool"
   assume mono: "mono Q" and nontriv: "nontriv Q"
 
-  show "P_k n 0 Q = 0" proof -
+  show "\<forall>n. P_k n 0 Q = 0" proof safe
+    fix n::nat
     have "{A\<in>Pow {1..n}. card A = 0} = {{}}"
       using finite_subset by fastforce
     moreover have "~ Q {}"
       using mono nontriv by (rule mono_nontriv_empty)
     ultimately have "{A\<in>Pow {0..<n}. card A = 0 \<and> Q A} = {}"
       by (simp add: card_eq_0_iff finite_subset)
-    thus ?thesis unfolding P_k_def by simp
+    thus "P_k n 0 Q = 0" unfolding P_k_def by simp
   qed
 
-  show "P_k n n Q = 1" proof -
-    have "Q {0..<n}" sorry (* Not true! - only eventually *)
+  show "\<exists>n. P_k n n Q = 1" proof -
+    from nontriv obtain A::"nat set" where "Q A" "finite A"
+      unfolding nontriv_def by blast
+    then obtain n::nat where "A \<subseteq> {0..<n}"
+      using finite_subset_interval by blast
+    with \<open>Q A\<close> have "Q {0..<n}"
+      using mono unfolding mono_def by blast
     moreover have "{A\<in>Pow {0..<n}. card A = n} = {{0..<n}}"
       using Pow_card_singleton[of "{0..<n}"] by simp
     ultimately have "{A\<in>Pow {0..<n}. card A = n \<and> Q A} = {{0..<n}}" by blast
-    thus ?thesis unfolding P_k_def binomial_n_n by simp
+    hence "P_k n n Q = 1" unfolding P_k_def binomial_n_n by simp
+    thus ?thesis by blast
   qed
 qed
 
