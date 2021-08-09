@@ -27,7 +27,14 @@ proof -
   ultimately show thesis using that by simp
 qed
 
-lemma subset_card_eq: "finite B \<Longrightarrow> {A\<in>Pow B. card A = card B} = {B}"
-  sorry
+lemma Pow_card_singleton: "finite B \<Longrightarrow> {A\<in>Pow B. card A = card B} = {B}"
+proof -
+  fix B::"'a set" assume "finite B"
+  {
+    fix A assume "A \<subseteq> B" and "card A = card B"
+    with card_subset_eq have "A = B" using \<open>finite B\<close> by blast
+  }
+  with Pow_iff show "{A \<in> Pow B. card A = card B} = {B}" by auto
+qed
 
 end

@@ -36,7 +36,7 @@ lemma
   show "P_k n n Q = 1" proof -
     have "Q {0..<n}" sorry (* Not true! - only eventually *)
     moreover have "{A\<in>Pow {0..<n}. card A = n} = {{0..<n}}"
-      using subset_card_eq[of "{0..<n}"] by simp
+      using Pow_card_singleton[of "{0..<n}"] by simp
     ultimately have "{A\<in>Pow {0..<n}. card A = n \<and> Q A} = {{0..<n}}" by blast
     thus ?thesis unfolding P_k_def binomial_n_n by simp
   qed
