@@ -42,13 +42,10 @@ lemma finite_subset_interval:
   fixes A::"nat set"
   assumes "finite A"
   obtains n::nat where "A \<subseteq> {0..<n}"
-using assms proof -
-  fix A::"nat set" assume "finite A"
-    and that: "(\<And>n. A \<subseteq> {0..<n} \<Longrightarrow> thesis)"
-  then obtain n::nat where "\<forall>x\<in>A. x < n"
-    using finite_nat_set_iff_bounded[of A] by blast
-  then have "A \<subseteq> {0..<n}" by fastforce
-  with that show thesis .
+proof -
+  from \<open>finite A\<close> obtain n::nat where "\<forall>x\<in>A. x < n"
+    unfolding finite_nat_set_iff_bounded ..
+  then show ?thesis by (intro that) force
 qed
 
 end
