@@ -106,52 +106,36 @@ definition L\<^sub>0' :: lang
   where L0'_def[simp]: "L\<^sub>0' \<equiv> L\<^sub>D' \<inter> SQ"
 
 
-definition adj_sq\<^sub>w :: "word \<Rightarrow> word"
-  where adj_sq_word_def[simp]: "adj_sq\<^sub>w w \<equiv> gn_inv (adj_square (gn w))"
-
-
-lemma adj_sq_word_correct: "adj_sq\<^sub>w w \<in> SQ" unfolding adj_sq_word_def SQ_def
-  using adj_sq_correct and adj_sq_gt_0 by (intro CollectI) (subst inv_gn_id)
-
-lemma adj_sq_word_length: 
-  fixes w
-  assumes "length w \<ge> 7"
-    \<comment> \<open>Otherwise, \<^term>\<open>2 ^ suffix_len (gn w) > bit_length (gn w)\<close>,
-        and \<^term>\<open>(gn w) - (gn w) mod 2^(suffix_len (gn w)) = 0\<close>.\<close>
-  shows "length (adj_sq\<^sub>w w) = length w" sorry
-\<comment> \<open>Proof idea: one bit is added in \<^const>\<open>gn\<close>, one removed in \<^const>\<open>gn_inv\<close>.
-    As \<^const>\<open>gn\<close> appends a \<open>1\<close>, possible leading zeroes are avoided.\<close>
-
-
 lemma adj_sq_exp_pad:
   fixes w
-  assumes "length w \<ge> 18"
-  defines "w' \<equiv> adj_sq\<^sub>w w"
+  defines l: "l \<equiv> length w"
+    and w': "w' \<equiv> adj_sq\<^sub>w w"
+  assumes "l \<ge> 20"
   shows "strip_exp_pad w' = strip_exp_pad w"
 proof -
-  define l where "l \<equiv> length w"
-  have len_eq: "length w' = l" unfolding l_def w'_def using \<open>length w \<ge> 18\<close>
-    by (intro adj_sq_word_length) linarith
+  from \<open>l \<ge> 20\<close> have "shared_MSBs (clog l) w w'" unfolding l w' by (rule adj_sq_sh_pfx_log)
+  then have l_eq: "length w' = l" and d_eq: "drop (l - clog l) w' = drop (l - clog l) w"
+    unfolding l by (elim sh_msbE[symmetric])+
 
-  have "strip_exp_pad w' = drop (l - clog l) w'" unfolding strip_exp_pad_def len_eq Let_def ..
-  also have "... = drop (l - clog l) w" sorry (* shared prefix *)
-  also have "... = strip_exp_pad w" unfolding strip_exp_pad_def l_def[symmetric] Let_def ..
+  have "strip_exp_pad w' = drop (l - clog l) w'" unfolding strip_exp_pad_def l_eq Let_def ..
+  also have "... = drop (l - clog l) w" using d_eq .
+  also have "... = strip_exp_pad w" unfolding strip_exp_pad_def l[symmetric] Let_def ..
   finally show ?thesis .
 qed
 
 corollary adj_sq_TM_dec:
   fixes w
-  assumes "length w \<ge> 18"
+  assumes "length w \<ge> 20"
   defines "w' \<equiv> adj_sq\<^sub>w w"
   shows "TM_decode_pad w' = TM_decode_pad w"
-  unfolding TM_decode_pad_def w'_def using \<open>length w \<ge> 18\<close> by (subst adj_sq_exp_pad) fast+
+  unfolding TM_decode_pad_def w'_def using \<open>length w \<ge> 20\<close> by (subst adj_sq_exp_pad) fast+
 
 lemma L\<^sub>D_adj_sq_iff:
   fixes w
-  assumes "length w \<ge> 18"
+  assumes "length w \<ge> 20"
   defines "w' \<equiv> adj_sq\<^sub>w w"
   shows "w' \<in> L\<^sub>D \<longleftrightarrow> w \<in> L\<^sub>D"
-    \<comment> \<open>Idea: since \<open>n\<close> and \<open>adj_square n\<close> share their prefix (@{thm adj_sq_shared_prefix_log}),
+    \<comment> \<open>Idea: since \<open>w\<close> and \<open>adj_sq\<^sub>w n\<close> share their prefix (@{thm adj_sq_sh_pfx_log}),
   the relevant parts are identical and this lemma should hold.
 
   Note: with the current definition of \<^const>\<open>L\<^sub>D\<close>, this likely does not hold,
@@ -161,19 +145,20 @@ lemma L\<^sub>D_adj_sq_iff:
 
 lemma L\<^sub>D'_adj_sq_iff:
   fixes w
-  assumes l: "length w \<ge> 18"
+  assumes l: "length w \<ge> 20"
   defines w': "w' \<equiv> adj_sq\<^sub>w w"
   shows "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'"
 proof -
+  from \<open>length w \<ge> 20\<close> have "shared_MSBs (clog (length w)) w w'" unfolding w' by (rule adj_sq_sh_pfx_log)
+  then have len: "length w' = length w" by (elim sh_msbE[symmetric])
   from l have dec: "TM_decode_pad w' = TM_decode_pad w" unfolding w' by (rule adj_sq_TM_dec)
   from l have pad: "strip_exp_pad w' = strip_exp_pad w" unfolding w' by (rule adj_sq_exp_pad)
-  from l have len: "length w' = length w" unfolding w' by (intro adj_sq_word_length) force
   show "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'" unfolding LD'_def mem_Collect_eq unfolding dec pad len ..
 qed
 
 lemma L\<^sub>D'_L\<^sub>0'_adj_sq_iff:
   fixes w
-  assumes l: "length w \<ge> 18"
+  assumes l: "length w \<ge> 20"
   defines "w' \<equiv> adj_sq\<^sub>w w"
   shows "w \<in> L\<^sub>D' \<longleftrightarrow> w' \<in> L\<^sub>0'"
 proof

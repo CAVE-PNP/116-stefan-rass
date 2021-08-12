@@ -112,5 +112,19 @@ qed
 
 lemma gn_altdef: "gn w = nat_of_num (num_of_word w)" by (induction w) auto
 
+lemma bin_of_gn[simp]: "bin_of_nat (gn w) = w @ [True]" by force
+
+lemma gn_inv_of_bin[simp]: "is_gn n \<Longrightarrow> gn_inv n @ [True] = bin_of_nat n"
+proof -
+  assume "n > 0"
+  then have "ends_in True (bin_of_nat n)" by (rule bin_of_nat_gt_0_end_True)
+  then obtain w where w: "bin_of_nat n = w @ [True]" ..
+  show "gn_inv n @ [True] = bin_of_nat n" unfolding gn_inv_def w butlast_snoc ..
+qed
+
+lemma len_gn[simp]: "bit_length (gn w) = length w + 1" by force
+
+lemma len_gn_inv[simp]: "length (gn_inv n) = length (bin_of_nat n) - 1" by force
+
 
 end

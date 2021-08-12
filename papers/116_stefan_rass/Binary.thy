@@ -289,6 +289,23 @@ proof (intro bij_betw_imageI)
   qed
 qed
 
+lemma bin_nat_bin_drop_zs: "bin_of_nat (nat_of_bin w) = rev (dropWhile (\<lambda>b. b = False) (rev w))"
+proof (induction w rule: rev_induct)
+  case (snoc x xs) thus ?case
+  proof (induction x)
+    case True  thus ?case by (subst bin_nat_bin) fastforce+
+  next
+    case False thus ?case unfolding nat_of_bin_app0 by force
+  qed
+qed (* case "w = []" by *) simp
+
+lemma len_bin_nat_bin: "length (bin_of_nat (nat_of_bin w)) \<le> length w"
+proof -
+  have "bit_length (w)\<^sub>2 = length (dropWhile (\<lambda>b. b = False) (rev w))" unfolding bin_nat_bin_drop_zs by force
+  also have "... \<le> length (rev w)" by (rule length_dropWhile_le)
+  finally show "bit_length (w)\<^sub>2 \<le> length w" unfolding length_rev .
+qed
+
 
 subsection\<open>Advanced Properties\<close>
 
@@ -378,10 +395,43 @@ proof (intro iffI)
 qed
 
 
+lemma take_mod: "((w)\<^sub>2 mod 2^k) = (take k w)\<^sub>2"
+proof (induction w arbitrary: k)
+  case (Cons a w)
+  show ?case proof (cases "k > 0")
+    case True
+    then have "k = k - 1 + 1" by force
+
+    have "(2 * (w)\<^sub>2) mod 2 ^ k = (2 * (w)\<^sub>2) mod 2 ^ (k - 1 + 1)" by (subst \<open>k = k - 1 + 1\<close>) rule
+    also have "... = (2 * (w)\<^sub>2) mod (2 * 2^(k-1))" by force
+    also have "... = 2 * ((w)\<^sub>2 mod 2 ^ (k-1))" by (rule mult_mod_right[symmetric])
+    also have "... = 2 * (take (k - 1) w)\<^sub>2" unfolding \<open>(w)\<^sub>2 mod 2 ^ (k-1) = (take (k-1) w)\<^sub>2\<close> ..
+    finally have *: "(2 * (w)\<^sub>2) mod 2 ^ k = 2 * (take (k - 1) w)\<^sub>2" .
+
+    show ?thesis proof (induction a)
+      case True
+      have "(True # w)\<^sub>2 mod 2 ^ k = (2 * (w)\<^sub>2 + 1) mod 2 ^ k" by simp
+      also have "... = (1 + 2 * (w)\<^sub>2) mod 2 ^ k" by presburger
+      also have "... = 1 + (2 * (w)\<^sub>2) mod (2 ^ k)" using \<open>k > 0\<close> by (subst even_succ_mod_exp) force+
+      also have "... = 1 + 2 * (take (k - 1) w)\<^sub>2" unfolding * ..
+      also have "... = (True # take (k - 1) w)\<^sub>2" by force
+      also have "... = (take k (True # w))\<^sub>2" by (subst (2) \<open>k = k - 1 + 1\<close>) force
+      finally show ?case .
+    next
+      case False
+      have "(False # w)\<^sub>2 mod 2 ^ k = (2 * (w)\<^sub>2) mod 2 ^ k" by simp
+      also have "... = 2 * (take (k - 1) w)\<^sub>2" unfolding * ..
+      also have "... = (False # take (k - 1) w)\<^sub>2" by fastforce
+      also have "... = (take k (False # w))\<^sub>2" by (subst (2) \<open>k = k - 1 + 1\<close>) force
+      finally show ?case .
+    qed
+  qed (* case "k = 0" by *) simp
+qed (* case "w = []" by *) simp
+
+
 subsection\<open>Log and Bit-Length\<close>
 
-lemma bit_len_eq_dlog:
-  "n > 0 \<Longrightarrow> bit_length n = dlog n + 1" (is "n > 0 \<Longrightarrow> ?len n = ?log n + 1")
+lemma bit_len_eq_dlog: "n > 0 \<Longrightarrow> bit_length n = dlog n + 1"
 proof (induction n rule: log_induct)
   case (double n)
   have "bit_length n = bit_length (2 * (n div 2))" using \<open>n \<ge> 2\<close>

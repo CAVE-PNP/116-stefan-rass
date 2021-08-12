@@ -4,6 +4,19 @@ begin
 
 lemma len_tl_Cons: "xs \<noteq> [] \<Longrightarrow> length (x # tl xs) = length xs" by simp
 
+lemma drop_eq_le:
+  assumes "L \<ge> l"
+    and "drop l xs = drop l ys"
+  shows "drop L xs = drop L ys"
+proof -
+  from \<open>L \<ge> l\<close> obtain n where "L = n + l" unfolding add.commute[of _ l] by (rule less_eqE)
+  have "drop L xs = drop n (drop l xs)" unfolding \<open>L = n + l\<close> by (rule drop_drop[symmetric])
+  also have "... = drop n (drop l ys)" unfolding \<open>drop l xs = drop l ys\<close> ..
+  also have "... = drop L ys" unfolding \<open>L = n + l\<close> by (rule drop_drop)
+  finally show "drop L xs = drop L ys" .
+qed
+
+
 lemma inj_append:
   fixes xs ys :: "'a list"
   shows inj_append_L: "inj (\<lambda>xs. xs @ ys)"

@@ -505,4 +505,23 @@ lemma in_dtimeE'[elim]:
   shows "\<exists>M. decides M L \<and> time_restricted T M"
   using assms unfolding DTIME_def ..
 
+
+lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tcomp t n" by (intro max.mono) blast
+
+lemma
+  fixes T t
+  assumes Tt: "\<And>n. T n \<ge> t n"
+    and tr: "time_restricted t M"
+  shows "time_restricted T M"
+  unfolding time_restricted_def
+proof (intro allI)
+  fix tp
+  from tr obtain n where n_tcomp: "n \<le> tcomp t (tape_size tp)"
+                     and final_n: "is_final (steps0 (1, tp) M n)"
+    unfolding time_restricted_def by blast
+
+  from le_trans n_tcomp tcomp_mono Tt have "n \<le> tcomp T (tape_size tp)" .
+  with final_n show "\<exists>n\<le>tcomp T (tape_size tp). is_final (steps0 (1, tp) M n)" by blast
+qed
+
 end
