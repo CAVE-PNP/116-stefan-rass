@@ -18,33 +18,39 @@ definition P_k
 lemma
   assumes "mono Q" and "nontriv Q"
   shows mono_non_triv_0: "\<forall>n. P_k n 0 Q = 0"
-    and mono_non_triv_n: "\<exists>n. P_k n n Q = 1"
-  using assms proof -
-  fix Q::"nat set \<Rightarrow> bool"
-  assume mono: "mono Q" and nontriv: "nontriv Q"
-
+    and mono_non_triv_n: "\<exists>N. \<forall>n\<ge>N. P_k n n Q = 1"
+proof -
   show "\<forall>n. P_k n 0 Q = 0" proof safe
     fix n::nat
     have "{A\<in>Pow {1..n}. card A = 0} = {{}}"
       using finite_subset by fastforce
     moreover have "~ Q {}"
-      using mono nontriv by (rule mono_nontriv_empty)
+      using assms by (rule mono_nontriv_empty)
     ultimately have "{A\<in>Pow {0..<n}. card A = 0 \<and> Q A} = {}"
       by (simp add: card_eq_0_iff finite_subset)
     thus "P_k n 0 Q = 0" unfolding P_k_def by simp
   qed
 
-  show "\<exists>n. P_k n n Q = 1" proof -
-    from nontriv obtain A::"nat set" where "Q A" "finite A"
+  show "\<exists>N. \<forall>n\<ge>N. P_k n n Q = 1" proof -
+    from \<open>nontriv Q\<close> obtain A::"nat set" where "Q A" "finite A"
       unfolding nontriv_def by blast
-    then obtain n::nat where "A \<subseteq> {0..<n}"
+    then obtain N::nat where "A \<subseteq> {0..<N}"
       using finite_subset_interval by blast
-    with \<open>Q A\<close> have "Q {0..<n}"
-      using mono unfolding mono_def by blast
-    moreover have "{A\<in>Pow {0..<n}. card A = n} = {{0..<n}}"
-      using Pow_card_singleton[of "{0..<n}"] by simp
-    ultimately have "{A\<in>Pow {0..<n}. card A = n \<and> Q A} = {{0..<n}}" by blast
-    hence "P_k n n Q = 1" unfolding P_k_def binomial_n_n by simp
+    with \<open>Q A\<close> have "Q {0..<N}"
+      using \<open>mono Q\<close> unfolding mono_def by blast
+
+    {
+      fix n assume "n\<ge>N"
+      then have "{0..<N} \<subseteq> {0..<n}"
+        unfolding ivl_subset by blast
+      with \<open>Q {0..<N}\<close> \<open>mono Q\<close> have "Q {0..<n}"
+        unfolding mono_def by blast
+      moreover have "{A\<in>Pow {0..<n}. card A = n} = {{0..<n}}"
+        using Pow_card_singleton[of "{0..<n}"] by simp
+      ultimately have "{A\<in>Pow {0..<n}. card A = n \<and> Q A} = {{0..<n}}" by blast
+      hence "P_k n n Q = 1" unfolding P_k_def binomial_n_n by simp
+    }
+
     thus ?thesis by blast
   qed
 qed
