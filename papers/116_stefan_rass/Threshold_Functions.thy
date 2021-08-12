@@ -13,7 +13,7 @@ lemma mono_nontriv_empty: "mono Q \<Longrightarrow> nontriv Q \<Longrightarrow> 
 
 (* probability of a random k-subset of {1..n} having Q *)
 definition P_k
-  where "P_k n k Q \<equiv> card {A\<in>Pow {0..<n}. card A = k \<and> Q A} / (binomial n k)"
+  where "P_k n k Q \<equiv> card {A\<in>Pow {0..<n}. card A = k \<and> Q A} / (n choose k)"
 
 lemma
   assumes "mono Q" and "nontriv Q"
@@ -54,6 +54,12 @@ proof -
     thus ?thesis by blast
   qed
 qed
+
+lemma P_k_mono:
+  fixes n
+  assumes "mono Q" "K \<le> n"
+  shows "k \<le> K \<Longrightarrow> P_k n k Q \<le> P_k n K Q"
+oops
 
 definition almost_every
   where "almost_every k Q \<equiv> (\<lambda>n. P_k n (k n) Q) \<longlonglongrightarrow> 1"
