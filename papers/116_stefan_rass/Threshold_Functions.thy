@@ -2,14 +2,16 @@ theory Threshold_Functions
   imports Main "HOL.Binomial" "HOL.Limits" "Supplementary/Misc"
 begin
 
-definition mono
-  where "mono Q \<equiv> \<forall>A B. A \<subseteq> B \<longrightarrow> Q A \<longrightarrow> Q B"
+lemma mono_altdef:
+  fixes Q::"'a set \<Rightarrow> bool"
+  shows "mono Q = (\<forall>A B. A \<subseteq> B \<longrightarrow> Q A \<longrightarrow> Q B)"
+unfolding mono_def le_bool_def ..
 
 definition nontriv
   where "nontriv Q \<equiv> \<exists>A B. finite A \<and> Q A \<and> finite B \<and> ~ Q B"
 
 lemma mono_nontriv_empty: "mono Q \<Longrightarrow> nontriv Q \<Longrightarrow> ~ Q {}"
-  unfolding mono_def nontriv_def by blast
+  unfolding mono_altdef nontriv_def by blast
 
 (* probability of a random k-subset of {1..n} having Q *)
 definition P_k
@@ -37,14 +39,14 @@ proof -
     then obtain N::nat where "A \<subseteq> {0..<N}"
       using finite_subset_interval by blast
     with \<open>Q A\<close> have "Q {0..<N}"
-      using \<open>mono Q\<close> unfolding mono_def by blast
+      using \<open>mono Q\<close> unfolding mono_altdef by blast
 
     {
       fix n assume "n\<ge>N"
       then have "{0..<N} \<subseteq> {0..<n}"
         unfolding ivl_subset by blast
       with \<open>Q {0..<N}\<close> \<open>mono Q\<close> have "Q {0..<n}"
-        unfolding mono_def by blast
+        unfolding mono_altdef by blast
       moreover have "{A\<in>Pow {0..<n}. card A = n} = {{0..<n}}"
         using Pow_card_singleton[of "{0..<n}"] by simp
       ultimately have "{A\<in>Pow {0..<n}. card A = n \<and> Q A} = {{0..<n}}" by blast
