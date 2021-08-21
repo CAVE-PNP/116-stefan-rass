@@ -48,4 +48,21 @@ proof -
   then show ?thesis by (intro that) force
 qed
 
+lemma card_prop_insert:
+  assumes "finite A" "y \<notin> A"
+  shows "card {x\<in>insert y A. P x} = of_bool (P y) + card {x\<in>A. P x}"
+    (is "card ?L = of_bool (P y) + card ?R")
+proof (cases "P y")
+  case True
+  from \<open>finite A\<close> have "finite ?R" using finite_subset by simp
+  from \<open>P y\<close> have "?L = insert y ?R" by blast
+  then have "card ?L = card (insert y ?R)" by simp
+  also have "\<dots> = 1 + card ?R" using \<open>y \<notin> A\<close> card_insert_if[of ?R y] \<open>finite ?R\<close> by simp
+  ultimately show ?thesis using \<open>P y\<close> by simp
+next
+  case False
+  from \<open>\<not>P y\<close> have "?L = ?R" by blast
+  thus ?thesis using \<open>\<not> P y\<close> by simp
+qed
+
 end
