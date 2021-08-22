@@ -65,4 +65,13 @@ next
   thus ?thesis using \<open>\<not> P y\<close> by simp
 qed
 
+lemma count_with_prop:
+  fixes A::"'a set" and P::"'a \<Rightarrow> bool"
+  assumes "finite A"
+  shows "card {x\<in>A. P x} = (\<Sum>x\<in>A. of_bool (P x))" (is "?lhs = ?rhs")
+using \<open>finite A\<close> proof (induction A rule: finite_induct)
+  case (insert x F)
+  then show ?case using card_prop_insert[of F x P] by simp
+qed simp
+
 end
