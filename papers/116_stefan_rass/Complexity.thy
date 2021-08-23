@@ -477,6 +477,14 @@ next
   qed
 qed
 
+lemma decides_altdef2':
+  "decides M L \<longleftrightarrow> (\<forall>w.
+    Hoare_halt (input w) M (\<lambda>tp. head tp = Oc \<longleftrightarrow> w \<in> L)
+  )"
+proof -
+  have *: "(a = Oc \<longleftrightarrow> c) \<longleftrightarrow> a = (if c then Oc else Bk)" for a c by (induction a) simp_all
+  show ?thesis unfolding * by (rule decides_altdef2)
+qed
 
 (* TODO (?) notation: \<open>p decides L\<close> *)
 
@@ -523,5 +531,73 @@ proof (intro allI)
   from le_trans n_tcomp tcomp_mono Tt have "n \<le> tcomp T (tape_size tp)" .
   with final_n show "\<exists>n\<le>tcomp T (tape_size tp). is_final (steps0 (1, tp) M n)" by blast
 qed
+
+
+subsection\<open>Reductions\<close>
+
+lemma simple_reduction:
+  fixes A B :: lang 
+    and f\<^sub>R :: "word \<Rightarrow> word" 
+    and M\<^sub>R :: TM 
+    and t\<^sub>R :: "nat \<Rightarrow> nat"
+  assumes "\<And>w. w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B"
+    and "\<And>w. length (f\<^sub>R w) \<le> length w"
+    and "\<And>w. Hoare_halt (input w) M\<^sub>R (input (f\<^sub>R w))"
+    and "tm_wf0 M\<^sub>R"
+    and "time_restricted t\<^sub>R M\<^sub>R"
+    and "B \<in> DTIME(t)"
+  defines "T \<equiv> \<lambda>n. t n + t\<^sub>R n"
+  shows "A \<in> DTIME(T)"
+proof -
+  from \<open>B \<in> DTIME t\<close> obtain M\<^sub>B
+    where "decides M\<^sub>B B"
+      and "time_restricted t M\<^sub>B" ..
+
+  define M where "M \<equiv> M\<^sub>R |+| M\<^sub>B"
+
+  {
+    fix w
+    note \<open>{input w} M\<^sub>R {input (f\<^sub>R w)}\<close>
+    moreover from \<open>decides M\<^sub>B B\<close> have "{input (f\<^sub>R w)} M\<^sub>B {\<lambda>tp. (head tp = Oc) = (f\<^sub>R w \<in> B)}"
+      unfolding decides_altdef2' ..
+    moreover note \<open>tm_wf0 M\<^sub>R\<close>
+    ultimately have "{input w} M\<^sub>R |+| M\<^sub>B {\<lambda>tp. (head tp = Oc) = (f\<^sub>R w \<in> B)}"
+      by (rule Hoare_plus_halt)
+    then have "{input w} M {\<lambda>tp. (head tp = Oc) = (w \<in> A)}" unfolding M_def \<open>w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B\<close> .
+  }
+  then have "decides M A" unfolding decides_altdef2' ..
+  moreover have "time_restricted T M"
+  proof -
+    fix w
+      \<comment> \<open>Idea: Fix the input word \<^term>\<open>w\<close>.
+        We already know that the first machine \<^term>\<open>M\<^sub>R\<close> is time restricted
+        (@{thm \<open>time_restricted t\<^sub>R M\<^sub>R\<close>}),
+        such that its run-time will be no longer than \<^term>\<open>t\<^sub>R (tape_size <w>\<^sub>t\<^sub>p) = t\<^sub>R (2 * length w)\<close>
+        (times two due to the encoding \<^const>\<open>encode_word\<close>).
+
+        We also know that it will result in the encoded corresponding input word
+        with regards to \<open>B\<close> (@{thm \<open>\<And>w. {input w} M\<^sub>R {input (f\<^sub>R w)}\<close>}).
+        Since the length of the corresponding input word is no longer
+        than the length of the original input word \<^term>\<open>w\<close> (@{thm \<open>\<And>w. length (f\<^sub>R w) \<le> length w\<close>}),
+        and the second machine \<^term>\<open>M\<^sub>B\<close> is time restricted (@{thm \<open>time_restricted t M\<^sub>B\<close>}),
+        we may conclude that the run-time of \<^term>\<open>M \<equiv> M\<^sub>R |+| M\<^sub>B\<close> on the input \<^term>\<open><w>\<^sub>t\<^sub>p\<close>
+        is no longer than \<^term>\<open>T (tape_size <w>\<^sub>t\<^sub>p) \<equiv> t (tape_size <w>\<^sub>t\<^sub>p) + t\<^sub>R (tape_size <w>\<^sub>t\<^sub>p)\<close>.
+
+        Unfortunately, with the current definition of \<^const>\<open>time_restricted\<close>,
+        this does not imply \<^term>\<open>time_restricted T M\<close>.
+        For this to hold, the run-time must be restricted for all input-\<^emph>\<open>tapes\<close>,
+        and not only for all input-\<^emph>\<open>words\<close>.
+        Since not every tape encodes a word,
+        and the output length of the first TM \<^term>\<open>M\<^sub>R\<close> is only restricted for input words
+        (@{thm \<open>\<And>w. length (f\<^sub>R w) \<le> length w\<close>}),
+        the size of the intermediate tape is unrestricted,
+        such that even the time-restricted second machine \<^term>\<open>M\<^sub>B\<close> could run longer
+        than the afforded \<^term>\<open>t (tape_size <w>\<^sub>t\<^sub>p)\<close> steps.\<close>
+
+    show ?thesis sorry
+  qed
+  ultimately show "A \<in> DTIME T" ..
+qed
+
 
 end
