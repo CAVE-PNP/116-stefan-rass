@@ -27,7 +27,7 @@ proof -
     have "{A\<in>Pow {1..n}. card A = 0} = {{}}"
       using finite_subset by fastforce
     moreover have "~ Q {}"
-      using assms by (rule mono_nontriv_empty)
+      using assms(1-2) by (rule mono_nontriv_empty)
     ultimately have "{A\<in>Pow {0..<n}. card A = 0 \<and> Q A} = {}"
       by (simp add: card_eq_0_iff finite_subset)
     thus "P_k n 0 Q = 0" unfolding P_k_def by simp
@@ -58,10 +58,48 @@ proof -
 qed
 
 lemma P_k_mono:
-  fixes n
-  assumes "mono Q" "K \<le> n"
-  shows "k \<le> K \<Longrightarrow> P_k n k Q \<le> P_k n K Q"
-oops
+  fixes n::nat
+  assumes "1\<le>n" "mono Q" "Suc k \<le> n"
+  shows "P_k n k Q \<le> P_k n (Suc k) Q"
+proof - (* Beweisidee: Josef Greilhuber *)
+  let ?P = "\<lambda>k. {A\<in>Pow {0..<n}. card A = k}"
+  let ?M = "\<lambda>k. {A\<in>Pow {0..<n}. card A = k \<and> Q A}"
+  let ?c = "\<lambda>A. {0..<n} - A"
+  have 1: "\<And>k A. A \<in> ?P k \<Longrightarrow> card (?c A) = n-k" proof -
+    fix k A assume "A \<in> ?P k"
+    then have "finite A" "finite (?c A)" "A \<inter> ?c A = {}" "A \<union> ?c A = {0..<n}" "card A = k"
+      using finite_subset by blast+
+    thus "card (?c A) = n-k"
+      using card_Un_disjoint[of A "?c A"] by simp
+  qed
+
+  have 2: "\<And>A x. Q A \<longrightarrow> Q (A \<union> {x})" using \<open>mono Q\<close>
+    unfolding mono_altdef by blast
+  then have 2: "\<And>A x. of_bool (Q A) \<le> of_bool (Q (A \<union> {x}))"
+    using le_bool_def sorry (* has counterexample for strange 'a *)
+
+  let ?L = "{(A, x). A\<in>Pow {0..<n} \<and> card A = k     \<and> x \<in> ?c A}"
+  let ?R = "{(B, x). B\<in>Pow {0..<n} \<and> card B = Suc k \<and> x \<in> B   }"
+  let ?g = "(\<lambda>Ax. (fst Ax \<union> {snd Ax}, snd Ax))"
+  have 3: "bij_betw ?g ?L ?R" sorry
+
+  have "?L = Sigma (?P k) ?c" by fastforce
+  have "?R = Sigma (?P (Suc k)) id" by fastforce
+  have finP: "\<And>k. finite (?P k)" by simp
+
+  from count_with_prop[of "?P k" Q] finP[of k]
+  have "card (?M k) = (\<Sum>A\<in>(?P k). of_bool (Q A))" by fastforce
+  then have "(n-k) * card (?M k) = (\<Sum>A\<in>(?P k). \<Sum>x\<in>(?c A). of_bool (Q A))"
+    using 1[where k=k] sorry
+  also have "\<dots> = sum (\<lambda>Ax. of_bool (Q (fst Ax))) ?L" sorry
+  also from 2 have "\<dots> \<le> sum (\<lambda>Ax. of_bool (Q (fst Ax \<union> {snd Ax}))) ?L" sorry
+  also from sum.reindex_bij_betw[of ?g ?L ?R] have "\<dots> = sum (\<lambda>Bx. of_bool (Q (fst Bx))) ?R" sorry
+  also have "\<dots> = (\<Sum>B\<in>(?P (Suc k)). \<Sum>x\<in>B. of_bool (Q B))" sorry
+  also have "\<dots> = (Suc k) * (\<Sum>B\<in>(?P (Suc k)).  of_bool (Q B))" sorry
+  also from count_with_prop have "\<dots> = (Suc k) * card (?M (Suc k))" sorry
+  ultimately have "(n-k) * card (?M k) \<le> (Suc k) * card (?M (Suc k))" by argo
+  thus ?thesis unfolding P_k_def using binomial_fact_lemma assms(1,3) sorry
+qed
 
 definition almost_every
   where "almost_every k Q \<equiv> (\<lambda>n. P_k n (k n) Q) \<longlonglongrightarrow> 1"
