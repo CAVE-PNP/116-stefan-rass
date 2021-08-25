@@ -66,6 +66,21 @@ abbreviation input_tape ("<_>\<^sub>t\<^sub>p") where "<w>\<^sub>t\<^sub>p \<equ
 abbreviation input where "input w \<equiv> (\<lambda>tp. tp = <w>\<^sub>t\<^sub>p)"
 
 
+lemma tape_size_input: "tape_size <w>\<^sub>t\<^sub>p = 2 * length w"
+proof -
+  have "tape_size <w>\<^sub>t\<^sub>p = length (encode_word w)" by simp
+  also have "... = 2 * length w"
+  proof (induction w)
+    case (Cons a w)
+    have "length (encode_word (a # w)) = Suc (Suc (length (encode_word w)))"
+      by (induction a) simp_all
+    also have "... = 2 * (length (a # w))" unfolding Cons.IH by simp
+    finally show ?case .
+  qed (* case "w = []" by *) simp
+  finally show ?thesis .
+qed
+
+
 subsubsection\<open>Time\<close>
 
 text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>,
@@ -102,7 +117,26 @@ lemma time_bounded_altdef:
 lemma time_bounded_altdef':
   "time_bounded T M \<Longrightarrow> is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M (tcomp T (tape_size <w>\<^sub>t\<^sub>p)))"
   using time_bounded_altdef by blast
-  
+
+
+lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tcomp t n" by (intro max.mono) blast
+
+lemma time_bounded_mono:
+  fixes T t
+  assumes Tt: "\<And>n. T n \<ge> t n"
+    and tr: "time_bounded t M"
+  shows "time_bounded T M"
+  unfolding time_bounded_def
+proof (intro allI)
+  fix w
+  from tr obtain n where n_tcomp: "n \<le> tcomp t (tape_size <w>\<^sub>t\<^sub>p)"
+                     and final_n: "is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
+    unfolding time_bounded_def by blast
+
+  from le_trans n_tcomp tcomp_mono Tt have "n \<le> tcomp T (tape_size <w>\<^sub>t\<^sub>p)" .
+  with final_n show "\<exists>n\<le>tcomp T (tape_size <w>\<^sub>t\<^sub>p). is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" by blast
+qed
+
 
 text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>,
   or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>x\<close>.\<close>
@@ -530,31 +564,12 @@ lemma in_dtimeE'[elim]:
   using assms unfolding DTIME_def ..
 
 
-lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tcomp t n" by (intro max.mono) blast
-
-lemma
-  fixes T t
-  assumes Tt: "\<And>n. T n \<ge> t n"
-    and tr: "time_bounded t M"
-  shows "time_bounded T M"
-  unfolding time_bounded_def
-proof (intro allI)
-  fix w
-  from tr obtain n where n_tcomp: "n \<le> tcomp t (tape_size <w>\<^sub>t\<^sub>p)"
-                     and final_n: "is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
-    unfolding time_bounded_def by blast
-
-  from le_trans n_tcomp tcomp_mono Tt have "n \<le> tcomp T (tape_size <w>\<^sub>t\<^sub>p)" .
-  with final_n show "\<exists>n\<le>tcomp T (tape_size <w>\<^sub>t\<^sub>p). is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" by blast
-qed
-
-
 subsection\<open>Reductions\<close>
 
 lemma simple_reduction:
-  fixes A B :: lang 
-    and f\<^sub>R :: "word \<Rightarrow> word" 
-    and M\<^sub>R :: TM 
+  fixes A B :: lang
+    and f\<^sub>R :: "word \<Rightarrow> word"
+    and M\<^sub>R :: TM
     and t\<^sub>R :: "nat \<Rightarrow> nat"
   assumes "\<And>w. w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B"
     and "\<And>w. length (f\<^sub>R w) \<le> length w"
@@ -590,9 +605,9 @@ proof -
         We already know that the first machine \<^term>\<open>M\<^sub>R\<close> is time bounded
         (@{thm \<open>time_bounded t\<^sub>R M\<^sub>R\<close>}),
         such that its run-time will be no longer than \<^term>\<open>t\<^sub>R l = t\<^sub>R (2 * length w)\<close>
-        (times two due to the encoding \<^const>\<open>encode_word\<close>).
+        (@{thm tape_size_input}}).
 
-        We also know that it will result in the encoded corresponding input word
+        We also know that its execution will result in the encoded corresponding input word
         with regards to \<open>B\<close> (@{thm \<open>\<And>w. {input w} M\<^sub>R {input (f\<^sub>R w)}\<close>}).
         Since the length of the corresponding input word is no longer
         than the length of the original input word \<^term>\<open>w\<close> (@{thm \<open>\<And>w. length (f\<^sub>R w) \<le> length w\<close>}),

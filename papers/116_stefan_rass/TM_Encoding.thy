@@ -343,19 +343,6 @@ text\<open>from ch. 4.2:
      Thus, if a TM \<open>M\<close> is encoded within \<open>ℓ\<close> bits, then (7) counts
      how many equivalent codes for \<open>M\<close> are found at least in \<open>{0, 1}\<^sup>ℓ\<close>.\<close>
 
-lemma card_bin_len_eq: "card {w::bin. length w = l} = 2 ^ l"
-proof -
-  let ?bools = "UNIV :: bool set"
-  have "card {w::bin. length w = l} = card {w. set w \<subseteq> ?bools \<and> length w = l}" by simp
-  also have "... = card ?bools ^ l" by (intro card_lists_length_eq) (rule finite)
-  also have "... = 2 ^ l" unfolding card_UNIV_bool ..
-  finally show ?thesis .
-qed
-
-corollary finite_words_len_eq: "finite {w::bin. length w = l}"
-  using card_bin_len_eq by (intro card_ge_0_finite) presburger
-
-
 theorem num_equivalent_encodings:
   fixes M w
   assumes "TM_decode_pad w = M"
@@ -376,7 +363,7 @@ proof (cases "l > 0")
     by (intro arg_cong[where f=card]) (rule image_Collect)
   also have "... \<le> card {w. length w = l \<and> TM_decode_pad w = M}"
   proof (intro card_mono)
-    show "finite {w. length w = l \<and> TM_decode_pad w = M}" using finite_words_len_eq by simp
+    show "finite {w. length w = l \<and> TM_decode_pad w = M}" using finite_bin_len_eq by simp
     show "{pad @ w' | pad. length pad = l - clog l} \<subseteq> {w. length w = l \<and> TM_decode_pad w = M}"
     proof safe
       fix pad::bin
@@ -403,7 +390,7 @@ next
   also have "1 = card {[]::bin}" by simp
   also have "... \<le> card {w. length w = l \<and> TM_decode_pad w = M}" unfolding \<open>l = 0\<close> \<open>M = Rejecting_TM\<close>
   proof (intro card_mono)
-    show "finite {w. length w = 0 \<and> TM_decode_pad w = Rejecting_TM}" using finite_words_len_eq by simp
+    show "finite {w. length w = 0 \<and> TM_decode_pad w = Rejecting_TM}" using finite_bin_len_eq by simp
     show "{[]} \<subseteq> {w. length w = 0 \<and> TM_decode_pad w = Rejecting_TM}" using TM_decode_Nil by simp
   qed
   finally show ?thesis .

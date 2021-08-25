@@ -462,4 +462,69 @@ interpretation bin_preorder:
   using less_le_not_le le_refl le_trans by (intro class.preorder.intro)
 
 
+subsection\<open>Number of Binary Strings of Given Length\<close>
+
+lemma card_bin_len_eq: "card {w::bin. length w = l} = 2 ^ l"
+proof -
+  let ?bools = "UNIV :: bool set"
+  have "card {w::bin. length w = l} = card {w. set w \<subseteq> ?bools \<and> length w = l}" by simp
+  also have "... = card ?bools ^ l" by (intro card_lists_length_eq) (rule finite)
+  also have "... = 2 ^ l" unfolding card_UNIV_bool ..
+  finally show ?thesis .
+qed
+
+corollary finite_bin_len_eq: "finite {w::bin. length w = l}"
+  using card_bin_len_eq by (intro card_ge_0_finite) presburger
+
+corollary finite_bin_len_le: "finite {w::bin. length w < l}"
+proof -
+  let ?W = "\<lambda>l. {w::bin. length w = l}"
+  let ?W\<^sub>L = "{?W l' | l'. l' < l}"
+  
+  have *: "{w::bin. length w < l} = \<Union> ?W\<^sub>L" by blast
+  show "finite {w::bin. length w < l}" unfolding *
+    using finite_bin_len_eq by (intro finite_Union) force+
+qed
+
+lemma card_bin_len_le: "card {w::bin. length w < l} = 2 ^ l - 1"
+proof -
+  let ?W = "\<lambda>l. {w::bin. length w = l}"
+  let ?W\<^sub>L = "{?W l' | l'. l' < l}"
+
+  have "card {w::bin. length w < l} = card (\<Union> ?W\<^sub>L)" by (intro arg_cong[where f=card]) blast
+  also have "card (\<Union> ?W\<^sub>L) = sum card ?W\<^sub>L"
+  proof (intro card_Union_disjoint)
+    show "pairwise disjnt ?W\<^sub>L"
+    proof (intro pairwiseI)
+      fix x y
+      assume "x \<in> ?W\<^sub>L" then obtain l\<^sub>x where l\<^sub>x: "x = ?W l\<^sub>x" by blast
+      assume "y \<in> ?W\<^sub>L" then obtain l\<^sub>y where l\<^sub>y: "y = ?W l\<^sub>y" by blast
+
+      assume "x \<noteq> y"
+      then have "l\<^sub>x \<noteq> l\<^sub>y" unfolding l\<^sub>x l\<^sub>y by force
+      then show "disjnt x y" unfolding l\<^sub>x l\<^sub>y disjnt_def by blast
+    qed
+
+    fix W
+    assume "W \<in> ?W\<^sub>L" then obtain l\<^sub>W where "W = ?W l\<^sub>W" by blast
+    show "finite W" unfolding \<open>W = ?W l\<^sub>W\<close> by (rule finite_bin_len_eq)
+  qed
+  also have "sum card ?W\<^sub>L = sum card (?W ` {..<l})"
+    by (intro arg_cong[where f="sum card"]) (unfold lessThan_def, rule image_Collect[symmetric])
+  also have "sum card (?W ` {..<l}) = sum (card \<circ> ?W) {..<l}"
+  proof (intro sum.reindex inj_onI)
+    fix x y
+    obtain w :: bin where "length w = x" using Ex_list_of_length ..
+    
+    assume "?W x = ?W y"
+    then have "w \<in> ?W x \<longleftrightarrow> w \<in> ?W y" for w by (rule arg_cong)
+    then have "length w = x \<Longrightarrow> length w = y" by blast
+    then show "x = y" unfolding \<open>length w = x\<close> by force
+  qed
+  also have "sum (card \<circ> ?W) {..<l} = (\<Sum>n<l. 2^n)" unfolding comp_def card_bin_len_eq ..
+  also have "... = 2^l - 1" unfolding lessThan_atLeast0 by (rule sum_power2)
+  finally show ?thesis .
+qed
+
+
 end
