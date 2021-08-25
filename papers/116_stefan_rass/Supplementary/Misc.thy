@@ -74,4 +74,11 @@ using \<open>finite A\<close> proof (induction A rule: finite_induct)
   then show ?case using card_prop_insert[of F x P] by simp
 qed simp
 
+lemma of_bool_mono:
+  "(P \<longrightarrow> Q) \<longleftrightarrow> (of_bool P \<le> (of_bool Q :: 'a :: {zero_neq_one, zero_less_one}))"
+apply (cases P; cases Q; simp)
+apply (meson less_le_not_le zero_less_one)+
+  done
+
+
 end

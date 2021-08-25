@@ -73,28 +73,39 @@ proof - (* Beweisidee: Josef Greilhuber *)
       using card_Un_disjoint[of A "?c A"] by simp
   qed
 
-  have 2: "\<And>A x. Q A \<longrightarrow> Q (A \<union> {x})" using \<open>mono Q\<close>
+  have "\<And>A x. Q A \<longrightarrow> Q (A \<union> {x})" using \<open>mono Q\<close>
     unfolding mono_altdef by blast
-  then have 2: "\<And>A x. of_bool (Q A) \<le> of_bool (Q (A \<union> {x}))"
-    using le_bool_def sorry (* has counterexample for strange 'a *)
-
-  let ?L = "{(A, x). A\<in>Pow {0..<n} \<and> card A = k     \<and> x \<in> ?c A}"
-  let ?R = "{(B, x). B\<in>Pow {0..<n} \<and> card B = Suc k \<and> x \<in> B   }"
-  let ?g = "(\<lambda>Ax. (fst Ax \<union> {snd Ax}, snd Ax))"
-  have 3: "bij_betw ?g ?L ?R" sorry
-
-  have "?L = Sigma (?P k) ?c" by fastforce
-  have "?R = Sigma (?P (Suc k)) id" by fastforce
+  then have 2: "\<And>A x. of_bool (Q A) \<le> (of_bool (Q (A \<union> {x})) :: nat)"
+    using of_bool_mono by blast
   have finP: "\<And>k. finite (?P k)" by simp
 
+  define L where "L \<equiv> {(A, x). A\<in>?P k       \<and> x \<in> ?c A}"
+  define R where "R \<equiv> {(B, x). B\<in>?P (Suc k) \<and> x \<in> B   }"
+  have L_altdef: "L = Sigma (?P k) ?c" unfolding L_def by fastforce
+  have R_altdef: "R = Sigma (?P (Suc k)) id" unfolding R_def by fastforce
+
+  define g::"nat set \<times> nat \<Rightarrow> nat set \<times> nat" where "g \<equiv> \<lambda>(A,x). (A \<union> {x}, x)"
+  have "bij_betw g L R" sorry
+  from sum.reindex_bij_betw[OF this] g_def
+  have 3: "\<And>h. ( \<Sum>(A,x)\<in>L. h ((A \<union> {x}, x)) ) = (\<Sum>Bx\<in>R. h Bx)"
+    by (metis (mono_tags, lifting) prod.case_distrib split_cong sum.cong)
+  
+  find_theorems  "sum"  "Sigma" (* relevant! *)
   from count_with_prop[of "?P k" Q] finP[of k]
   have "card (?M k) = (\<Sum>A\<in>(?P k). of_bool (Q A))" by fastforce
   then have "(n-k) * card (?M k) = (\<Sum>A\<in>(?P k). \<Sum>x\<in>(?c A). of_bool (Q A))"
     using 1[where k=k] sorry
-  also have "\<dots> = sum (\<lambda>Ax. of_bool (Q (fst Ax))) ?L" sorry
-  also from 2 have "\<dots> \<le> sum (\<lambda>Ax. of_bool (Q (fst Ax \<union> {snd Ax}))) ?L" sorry
-  also from sum.reindex_bij_betw[of ?g ?L ?R] have "\<dots> = sum (\<lambda>Bx. of_bool (Q (fst Bx))) ?R" sorry
-  also have "\<dots> = (\<Sum>B\<in>(?P (Suc k)). \<Sum>x\<in>B. of_bool (Q B))" sorry
+
+  also have "\<dots> = (\<Sum>(A, x)\<in>L. of_bool (Q A))"
+    unfolding L_altdef using sum.Sigma[of "?P k" ?c] finP[of k] by fast
+  also from 2 sum_mono have "\<dots> \<le> (\<Sum>(A, x)\<in>L. of_bool (Q (A \<union> {x})))"
+    by (metis (mono_tags, lifting) case_prod_conv dual_order.eq_iff split_cong)
+  also have "\<dots> = sum (\<lambda>(B,x). of_bool (Q B)) R"
+    using 3[of "\<lambda>(B,x). of_bool (Q B)"] by fast
+  also have "\<dots> = (\<Sum>B\<in>(?P (Suc k)). \<Sum>x\<in>B. of_bool (Q B))"
+    unfolding R_altdef using sum.Sigma[of "?P (Suc k)" id "\<lambda>B x. of_bool (Q B)"] finP[of "Suc k"]
+    by (smt (verit, ccfv_SIG) card_eq_0_iff id_apply mem_Collect_eq nat.simps(3) sum.cong)
+
   also have "\<dots> = (Suc k) * (\<Sum>B\<in>(?P (Suc k)).  of_bool (Q B))" sorry
   also from count_with_prop have "\<dots> = (Suc k) * card (?M (Suc k))" sorry
   ultimately have "(n-k) * card (?M k) \<le> (Suc k) * card (?M (Suc k))" by argo
