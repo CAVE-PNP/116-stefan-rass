@@ -476,7 +476,7 @@ qed
 corollary finite_bin_len_eq: "finite {w::bin. length w = l}"
   using card_bin_len_eq by (intro card_ge_0_finite) presburger
 
-corollary finite_bin_len_le: "finite {w::bin. length w < l}"
+corollary finite_bin_len_less: "finite {w::bin. length w < l}"
 proof -
   let ?W = "\<lambda>l. {w::bin. length w = l}"
   let ?W\<^sub>L = "{?W l' | l'. l' < l}"
@@ -486,7 +486,7 @@ proof -
     using finite_bin_len_eq by (intro finite_Union) force+
 qed
 
-lemma card_bin_len_le: "card {w::bin. length w < l} = 2 ^ l - 1"
+lemma card_bin_len_less: "card {w::bin. length w < l} = 2 ^ l - 1"
 proof -
   let ?W = "\<lambda>l. {w::bin. length w = l}"
   let ?W\<^sub>L = "{?W l' | l'. l' < l}"
