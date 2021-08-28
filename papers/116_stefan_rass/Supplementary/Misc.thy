@@ -80,5 +80,12 @@ apply (cases P; cases Q; simp)
 apply (meson less_le_not_le zero_less_one)+
   done
 
+lemma destruct_set:
+  fixes A x
+  assumes "card A = Suc k" "x\<in>A"
+  obtains B where "card B = k" and "A = insert x B" and "x\<notin>B"
+  using assms
+  by (metis Diff_insert_absorb Set.set_insert card.infinite card_Diff_singleton diff_Suc_1 nat.distinct(1))
+
 
 end

@@ -65,6 +65,7 @@ proof - (* Beweisidee: Josef Greilhuber *)
   let ?P = "\<lambda>k. {A\<in>Pow {0..<n}. card A = k}"
   let ?M = "\<lambda>k. {A\<in>Pow {0..<n}. card A = k \<and> Q A}"
   let ?c = "\<lambda>A. {0..<n} - A"
+
   have 1: "\<And>k A. A \<in> ?P k \<Longrightarrow> card (?c A) = n-k" proof -
     fix k A assume "A \<in> ?P k"
     then have "finite A" "finite (?c A)" "A \<inter> ?c A = {}" "A \<union> ?c A = {0..<n}" "card A = k"
@@ -85,29 +86,49 @@ proof - (* Beweisidee: Josef Greilhuber *)
   have R_altdef: "R = Sigma (?P (Suc k)) id" unfolding R_def by fastforce
 
   define g::"nat set \<times> nat \<Rightarrow> nat set \<times> nat" where "g \<equiv> \<lambda>(A,x). (A \<union> {x}, x)"
-  have "bij_betw g L R" sorry
+  have "bij_betw g L R" proof (subst bij_betw_def, safe_step)
+    show "inj_on g L" unfolding inj_on_def L_def g_def by (safe; fast)
+  next
+    have "\<forall>(B,x)\<in>R. \<exists>A. (A,x)\<in>L \<and> g (A,x) = (B,x)"
+      unfolding R_def proof safe
+      fix B::"nat set" and x assume "card B=Suc k" "x \<in> B" "B \<subseteq> {0..<n}"
+      then obtain A where "card A = k" and "x\<notin>A" and "B = insert x A"
+        using destruct_set[of B k] by blast
+      hence "(A, x) \<in> L"
+        unfolding L_def using \<open>x\<in>B\<close> \<open>B \<subseteq> {0..<n}\<close> by blast 
+      moreover have "g (A, x) = (B, x)"
+        unfolding g_def using \<open>B = insert x A\<close> by force
+      ultimately show "\<exists>A. (A,x)\<in>L \<and> g (A,x) = (B,x)" by blast
+    qed
+    moreover have "\<forall>(A,x)\<in>L. g (A,x) \<in> R"
+      unfolding L_def g_def R_def
+      by (auto simp add: subset_eq_atLeast0_lessThan_finite)
+    ultimately show "g ` L = R" by force
+  qed
   from sum.reindex_bij_betw[OF this] g_def
   have 3: "\<And>h. ( \<Sum>(A,x)\<in>L. h ((A \<union> {x}, x)) ) = (\<Sum>Bx\<in>R. h Bx)"
     by (metis (mono_tags, lifting) prod.case_distrib split_cong sum.cong)
   
-  find_theorems  "sum"  "Sigma" (* relevant! *)
-  from count_with_prop[of "?P k" Q] finP[of k]
-  have "card (?M k) = (\<Sum>A\<in>(?P k). of_bool (Q A))" by fastforce
-  then have "(n-k) * card (?M k) = (\<Sum>A\<in>(?P k). \<Sum>x\<in>(?c A). of_bool (Q A))"
-    using 1[where k=k] sorry
-
+  have "card (?M k) = (\<Sum>A\<in>(?P k). of_bool (Q A))"
+    using count_with_prop[of "?P k" Q] finP[of k] by fastforce
+  then have "(n-k) * card (?M k) = (\<Sum>A\<in>(?P k). (n-k) * of_bool (Q A))"
+    using sum_distrib_left by auto
+  also have "\<dots> = (\<Sum>A\<in>(?P k). \<Sum>x\<in>(?c A). of_bool (Q A))"
+    using 1 by simp
   also have "\<dots> = (\<Sum>(A, x)\<in>L. of_bool (Q A))"
     unfolding L_altdef using sum.Sigma[of "?P k" ?c] finP[of k] by fast
-  also from 2 sum_mono have "\<dots> \<le> (\<Sum>(A, x)\<in>L. of_bool (Q (A \<union> {x})))"
-    by (metis (mono_tags, lifting) case_prod_conv dual_order.eq_iff split_cong)
-  also have "\<dots> = sum (\<lambda>(B,x). of_bool (Q B)) R"
+  also have "\<dots> \<le> (\<Sum>(A, x)\<in>L. of_bool (Q (A \<union> {x})))"
+    using 2 sum_mono by (metis (mono_tags, lifting) case_prod_conv dual_order.eq_iff split_cong)
+  also have "\<dots> = (\<Sum>(B, x)\<in>R. of_bool (Q B))"
     using 3[of "\<lambda>(B,x). of_bool (Q B)"] by fast
   also have "\<dots> = (\<Sum>B\<in>(?P (Suc k)). \<Sum>x\<in>B. of_bool (Q B))"
     unfolding R_altdef using sum.Sigma[of "?P (Suc k)" id "\<lambda>B x. of_bool (Q B)"] finP[of "Suc k"]
     by (smt (verit, ccfv_SIG) card_eq_0_iff id_apply mem_Collect_eq nat.simps(3) sum.cong)
 
-  also have "\<dots> = (Suc k) * (\<Sum>B\<in>(?P (Suc k)).  of_bool (Q B))" sorry
-  also from count_with_prop have "\<dots> = (Suc k) * card (?M (Suc k))" sorry
+  also have "\<dots> = (Suc k) * (\<Sum>B\<in>(?P (Suc k)).  of_bool (Q B))"
+    by (simp add: sum_distrib_left)
+  also from count_with_prop[of "?P (Suc k)"] finP[of "Suc k"]
+  have "\<dots> = (Suc k) * card (?M (Suc k))" by fastforce
   ultimately have "(n-k) * card (?M k) \<le> (Suc k) * card (?M (Suc k))" by argo
   thus ?thesis unfolding P_k_def using binomial_fact_lemma assms(1,3) sorry
 qed
