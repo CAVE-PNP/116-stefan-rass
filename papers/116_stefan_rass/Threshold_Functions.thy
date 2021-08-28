@@ -129,8 +129,25 @@ proof - (* Beweisidee: Josef Greilhuber *)
     by (simp add: sum_distrib_left)
   also from count_with_prop[of "?P (Suc k)"] finP[of "Suc k"]
   have "\<dots> = (Suc k) * card (?M (Suc k))" by fastforce
-  ultimately have "(n-k) * card (?M k) \<le> (Suc k) * card (?M (Suc k))" by argo
-  thus ?thesis unfolding P_k_def using binomial_fact_lemma assms(1,3) sorry
+  finally have *: "card (?M k) * (n-k) \<le> card (?M (Suc k)) * (Suc k)" by (subst (1 2) mult.commute)
+
+  define cM\<^sub>k where "cM\<^sub>k = card (?M k)"
+  define cM\<^sub>k\<^sub>1 where "cM\<^sub>k\<^sub>1 = card (?M (Suc k))"
+  note M\<^sub>k = cM\<^sub>k_def cM\<^sub>k\<^sub>1_def
+  have **: "n - k - 1 = n - Suc k" by simp
+
+  have "cM\<^sub>k / (n choose k) = cM\<^sub>k * fact (n - k) * fact k / fact n" using \<open>Suc k \<le> n\<close>
+    by (subst binomial_fact) force+
+  also have "... = cM\<^sub>k * (n - k) * fact (n - k - 1) * fact k / fact n" using \<open>Suc k \<le> n\<close>
+    by (subst fact_reduce) (force, unfold of_nat_id mult.assoc, rule)
+  also have "... \<le> cM\<^sub>k\<^sub>1 * (Suc k) * fact (n - k - 1) * fact k / fact n"
+    using *[folded cM\<^sub>k_def cM\<^sub>k\<^sub>1_def] fact_ge_zero
+    by (intro divide_right_mono of_nat_mono mult_le_mono1)
+  also have "... = cM\<^sub>k\<^sub>1 * fact (n - k - 1) * fact (Suc k) / fact n"
+    unfolding fact_Suc of_nat_id mult.assoc by (subst (2 6) mult.commute) (unfold mult.assoc, rule)
+  also have "... = cM\<^sub>k\<^sub>1 / (n choose Suc k)" unfolding \<open>Suc k \<le> n\<close>[THEN binomial_fact]
+    unfolding divide_divide_eq_right ** unfolding of_nat_mult of_nat_fact by argo
+  finally show "P_k n k Q \<le> P_k n (Suc k) Q" unfolding P_k_def M\<^sub>k .
 qed
 
 definition almost_every
