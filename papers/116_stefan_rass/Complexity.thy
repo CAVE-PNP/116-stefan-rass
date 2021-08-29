@@ -4,7 +4,7 @@ theory Complexity
 begin
 
 
-subsection\<open>Basic Measures\<close>
+subsection\<open>Basic Definitions\<close>
 
 text\<open>The tape size can not use the universal function \<^const>\<open>size\<close>,
   since for any pair \<^term>\<open>p = (a, b)\<close>, \<^term>\<open>size p = 1\<close>.\<close>
@@ -12,134 +12,14 @@ text\<open>The tape size can not use the universal function \<^const>\<open>size
 fun tape_size :: "tape \<Rightarrow> nat" \<comment> \<open>using \<open>fun\<close> since \<open>definition\<close> does not recognize patterns like \<^term>\<open>(l, r)\<close>\<close>
   where "tape_size (l, r) = length l + length r"
 
+text\<open>At the start of execution, the TM's head is over the first cell of the right tape.
+  That is, for \<^term>\<open>tp = (l, x # r)\<close>, the symbol under the head is \<open>x\<close>, or \<^term>\<open>read (snd tp)\<close>.
+  Additionally (through \<^const>\<open>read\<close>), the edge of the tape is interpreted as \<^const>\<open>Bk\<close>.\<close>
 
-subsubsection\<open>Time\<close>
-
-text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>,
-  but includes a maximum number of steps.
-  From Hopcroft, p287f:
-   "If for every input word of length n, M makes at most T(n) moves before
-    halting, then M is said to be a T(n) time-bounded Turing machine, or of time
-    complexity T(n). The language recognized by M is said to be of time complexity T(n)."
-
-   "[...] it is reasonable to assume that any time complexity function \<open>T(n)\<close> is
-    at least \<open>n + 1\<close>, for this is the time needed just to read the input and verify that the
-    end has been reached by reading the first blank.\<dagger> We thus make the convention
-    that "time complexity \<open>T(n)\<close>" means \<open>max (n + 1, \<lceil>T(n)\<rceil>])\<close>. For example, the value of
-    time complexity \<open>n log\<^sub>2n\<close> at \<open>m = 1\<close> is \<open>2\<close>, not \<open>0\<close>, and at \<open>n = 2\<close>, its value is \<open>3\<close>.
-
-    \<dagger> Note, however, that there are TM's that accept or reject without reading all their input.
-      We choose to eliminate them from consideration."\<close>
-
-abbreviation (input) tcomp :: "(nat \<Rightarrow> nat) \<Rightarrow> nat \<Rightarrow> nat"
-  where "tcomp T n \<equiv> max (n + 1) (T n)"
-
-definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
-  where "time_restricted T p \<equiv> \<forall>tp. \<exists>n.
-            n \<le> tcomp T (tape_size tp)
-          \<and> is_final (steps0 (1, tp) p n)"
-
-(* TODO (?) notation: \<open>p terminates_in_time T\<close> *)
-
-text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>,
-  or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>x\<close>.\<close>
-
-definition time :: "TM \<Rightarrow> tape \<Rightarrow> nat option"
-  where "time M x \<equiv> (
-    if \<exists>n. is_final (steps0 (1, x) M n)
-      then Some (LEAST n. is_final (steps0 (1, x) M n))
-      else None
-    )"
+abbreviation head where "head tp \<equiv> read (snd tp)"
 
 
-text\<open>Notion of time-constructible from Hopcroft ch. 12.3, p. 299:
-  "A function T(n) is said to be time constructible if there exists a T(n) time-
-  bounded multitape Turing machine M such that for each n there exists some input
-  on which M actually makes T(n) moves."\<close>
-
-definition tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "tconstr T \<equiv> \<exists>M. \<forall>n. \<exists>w. time M ([], w) = Some (T n)"
-
-text\<open>Fully time-constructible, ibid.:
-  "We say that T(n) is fully time-constructible if there is a TM
-  that uses T(n) time on all inputs of length n."\<close>
-
-definition fully_tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "fully_tconstr T \<equiv> \<exists>M. \<forall>n w. length w = n \<longrightarrow> time M ([], w) = Some (T n)"
-
-lemma ftc_altdef: "fully_tconstr T \<longleftrightarrow> (\<exists>M. \<forall>w. time M ([], w) = Some (T (length w)))"
-  unfolding fully_tconstr_def by simp
-
-
-lemma time_restricted_altdef:
-  "time_restricted T p \<longleftrightarrow> (\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> tcomp T (tape_size tp))"
-  unfolding time_restricted_def (* in order for the intros to work in direction "\<Longleftarrow>" *) Let_def
-proof (intro iffI allI exI conjI)
-  fix tp
-  let ?f = "\<lambda>n. is_final (steps0 (1, tp) p n)" let ?lf = "LEAST n. ?f n"
-  let ?tcompT = "\<lambda>tp. tcomp T (tape_size tp)"
-
-  assume (* time_restricted T p *) "\<forall>tp. \<exists>n \<le> ?tcompT tp. is_final (steps0 (1, tp) p n)"
-  then have n_ex: "\<exists>n. n \<le> ?tcompT tp \<and> ?f n" ..
-  then obtain n where "n \<le> ?tcompT tp" and "?f n" by blast
-
-  from n_ex have "\<exists>n. ?f n" by blast
-  then show "time p tp = Some ?lf" unfolding time_def by (rule if_P)
-  have "?lf \<le> n" using Least_le \<open>?f n\<close> .
-  also note \<open>n \<le> ?tcompT tp\<close>
-  finally show "?lf \<le> ?tcompT tp" .
-next
-  fix tp
-  let ?f = "\<lambda>n. is_final (steps0 (1, tp) p n)" let ?lf = "LEAST n. ?f n"
-  let ?tcompT = "\<lambda>tp. tcomp T (tape_size tp)"
-
-  assume "\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> ?tcompT tp"
-  then obtain n where n_some: "time p tp = Some n" and n_le: "n \<le> ?tcompT tp" by blast
-
-  from n_some have "time p tp \<noteq> None" by (rule option.discI)
-  then have n_ex: "\<exists>n. ?f n" unfolding time_def by argo
-  with n_some have "?lf = n" unfolding time_def by simp
-
-  show "?f ?lf" using LeastI_ex n_ex .
-  show "?lf \<le> ?tcompT tp" unfolding \<open>?lf = n\<close> using n_le .
-qed
-
-corollary "time_restricted T p \<Longrightarrow> (\<forall>tp. the (time p tp) \<le> tcomp T (tape_size tp))"
-  unfolding time_restricted_altdef
-proof (intro allI, elim allE exE conjE)
-  fix tp n
-  assume some_n: "time p tp = Some n" and n_le: "n \<le> tcomp T (tape_size tp)"
-  from n_le show "the (time p tp) \<le> tcomp T (tape_size tp)" unfolding some_n option.sel .
-qed
-
-
-subsubsection\<open>Space\<close>
-
-(* implement adjustment similar to tcomp for space complexity. see Hopcroft p287 *)
-
-(* size of tape after M does n steps on input x *)
-abbreviation space0 where "space0 M x n \<equiv> let (_,tp) = steps0 (1, x) M n in tape_size tp"
-
-definition space_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
-  where "space_restricted T M \<equiv> \<forall>x. \<forall>n. space0 M x n \<le> T(tape_size x)"
-
-definition space :: "TM \<Rightarrow> tape \<Rightarrow> nat"
-  where "space M x = Max {space0 M x n | n. n\<in>\<nat>}"
-
-
-lemma update_space_one: "tape_size (update a (l,r)) \<le> 1 + tape_size (l,r)"
-  by (induction a) simp_all
-lemma update_space_le: "tape_size (l,r) \<le> tape_size(update a (l,r))"
-  by (induction a) simp_all
-
-lemma step_space_mono: "space0 M x n \<le> space0 M x (Suc n)"
-  oops
-
-lemma tape_size_mono: "n \<le> m \<Longrightarrow> space0 M x n \<le> space0 M x m"
-  oops
-
-
-subsection\<open>Encoding Words\<close>
+subsubsection\<open>Encoding Words\<close>
 
 text\<open>Encoding binary words as TM tape cells: \<^term>\<open>True\<close> is encoded as \<^term>\<open>[Oc, Oc]\<close>
   and \<^term>\<open>False\<close> as \<^term>\<open>[Oc, Bk]\<close>.
@@ -177,25 +57,197 @@ proof (induction cs rule: is_encoded_word.induct)
 qed (* cases "cs = []", "cs = Bk # _", "cs = [_]" by *) simp_all
 
 
+text\<open>TM execution begins with the \<^const>\<open>head\<close> at the start of the input word.\<close>
+
+abbreviation input_tape ("<_>\<^sub>t\<^sub>p") where "<w>\<^sub>t\<^sub>p \<equiv> (([]::cell list), encode_word w)"
+
+\<comment> \<open>The following predicate is useful for Hoare statements.\<close>
+
+abbreviation input where "input w \<equiv> (\<lambda>tp. tp = <w>\<^sub>t\<^sub>p)"
+
+
+lemma tape_size_input: "tape_size <w>\<^sub>t\<^sub>p = 2 * length w"
+proof -
+  have "tape_size <w>\<^sub>t\<^sub>p = length (encode_word w)" by simp
+  also have "... = 2 * length w"
+  proof (induction w)
+    case (Cons a w)
+    have "length (encode_word (a # w)) = Suc (Suc (length (encode_word w)))"
+      by (induction a) simp_all
+    also have "... = 2 * (length (a # w))" unfolding Cons.IH by simp
+    finally show ?case .
+  qed (* case "w = []" by *) simp
+  finally show ?thesis .
+qed
+
+
+subsubsection\<open>Time\<close>
+
+text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>,
+  but includes a maximum number of steps.
+  From Hopcroft, p287f:
+   "If for every input word of length n, M makes at most T(n) moves before
+    halting, then M is said to be a T(n) time-bounded Turing machine, or of time
+    complexity T(n). The language recognized by M is said to be of time complexity T(n)."
+
+   "[...] it is reasonable to assume that any time complexity function \<open>T(n)\<close> is
+    at least \<open>n + 1\<close>, for this is the time needed just to read the input and verify that the
+    end has been reached by reading the first blank.\<dagger> We thus make the convention
+    that "time complexity \<open>T(n)\<close>" means \<open>max (n + 1, \<lceil>T(n)\<rceil>])\<close>. For example, the value of
+    time complexity \<open>n log\<^sub>2n\<close> at \<open>m = 1\<close> is \<open>2\<close>, not \<open>0\<close>, and at \<open>n = 2\<close>, its value is \<open>3\<close>.
+
+    \<dagger> Note, however, that there are TM's that accept or reject without reading all their input.
+      We choose to eliminate them from consideration."\<close>
+
+abbreviation (input) tcomp :: "(nat \<Rightarrow> nat) \<Rightarrow> nat \<Rightarrow> nat"
+  where "tcomp T n \<equiv> max (n + 1) (T n)"
+
+definition time_bounded_word :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> word \<Rightarrow> bool"
+  where time_bounded_def[simp]: "time_bounded_word T M w \<equiv> \<exists>n.
+            n \<le> tcomp T (tape_size <w>\<^sub>t\<^sub>p) \<and> is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
+
+abbreviation time_bounded :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
+  where "time_bounded T M \<equiv> \<forall>w. time_bounded_word T M w"
+
+(* TODO (?) notation: \<open>p terminates_in_time T\<close> *)
+
+
+lemma time_bounded_altdef:
+  "time_bounded_word T M w \<longleftrightarrow> is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M (tcomp T (tape_size <w>\<^sub>t\<^sub>p)))"
+  unfolding time_bounded_def using is_final by blast
+
+lemma time_boundedE:
+  "time_bounded T M \<Longrightarrow> is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M (tcomp T (tape_size <w>\<^sub>t\<^sub>p)))"
+  unfolding time_bounded_altdef by blast
+
+
+lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tcomp t n" by (intro max.mono) blast
+
+lemma time_bounded_mono:
+  fixes T t
+  assumes Tt: "\<And>n. T n \<ge> t n"
+    and tr: "time_bounded t M"
+  shows "time_bounded T M"
+  unfolding time_bounded_def
+proof (intro allI)
+  fix w
+  from tr obtain n where n_tcomp: "n \<le> tcomp t (tape_size <w>\<^sub>t\<^sub>p)"
+                     and final_n: "is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
+    unfolding time_bounded_def by blast
+
+  from le_trans n_tcomp tcomp_mono Tt have "n \<le> tcomp T (tape_size <w>\<^sub>t\<^sub>p)" .
+  with final_n show "\<exists>n\<le>tcomp T (tape_size <w>\<^sub>t\<^sub>p). is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" by blast
+qed
+
+
+text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>,
+  or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>x\<close>.\<close>
+
+definition time :: "TM \<Rightarrow> tape \<Rightarrow> nat option"
+  where "time M x \<equiv> (
+    if \<exists>n. is_final (steps0 (1, x) M n)
+      then Some (LEAST n. is_final (steps0 (1, x) M n))
+      else None
+    )"
+
+
+text\<open>Notion of time-constructible from Hopcroft ch. 12.3, p. 299:
+  "A function T(n) is said to be time constructible if there exists a T(n) time-
+  bounded multitape Turing machine M such that for each n there exists some input
+  on which M actually makes T(n) moves."\<close>
+
+definition tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "tconstr T \<equiv> \<exists>M. \<forall>n. \<exists>w. time M ([], w) = Some (T n)"
+
+text\<open>Fully time-constructible, ibid.:
+  "We say that T(n) is fully time-constructible if there is a TM
+  that uses T(n) time on all inputs of length n."\<close>
+
+definition fully_tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "fully_tconstr T \<equiv> \<exists>M. \<forall>n w. length w = n \<longrightarrow> time M ([], w) = Some (T n)"
+
+lemma ftc_altdef: "fully_tconstr T \<longleftrightarrow> (\<exists>M. \<forall>w. time M ([], w) = Some (T (length w)))"
+  unfolding fully_tconstr_def by simp
+
+
+lemma time_bounded_altdef2:
+  "time_bounded T M \<longleftrightarrow> (\<forall>w. \<exists>n. time M <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp T (tape_size <w>\<^sub>t\<^sub>p))"
+  unfolding time_bounded_def (* in order for the intros to work in direction "\<Longleftarrow>" *) Let_def
+proof (intro iffI allI exI conjI)
+  fix w
+  let ?f = "\<lambda>n. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" let ?lf = "LEAST n. ?f n"
+  let ?tcompT = "\<lambda>tp. tcomp T (tape_size tp)"
+
+  assume (* time_bounded T p *) "\<forall>w. \<exists>n \<le> ?tcompT <w>\<^sub>t\<^sub>p. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
+  then have n_ex: "\<exists>n. n \<le> ?tcompT <w>\<^sub>t\<^sub>p \<and> ?f n" ..
+  then obtain n where "n \<le> ?tcompT <w>\<^sub>t\<^sub>p" and "?f n" by blast
+
+  from n_ex have "\<exists>n. ?f n" by blast
+  then show "time M <w>\<^sub>t\<^sub>p = Some ?lf" unfolding time_def by (rule if_P)
+  have "?lf \<le> n" using Least_le \<open>?f n\<close> .
+  also note \<open>n \<le> ?tcompT <w>\<^sub>t\<^sub>p\<close>
+  finally show "?lf \<le> ?tcompT <w>\<^sub>t\<^sub>p" .
+next
+  fix w
+  let ?f = "\<lambda>n. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" let ?lf = "LEAST n. ?f n"
+  let ?tcompT = "\<lambda>w. tcomp T (tape_size <w>\<^sub>t\<^sub>p)"
+
+  assume "\<forall>w. \<exists>n. time M <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> ?tcompT w"
+  then obtain n where n_some: "time M <w>\<^sub>t\<^sub>p = Some n" and n_le: "n \<le> ?tcompT w" by blast
+
+  from n_some have "time M <w>\<^sub>t\<^sub>p \<noteq> None" by (rule option.discI)
+  then have n_ex: "\<exists>n. ?f n" unfolding time_def by argo
+  with n_some have "?lf = n" unfolding time_def by simp
+
+  show "?f ?lf" using LeastI_ex n_ex .
+  show "?lf \<le> ?tcompT w" unfolding \<open>?lf = n\<close> using n_le .
+qed
+
+corollary "time_bounded T M \<Longrightarrow> the (time M <w>\<^sub>t\<^sub>p) \<le> tcomp T (tape_size <w>\<^sub>t\<^sub>p)"
+  unfolding time_bounded_altdef2
+proof (elim allE exE conjE)
+  fix tp n
+  assume some_n: "time M tp = Some n" and n_le: "n \<le> tcomp T (tape_size tp)"
+  from n_le show "the (time M tp) \<le> tcomp T (tape_size tp)" unfolding some_n option.sel .
+qed
+
+
+subsubsection\<open>Space\<close>
+
+(* implement adjustment similar to tcomp for space complexity. see Hopcroft p287 *)
+
+(* size of tape after M does n steps on input x *)
+abbreviation space0 where "space0 M x n \<equiv> let (_,tp) = steps0 (1, x) M n in tape_size tp"
+
+definition space_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
+  where "space_restricted T M \<equiv> \<forall>x. \<forall>n. space0 M x n \<le> T(tape_size x)"
+
+definition space :: "TM \<Rightarrow> tape \<Rightarrow> nat"
+  where "space M x = Max {space0 M x n | n. n\<in>\<nat>}"
+
+
+lemma update_space_one: "tape_size (update a (l,r)) \<le> 1 + tape_size (l,r)"
+  by (induction a) simp_all
+lemma update_space_le: "tape_size (l,r) \<le> tape_size(update a (l,r))"
+  by (induction a) simp_all
+
+lemma step_space_mono: "space0 M x n \<le> space0 M x (Suc n)"
+  oops
+
+lemma tape_size_mono: "n \<le> m \<Longrightarrow> space0 M x n \<le> space0 M x m"
+  oops
+
+
 subsection\<open>Deciding Languages\<close>
 
 \<comment> \<open>Since \<open>L\<close> is a typical name for unspecified languages in the literature,
     the synonymous constructor \<^term>\<open>L\<close> of type \<^typ>\<open>action\<close> ("move head left") is hidden.\<close>
 hide_const (open) L
 
-abbreviation head where "head tp \<equiv> read (snd tp)"
-
 text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^term>\<open>L\<close>, iff for every possible word \<^term>\<open>w\<close>
   it correctly calculates language membership.
   That is, for \<^term>\<open>w \<in> L\<close> the computation results in \<^term>\<open>Oc\<close> under the TM head,
-  and for \<^term>\<open>w \<notin> L\<close> in \<^term>\<open>Bk\<close>.
-  The head is over the first cell of the right tape.
-  That is, for \<^term>\<open>tp = (l, x # r)\<close>, the symbol under the head is \<open>x\<close>, or \<^term>\<open>read (snd tp)\<close>.
-  Additionally (through \<^term>\<open>read\<close>), the edge of the tape is interpreted as \<^term>\<open>Bk\<close>.\<close>
-
-abbreviation input_tape ("<_>\<^sub>t\<^sub>p") where "<w>\<^sub>t\<^sub>p \<equiv> (([]::cell list), encode_word w)"
-
-abbreviation input where "input w \<equiv> (\<lambda>tp. tp = <w>\<^sub>t\<^sub>p)"
+  and for \<^term>\<open>w \<notin> L\<close> in \<^term>\<open>Bk\<close>.\<close>
 
 
 definition halts :: "TM \<Rightarrow> word \<Rightarrow> bool"
@@ -235,8 +287,11 @@ definition accepts :: "TM \<Rightarrow> word \<Rightarrow> bool"
 definition rejects :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "rejects M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
 
-definition decides :: "TM \<Rightarrow> lang \<Rightarrow> bool"
-  where "decides M L \<equiv> \<forall>w. (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
+definition decides_word :: "TM \<Rightarrow> lang \<Rightarrow> word \<Rightarrow> bool"
+  where decides_def[simp]: "decides_word M L w \<equiv> (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
+
+abbreviation decides :: "TM \<Rightarrow> lang \<Rightarrow> bool"
+  where "decides M L \<equiv> \<forall>w. decides_word M L w "
 
 
 lemma rej_TM: "rejects Rejecting_TM w" unfolding rejects_def
@@ -270,6 +325,7 @@ lemma Hoare_haltE[elim]:
 
 \<comment> \<open>to avoid conflicts in terms like \<open>P \<mapsto> Q\<close>\<close>
 no_notation Abacus_Hoare.assert_imp ("_ \<mapsto> _" [0, 0] 100)
+no_notation Abacus_Hoare.abc_Hoare_halt ("({(1_)}/ (_)/ {(1_)})" 50)
 
 lemma hoare_true: "Hoare_halt P M Q \<Longrightarrow> Hoare_halt P M (\<lambda>_. True)"
 proof (subst Hoare_consequence)
@@ -397,8 +453,7 @@ lemma rejects_altdef:
 proof (intro iffI conjI)
   assume "rejects M w"
   then show "halts M w" unfolding rejects_def halts_def using hoare_true by fast
-  assume "rejects M w"
-  then show "\<not> accepts M w" using acc_not_rej by auto
+  from \<open>rejects M w\<close> show "\<not> accepts M w" using acc_not_rej by auto
 next
   have *: "c \<noteq> Oc \<longleftrightarrow> c = Bk" for c by (cases c) blast+
 
@@ -408,52 +463,37 @@ next
   then show "rejects M w" unfolding rejects_def * .
 qed
 
-lemma decides_halts:
-  assumes "decides M L"
-  shows "halts M w"
-proof (cases "w \<in> L")
-  case True
-  hence "accepts M w" using assms unfolding decides_def by simp
-  then show ?thesis by (rule accepts_halts)
-next
-  case False
-  hence "rejects M w" using assms unfolding decides_def by auto
-  then show ?thesis by (rule rejects_halts)
-qed
+lemma decides_halts: "decides_word M L w \<Longrightarrow> halts M w"
+  by (cases "w \<in> L") (intro accepts_halts, simp, intro rejects_halts, simp) 
 
-lemma decides_altdef: "decides M L = (\<forall>w. halts M w \<and> (w \<in> L \<longleftrightarrow> accepts M w))"
-proof (intro iffI allI)
+
+lemma decides_altdef1: "decides_word M L w \<longleftrightarrow> halts M w \<and> (w \<in> L \<longleftrightarrow> accepts M w)"
+proof (intro iffI)
   fix w
-  assume "decides M L"
+  assume "decides_word M L w"
   hence "halts M w" by (rule decides_halts)
-  moreover have "w \<in> L \<longleftrightarrow> accepts M w" using \<open>decides M L\<close>
-    unfolding decides_def by simp
+  moreover have "w \<in> L \<longleftrightarrow> accepts M w" using \<open>decides_word M L w\<close> by simp
   ultimately show "halts M w \<and> (w \<in> L \<longleftrightarrow> accepts M w)" ..
 next
-  assume "\<forall>w. halts M w \<and> (w \<in> L \<longleftrightarrow> accepts M w)"
-  then show "decides M L" unfolding decides_def
-    by (simp add: rejects_altdef)
+  assume "halts M w \<and> (w \<in> L \<longleftrightarrow> accepts M w)"
+  then show "decides_word M L w" by (simp add: rejects_altdef)
 qed
 
 lemma decides_altdef2:
-  "decides M L \<longleftrightarrow> (\<forall>w.
-    Hoare_halt (input w) M (\<lambda>tp. head tp = (if w \<in> L then Oc else Bk))
-  )"
-  (is "decides M L \<longleftrightarrow> ( \<forall>w. Hoare_halt (?pre w) M (?post w) )")
+  fixes M :: TM
+  shows "decides_word M L w \<longleftrightarrow> {input w} M {\<lambda>tp. head tp = (if w \<in> L then Oc else Bk)}"
+    (is "?dw M L w \<longleftrightarrow> {?pre w} M {?post w}")
 proof (intro iffI allI)
-  assume "decides M L"
-  fix w
-  from \<open>decides M L\<close> show "Hoare_halt (?pre w) M (?post w)"
-    unfolding decides_def accepts_def rejects_def
+  assume "?dw M L w"
+  then show "{?pre w} M {?post w}" unfolding decides_def accepts_def rejects_def
   proof (cases "w \<in> L")
     case False
-    from \<open>decides M L\<close> \<open>w \<notin> L\<close> have "rejects M w" unfolding decides_def by blast
+    from \<open>?dw M L w\<close> \<open>w \<notin> L\<close> have "rejects M w" unfolding decides_def by blast
     thus ?thesis unfolding rejects_def using \<open>w \<notin> L\<close> by presburger
   qed (* case "w \<in> L" by *) presburger
 next
-  assume assm: "\<forall>w. Hoare_halt (?pre w) M (?post w)"
-  show "decides M L" unfolding decides_def proof (intro allI conjI)
-    fix w
+  assume assm: "{?pre w} M {?post w}"
+  show "?dw M L w" unfolding decides_def proof (intro conjI)
     show "w \<in> L \<longleftrightarrow> accepts M w" proof
       assume "w \<in> L"
       thus "accepts M w" unfolding accepts_def using assm by presburger
@@ -464,7 +504,6 @@ next
       thus "w \<in> L" using cell.distinct(1) by presburger
     qed
   next
-    fix w
     show "w \<notin> L \<longleftrightarrow> rejects M w" proof
       assume "w \<notin> L"
       thus "rejects M w" unfolding rejects_def using assm by presburger
@@ -477,6 +516,12 @@ next
   qed
 qed
 
+lemma decides_altdef3:
+  "decides_word M L w \<longleftrightarrow> {input w} M {\<lambda>tp. head tp = Oc \<longleftrightarrow> w \<in> L}"
+proof -
+  have *: "(a = Oc \<longleftrightarrow> c) \<longleftrightarrow> a = (if c then Oc else Bk)" for a c by (induction a) simp_all
+  show ?thesis unfolding * by (rule decides_altdef2)
+qed
 
 (* TODO (?) notation: \<open>p decides L\<close> *)
 
@@ -485,11 +530,11 @@ subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
 definition DTIME :: "(nat \<Rightarrow> nat) \<Rightarrow> lang set"
-  where "DTIME T \<equiv> {L. \<exists>M. decides M L \<and> time_restricted T M}"
+  where "DTIME T \<equiv> {L. \<exists>M. decides M L \<and> time_bounded T M}"
 
 lemma in_dtimeI[intro]:
   assumes "decides M L"
-    and "time_restricted T M"
+    and "time_bounded T M"
   shows "L \<in> DTIME T"
   unfolding DTIME_def using assms by blast
 
@@ -497,12 +542,74 @@ lemma in_dtimeE[elim]:
   assumes "L \<in> DTIME T"
   obtains M
   where "decides M L"
-    and "time_restricted T M"
+    and "time_bounded T M"
   using assms unfolding DTIME_def by blast
 
 lemma in_dtimeE'[elim]:
   assumes "L \<in> DTIME T"
-  shows "\<exists>M. decides M L \<and> time_restricted T M"
+  shows "\<exists>M. decides M L \<and> time_bounded T M"
   using assms unfolding DTIME_def ..
+
+
+subsection\<open>Reductions\<close>
+
+lemma simple_reduction:
+  fixes A B :: lang
+    and f\<^sub>R :: "word \<Rightarrow> word"
+    and M\<^sub>R :: TM
+    and t\<^sub>R :: "nat \<Rightarrow> nat"
+  assumes "\<And>w. w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B"
+    and "\<And>w. length (f\<^sub>R w) \<le> length w"
+    and "\<And>w. Hoare_halt (input w) M\<^sub>R (input (f\<^sub>R w))"
+    and "tm_wf0 M\<^sub>R"
+    and "time_bounded t\<^sub>R M\<^sub>R"
+    and "B \<in> DTIME(t)"
+  defines "T \<equiv> \<lambda>n. t n + t\<^sub>R n"
+  shows "A \<in> DTIME(T)"
+proof -
+  from \<open>B \<in> DTIME t\<close> obtain M\<^sub>B
+    where "decides M\<^sub>B B"
+      and "time_bounded t M\<^sub>B" ..
+
+  define M where "M \<equiv> M\<^sub>R |+| M\<^sub>B"
+
+  {
+    fix w
+    note \<open>{input w} M\<^sub>R {input (f\<^sub>R w)}\<close>
+    moreover from \<open>decides M\<^sub>B B\<close> have "{input (f\<^sub>R w)} M\<^sub>B {\<lambda>tp. (head tp = Oc) = (f\<^sub>R w \<in> B)}"
+      unfolding decides_altdef2' ..
+    moreover note \<open>tm_wf0 M\<^sub>R\<close>
+    ultimately have "{input w} M\<^sub>R |+| M\<^sub>B {\<lambda>tp. (head tp = Oc) = (f\<^sub>R w \<in> B)}"
+      by (rule Hoare_plus_halt)
+    then have "{input w} M {\<lambda>tp. (head tp = Oc) = (w \<in> A)}" unfolding M_def \<open>w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B\<close> .
+  }
+  then have "decides M A" unfolding decides_altdef2' ..
+  moreover have "time_bounded T M"
+  proof -
+    fix w
+    define l where "l \<equiv> tape_size <w>\<^sub>t\<^sub>p"
+      \<comment> \<open>Idea: Fix the input word \<^term>\<open>w\<close>.
+        We already know that the first machine \<^term>\<open>M\<^sub>R\<close> is time bounded
+        (@{thm \<open>time_bounded t\<^sub>R M\<^sub>R\<close>}),
+        such that its run-time will be no longer than \<^term>\<open>t\<^sub>R l = t\<^sub>R (2 * length w)\<close>
+        (@{thm tape_size_input}}).
+
+        We also know that its execution will result in the encoded corresponding input word
+        with regards to \<open>B\<close> (@{thm \<open>\<And>w. {input w} M\<^sub>R {input (f\<^sub>R w)}\<close>}).
+        Since the length of the corresponding input word is no longer
+        than the length of the original input word \<^term>\<open>w\<close> (@{thm \<open>\<And>w. length (f\<^sub>R w) \<le> length w\<close>}),
+        and the second machine \<^term>\<open>M\<^sub>B\<close> is time bounded (@{thm \<open>time_bounded t M\<^sub>B\<close>}),
+        we may conclude that the run-time of \<^term>\<open>M \<equiv> M\<^sub>R |+| M\<^sub>B\<close> on the input \<^term>\<open><w>\<^sub>t\<^sub>p\<close>
+        is no longer than \<^term>\<open>T l \<equiv> t l + t\<^sub>R l\<close>.
+
+        \<^const>\<open>time_bounded\<close> is defined in terms of \<^const>\<open>tcomp\<close>, however,
+        which means that the resulting total run time \<^term>\<open>T l\<close> may be as large as
+        \<^term>\<open>tcomp t l + tcomp t\<^sub>R l \<equiv> max (l + 1) (t l) + max (l + 1) (t\<^sub>R l)\<close>.\<close>
+
+    show ?thesis sorry
+  qed
+  ultimately show "A \<in> DTIME T" ..
+qed
+
 
 end
