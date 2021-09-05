@@ -6,75 +6,119 @@ begin
 
 subsection\<open>Basic Measures\<close>
 
-text\<open>The tape size can not use the universal function \<^term>\<open>size\<close>, since for any pair \<^term>\<open>p = (a, b)\<close>, \<^term>\<open>size p = 1\<close>.\<close>
+text\<open>The tape size can not use the universal function \<^const>\<open>size\<close>,
+  since for any pair \<^term>\<open>p = (a, b)\<close>, \<^term>\<open>size p = 1\<close>.\<close>
+
 fun tape_size :: "tape \<Rightarrow> nat" \<comment> \<open>using \<open>fun\<close> since \<open>definition\<close> does not recognize patterns like \<^term>\<open>(l, r)\<close>\<close>
   where "tape_size (l, r) = length l + length r"
 
 
 subsubsection\<open>Time\<close>
 
-text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>, but includes a maximum number of steps.\<close>
+text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>,
+  but includes a maximum number of steps.
+  From Hopcroft, p287f:
+   "If for every input word of length n, M makes at most T(n) moves before
+    halting, then M is said to be a T(n) time-bounded Turing machine, or of time
+    complexity T(n). The language recognized by M is said to be of time complexity T(n)."
+
+   "[...] it is reasonable to assume that any time complexity function \<open>T(n)\<close> is
+    at least \<open>n + 1\<close>, for this is the time needed just to read the input and verify that the
+    end has been reached by reading the first blank.\<dagger> We thus make the convention
+    that "time complexity \<open>T(n)\<close>" means \<open>max (n + 1, \<lceil>T(n)\<rceil>])\<close>. For example, the value of
+    time complexity \<open>n log\<^sub>2n\<close> at \<open>m = 1\<close> is \<open>2\<close>, not \<open>0\<close>, and at \<open>n = 2\<close>, its value is \<open>3\<close>.
+
+    \<dagger> Note, however, that there are TM's that accept or reject without reading all their input.
+      We choose to eliminate them from consideration."\<close>
+
+abbreviation (input) tcomp :: "(nat \<Rightarrow> nat) \<Rightarrow> nat \<Rightarrow> nat"
+  where "tcomp T n \<equiv> max (n + 1) (T n)"
+
 definition time_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
   where "time_restricted T p \<equiv> \<forall>tp. \<exists>n.
-            n \<le> T (tape_size tp)
+            n \<le> tcomp T (tape_size tp)
           \<and> is_final (steps0 (1, tp) p n)"
 
 (* TODO (?) notation: \<open>p terminates_in_time T\<close> *)
 
-(* size of tape after M does n steps on input x *)
-abbreviation space0 where "space0 M x n \<equiv> let (_,tp) = steps0 (1, x) M n in tape_size tp"
+text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>,
+  or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>x\<close>.\<close>
 
-text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>
-     or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>x\<close>\<close>
 definition time :: "TM \<Rightarrow> tape \<Rightarrow> nat option"
-  where "time M x = (
+  where "time M x \<equiv> (
     if \<exists>n. is_final (steps0 (1, x) M n)
       then Some (LEAST n. is_final (steps0 (1, x) M n))
       else None
     )"
 
 
+text\<open>Notion of time-constructible from Hopcroft ch. 12.3, p. 299:
+  "A function T(n) is said to be time constructible if there exists a T(n) time-
+  bounded multitape Turing machine M such that for each n there exists some input
+  on which M actually makes T(n) moves."\<close>
+
+definition tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "tconstr T \<equiv> \<exists>M. \<forall>n. \<exists>w. time M ([], w) = Some (T n)"
+
+text\<open>Fully time-constructible, ibid.:
+  "We say that T(n) is fully time-constructible if there is a TM
+  that uses T(n) time on all inputs of length n."\<close>
+
+definition fully_tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "fully_tconstr T \<equiv> \<exists>M. \<forall>n w. length w = n \<longrightarrow> time M ([], w) = Some (T n)"
+
+lemma ftc_altdef: "fully_tconstr T \<longleftrightarrow> (\<exists>M. \<forall>w. time M ([], w) = Some (T (length w)))"
+  unfolding fully_tconstr_def by simp
+
+
 lemma time_restricted_altdef:
-  "time_restricted T p \<longleftrightarrow> (\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp))"
-  unfolding time_restricted_def (* in order for the intros to work in direction "\<Longleftarrow>" *)
+  "time_restricted T p \<longleftrightarrow> (\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> tcomp T (tape_size tp))"
+  unfolding time_restricted_def (* in order for the intros to work in direction "\<Longleftarrow>" *) Let_def
 proof (intro iffI allI exI conjI)
   fix tp
   let ?f = "\<lambda>n. is_final (steps0 (1, tp) p n)" let ?lf = "LEAST n. ?f n"
+  let ?tcompT = "\<lambda>tp. tcomp T (tape_size tp)"
 
-  assume (* time_restricted T p *) "\<forall>tp. \<exists>n \<le> T (tape_size tp). is_final (steps0 (1, tp) p n)"
-  then have n_ex: "\<exists>n. n \<le> T (tape_size tp) \<and> ?f n" ..
-  then obtain n where "n \<le> T (tape_size tp)" and "?f n" by blast
+  assume (* time_restricted T p *) "\<forall>tp. \<exists>n \<le> ?tcompT tp. is_final (steps0 (1, tp) p n)"
+  then have n_ex: "\<exists>n. n \<le> ?tcompT tp \<and> ?f n" ..
+  then obtain n where "n \<le> ?tcompT tp" and "?f n" by blast
 
   from n_ex have "\<exists>n. ?f n" by blast
   then show "time p tp = Some ?lf" unfolding time_def by (rule if_P)
   have "?lf \<le> n" using Least_le \<open>?f n\<close> .
-  also note \<open>n \<le> T (tape_size tp)\<close>
-  finally show "?lf \<le> T (tape_size tp)" .
+  also note \<open>n \<le> ?tcompT tp\<close>
+  finally show "?lf \<le> ?tcompT tp" .
 next
   fix tp
   let ?f = "\<lambda>n. is_final (steps0 (1, tp) p n)" let ?lf = "LEAST n. ?f n"
+  let ?tcompT = "\<lambda>tp. tcomp T (tape_size tp)"
 
-  assume "\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> T (tape_size tp)"
-  then obtain n where n_some: "time p tp = Some n" and n_le: "n \<le> T (tape_size tp)" by blast
+  assume "\<forall>tp. \<exists>n. time p tp = Some n \<and> n \<le> ?tcompT tp"
+  then obtain n where n_some: "time p tp = Some n" and n_le: "n \<le> ?tcompT tp" by blast
 
   from n_some have "time p tp \<noteq> None" by (rule option.discI)
   then have n_ex: "\<exists>n. ?f n" unfolding time_def by argo
   with n_some have "?lf = n" unfolding time_def by simp
 
   show "?f ?lf" using LeastI_ex n_ex .
-  show "?lf \<le> T (tape_size tp)" unfolding \<open>?lf = n\<close> using n_le .
+  show "?lf \<le> ?tcompT tp" unfolding \<open>?lf = n\<close> using n_le .
 qed
 
-corollary "time_restricted T p \<Longrightarrow> (\<forall>tp. the (time p tp) \<le> T (tape_size tp))"
+corollary "time_restricted T p \<Longrightarrow> (\<forall>tp. the (time p tp) \<le> tcomp T (tape_size tp))"
   unfolding time_restricted_altdef
 proof (intro allI, elim allE exE conjE)
   fix tp n
-  assume some_n: "time p tp = Some n" and n_le: "n \<le> T (tape_size tp)"
-  from n_le show "the (time p tp) \<le> T (tape_size tp)" unfolding some_n option.sel .
+  assume some_n: "time p tp = Some n" and n_le: "n \<le> tcomp T (tape_size tp)"
+  from n_le show "the (time p tp) \<le> tcomp T (tape_size tp)" unfolding some_n option.sel .
 qed
 
 
 subsubsection\<open>Space\<close>
+
+(* implement adjustment similar to tcomp for space complexity. see Hopcroft p287 *)
+
+(* size of tape after M does n steps on input x *)
+abbreviation space0 where "space0 M x n \<equiv> let (_,tp) = steps0 (1, x) M n in tape_size tp"
 
 definition space_restricted :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
   where "space_restricted T M \<equiv> \<forall>x. \<forall>n. space0 M x n \<le> T(tape_size x)"
@@ -149,10 +193,41 @@ text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^t
   That is, for \<^term>\<open>tp = (l, x # r)\<close>, the symbol under the head is \<open>x\<close>, or \<^term>\<open>read (snd tp)\<close>.
   Additionally (through \<^term>\<open>read\<close>), the edge of the tape is interpreted as \<^term>\<open>Bk\<close>.\<close>
 
-abbreviation input where "input w \<equiv> (\<lambda>tp. tp = (([]::cell list), encode_word w))"
+abbreviation input_tape ("<_>\<^sub>t\<^sub>p") where "<w>\<^sub>t\<^sub>p \<equiv> (([]::cell list), encode_word w)"
+
+abbreviation input where "input w \<equiv> (\<lambda>tp. tp = <w>\<^sub>t\<^sub>p)"
+
 
 definition halts :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "halts M w \<equiv> Hoare_halt (input w) M (\<lambda>_. True)"
+
+
+lemma halts_time: "halts M w \<Longrightarrow> \<exists>n. time M <w>\<^sub>t\<^sub>p = Some n" unfolding halts_def Hoare_halt_def time_def by auto
+
+lemma time_halts: "time M <w>\<^sub>t\<^sub>p = Some n \<Longrightarrow> halts M w" unfolding halts_def Hoare_halt_def
+proof (intro allI impI exI conjI)
+  fix tp
+  assume "input w tp"
+  then have "tp = <w>\<^sub>t\<^sub>p" .
+
+  have if_h1: "(if P then a else b) = c \<Longrightarrow> b \<noteq> c \<Longrightarrow> P" for P and a b c :: 'a by argo
+  assume assm: "time M <w>\<^sub>t\<^sub>p = Some n"
+  then have ex_n: "\<exists>n. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" unfolding time_def
+    by (rule if_h1) (rule option.distinct(1))
+
+  have if_h2: "(if P then a else b) = c \<Longrightarrow> b \<noteq> c \<Longrightarrow> a = c" for P and a b c :: 'a by argo
+  from assm have "Some (LEAST n. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)) = Some n"
+    unfolding time_def by (rule if_h2) (rule option.distinct(1))
+  then have n: "n = (LEAST n. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n))" by blast
+  from ex_n show "is_final (steps0 (1, tp) M n)" unfolding n \<open>tp = <w>\<^sub>t\<^sub>p\<close> by (rule LeastI_ex)
+
+  obtain s l r where split: "steps0 (1, tp) M n = (s, l, r)" by (rule prod_cases3)
+  show "(\<lambda>_. True) holds_for steps0 (1, tp) M n" unfolding split holds_for.simps ..
+qed
+
+lemma halts_altdef: "halts M w \<longleftrightarrow> (\<exists>n. time M <w>\<^sub>t\<^sub>p = Some n)"
+  using halts_time time_halts by blast
+
 
 definition accepts :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "accepts M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
@@ -430,5 +505,23 @@ lemma in_dtimeE'[elim]:
   shows "\<exists>M. decides M L \<and> time_restricted T M"
   using assms unfolding DTIME_def ..
 
+
+lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tcomp t n" by (intro max.mono) blast
+
+lemma
+  fixes T t
+  assumes Tt: "\<And>n. T n \<ge> t n"
+    and tr: "time_restricted t M"
+  shows "time_restricted T M"
+  unfolding time_restricted_def
+proof (intro allI)
+  fix tp
+  from tr obtain n where n_tcomp: "n \<le> tcomp t (tape_size tp)"
+                     and final_n: "is_final (steps0 (1, tp) M n)"
+    unfolding time_restricted_def by blast
+
+  from le_trans n_tcomp tcomp_mono Tt have "n \<le> tcomp T (tape_size tp)" .
+  with final_n show "\<exists>n\<le>tcomp T (tape_size tp). is_final (steps0 (1, tp) M n)" by blast
+qed
 
 end
