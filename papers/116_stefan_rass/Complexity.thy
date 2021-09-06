@@ -99,12 +99,15 @@ text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_hal
     \<dagger> Note, however, that there are TM's that accept or reject without reading all their input.
       We choose to eliminate them from consideration."\<close>
 
-abbreviation (input) tcomp :: "(nat \<Rightarrow> nat) \<Rightarrow> word \<Rightarrow> nat"
-  where "tcomp T w \<equiv> let n = tape_size <w>\<^sub>t\<^sub>p in max (n + 1) (T n)"
+abbreviation (input) tcomp :: "(nat \<Rightarrow> nat) \<Rightarrow> nat \<Rightarrow> nat"
+  where "tcomp T n \<equiv> max (n + 1) (T n)"
+
+abbreviation (input) tcomp\<^sub>w :: "(nat \<Rightarrow> nat) \<Rightarrow> word \<Rightarrow> nat"
+  where "tcomp\<^sub>w T w \<equiv> tcomp T (tape_size <w>\<^sub>t\<^sub>p)"
 
 definition time_bounded_word :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> word \<Rightarrow> bool"
   where time_bounded_def[simp]: "time_bounded_word T M w \<equiv> \<exists>n.
-            n \<le> tcomp T w \<and> is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
+            n \<le> tcomp\<^sub>w T w \<and> is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
 
 abbreviation time_bounded :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
   where "time_bounded T M \<equiv> \<forall>w. time_bounded_word T M w"
@@ -113,15 +116,15 @@ abbreviation time_bounded :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightar
 
 
 lemma time_bounded_altdef:
-  "time_bounded_word T M w \<longleftrightarrow> is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M (tcomp T w))"
+  "time_bounded_word T M w \<longleftrightarrow> is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M (tcomp\<^sub>w T w))"
   unfolding time_bounded_def using is_final by blast
 
 lemma time_boundedE:
-  "time_bounded T M \<Longrightarrow> is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M (tcomp T w))"
+  "time_bounded T M \<Longrightarrow> is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M (tcomp\<^sub>w T w))"
   unfolding time_bounded_altdef by blast
 
 
-lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> (\<And>w. tcomp T w \<ge> tcomp t w)"
+lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> (\<And>w. tcomp T n \<ge> tcomp t n)"
   using max.mono by force
 
 lemma time_bounded_mono:
@@ -132,12 +135,12 @@ lemma time_bounded_mono:
   unfolding time_bounded_def
 proof (intro allI)
   fix w
-  from tr obtain n where n_tcomp: "n \<le> tcomp t w"
+  from tr obtain n where n_tcomp: "n \<le> tcomp\<^sub>w t w"
                      and final_n: "is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
     unfolding time_bounded_def by blast
 
-  from le_trans n_tcomp tcomp_mono Tt have "n \<le> tcomp T w" .
-  with final_n show "\<exists>n\<le>tcomp T w. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" by blast
+  from le_trans n_tcomp tcomp_mono Tt have "n \<le> tcomp\<^sub>w T w" .
+  with final_n show "\<exists>n\<le>tcomp\<^sub>w T w. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" by blast
 qed
 
 
@@ -172,42 +175,42 @@ lemma ftc_altdef: "fully_tconstr T \<longleftrightarrow> (\<exists>M. \<forall>w
 
 
 lemma time_bounded_altdef2:
-  "time_bounded T M \<longleftrightarrow> (\<forall>w. \<exists>n. time M <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp T w)"
+  "time_bounded T M \<longleftrightarrow> (\<forall>w. \<exists>n. time M <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp\<^sub>w T w)"
   unfolding time_bounded_def
 proof (intro iffI allI exI conjI)
   fix w
   let ?f = "\<lambda>n. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" let ?lf = "LEAST n. ?f n"
   
-  assume (* time_bounded T p *) "\<forall>w. \<exists>n \<le> tcomp T w. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
-  then have n_ex: "\<exists>n. n \<le> tcomp T w \<and> ?f n" ..
-  then obtain n where "n \<le> tcomp T w" and "?f n" by blast
+  assume (* time_bounded T p *) "\<forall>w. \<exists>n \<le> tcomp\<^sub>w T w. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
+  then have n_ex: "\<exists>n. n \<le> tcomp\<^sub>w T w \<and> ?f n" ..
+  then obtain n where "n \<le> tcomp\<^sub>w T w" and "?f n" by blast
 
   from n_ex have "\<exists>n. ?f n" by blast
   then show "time M <w>\<^sub>t\<^sub>p = Some ?lf" unfolding time_def by (rule if_P)
   have "?lf \<le> n" using Least_le \<open>?f n\<close> .
-  also note \<open>n \<le> tcomp T w\<close>
-  finally show "?lf \<le> tcomp T w" .
+  also note \<open>n \<le> tcomp\<^sub>w T w\<close>
+  finally show "?lf \<le> tcomp\<^sub>w T w" .
 next
   fix w
   let ?f = "\<lambda>n. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" let ?lf = "LEAST n. ?f n"
   
-  assume "\<forall>w. \<exists>n. time M <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp T w"
-  then obtain n where n_some: "time M <w>\<^sub>t\<^sub>p = Some n" and n_le: "n \<le> tcomp T w" by blast
+  assume "\<forall>w. \<exists>n. time M <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp\<^sub>w T w"
+  then obtain n where n_some: "time M <w>\<^sub>t\<^sub>p = Some n" and n_le: "n \<le> tcomp\<^sub>w T w" by blast
 
   from n_some have "time M <w>\<^sub>t\<^sub>p \<noteq> None" by (rule option.discI)
   then have n_ex: "\<exists>n. ?f n" unfolding time_def by argo
   with n_some have "?lf = n" unfolding time_def by simp
 
   show "?f ?lf" using LeastI_ex n_ex .
-  show "?lf \<le> tcomp T w" unfolding \<open>?lf = n\<close> using n_le .
+  show "?lf \<le> tcomp\<^sub>w T w" unfolding \<open>?lf = n\<close> using n_le .
 qed
 
-corollary "time_bounded T M \<Longrightarrow> the (time M <w>\<^sub>t\<^sub>p) \<le> tcomp T w"
+corollary "time_bounded T M \<Longrightarrow> the (time M <w>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w"
   unfolding time_bounded_altdef2
 proof (elim allE exE conjE)
   fix w n
-  assume some_n: "time M <w>\<^sub>t\<^sub>p = Some n" and n_le: "n \<le> tcomp T w"
-  from n_le show "the (time M <w>\<^sub>t\<^sub>p) \<le> tcomp T w" unfolding some_n option.sel .
+  assume some_n: "time M <w>\<^sub>t\<^sub>p = Some n" and n_le: "n \<le> tcomp\<^sub>w T w"
+  from n_le show "the (time M <w>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w" unfolding some_n option.sel .
 qed
 
 
