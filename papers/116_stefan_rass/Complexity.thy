@@ -99,17 +99,17 @@ text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_hal
     \<dagger> Note, however, that there are TM's that accept or reject without reading all their input.
       We choose to eliminate them from consideration."\<close>
 
-abbreviation (input) tcomp :: "(nat \<Rightarrow> nat) \<Rightarrow> nat \<Rightarrow> nat"
-  where "tcomp T n \<equiv> max (n + 1) (T n)"
+abbreviation (input) tcomp :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
+  where "tcomp T n \<equiv> nat (max (n + 1) \<lceil>T(n)\<rceil>)"
 
-abbreviation (input) tcomp\<^sub>w :: "(nat \<Rightarrow> nat) \<Rightarrow> word \<Rightarrow> nat"
+abbreviation (input) tcomp\<^sub>w :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> word \<Rightarrow> nat"
   where "tcomp\<^sub>w T w \<equiv> tcomp T (tape_size <w>\<^sub>t\<^sub>p)"
 
-definition time_bounded_word :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> word \<Rightarrow> bool"
+definition time_bounded_word :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> TM \<Rightarrow> word \<Rightarrow> bool"
   where time_bounded_def[simp]: "time_bounded_word T M w \<equiv> \<exists>n.
             n \<le> tcomp\<^sub>w T w \<and> is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
 
-abbreviation time_bounded :: "(nat \<Rightarrow> nat) \<Rightarrow> TM \<Rightarrow> bool"
+abbreviation time_bounded :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> TM \<Rightarrow> bool"
   where "time_bounded T M \<equiv> \<forall>w. time_bounded_word T M w"
 
 (* TODO (?) notation: \<open>p terminates_in_time T\<close> *)
@@ -124,8 +124,8 @@ lemma time_boundedE:
   unfolding time_bounded_altdef by blast
 
 
-lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> (\<And>w. tcomp T n \<ge> tcomp t n)"
-  using max.mono by force
+lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def
+  by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono) rule
 
 lemma time_bounded_mono:
   fixes T t
@@ -534,7 +534,7 @@ qed
 subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
-definition DTIME :: "(nat \<Rightarrow> nat) \<Rightarrow> lang set"
+definition DTIME :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> lang set"
   where "DTIME T \<equiv> {L. \<exists>M. decides M L \<and> time_bounded T M}"
 
 lemma in_dtimeI[intro]:
