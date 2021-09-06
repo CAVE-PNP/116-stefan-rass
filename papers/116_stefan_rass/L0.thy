@@ -19,7 +19,7 @@ text\<open>\<open>L\<^sub>D\<close>, defined as part of the proof for the Time H
 
 definition L\<^sub>D :: "lang"
   where LD_def[simp]: "L\<^sub>D \<equiv> {w. let M\<^sub>w = TM_decode_pad w in
-                  rejects M\<^sub>w w \<and> the (time M\<^sub>w <w>\<^sub>t\<^sub>p) \<le> tcomp T (length w)}"
+                  rejects M\<^sub>w w \<and> the (time M\<^sub>w <w>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w}"
 
 \<comment> \<open>In the above definition, membership is dependent on the whole word \<open>w\<close>,
   as this is the input for \<open>M\<^sub>w\<close>.
@@ -37,7 +37,7 @@ text\<open>Alternative formulation: \<open>L\<^sub>D' := {w \<in> \<Sigma>\<^sup
 
 definition L\<^sub>D' :: "lang"
   where LD'_def[simp]: "L\<^sub>D' \<equiv> {w. let M\<^sub>w = TM_decode_pad w; w' = strip_al_prefix (strip_exp_pad w) in
-                  rejects M\<^sub>w w' \<and> the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp T (length w)}"
+                  rejects M\<^sub>w w' \<and> the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w}"
 
 lemma L\<^sub>DE[elim]:
   fixes w
@@ -45,18 +45,18 @@ lemma L\<^sub>DE[elim]:
   defines "M\<^sub>w \<equiv> TM_decode_pad w"
   shows "rejects M\<^sub>w w"
     and "halts M\<^sub>w w"
-    and "the (time M\<^sub>w <w>\<^sub>t\<^sub>p) \<le> tcomp T (length w)"
-    and "\<exists>n. time M\<^sub>w <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp T (length w)"
+    and "the (time M\<^sub>w <w>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w"
+    and "\<exists>n. time M\<^sub>w <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp\<^sub>w T w"
 proof -
   from \<open>w \<in> L\<^sub>D\<close> show "rejects M\<^sub>w w" unfolding M\<^sub>w_def LD_def Let_def by blast
   then show "halts M\<^sub>w w" unfolding rejects_def halts_def by (rule hoare_true)
 
   define n where "n = the (time M\<^sub>w <w>\<^sub>t\<^sub>p)"
-  from \<open>w \<in> L\<^sub>D\<close> show time_T: "the (time M\<^sub>w <w>\<^sub>t\<^sub>p) \<le> tcomp T (length w)"
+  from \<open>w \<in> L\<^sub>D\<close> show time_T: "the (time M\<^sub>w <w>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w"
     unfolding M\<^sub>w_def LD_def Let_def by blast
-  then have "n \<le> tcomp T (length w)" unfolding n_def .
+  then have "n \<le> tcomp\<^sub>w T w" unfolding n_def .
   moreover from \<open>halts M\<^sub>w w\<close> have "time M\<^sub>w <w>\<^sub>t\<^sub>p = Some n" unfolding n_def halts_altdef by force
-  ultimately show "\<exists>n. time M\<^sub>w <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp T (length w)" by blast
+  ultimately show "\<exists>n. time M\<^sub>w <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp\<^sub>w T w" by blast
 qed
 
 lemma L\<^sub>D'E[elim]:
@@ -66,18 +66,18 @@ lemma L\<^sub>D'E[elim]:
     and "w' \<equiv> strip_al_prefix (strip_exp_pad w)"
   shows "rejects M\<^sub>w w'"
     and "halts M\<^sub>w w'"
-    and "the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp T (length w)"
-    and "\<exists>n. time M\<^sub>w <w'>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp T (length w)"
+    and "the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w"
+    and "\<exists>n. time M\<^sub>w <w'>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp\<^sub>w T w"
 proof -
   from \<open>w \<in> L\<^sub>D'\<close> show "rejects M\<^sub>w w'" unfolding M\<^sub>w_def LD'_def w'_def Let_def by blast
   then show "halts M\<^sub>w w'" unfolding rejects_def halts_def by (rule hoare_true)
 
   define n where "n = the (time M\<^sub>w <w'>\<^sub>t\<^sub>p)"
-  from \<open>w \<in> L\<^sub>D'\<close> show time_T: "the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp T (length w)"
+  from \<open>w \<in> L\<^sub>D'\<close> show time_T: "the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w"
     unfolding M\<^sub>w_def LD'_def w'_def Let_def by blast
-  then have "n \<le> tcomp T (length w)" unfolding n_def .
+  then have "n \<le> tcomp\<^sub>w T w" unfolding n_def .
   moreover from \<open>halts M\<^sub>w w'\<close> have "time M\<^sub>w <w'>\<^sub>t\<^sub>p = Some n" unfolding n_def halts_altdef by force
-  ultimately show "\<exists>n. time M\<^sub>w <w'>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp T (length w)" by blast
+  ultimately show "\<exists>n. time M\<^sub>w <w'>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp\<^sub>w T w" by blast
 qed
 
 theorem time_hierarchy: "L\<^sub>D \<in> DTIME T - DTIME t" sorry
@@ -150,7 +150,8 @@ lemma L\<^sub>D'_adj_sq_iff:
   shows "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'"
 proof -
   from \<open>length w \<ge> 20\<close> have "shared_MSBs (clog (length w)) w w'" unfolding w' by (rule adj_sq_sh_pfx_log)
-  then have len: "length w' = length w" by (elim sh_msbE[symmetric])
+  then have "length w' = length w" by (elim sh_msbE[symmetric])
+  then have len: "tape_size <w'>\<^sub>t\<^sub>p = tape_size <w>\<^sub>t\<^sub>p" unfolding tape_size_input by (rule arg_cong)
   from l have dec: "TM_decode_pad w' = TM_decode_pad w" unfolding w' by (rule adj_sq_TM_dec)
   from l have pad: "strip_exp_pad w' = strip_exp_pad w" unfolding w' by (rule adj_sq_exp_pad)
   show "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'" unfolding LD'_def mem_Collect_eq unfolding dec pad len ..
