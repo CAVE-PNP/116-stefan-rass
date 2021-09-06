@@ -180,7 +180,7 @@ lemma time_bounded_altdef2:
 proof (intro iffI allI exI conjI)
   fix w
   let ?f = "\<lambda>n. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" let ?lf = "LEAST n. ?f n"
-  
+
   assume (* time_bounded T p *) "\<forall>w. \<exists>n \<le> tcomp\<^sub>w T w. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
   then have n_ex: "\<exists>n. n \<le> tcomp\<^sub>w T w \<and> ?f n" ..
   then obtain n where "n \<le> tcomp\<^sub>w T w" and "?f n" by blast
@@ -193,7 +193,7 @@ proof (intro iffI allI exI conjI)
 next
   fix w
   let ?f = "\<lambda>n. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" let ?lf = "LEAST n. ?f n"
-  
+
   assume "\<forall>w. \<exists>n. time M <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp\<^sub>w T w"
   then obtain n where n_some: "time M <w>\<^sub>t\<^sub>p = Some n" and n_le: "n \<le> tcomp\<^sub>w T w" by blast
 
@@ -469,7 +469,7 @@ next
 qed
 
 lemma decides_halts: "decides_word M L w \<Longrightarrow> halts M w"
-  by (cases "w \<in> L") (intro accepts_halts, simp, intro rejects_halts, simp) 
+  by (cases "w \<in> L") (intro accepts_halts, simp, intro rejects_halts, simp)
 
 
 lemma decides_altdef1: "decides_word M L w \<longleftrightarrow> halts M w \<and> (w \<in> L \<longleftrightarrow> accepts M w)"
@@ -554,6 +554,130 @@ lemma in_dtimeE'[elim]:
   assumes "L \<in> DTIME T"
   shows "\<exists>M. decides M L \<and> time_bounded T M"
   using assms unfolding DTIME_def ..
+
+
+subsection\<open>Classical Results\<close>
+
+subsubsection\<open>Almost Everywhere\<close>
+
+text\<open>Hopcroft uses the finite control in Lemma 12.3
+  to make the jump from almost everywhere to everywhere:
+
+  "We say that a statement with parameter \<open>n\<close> is true \<^emph>\<open>almost everywhere\<close> (a.e.) if it
+  is true for all but a finite number of values of \<open>n\<close>. We say a statement is true infinitely
+  often (i.o.) if it is true for an infinite number of \<open>n\<close>'s. Note that both a statement and
+  its negation may be true i.o."\<close>
+
+definition almost_everywhere :: "('a \<Rightarrow> bool) \<Rightarrow> bool"
+  where ae_def[simp]: "almost_everywhere P \<equiv> finite {x. \<not> P x}"
+
+
+lemma ae_everywhereI: "(\<And>x. P x) \<Longrightarrow> almost_everywhere P" by simp
+
+lemma word_length_ae:
+  fixes P :: "word \<Rightarrow> bool"
+  assumes "\<And>w. length w \<ge> n \<Longrightarrow> P w"
+  shows "almost_everywhere P"
+  unfolding ae_def
+proof (rule finite_subset)
+  have "\<not> P w \<Longrightarrow> length w < n" for w using assms by (intro not_le_imp_less) (rule contrapos_nn)
+  then show "{w. \<not> P w} \<subseteq> {w. length w < n}" by (intro Collect_mono impI)
+  show "finite {w::word. length w < n}" by (rule finite_bin_len_less)
+qed
+
+
+text\<open>"Lemma 12.3  If \<open>L\<close> is accepted by a TM \<open>M\<close> that is \<open>S(n)\<close> space bounded a.e., then \<open>L\<close> is
+  accepted by an \<open>S(n)\<close> space-bounded TM.
+  Proof  Use the finite control to accept or reject strings of length \<open>n\<close> for the finite
+  number of \<open>n\<close> where \<open>M\<close> is not \<open>S(n)\<close> bounded. Note that the construction is not
+  effective, since in the absence of a time bound we cannot tell which of these words
+  \<open>M\<close> accepts."
+
+  The lemma is only stated for space bounds,
+  but it seems reasonable that a similar construction works on time bounds.\<close>
+
+
+lemma DTIME_ae:
+  assumes "almost_everywhere (decides_word M L)"
+    and "almost_everywhere (time_bounded_word T M)"
+  shows "L \<in> DTIME(T)"
+  sorry
+
+
+subsubsection\<open>Linear Speed-Up\<close>
+
+text\<open>Hopcroft:
+
+ "Theorem 12.3  If \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>T(n)\<close> time-bounded Turing machine
+  \<open>M\<^sub>1\<close>, then \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>cT(n)\<close> time-bounded TM \<open>M\<^sub>2\<close> for any \<open>c > 0\<close>,
+  provided that \<open>k > 1\<close> and \<open>inf\<^sub>n\<^sub>\<rightarrow>\<^sub>\<infinity> T(n)/n = \<infinity>\<close>."
+
+  Note that the following formalization is likely false
+  (or at least not provable using the construction of Hopcroft),
+  as the used definition of TMs only allows single-tape TMs with a binary alphabet.\<close>
+
+lemma linear_time_speed_up:
+  assumes "c > 0"
+  \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close> required by Hopcroft, but simpler to define in Isabelle.\<close>
+    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
+    and "decides M\<^sub>1 L"
+    and "time_bounded T M\<^sub>1"
+  obtains M\<^sub>2 where "decides M\<^sub>2 L" and "time_bounded (\<lambda>n. c * T n) M\<^sub>2"
+  sorry
+
+
+corollary DTIME_speed_up:
+  assumes "c > 0"
+    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
+    and "L \<in> DTIME(T)"
+  shows "L \<in> DTIME(\<lambda>n. c * T n)"
+proof -
+  from \<open>L \<in> DTIME(T)\<close> obtain M\<^sub>1 where "decides M\<^sub>1 L" and "time_bounded T M\<^sub>1" ..
+  with assms(1-2) obtain M\<^sub>2 where "decides M\<^sub>2 L" and "time_bounded (\<lambda>n. c * T n) M\<^sub>2"
+    by (rule linear_time_speed_up)
+  then show ?thesis ..
+qed
+
+corollary DTIME_speed_up_alt:
+  assumes "c > 0"
+    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
+  defines "T' \<equiv> \<lambda>n. c * T n"
+  shows "DTIME(T') = DTIME(T)"
+proof (intro set_eqI iffI)
+  fix L assume "L \<in> DTIME(T)"
+  with assms(1-2) show "L \<in> DTIME(T')" unfolding T'_def by (rule DTIME_speed_up)
+next
+  fix L
+  define c' where "c' \<equiv> 1/c"
+  have T_T': "T = (\<lambda>n. c' * T' n)" unfolding T'_def c'_def using \<open>c > 0\<close> by force
+
+  from \<open>c > 0\<close> have "c' > 0" unfolding c'_def by simp
+  moreover have "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T'(n)/n \<ge> N" unfolding T'_def
+  proof
+    fix N
+    define N' where "N' \<equiv> N / c"
+    have *: "T(n)/n \<ge> N/c \<longleftrightarrow> c*T(n)/n \<ge> N" for n using \<open>c > 0\<close> by (subst pos_divide_le_eq) argo+
+
+    from assms(2) have \<open>\<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N'\<close> ..
+    then show "\<exists>n'. \<forall>n\<ge>n'. c*T(n)/n \<ge> N" unfolding N'_def * .
+  qed
+  moreover assume "L \<in> DTIME(T')"
+  ultimately show "L \<in> DTIME(T)" unfolding T_T' by (rule DTIME_speed_up)
+qed
+
+corollary DTIME_speed_up_div:
+  assumes "d > 0"
+    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
+    and "L \<in> DTIME(T)"
+  shows "L \<in> DTIME(\<lambda>n. T n / d)"
+proof -
+  define c where "c \<equiv> 1 / d"
+  have "a / d = c * a" for a unfolding c_def by simp
+
+  from \<open>d > 0\<close> have "c > 0" unfolding c_def by simp
+  then show "L \<in> DTIME(\<lambda>n. T n / d)" unfolding \<open>\<And>a. a / d = c * a\<close>
+    using assms(2-3) by (rule DTIME_speed_up)
+qed
 
 
 subsection\<open>Reductions\<close>

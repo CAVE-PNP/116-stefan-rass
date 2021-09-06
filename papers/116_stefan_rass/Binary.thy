@@ -480,7 +480,7 @@ corollary finite_bin_len_less: "finite {w::bin. length w < l}"
 proof -
   let ?W = "\<lambda>l. {w::bin. length w = l}"
   let ?W\<^sub>L = "{?W l' | l'. l' < l}"
-  
+
   have *: "{w::bin. length w < l} = \<Union> ?W\<^sub>L" by blast
   show "finite {w::bin. length w < l}" unfolding *
     using finite_bin_len_eq by (intro finite_Union) force+
@@ -515,7 +515,7 @@ proof -
   proof (intro sum.reindex inj_onI)
     fix x y
     obtain w :: bin where "length w = x" using Ex_list_of_length ..
-    
+
     assume "?W x = ?W y"
     then have "w \<in> ?W x \<longleftrightarrow> w \<in> ?W y" for w by (rule arg_cong)
     then have "length w = x \<Longrightarrow> length w = y" by blast
