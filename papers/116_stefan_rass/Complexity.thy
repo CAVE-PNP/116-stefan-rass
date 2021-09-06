@@ -682,62 +682,22 @@ qed
 
 subsection\<open>Reductions\<close>
 
-lemma simple_reduction:
-  fixes A B :: lang
-    and f\<^sub>R :: "word \<Rightarrow> word"
-    and M\<^sub>R :: TM
-    and t\<^sub>R :: "nat \<Rightarrow> nat"
-  assumes "\<And>w. w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B"
-    and "\<And>w. length (f\<^sub>R w) \<le> length w"
-    and "\<And>w. Hoare_halt (input w) M\<^sub>R (input (f\<^sub>R w))"
+lemma reduce_decides:
+  fixes A B :: lang and M\<^sub>R M\<^sub>B :: TM and f\<^sub>R :: "word \<Rightarrow> word" and w :: word
+  assumes "decides_word M\<^sub>B B (f\<^sub>R w)"
+    and f\<^sub>R: "w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B"
+    and M\<^sub>R_f\<^sub>R: "{input w} M\<^sub>R {input (f\<^sub>R w)}"
     and "tm_wf0 M\<^sub>R"
-    and "time_bounded t\<^sub>R M\<^sub>R"
-    and "B \<in> DTIME(t)"
-  defines "T \<equiv> \<lambda>n. t n + t\<^sub>R n"
-  shows "A \<in> DTIME(T)"
+  defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
+  shows "decides_word M A w"
 proof -
-  from \<open>B \<in> DTIME t\<close> obtain M\<^sub>B
-    where "decides M\<^sub>B B"
-      and "time_bounded t M\<^sub>B" ..
-
-  define M where "M \<equiv> M\<^sub>R |+| M\<^sub>B"
-
-  {
-    fix w
-    note \<open>{input w} M\<^sub>R {input (f\<^sub>R w)}\<close>
-    moreover from \<open>decides M\<^sub>B B\<close> have "{input (f\<^sub>R w)} M\<^sub>B {\<lambda>tp. (head tp = Oc) = (f\<^sub>R w \<in> B)}"
-      unfolding decides_altdef3 ..
-    moreover note \<open>tm_wf0 M\<^sub>R\<close>
-    ultimately have "{input w} M\<^sub>R |+| M\<^sub>B {\<lambda>tp. (head tp = Oc) = (f\<^sub>R w \<in> B)}"
-      by (rule Hoare_plus_halt)
-    then have "{input w} M {\<lambda>tp. (head tp = Oc) = (w \<in> A)}" unfolding M_def \<open>w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B\<close> .
-  }
-  then have "decides M A" unfolding decides_altdef3 ..
-  moreover have "time_bounded T M"
-  proof -
-    fix w
-    define l where "l \<equiv> tape_size <w>\<^sub>t\<^sub>p"
-      \<comment> \<open>Idea: Fix the input word \<^term>\<open>w\<close>.
-        We already know that the first machine \<^term>\<open>M\<^sub>R\<close> is time bounded
-        (@{thm \<open>time_bounded t\<^sub>R M\<^sub>R\<close>}),
-        such that its run-time will be no longer than \<^term>\<open>t\<^sub>R l = t\<^sub>R (2 * length w)\<close>
-        (@{thm tape_size_input}}).
-
-        We also know that its execution will result in the encoded corresponding input word
-        with regards to \<open>B\<close> (@{thm \<open>\<And>w. {input w} M\<^sub>R {input (f\<^sub>R w)}\<close>}).
-        Since the length of the corresponding input word is no longer
-        than the length of the original input word \<^term>\<open>w\<close> (@{thm \<open>\<And>w. length (f\<^sub>R w) \<le> length w\<close>}),
-        and the second machine \<^term>\<open>M\<^sub>B\<close> is time bounded (@{thm \<open>time_bounded t M\<^sub>B\<close>}),
-        we may conclude that the run-time of \<^term>\<open>M \<equiv> M\<^sub>R |+| M\<^sub>B\<close> on the input \<^term>\<open><w>\<^sub>t\<^sub>p\<close>
-        is no longer than \<^term>\<open>T l \<equiv> t l + t\<^sub>R l\<close>.
-
-        \<^const>\<open>time_bounded\<close> is defined in terms of \<^const>\<open>tcomp\<close>, however,
-        which means that the resulting total run time \<^term>\<open>T l\<close> may be as large as
-        \<^term>\<open>tcomp t l + tcomp t\<^sub>R l \<equiv> max (l + 1) (t l) + max (l + 1) (t\<^sub>R l)\<close>.\<close>
-
-    show ?thesis sorry
+  have "{input w} M\<^sub>R |+| M\<^sub>B {\<lambda>tp. (head tp = Oc) = (f\<^sub>R w \<in> B)}" using M\<^sub>R_f\<^sub>R \<open>tm_wf0 M\<^sub>R\<close>
+  proof (intro Hoare_plus_halt)
+    from \<open>decides_word M\<^sub>B B (f\<^sub>R w)\<close> show "{input (f\<^sub>R w)} M\<^sub>B {\<lambda>tp. (head tp = Oc) = (f\<^sub>R w \<in> B)}"
+      unfolding decides_altdef3 .
   qed
-  ultimately show "A \<in> DTIME T" ..
+  then have "{input w} M {\<lambda>tp. (head tp = Oc) = (w \<in> A)}" unfolding M_def \<open>w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B\<close> .
+  then show "decides_word M A w" unfolding decides_altdef3 .
 qed
 
 

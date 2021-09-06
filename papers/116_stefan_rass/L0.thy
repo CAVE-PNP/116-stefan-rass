@@ -105,6 +105,7 @@ definition L\<^sub>0 :: lang
 definition L\<^sub>0' :: lang
   where L0'_def[simp]: "L\<^sub>0' \<equiv> L\<^sub>D' \<inter> SQ"
 
+(* TODO move lemmas that do not depend on locale defs out of locale context *)
 
 lemma adj_sq_exp_pad:
   fixes w
@@ -174,10 +175,66 @@ next
 qed
 
 
+\<comment> \<open>For now assume that this result will hold for some version of \<open>L\<^sub>D\<close> and \<open>L\<^sub>0\<close>.\<close>
+
+lemma L\<^sub>D_L\<^sub>0_adj_sq_iff:
+  fixes w
+  assumes l: "length w \<ge> 20"
+  defines "w' \<equiv> adj_sq\<^sub>w w"
+  shows "w \<in> L\<^sub>D \<longleftrightarrow> w' \<in> L\<^sub>0"
+  sorry
+
+
 text\<open>Lemma 4.6. Let \<open>t\<close>, \<open>T\<close> be as in Assumption 4.4 and assume \<open>T(n) \<ge> n\<^sup>3\<close>.
   Then, there exists a language \<open>L\<^sub>0 \<in> DTIME(T) - DTIME(t)\<close> for which \<open>dens\<^sub>L\<^sub>0(x) \<le> \<surd>x\<close>.\<close>
 
-theorem L0_time_hierarchy: "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" oops
+lemma L0_t: "L\<^sub>0 \<notin> DTIME(t)"
+proof (rule ccontr, unfold not_not)
+  assume "L\<^sub>0 \<in> DTIME(t)"
+  then obtain M\<^sub>0 where "decides M\<^sub>0 L\<^sub>0" and "time_bounded t M\<^sub>0" ..
+
+  define T\<^sub>R where "T\<^sub>R \<equiv> \<lambda>n::nat. n^3"
+  obtain M\<^sub>R where "tm_wf0 M\<^sub>R"
+    and "\<And>w. {input w} M\<^sub>R {input (adj_sq\<^sub>w w)}"
+    and "time_bounded T\<^sub>R M\<^sub>R"
+    sorry
+
+  define M where "M \<equiv> M\<^sub>R |+| M\<^sub>0"
+  define t' where "t' = (\<lambda>n. real (tcomp T\<^sub>R n + tcomp t n))"
+
+  have "L\<^sub>D \<in> DTIME(t')"
+  proof (intro DTIME_ae word_length_ae)
+    fix w :: word
+    assume "length w \<ge> 20"
+    then have "length (adj_sq\<^sub>w w) \<le> length w"
+      by (intro eq_imp_le sh_msbE[symmetric]) (rule adj_sq_sh_pfx_log)
+    from \<open>length w \<ge> 20\<close> have "w \<in> L\<^sub>D \<longleftrightarrow> adj_sq\<^sub>w w \<in> L\<^sub>0" by (rule L\<^sub>D_L\<^sub>0_adj_sq_iff)
+
+    from \<open>decides M\<^sub>0 L\<^sub>0\<close> have "decides_word M\<^sub>0 L\<^sub>0 (adj_sq\<^sub>w w)" ..
+    then show "decides_word M L\<^sub>D w" unfolding M_def
+      using \<open>w \<in> L\<^sub>D \<longleftrightarrow> adj_sq\<^sub>w w \<in> L\<^sub>0\<close> \<open>{input w} M\<^sub>R {input (adj_sq\<^sub>w w)}\<close> \<open>tm_wf0 M\<^sub>R\<close>
+      by (rule reduce_decides)
+
+    from \<open>time_bounded t M\<^sub>0\<close> have "time_bounded_word t M\<^sub>0 (adj_sq\<^sub>w w)" ..
+    moreover from \<open>time_bounded T\<^sub>R M\<^sub>R\<close> have "time_bounded_word T\<^sub>R M\<^sub>R w" ..
+    ultimately show "time_bounded_word t' M w" unfolding M_def t'_def
+      using \<open>{input w} M\<^sub>R {input (adj_sq\<^sub>w w)}\<close> \<open>length (adj_sq\<^sub>w w) \<le> length w\<close>
+      (* by (rule reduce_time_bounded) *) sorry
+  qed
+
+  then have "L\<^sub>D \<in> DTIME(t)" sorry
+  \<comment> \<open>This is not correct, since \<^term>\<open>t\<close> could be arbitrarily small.
+    Let \<open>t(n) = n\<close> and \<open>T(n) = n\<^sup>3\<close>. Then \<open>DTIME(t)\<close> is limited by \<open>tcomp t n = n + 1\<close>
+    and \<open>DTIME(T)\<close> by \<open>tcomp t n = n\<^sup>3\<close> (for \<open>n > 1\<close>).\<close>
+
+  moreover from time_hierarchy have "L\<^sub>D \<notin> DTIME(t)" by (rule DiffE)
+  ultimately show False by contradiction
+qed
+
+
+lemma L0_T: "L\<^sub>0 \<in> DTIME(T)" sorry
+
+theorem L0_time_hierarchy: "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" using L0_T L0_t ..
 
 theorem dens_L0: "dens L\<^sub>0 n \<le> dsqrt n"
 proof -
