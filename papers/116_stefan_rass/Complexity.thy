@@ -298,24 +298,47 @@ abbreviation decides :: "TM \<Rightarrow> lang \<Rightarrow> bool"
   where "decides M L \<equiv> \<forall>w. decides_word M L w "
 
 
-lemma rej_TM: "rejects Rejecting_TM w" unfolding rejects_def
-proof (intro Hoare_haltI exI conjI)
-  fix l r
+lemma rej_TM_step1: "steps0 (1, (l, r)) Rejecting_TM 1 = (0, l, Bk # tl r)"
+proof -
   have fetch: "fetch Rejecting_TM 1 b = (W0, 0)" for b unfolding Rejecting_TM_def
     by (cases b) (simp_all add: fetch.simps nth_of.simps)
 
-  have step1: "steps0 (1, (l, r)) Rejecting_TM 1 = (0, l, Bk # tl r)"
-  proof -
-    have "steps0 (1, (l, r)) Rejecting_TM 1 = step0 (1, l, r) Rejecting_TM"
-      unfolding One_nat_def steps.simps ..
-    also have "... = (0, update W0 (l, r))" unfolding step.simps diff_zero fetch by simp
-    also have "... = (0, l, Bk # tl r)" by simp
-    finally show ?thesis .
-  qed
+  have "steps0 (1, (l, r)) Rejecting_TM 1 = step0 (1, l, r) Rejecting_TM"
+    unfolding One_nat_def steps.simps ..
+  also have "... = (0, update W0 (l, r))" unfolding step.simps diff_zero fetch by simp
+  also have "... = (0, l, Bk # tl r)" by simp
+  finally show ?thesis .
+qed
 
-  show "is_final (steps0 (1, l, r) Rejecting_TM 1)" unfolding step1 ..
+lemma rej_TM: "rejects Rejecting_TM w" unfolding rejects_def
+proof (intro Hoare_haltI exI conjI)
+  fix l r
+  show "is_final (steps0 (1, l, r) Rejecting_TM 1)" unfolding rej_TM_step1 ..
   show "(\<lambda>tp. head tp = Bk) holds_for steps0 (1, l, r) Rejecting_TM 1"
-    unfolding step1 holds_for.simps by simp
+    unfolding rej_TM_step1 holds_for.simps by simp
+qed
+
+lemma rej_TM_time: "time Rejecting_TM tp = Some 1"
+proof -
+  let ?f = "\<lambda>n. is_final (steps0 (1, tp) Rejecting_TM n)"
+
+  obtain l r where tp: "tp = (l, r)" by (rule prod.exhaust)
+  have "\<not> ?f 0" unfolding steps.simps tp is_final.simps by (rule one_neq_zero)
+  have "?f 1" unfolding tp rej_TM_step1 ..
+  then have c: "\<exists>n. ?f n" ..
+
+  then have "time Rejecting_TM tp = Some (LEAST n. ?f n)" unfolding time_def by (rule if_P)
+  also have "... = Some 1"
+  proof (intro arg_cong[where f=Some] Least_equality)
+    fix n assume "?f n"
+    show "n \<ge> 1" proof (rule ccontr, unfold not_le)
+      assume "n < 1"
+      then have "n = 0" unfolding One_nat_def less_Suc0 .
+      from \<open>?f n\<close> have "?f 0" unfolding \<open>n = 0\<close> .
+      with \<open>\<not> ?f 0\<close> show False by contradiction
+    qed
+  qed fact
+  finally show ?thesis .
 qed
 
 
