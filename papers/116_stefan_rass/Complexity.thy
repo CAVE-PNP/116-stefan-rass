@@ -556,6 +556,14 @@ lemma in_dtimeE'[elim]:
   using assms unfolding DTIME_def ..
 
 
+corollary in_dtime_mono: 
+  fixes T t
+  assumes Tt: "\<And>n. T n \<ge> t n"
+    and tD: "L \<in> DTIME(t)"
+  shows "L \<in> DTIME(T)"
+  using assms time_bounded_mono by (elim in_dtimeE, intro in_dtimeI) blast+
+
+
 subsection\<open>Classical Results\<close>
 
 subsubsection\<open>Almost Everywhere\<close>
@@ -638,16 +646,14 @@ proof -
   then show ?thesis ..
 qed
 
-corollary DTIME_speed_up_alt:
+lemma DTIME_speed_up_rev:
+  fixes T c
+  defines "T' \<equiv> \<lambda>n. c * T n"
   assumes "c > 0"
     and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
-  defines "T' \<equiv> \<lambda>n. c * T n"
-  shows "DTIME(T') = DTIME(T)"
-proof (intro set_eqI iffI)
-  fix L assume "L \<in> DTIME(T)"
-  with assms(1-2) show "L \<in> DTIME(T')" unfolding T'_def by (rule DTIME_speed_up)
-next
-  fix L
+    and "L \<in> DTIME(T')"
+  shows "L \<in> DTIME(T)"
+proof -
   define c' where "c' \<equiv> 1/c"
   have T_T': "T = (\<lambda>n. c' * T' n)" unfolding T'_def c'_def using \<open>c > 0\<close> by force
 
@@ -658,12 +664,18 @@ next
     define N' where "N' \<equiv> N / c"
     have *: "T(n)/n \<ge> N/c \<longleftrightarrow> c*T(n)/n \<ge> N" for n using \<open>c > 0\<close> by (subst pos_divide_le_eq) argo+
 
-    from assms(2) have \<open>\<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N'\<close> ..
+    from assms(3) have "\<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N'" ..
     then show "\<exists>n'. \<forall>n\<ge>n'. c*T(n)/n \<ge> N" unfolding N'_def * .
   qed
-  moreover assume "L \<in> DTIME(T')"
+  moreover note \<open>L \<in> DTIME(T')\<close>
   ultimately show "L \<in> DTIME(T)" unfolding T_T' by (rule DTIME_speed_up)
 qed
+
+corollary DTIME_speed_up_eq:
+  assumes "c > 0"
+    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
+  shows "DTIME(\<lambda>n. c * T n) = DTIME(T)"
+  using assms by (intro set_eqI iffI) (fact DTIME_speed_up_rev, fact DTIME_speed_up)
 
 corollary DTIME_speed_up_div:
   assumes "d > 0"
@@ -698,6 +710,41 @@ proof -
   qed
   then have "{input w} M {\<lambda>tp. (head tp = Oc) = (w \<in> A)}" unfolding M_def \<open>w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B\<close> .
   then show "decides_word M A w" unfolding decides_altdef3 .
+qed
+
+
+lemma reduce_time_bounded:
+  fixes T\<^sub>B T\<^sub>R :: "nat \<Rightarrow> 'a :: floor_ceiling" and M\<^sub>R M\<^sub>B :: TM and f\<^sub>R :: "word \<Rightarrow> word" and w :: word
+  assumes "time_bounded_word T\<^sub>B M\<^sub>B (f\<^sub>R w)"
+    and "time_bounded_word T\<^sub>R M\<^sub>R w"
+    and M\<^sub>R_f\<^sub>R: "Hoare_halt (input w) M\<^sub>R (input (f\<^sub>R w))"
+    and f\<^sub>R_len: "length (f\<^sub>R w) \<le> length w"
+    (* and "tm_wf0 M\<^sub>R" *)
+  defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
+  defines "(T :: nat \<Rightarrow> 'a) \<equiv> \<lambda>n. of_nat (tcomp T\<^sub>R n + tcomp T\<^sub>B n)"
+  shows "time_bounded_word T M w"
+proof -
+  define l where "l \<equiv> tape_size <w>\<^sub>t\<^sub>p"
+
+    \<comment> \<open>Idea: We already know that the first machine \<^term>\<open>M\<^sub>R\<close> is time bounded
+    (@{thm \<open>time_bounded_word T\<^sub>R M\<^sub>R w\<close>}),
+    such that its run-time is bounded by \<^term>\<open>T\<^sub>R l = T\<^sub>R (2 * length w)\<close>
+    (@{thm tape_size_input}}).
+
+    We also know that its execution will result in the encoded corresponding input word \<open>f\<^sub>R w\<close>
+    (@{thm \<open>{input w} M\<^sub>R {input (f\<^sub>R w)}\<close>}).
+    Since the length of the corresponding input word is no longer
+    than the length of the original input word \<^term>\<open>w\<close> (@{thm \<open>length (f\<^sub>R w) \<le> length w\<close>}),
+    and the second machine \<^term>\<open>M\<^sub>B\<close> is time bounded (@{thm \<open>time_bounded_word T\<^sub>B M\<^sub>B (f\<^sub>R w)\<close>}),
+    we may conclude that the run-time of \<^term>\<open>M \<equiv> M\<^sub>R |+| M\<^sub>B\<close> on the input \<^term>\<open><w>\<^sub>t\<^sub>p\<close>
+    is no longer than \<^term>\<open>T l \<equiv> T\<^sub>R l + T\<^sub>B l\<close>.
+
+    \<^const>\<open>time_bounded\<close> is defined in terms of \<^const>\<open>tcomp\<close>, however,
+    which means that the resulting total run time \<^term>\<open>T l\<close> may be as large as
+    \<^term>\<open>tcomp T\<^sub>R l + tcomp T\<^sub>B l \<equiv> nat (max (l + 1) \<lceil>T\<^sub>R l\<rceil>) + nat (max (l + 1) \<lceil>T\<^sub>B l\<rceil>)\<close>.
+    If \<^term>\<open>\<lceil>T\<^sub>R l\<rceil> < l + 1\<close> or \<^term>\<open>\<lceil>T\<^sub>B l\<rceil> < l + 1\<close> then \<^term>\<open>tcomp T l < tcomp T\<^sub>R l + tcomp T\<^sub>B l\<close>.\<close>
+
+  show ?thesis sorry
 qed
 
 

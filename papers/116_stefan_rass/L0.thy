@@ -95,7 +95,7 @@ text\<open>From the proof of Lemma 4.6, p14:
     complexity bound here)."\<close>
 
 locale tht_sq_assms = tht_assms +
-  assumes "T n \<ge> n^3"
+  assumes T_lower_bound: "T n \<ge> n^3"
 begin
 
 
@@ -193,6 +193,7 @@ proof (rule ccontr, unfold not_not)
   assume "L\<^sub>0 \<in> DTIME(t)"
   then obtain M\<^sub>0 where "decides M\<^sub>0 L\<^sub>0" and "time_bounded t M\<^sub>0" ..
 
+  \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be realized by a TM in time \<open>n\<^sup>3\<close>.\<close>
   define T\<^sub>R where "T\<^sub>R \<equiv> \<lambda>n::nat. n^3"
   obtain M\<^sub>R where "tm_wf0 M\<^sub>R"
     and "\<And>w. {input w} M\<^sub>R {input (adj_sq\<^sub>w w)}"
@@ -219,7 +220,7 @@ proof (rule ccontr, unfold not_not)
     moreover from \<open>time_bounded T\<^sub>R M\<^sub>R\<close> have "time_bounded_word T\<^sub>R M\<^sub>R w" ..
     ultimately show "time_bounded_word t' M w" unfolding M_def t'_def
       using \<open>{input w} M\<^sub>R {input (adj_sq\<^sub>w w)}\<close> \<open>length (adj_sq\<^sub>w w) \<le> length w\<close>
-      (* by (rule reduce_time_bounded) *) sorry
+      by (rule reduce_time_bounded)
   qed
 
   then have "L\<^sub>D \<in> DTIME(t)" sorry
@@ -227,12 +228,31 @@ proof (rule ccontr, unfold not_not)
     Let \<open>t(n) = n\<close> and \<open>T(n) = n\<^sup>3\<close>. Then \<open>DTIME(t)\<close> is limited by \<open>tcomp t n = n + 1\<close>
     and \<open>DTIME(T)\<close> by \<open>tcomp t n = n\<^sup>3\<close> (for \<open>n > 1\<close>).\<close>
 
-  moreover from time_hierarchy have "L\<^sub>D \<notin> DTIME(t)" by (rule DiffE)
+  moreover from time_hierarchy have "L\<^sub>D \<notin> DTIME(t)" ..
   ultimately show False by contradiction
 qed
 
 
-lemma L0_T: "L\<^sub>0 \<in> DTIME(T)" sorry
+lemma SQ_DTIME: "SQ \<in> DTIME(\<lambda>n. n^3)" sorry
+lemma DTIME_int: "L\<^sub>1 \<in> DTIME(T\<^sub>1) \<Longrightarrow> L\<^sub>2 \<in> DTIME(T\<^sub>2) \<Longrightarrow> L\<^sub>1 \<inter> L\<^sub>2 \<in> DTIME(\<lambda>n. T\<^sub>1 n + T\<^sub>2 n)" sorry
+
+lemma L0_T: "L\<^sub>0 \<in> DTIME(T)"
+proof -
+  define T' :: "nat \<Rightarrow> real" where "T' \<equiv> \<lambda>n. T n + n^3"
+  have "T' n \<le> 2 * T n" for n unfolding T'_def
+    using T_lower_bound by (intro of_nat_mono) force
+
+  \<comment> \<open>The following is required for use of the speed-up-theorem (@{thm DTIME_speed_up_eq}).
+    It likely does not hold given the current assumptions of \<^const>\<open>tht_assms\<close>.\<close>
+  have *: "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N" sorry
+
+  from time_hierarchy have "L\<^sub>D \<in> DTIME T" ..
+  then have "L\<^sub>0 \<in> DTIME(T')" unfolding T'_def L0_def of_nat_add
+    using SQ_DTIME by (rule DTIME_int)
+  with \<open>\<And>n. T' n \<le> 2 * T n\<close> have "L\<^sub>0 \<in> DTIME(\<lambda>n. 2 * T n)" by (rule in_dtime_mono)
+  then show "L\<^sub>0 \<in> DTIME(T)" unfolding of_nat_mult
+    using * by (subst (asm) DTIME_speed_up_eq) linarith
+qed
 
 theorem L0_time_hierarchy: "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" using L0_T L0_t ..
 
