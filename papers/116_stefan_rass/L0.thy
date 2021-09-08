@@ -242,16 +242,28 @@ proof -
   have "T' n \<le> 2 * T n" for n unfolding T'_def
     using T_lower_bound by (intro of_nat_mono) force
 
-  \<comment> \<open>The following is required for use of the speed-up-theorem (@{thm DTIME_speed_up_eq}).
-    It likely does not hold given the current assumptions of \<^const>\<open>tht_assms\<close>.\<close>
-  have *: "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N" sorry
+  have T_superlinear: "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
+  proof (intro allI exI impI)
+    fix N :: real and n :: nat
+    let ?n' = "nat \<lceil>N\<rceil>"
+    assume "?n' \<le> n"
+
+    have "N \<le> ?n'" by (rule real_nat_ceiling_ge)
+    also have "... \<le> n" using \<open>?n' \<le> n\<close> by (rule of_nat_mono)
+    also have "... \<le> n\<^sup>2" by (rule of_nat_mono) (rule power2_nat_le_imp_le, rule le_refl)
+    also have "n\<^sup>2 = n powr (3 - 1)" by force
+    also have "... = n^3 / n" unfolding powr_diff
+      by (simp only: powr_numeral powr_one of_nat_power)
+    also have "... \<le> T(n)/n" using T_lower_bound by (intro divide_right_mono of_nat_mono) auto
+    finally show "T(n)/n \<ge> N" .
+  qed
 
   from time_hierarchy have "L\<^sub>D \<in> DTIME T" ..
   then have "L\<^sub>0 \<in> DTIME(T')" unfolding T'_def L0_def of_nat_add
     using SQ_DTIME by (rule DTIME_int)
   with \<open>\<And>n. T' n \<le> 2 * T n\<close> have "L\<^sub>0 \<in> DTIME(\<lambda>n. 2 * T n)" by (rule in_dtime_mono)
   then show "L\<^sub>0 \<in> DTIME(T)" unfolding of_nat_mult
-    using * by (subst (asm) DTIME_speed_up_eq) linarith
+    using T_superlinear by (subst (asm) DTIME_speed_up_eq) linarith
 qed
 
 theorem L0_time_hierarchy: "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" using L0_T L0_t ..
