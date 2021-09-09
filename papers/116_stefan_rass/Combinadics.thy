@@ -22,8 +22,8 @@ lemma nat_of_set_inv: "set_of_nat (nat_of_set S) = S"
   sorry
 
 lemma nat_of_set_inj:
-  assumes "finite A" "finite B" (*unused*)
-      and "nat_of_set A = nat_of_set B"
+  assumes "nat_of_set A = nat_of_set B"
+    (* and "finite A" "finite B" (*unused*) *) 
     shows "A = B"
 proof -
   from \<open>nat_of_set A = nat_of_set B\<close>
@@ -37,12 +37,10 @@ definition less_eq_lex where
 definition less_lex where
   "less_lex A B \<longleftrightarrow> nat_of_set A < nat_of_set B"
 
-interpretation natset_lex_ord:
-  linorder less_eq_lex less_lex
-  apply standard
-  apply (auto simp add: less_eq_lex_def less_lex_def)
-  sorry (* inconsistent for infinite sets? *)
-(* how to define an linorder for finite nat sets only? *)
+interpretation natset_lex_ord: linorder less_eq_lex less_lex
+  unfolding less_eq_lex_def less_lex_def
+  by standard (auto simp add: nat_of_set_inj)
+  (* inconsistent for infinite sets? *)
 
 definition nat_of_combination :: "nat set \<Rightarrow> nat" where
   "nat_of_combination X = card {Y. card Y = card X \<and> less_lex Y X}"
