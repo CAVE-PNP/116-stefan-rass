@@ -9,6 +9,7 @@ locale tht_assms =
   fixes T t :: "nat \<Rightarrow> nat"
   assumes "fully_tconstr T"
     and "lim (\<lambda>l. t l * log 2 (t l) / T l) = 0"
+    and "\<And>n. n \<le> t n"
 begin
 
 
@@ -277,18 +278,5 @@ proof -
 qed
 
 end \<comment> \<open>\<^locale>\<open>tht_sq_assms\<close>\<close>
-
-
-corollary False
-proof -
-  define T :: "nat \<Rightarrow> nat" where "T \<equiv> \<lambda>n. 1"
-  let ?L = "tht_assms.L\<^sub>D T"
-
-  have "fully_tconstr T" unfolding fully_tconstr_def T_def
-    by (intro exI allI impI) (rule rej_TM_time)
-  moreover have "lim (\<lambda>l. T l * log 2 (T l) / T l) = 0" unfolding T_def by force
-  ultimately have "?L \<in> DTIME(T) - DTIME(T)" by (intro tht_assms.time_hierarchy tht_assms.intro)
-  then show False by blast
-qed
 
 end
