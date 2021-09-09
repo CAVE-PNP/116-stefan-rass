@@ -15,20 +15,23 @@ fun set_of_bin :: "bin \<Rightarrow> nat \<Rightarrow> nat set" where
 definition set_of_nat :: "nat \<Rightarrow> nat set" where
   "set_of_nat n = set_of_bin (bin_of_nat n) 0"
 
+
+lemma "infinite S \<Longrightarrow> nat_of_set S = 0" unfolding nat_of_set_def by simp
+
 lemma "nat_of_set (set_of_nat n) = n"
   sorry
 
-lemma nat_of_set_inv: "set_of_nat (nat_of_set S) = S"
+lemma nat_of_set_inv: "finite S \<Longrightarrow> set_of_nat (nat_of_set S) = S"
   sorry
 
 lemma nat_of_set_inj:
-  assumes "nat_of_set A = nat_of_set B"
-    (* and "finite A" "finite B" (*unused*) *) 
-    shows "A = B"
+  assumes "finite A" "finite B"
+    and "nat_of_set A = nat_of_set B"
+  shows "A = B"
 proof -
   from \<open>nat_of_set A = nat_of_set B\<close>
   have "set_of_nat (nat_of_set A) = set_of_nat (nat_of_set B)" by (rule arg_cong)
-  thus "A = B" unfolding nat_of_set_inv .
+  thus "A = B" using assms(1-2) by (subst (asm) (1 2) nat_of_set_inv) auto
 qed
 
 definition less_eq_lex where
@@ -37,10 +40,12 @@ definition less_eq_lex where
 definition less_lex where
   "less_lex A B \<longleftrightarrow> nat_of_set A < nat_of_set B"
 
-interpretation natset_lex_ord: linorder less_eq_lex less_lex
-  unfolding less_eq_lex_def less_lex_def
-  by standard (auto simp add: nat_of_set_inj)
-  (* inconsistent for infinite sets? *)
+interpretation natset_lex_ord:
+  linorder less_eq_lex less_lex
+  apply standard
+  apply (auto simp add: less_eq_lex_def less_lex_def)
+  sorry (* inconsistent for infinite sets? *)
+(* how to define an linorder for finite nat sets only? *)
 
 definition nat_of_combination :: "nat set \<Rightarrow> nat" where
   "nat_of_combination X = card {Y. card Y = card X \<and> less_lex Y X}"
