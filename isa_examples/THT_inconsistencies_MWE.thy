@@ -1,7 +1,21 @@
 theory THT_inconsistencies_MWE
-  imports Complex_Main
-    "Universal_Turing_Machine.UTM"
+  imports Complex_Main "Universal_Turing_Machine.UTM"
 begin
+
+
+\<comment> \<open>This document demonstrates a flaw in the formulation of the Time Hierarchy Theorem (THT)
+  in the paper by Stefan Rass and the primary source (Hopcroft).
+
+  The example is trivial, as choosing \<open>T(n) = t(n) = 1\<close> fulfils the assumptions and allows
+  proving non-emptiness of \<open>DTIME(T) - DTIME(t) = {}\<close>.
+
+  The flaw is easily patched by adding an additional assumption along the lines of
+  \<^term>\<open>t(n) \<ge> n\<close> or \<^term>\<open>strict_mono T\<close>
+
+  Most code is taken directly from the main code-base,
+  with the exception of the Time Hierarchy Theorem's definition itself,
+  which is simplified to just show existence instead of proving membership
+  of an explicitly constructed language \<open>L\<^sub>D\<close>.\<close>
 
 
 section\<open>Definitions\<close>
@@ -38,8 +52,7 @@ fun encode_word :: "word \<Rightarrow> cell list" where
 abbreviation input_tape ("<_>\<^sub>t\<^sub>p") where "<w>\<^sub>t\<^sub>p \<equiv> (([]::cell list), encode_word w)"
 abbreviation input where "input w \<equiv> (\<lambda>tp. tp = <w>\<^sub>t\<^sub>p)"
 
-fun tape_size :: "tape \<Rightarrow> nat" \<comment> \<open>using \<open>fun\<close> since \<open>definition\<close> does not recognize patterns like \<^term>\<open>(l, r)\<close>\<close>
-  where "tape_size (l, r) = length l + length r"
+fun tape_size :: "tape \<Rightarrow> nat" where "tape_size (l, r) = length l + length r"
 
 definition accepts :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "accepts M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
@@ -67,6 +80,9 @@ definition DTIME :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> lang 
 
 
 section\<open>Lemmas\<close>
+
+\<comment> \<open>These can be omitted if one admits that the function \<^term>\<open>T(n) = 1\<close> is fully time-constructible.
+  (\<^term>\<open>fully_tconstr (\<lambda>n. 1)\<close>).\<close>
 
 lemma rej_TM_step1: "steps0 (1, (l, r)) Rejecting_TM 1 = (0, l, Bk # tl r)"
 proof -

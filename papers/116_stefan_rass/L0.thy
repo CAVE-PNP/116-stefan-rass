@@ -9,6 +9,11 @@ locale tht_assms =
   fixes T t :: "nat \<Rightarrow> nat"
   assumes "fully_tconstr T"
     and "lim (\<lambda>l. t l * log 2 (t l) / T l) = 0"
+  \<comment> \<open>The following assumption is not found in the paper or the primary source (Hopcroft),
+    but is taken from the AAU lecture slides of \<^emph>\<open>Algorithms and Complexity Theory\<close>.
+    It patches a hole that allows one to prove \<^term>\<open>False\<close> from the Time Hierarchy Theorem below
+    (\<open>time_hierarchy\<close>).
+    This is demonstrated in \<^file>\<open>../../isa_examples/THT_inconsistencies_MWE.thy\<close>.\<close>
     and "\<And>n. n \<le> t n"
 begin
 
@@ -266,6 +271,22 @@ proof -
   then show "L\<^sub>0 \<in> DTIME(T)" unfolding of_nat_mult
     using T_superlinear by (subst (asm) DTIME_speed_up_eq) linarith
 qed
+
+\<comment> \<open>Alternative proof for \<open>\<close> without the need for the Speed-Up Theorem.
+  This version of @{thm DTIME_int} should work, if multiple tapes may be used.\<close>
+
+lemma DTIME_int': "L\<^sub>1 \<in> DTIME(T\<^sub>1) \<Longrightarrow> L\<^sub>2 \<in> DTIME(T\<^sub>2) \<Longrightarrow> L\<^sub>1 \<inter> L\<^sub>2 \<in> DTIME(\<lambda>n. max (T\<^sub>1 n) (T\<^sub>2 n))" sorry
+
+lemma L0_T': "L\<^sub>0 \<in> DTIME(T)"
+proof -
+  let ?T' = "\<lambda>n. real (max (T n) (n^3))"
+  from T_lower_bound have "?T' = T" by (intro ext, unfold of_nat_eq_iff) (rule max_absorb1)
+
+  from time_hierarchy have "L\<^sub>D \<in> DTIME T" ..
+  then have "L\<^sub>0 \<in> DTIME(?T')" using SQ_DTIME unfolding L0_def of_nat_max by (rule DTIME_int')
+  then show "L\<^sub>0 \<in> DTIME(T)" unfolding \<open>?T' = T\<close> .
+qed
+
 
 theorem L0_time_hierarchy: "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" using L0_T L0_t ..
 
