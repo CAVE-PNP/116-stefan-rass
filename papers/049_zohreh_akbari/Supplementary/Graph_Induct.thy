@@ -43,9 +43,10 @@ next
   with assms(2) show "P G" .
 qed
 
+lemma card_singleton[simp]: "card {x} = 1" by simp
 lemma finite_singleton[simp]: "finite {x}" by blast
 
-lemma (in fin_digraph) verts_induct_non_empty [consumes 1, case_names empty delete]:
+lemma (in fin_digraph) verts_induct_non_empty [consumes 1, case_names singleton delete]:
   assumes "\<not> is_empty"
     and "\<And>G. is_singleton (verts G) \<Longrightarrow> P G"
     and "\<And>G v. P (G \<restriction> (verts G - {v})) \<Longrightarrow> P G"
