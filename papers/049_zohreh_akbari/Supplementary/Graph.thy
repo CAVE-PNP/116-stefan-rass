@@ -143,4 +143,36 @@ next
 qed
 
 
+subsection\<open>Trivial Properties of the Empty Graph\<close>
+
+lemma wf_digraph_emptyI: "arcs G = {} \<Longrightarrow> wf_digraph G" by (rule wf_digraph.intro) blast+
+
+lemma fin_digraph_emptyI: "verts G = {} \<Longrightarrow> arcs G = {} \<Longrightarrow> fin_digraph G"
+  by (intro fin_digraph.intro fin_digraph_axioms.intro) (rule wf_digraph_emptyI, force+)
+
+lemma loopfree_digraph_emptyI: "arcs G = {} \<Longrightarrow> loopfree_digraph G"
+  by (intro loopfree_digraph.intro loopfree_digraph_axioms.intro) (rule wf_digraph_emptyI, blast+)
+
+lemma nomulti_digraph_emptyI: "arcs G = {} \<Longrightarrow> nomulti_digraph G"
+  by (intro nomulti_digraph.intro nomulti_digraph_axioms.intro) (rule wf_digraph_emptyI, blast+)
+
+lemma empty_sym: "sym {}" unfolding sym_def by (intro allI impI) blast
+
+lemma sym_digraph_emptyI: "arcs G = {} \<Longrightarrow> sym_digraph G"
+proof (intro sym_digraph.intro sym_digraph_axioms.intro)
+  assume "arcs G = {}"
+  show "symmetric G" unfolding symmetric_def arcs_ends_def \<open>arcs G = {}\<close> image_empty
+    by (rule empty_sym)
+qed (rule wf_digraph_emptyI)
+
+lemma digraph_emptyI: "\<lbrakk>verts G = {}; arcs G = {}\<rbrakk> \<Longrightarrow> digraph G"
+  using fin_digraph_emptyI loopfree_digraph_emptyI nomulti_digraph_emptyI by (rule digraph.intro)
+
+lemma pseudo_graph_emptyI: "\<lbrakk>verts G = {}; arcs G = {}\<rbrakk> \<Longrightarrow> pseudo_graph G"
+  using fin_digraph_emptyI sym_digraph_emptyI by (rule pseudo_graph.intro)
+
+lemma graph_emptyI: "\<lbrakk>verts G = {}; arcs G = {}\<rbrakk> \<Longrightarrow> graph G"
+  using digraph_emptyI pseudo_graph_emptyI by (rule graph.intro)
+
+
 end
