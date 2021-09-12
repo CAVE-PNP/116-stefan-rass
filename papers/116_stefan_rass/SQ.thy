@@ -349,8 +349,6 @@ qed
 
 lemma sh_msb_comm: "shared_MSBs l a b \<Longrightarrow> shared_MSBs l b a" unfolding sh_sfx_def sh_msb_def by argo
 
-
-
 lemma bit_len_le_pow2: "n < 2 ^ k \<Longrightarrow> bit_length n \<le> k"
 proof (cases "n > 0", cases "k > 0")
   assume "n > 0" and "k > 0" and "n < 2 ^ k"
@@ -365,7 +363,6 @@ qed (* cases "n = 0" and "k = 0" by *) fastforce+
 
 (* suppl *)
 lemma pow2_min: "0 < n \<Longrightarrow> n < 2^k \<Longrightarrow> k > 0" for n k :: nat by (cases "k > 0") force+
-
 
 lemma add_suffix_bin:
   fixes up lo k :: nat
@@ -601,25 +598,23 @@ qed
 theorem adj_sq_sh_pfx_log:
   fixes w
   defines "l \<equiv> length w"
-  defines "k \<equiv> clog l"
   defines "w' \<equiv> adj_sq\<^sub>w w"
   assumes "l \<ge> 20" (* lower bound for "clog l \<le> l div 2 - 5" *)
-  shows "shared_MSBs k w w'"
+  shows "shared_MSBs (clog l) w w'"
     and "w' \<in> SQ"
 proof -
   show "w' \<in> SQ" unfolding w'_def by (rule adj_sq_word_correct)
 
-  have "k = clog l" using k_def by (rule meta_eq_to_obj_eq)
-  also have "... \<le> l div 2 - 5" using \<open>l \<ge> 20\<close> by (rule sh_pfx_log_ineq')
+  have "clog l \<le> l div 2 - 5" using \<open>l \<ge> 20\<close> by (rule sh_pfx_log_ineq')
   also have "... = l div 2 + l div 2 - l div 2 - 5" unfolding diff_add_inverse2 ..
   also have "... \<le> l - l div 2 - 5" by (intro diff_le_mono) (fold mult_2, simp)
   also have "... = l - (5 + l div 2)" unfolding diff_diff_left by presburger
   also have "... = length w - suffix_len w" unfolding suffix_len_def len_gn l_def[symmetric] ..
-  finally have "k \<le> length w - suffix_len w" .
+  finally have "clog l \<le> length w - suffix_len w" .
 
   moreover have "shared_MSBs (length w - suffix_len w) w (adj_sq\<^sub>w w)" using \<open>l \<ge> 20\<close>
     by (intro adj_sq_sh_pfx_half) (fold l_def, force)
-  ultimately show "shared_MSBs k w w'" by (fold w'_def) (rule sh_msb_le)
+  ultimately show "shared_MSBs (clog l) w w'" by (fold w'_def) (rule sh_msb_le)
 qed
 
 

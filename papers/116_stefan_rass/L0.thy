@@ -41,9 +41,9 @@ definition L\<^sub>D :: "lang"
 text\<open>Alternative formulation: \<open>L\<^sub>D' := {w \<in> \<Sigma>\<^sup>*: M\<^sub>w halts and rejects w' within \<le> T(len(w)) steps}\<close>,
   where \<open>w' := strip_al_prefix (strip_exp_pad w)\<close>.\<close>
 
-definition L\<^sub>D' :: "lang"
-  where LD'_def[simp]: "L\<^sub>D' \<equiv> {w. let M\<^sub>w = TM_decode_pad w; w' = strip_al_prefix (strip_exp_pad w) in
-                  rejects M\<^sub>w w' \<and> the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w}"
+definition L\<^sub>D' :: "lang" where
+  LD'_def[simp]:"L\<^sub>D' \<equiv> {w. let M\<^sub>w = TM_decode_pad w; w' = strip_al_prefix (strip_exp_pad w) in
+                           rejects M\<^sub>w w' \<and> the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w}"
 
 lemma L\<^sub>DE[elim]:
   fixes w
@@ -58,10 +58,11 @@ proof -
   then show "halts M\<^sub>w w" unfolding rejects_def halts_def by (rule hoare_true)
 
   define n where "n = the (time M\<^sub>w <w>\<^sub>t\<^sub>p)"
-  from \<open>w \<in> L\<^sub>D\<close> show time_T: "the (time M\<^sub>w <w>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w"
+  from \<open>w \<in> L\<^sub>D\<close> show "the (time M\<^sub>w <w>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w"
     unfolding M\<^sub>w_def LD_def Let_def by blast
   then have "n \<le> tcomp\<^sub>w T w" unfolding n_def .
-  moreover from \<open>halts M\<^sub>w w\<close> have "time M\<^sub>w <w>\<^sub>t\<^sub>p = Some n" unfolding n_def halts_altdef by force
+  moreover from \<open>halts M\<^sub>w w\<close> have "time M\<^sub>w <w>\<^sub>t\<^sub>p = Some n"
+    unfolding n_def halts_altdef by force
   ultimately show "\<exists>n. time M\<^sub>w <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp\<^sub>w T w" by blast
 qed
 
@@ -115,27 +116,28 @@ definition L\<^sub>0' :: lang
 
 lemma adj_sq_exp_pad:
   fixes w
-  defines l: "l \<equiv> length w"
-    and w': "w' \<equiv> adj_sq\<^sub>w w"
+  defines "l \<equiv> length w"
+    and "w' \<equiv> adj_sq\<^sub>w w"
   assumes "l \<ge> 20"
   shows "strip_exp_pad w' = strip_exp_pad w"
 proof -
-  from \<open>l \<ge> 20\<close> have "shared_MSBs (clog l) w w'" unfolding l w' by (rule adj_sq_sh_pfx_log)
-  then have l_eq: "length w' = l" and d_eq: "drop (l - clog l) w' = drop (l - clog l) w"
-    unfolding l by (elim sh_msbE[symmetric])+
+  from \<open>l \<ge> 20\<close> have "shared_MSBs (clog l) w w'"
+    unfolding l_def w'_def by (rule adj_sq_sh_pfx_log)
+  then have l_eq: "length w' = l"
+        and d_eq: "drop (l - clog l) w' = drop (l - clog l) w"
+    unfolding l_def by (elim sh_msbE[symmetric])+
 
   have "strip_exp_pad w' = drop (l - clog l) w'" unfolding strip_exp_pad_def l_eq Let_def ..
   also have "... = drop (l - clog l) w" using d_eq .
-  also have "... = strip_exp_pad w" unfolding strip_exp_pad_def l[symmetric] Let_def ..
+  also have "... = strip_exp_pad w" unfolding strip_exp_pad_def l_def[symmetric] Let_def ..
   finally show ?thesis .
 qed
 
 corollary adj_sq_TM_dec:
   fixes w
   assumes "length w \<ge> 20"
-  defines "w' \<equiv> adj_sq\<^sub>w w"
-  shows "TM_decode_pad w' = TM_decode_pad w"
-  unfolding TM_decode_pad_def w'_def using \<open>length w \<ge> 20\<close> by (subst adj_sq_exp_pad) fast+
+  shows "TM_decode_pad (adj_sq\<^sub>w w) = TM_decode_pad w"
+  unfolding TM_decode_pad_def using assms by (subst adj_sq_exp_pad) fast+
 
 lemma L\<^sub>D_adj_sq_iff:
   fixes w
@@ -256,7 +258,7 @@ proof -
 
     have "N \<le> ?n'" by (rule real_nat_ceiling_ge)
     also have "... \<le> n" using \<open>?n' \<le> n\<close> by (rule of_nat_mono)
-    also have "... \<le> n\<^sup>2" by (rule of_nat_mono) (rule power2_nat_le_imp_le, rule le_refl)
+    also have "... \<le> n\<^sup>2" by (simp add: power2_nat_le_imp_le)
     also have "n\<^sup>2 = n powr (3 - 1)" by force
     also have "... = n^3 / n" unfolding powr_diff
       by (simp only: powr_numeral powr_one of_nat_power)
@@ -287,16 +289,11 @@ proof -
   then show "L\<^sub>0 \<in> DTIME(T)" unfolding \<open>?T' = T\<close> .
 qed
 
-
 theorem L0_time_hierarchy: "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" using L0_T L0_t ..
 
 theorem dens_L0: "dens L\<^sub>0 n \<le> dsqrt n"
-proof -
-  have "dens L\<^sub>0 n = dens (L\<^sub>D \<inter> SQ) n" unfolding L0_def ..
-  also have "... \<le> dens SQ n" by (subst Int_commute) (rule dens_intersect_le)
-  also have "... = dsqrt n" by (rule dens_SQ)
-  finally show ?thesis .
-qed
+  unfolding L0_def dens_SQ[symmetric]
+  using dens_intersect_le .
 
 end \<comment> \<open>\<^locale>\<open>tht_sq_assms\<close>\<close>
 

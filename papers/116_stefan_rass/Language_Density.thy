@@ -72,12 +72,7 @@ proof -
   with card_mono bounded_lang_finite show ?thesis unfolding dens_def .
 qed
 
-text\<open>"The definition of density functions immediately delivers a useful inequality
-  for such intersection sets: for every two languages \<open>L\<^sub>1\<close>, \<open>L\<^sub>2\<close>, we have
-                           \<open>dens\<^sub>L\<^sub>1 \<inter> dens\<^sub>L\<^sub>2 \<le> dens\<^sub>L\<^sub>1\<close>,                   (6)
-  since there cannot be more words in \<open>L\<^sub>1 \<inter> L\<^sub>2\<close> than words in \<open>L\<^sub>1\<close> (or \<open>L\<^sub>2\<close>, respectively)."\<close>
-
-theorem dens_intersect_le: "dens (L\<^sub>1 \<inter> L\<^sub>2) x \<le> dens L\<^sub>1 x"
-  by (intro dens_mono) (rule Int_lower1)
+theorem dens_intersect_le: "dens (L\<^sub>1 \<inter> L\<^sub>2) x \<le> dens L\<^sub>2 x"
+  by (intro dens_mono) (rule Int_lower2)
 
 end
