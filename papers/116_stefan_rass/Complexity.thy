@@ -205,7 +205,7 @@ next
   show "?lf \<le> tcomp\<^sub>w T w" unfolding \<open>?lf = n\<close> using n_le .
 qed
 
-corollary "time_bounded T M \<Longrightarrow> the (time M <w>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w"
+corollary time_bounded_time: "time_bounded T M \<Longrightarrow> the (time M <w>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w"
   unfolding time_bounded_altdef2
 proof (elim allE exE conjE)
   fix w n
@@ -246,11 +246,9 @@ subsection\<open>Deciding Languages\<close>
     the synonymous constructor \<^term>\<open>L\<close> of type \<^typ>\<open>action\<close> ("move head left") is hidden.\<close>
 hide_const (open) L
 
-text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^term>\<open>L\<close>, iff for every possible word \<^term>\<open>w\<close>
-  it correctly calculates language membership.
-  That is, for \<^term>\<open>w \<in> L\<close> the computation results in \<^term>\<open>Oc\<close> under the TM head,
-  and for \<^term>\<open>w \<notin> L\<close> in \<^term>\<open>Bk\<close>.\<close>
-
+text\<open>A TM \<open>M\<close> is considered to halt on a word \<open>w\<close>, iff it reaches a final state upon input of \<open>w\<close>.
+  The existing definition \<^const>\<open>Uncomputable.halts\<close>
+  additionally requires the tape content to be standard when the final state is reached.\<close>
 
 definition halts :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "halts M w \<equiv> Hoare_halt (input w) M (\<lambda>_. True)"
@@ -284,6 +282,14 @@ qed
 lemma halts_altdef: "halts M w \<longleftrightarrow> (\<exists>n. time M <w>\<^sub>t\<^sub>p = Some n)"
   using halts_time time_halts by blast
 
+lemma halts_altdef2: "halts M w \<longleftrightarrow> (\<exists>n. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n))"
+  unfolding halts_altdef time_def by simp
+
+
+text\<open>A TM \<open>M\<close> is considered to decide a language \<open>L\<close>, iff for every possible word \<open>w\<close>
+  it correctly calculates language membership.
+  That is, for \<^term>\<open>w \<in> L\<close> the computation results in \<^term>\<open>Oc\<close> under the TM head,
+  and for \<^term>\<open>w \<notin> L\<close> in \<^term>\<open>Bk\<close>.\<close>
 
 definition accepts :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "accepts M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
@@ -462,19 +468,19 @@ proof (rule ccontr)
   thus False using input_encoding by (rule hoare_contr)
 qed
 
-lemma acc_not_rej:
-  assumes "accepts M w"
-  shows "\<not> rejects M w"
-proof (intro notI)
+lemma acc_nand_rej: "\<not> (accepts M w \<and> rejects M w)"
+proof (rule ccontr, unfold not_not, elim conjE)
+  assume "accepts M w"
+  then have Oc: "Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)" unfolding accepts_def .
   assume "rejects M w"
+  then have Bk: "Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)" unfolding rejects_def .
 
-  have "Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
-    using \<open>accepts M w\<close> unfolding accepts_def .
-  moreover have "Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
-    using \<open>rejects M w\<close> unfolding rejects_def .
-  ultimately show False using head_halt_inj[of w M Oc Bk] by blast
+  with Oc have "Oc = Bk" by (rule head_halt_inj)
+  then show False by blast
 qed
 
+lemma acc_not_rej: "accepts M w \<Longrightarrow> \<not> rejects M w"
+  using acc_nand_rej by blast
 
 lemma rejects_altdef:
   "rejects M w = (halts M w \<and> \<not> accepts M w)"
@@ -494,6 +500,8 @@ qed
 lemma decides_halts: "decides_word M L w \<Longrightarrow> halts M w"
   by (cases "w \<in> L") (intro accepts_halts, simp, intro rejects_halts, simp)
 
+corollary decides_halts_all: "decides M L \<Longrightarrow> halts M w"
+  using decides_halts by blast
 
 lemma decides_altdef1: "decides_word M L w \<longleftrightarrow> halts M w \<and> (w \<in> L \<longleftrightarrow> accepts M w)"
 proof (intro iffI)
@@ -544,14 +552,48 @@ next
   qed
 qed
 
-lemma decides_altdef3:
-  "decides_word M L w \<longleftrightarrow> {input w} M {\<lambda>tp. head tp = Oc \<longleftrightarrow> w \<in> L}"
+lemma decides_altdef3: "decides_word M L w \<longleftrightarrow> {input w} M {\<lambda>tp. head tp = Oc \<longleftrightarrow> w \<in> L}"
 proof -
   have *: "(a = Oc \<longleftrightarrow> c) \<longleftrightarrow> a = (if c then Oc else Bk)" for a c by (induction a) simp_all
   show ?thesis unfolding * by (rule decides_altdef2)
 qed
 
+lemma decides_altdef4: "decides_word M L w \<longleftrightarrow> (if w \<in> L then accepts M w else rejects M w)"
+  unfolding decides_def using acc_nand_rej by (cases "w \<in> L") auto
+
+
 (* TODO (?) notation: \<open>p decides L\<close> *)
+
+
+subsubsection\<open>TM Languages\<close>
+
+definition TM_lang :: "TM \<Rightarrow> lang" ("L'(_')")
+  where "L(M) \<equiv> if (\<forall>w. halts M w) then {w. accepts M w} else undefined"
+
+lemma decides_TM_lang_accepts: "(\<And>w. halts M w) \<Longrightarrow> decides M {w. accepts M w}"
+  unfolding decides_def rejects_altdef mem_Collect_eq by blast
+
+lemma decides_TM_lang: "(\<And>w. halts M w) \<Longrightarrow> decides M L(M)"
+  unfolding TM_lang_def using decides_TM_lang_accepts by presburger
+
+lemma decidesE: "decides M L \<Longrightarrow> L(M) = L"
+proof safe
+  assume \<open>decides M L\<close>
+  then have "halts M w" for w by (rule decides_halts_all)
+  then have L_M: "L(M) = {w. accepts M w}" unfolding TM_lang_def by presburger
+
+  fix w
+  show "w \<in> L(M)" if "w \<in> L" proof -
+    from \<open>w \<in> L\<close> \<open>decides M L\<close> have "accepts M w" unfolding decides_def by blast
+    then show "w \<in> L(M)" unfolding L_M ..
+  qed
+  show "w \<in> L" if "w \<in> L(M)" proof -
+    from \<open>w \<in> L(M)\<close> have "accepts M w" unfolding L_M by blast
+    with \<open>decides M L\<close> show "w \<in> L" unfolding decides_def by blast
+  qed
+qed
+
+lemma TM_lang_unique: "\<exists>\<^sub>\<le>\<^sub>1L. decides M L" using decidesE by (intro Uniq_I) blast
 
 
 subsection\<open>DTIME\<close>

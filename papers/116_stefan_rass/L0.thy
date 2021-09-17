@@ -7,7 +7,7 @@ section\<open>Time Hierarchy Theorem and the Diagonal Language\<close>
 
 locale tht_assms =
   fixes T t :: "nat \<Rightarrow> nat"
-  assumes "fully_tconstr T"
+  assumes fully_tconstr_T: "fully_tconstr T"
     and "lim (\<lambda>l. t l * log 2 (t l) / T l) = 0"
   \<comment> \<open>The following assumption is not found in the paper or the primary source (Hopcroft),
     but is taken from the AAU lecture slides of \<^emph>\<open>Algorithms and Complexity Theory\<close>.
@@ -25,7 +25,7 @@ text\<open>\<open>L\<^sub>D\<close>, defined as part of the proof for the Time H
 
 definition L\<^sub>D :: "lang"
   where LD_def[simp]: "L\<^sub>D \<equiv> {w. let M\<^sub>w = TM_decode_pad w in
-                  rejects M\<^sub>w w \<and> the (time M\<^sub>w <w>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w}"
+                  rejects M\<^sub>w w \<and> time_bounded_word T M\<^sub>w w}"
 
 \<comment> \<open>In the above definition, membership is dependent on the whole word \<open>w\<close>,
   as this is the input for \<open>M\<^sub>w\<close>.
@@ -43,7 +43,7 @@ text\<open>Alternative formulation: \<open>L\<^sub>D' := {w \<in> \<Sigma>\<^sup
 
 definition L\<^sub>D' :: "lang"
   where LD'_def[simp]: "L\<^sub>D' \<equiv> {w. let M\<^sub>w = TM_decode_pad w; w' = strip_al_prefix (strip_exp_pad w) in
-                  rejects M\<^sub>w w' \<and> the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w}"
+                  rejects M\<^sub>w w' \<and> time_bounded_word T M\<^sub>w w'}"
 
 lemma L\<^sub>DE[elim]:
   fixes w
@@ -51,18 +51,12 @@ lemma L\<^sub>DE[elim]:
   defines "M\<^sub>w \<equiv> TM_decode_pad w"
   shows "rejects M\<^sub>w w"
     and "halts M\<^sub>w w"
-    and "the (time M\<^sub>w <w>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w"
-    and "\<exists>n. time M\<^sub>w <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp\<^sub>w T w"
+    and "time_bounded_word T M\<^sub>w w"
 proof -
   from \<open>w \<in> L\<^sub>D\<close> show "rejects M\<^sub>w w" unfolding M\<^sub>w_def LD_def Let_def by blast
   then show "halts M\<^sub>w w" unfolding rejects_def halts_def by (rule hoare_true)
-
-  define n where "n = the (time M\<^sub>w <w>\<^sub>t\<^sub>p)"
-  from \<open>w \<in> L\<^sub>D\<close> show time_T: "the (time M\<^sub>w <w>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w"
-    unfolding M\<^sub>w_def LD_def Let_def by blast
-  then have "n \<le> tcomp\<^sub>w T w" unfolding n_def .
-  moreover from \<open>halts M\<^sub>w w\<close> have "time M\<^sub>w <w>\<^sub>t\<^sub>p = Some n" unfolding n_def halts_altdef by force
-  ultimately show "\<exists>n. time M\<^sub>w <w>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp\<^sub>w T w" by blast
+  from \<open>w \<in> L\<^sub>D\<close> show "time_bounded_word T M\<^sub>w w"
+    unfolding M\<^sub>w_def LD_def Let_def mem_Collect_eq ..
 qed
 
 lemma L\<^sub>D'E[elim]:
@@ -72,21 +66,61 @@ lemma L\<^sub>D'E[elim]:
     and "w' \<equiv> strip_al_prefix (strip_exp_pad w)"
   shows "rejects M\<^sub>w w'"
     and "halts M\<^sub>w w'"
-    and "the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w"
-    and "\<exists>n. time M\<^sub>w <w'>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp\<^sub>w T w"
+    and "time_bounded_word T M\<^sub>w w'"
 proof -
   from \<open>w \<in> L\<^sub>D'\<close> show "rejects M\<^sub>w w'" unfolding M\<^sub>w_def LD'_def w'_def Let_def by blast
-  then show "halts M\<^sub>w w'" unfolding rejects_def halts_def by (rule hoare_true)
-
-  define n where "n = the (time M\<^sub>w <w'>\<^sub>t\<^sub>p)"
-  from \<open>w \<in> L\<^sub>D'\<close> show time_T: "the (time M\<^sub>w <w'>\<^sub>t\<^sub>p) \<le> tcomp\<^sub>w T w"
-    unfolding M\<^sub>w_def LD'_def w'_def Let_def by blast
-  then have "n \<le> tcomp\<^sub>w T w" unfolding n_def .
-  moreover from \<open>halts M\<^sub>w w'\<close> have "time M\<^sub>w <w'>\<^sub>t\<^sub>p = Some n" unfolding n_def halts_altdef by force
-  ultimately show "\<exists>n. time M\<^sub>w <w'>\<^sub>t\<^sub>p = Some n \<and> n \<le> tcomp\<^sub>w T w" by blast
+  then show "halts M\<^sub>w w'" by (rule rejects_halts)
+  from \<open>w \<in> L\<^sub>D'\<close> show "time_bounded_word T M\<^sub>w w'"
+    unfolding M\<^sub>w_def LD'_def w'_def Let_def mem_Collect_eq ..
 qed
 
-theorem time_hierarchy: "L\<^sub>D \<in> DTIME T - DTIME t" sorry
+theorem time_hierarchy: "L\<^sub>D \<in> DTIME(T) - DTIME(t)"
+proof
+  \<comment> \<open>\<open>M\<close> is a modified universal TM that executes two TMs in parallel upon an input word \<open>w\<close>.
+    \<open>M\<^sub>w\<close> is the input word \<open>w\<close> treated as a TM (\<open>M\<^sub>w \<equiv> TM_decode_pad w\<close>).
+    \<open>M\<^sub>T\<close> is a "stopwatch", that halts after exactly \<open>tcomp\<^sub>w T w\<close> steps.
+    Its existence is assured by the assumption @{thm fully_tconstr_T}.
+    Both machines are simulated with input word \<open>w\<close>.
+
+    Once either of these simulated TM halts, \<open>M\<close> halts as well.
+    If \<open>M\<^sub>T\<close> halts before \<open>M\<^sub>w\<close>, \<open>M\<close> rejects \<open>w\<close>.
+    If \<open>M\<^sub>w\<close> halts first, \<open>M\<close> inverts the output of \<open>M\<^sub>w\<close>:
+    If \<open>M\<^sub>w\<close> accepts, then \<open>M\<close> rejects \<open>w\<close>. If \<open>M\<^sub>w\<close> rejects, then \<open>M\<close> accepts \<open>w\<close>.
+    Thus \<open>M\<close> accepts \<open>w\<close>, iff \<open>M\<^sub>w\<close> rejects \<open>w\<close> in time \<open>tcomp\<^sub>w T w\<close>.\<close>
+
+  define L\<^sub>D_P where "L\<^sub>D_P \<equiv> \<lambda>w. let M\<^sub>w = TM_decode_pad w in
+    rejects M\<^sub>w w \<and> time_bounded_word T M\<^sub>w w"
+  
+  obtain M where "time_bounded T M"
+    and *: "\<And>w. if L\<^sub>D_P w then accepts M w else rejects M w" sorry
+  have "decides M L\<^sub>D" unfolding decides_altdef4 LD_def mem_Collect_eq L\<^sub>D_P_def[symmetric] using * ..
+  with \<open>time_bounded T M\<close> show "L\<^sub>D \<in> DTIME(T)" by blast
+
+
+  have "L \<noteq> L\<^sub>D" if "L \<in> DTIME(t)" for L
+  proof -
+    from \<open>L \<in> DTIME(t)\<close> obtain M where "decides M L" and "time_bounded t M" ..
+    define w' where "w' = encode_TM M"
+
+    define l where "l \<equiv> undefined::nat" (* ??? *)
+    have "tm_wf0 M" "length (encode_TM M) + 2 \<le> clog l" sorry (* ??? *)
+    then obtain w where "length w = l" and "TM_decode_pad w = M" by (rule embed_TM_in_len)
+
+    define M\<^sub>w where "M\<^sub>w \<equiv> TM_decode_pad w"
+    have "M\<^sub>w = M" unfolding M\<^sub>w_def by (fact \<open>TM_decode_pad w = M\<close>)
+    have "L(M\<^sub>w) = L" unfolding \<open>M\<^sub>w = M\<close> using \<open>decides M L\<close> by (rule decidesE)
+
+    have "w \<in> L(M\<^sub>w)" sorry (* ??? *)
+    then have "w \<in> L" unfolding \<open>L(M\<^sub>w) = L\<close> .
+    moreover from \<open>decides M L\<close> have "w \<notin> L \<longleftrightarrow> rejects M w" unfolding decides_def by blast
+    ultimately have "\<not> rejects M w" by blast
+
+    then have "w \<notin> L\<^sub>D" unfolding LD_def mem_Collect_eq
+      unfolding \<open>TM_decode_pad w = M\<close> Let_def de_Morgan_conj ..
+    with \<open>w \<in> L\<close> show "L \<noteq> L\<^sub>D" by blast
+  qed
+  then show "L\<^sub>D \<notin> DTIME(t)" by blast
+qed
 
 end \<comment> \<open>\<^locale>\<open>tht_assms\<close>\<close>
 
