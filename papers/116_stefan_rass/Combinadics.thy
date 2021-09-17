@@ -59,6 +59,50 @@ lemma "0 < k \<Longrightarrow> nat_of_combination (combination_of_nat k n) = n"
 lemma "finite S \<Longrightarrow> combination_of_nat (card S) (nat_of_combination S) = S"
   sorry
 
+definition subset_sfx :: "nat set \<Rightarrow> nat set \<Rightarrow> bool" where
+  "subset_sfx P X \<longleftrightarrow> P\<subseteq>X \<and> (\<forall>x\<in>X. x\<in>P \<or> (\<forall>p\<in>P. x \<le> p))"
+
+lemma subset_sfx_altdef:
+  "subset_sfx P X \<longleftrightarrow> P\<subseteq>X \<and> suffix (sorted_list_of_set P) (sorted_list_of_set X)"
+  sorry
+
+lemma finite_sfx_max: 
+  assumes "subset_sfx P X" "finite P" "P\<noteq>{}"
+  obtains m where "m\<in>P" and "\<forall>x\<in>X. x \<le> m"
+proof -
+  from \<open>finite P\<close> \<open>P\<noteq>{}\<close>
+  obtain m where *: "\<forall>p\<in>P. p \<le> m" and "m\<in>P"
+    using Max_eq_iff by blast
+  have "\<forall>x\<in>X. x \<le> m" proof
+    fix x assume "x\<in>X"
+    thus "x \<le> m" proof (cases "x \<in> P")
+      case False
+      with \<open>subset_sfx P X\<close> \<open>x\<in>X\<close> \<open>m\<in>P\<close>
+      show ?thesis unfolding subset_sfx_def by blast
+    qed (simp add: *)
+  qed
+  with that \<open>m\<in>P\<close> show thesis .
+qed
+
+corollary
+  assumes "subset_sfx {m} X"
+  shows "Max X = m"
+proof (subst Max_eq_iff)
+  have *: "\<forall>x\<in>X. x \<le> m"
+    using assms finite_sfx_max by blast
+  from * show "finite X"
+    unfolding finite_nat_set_iff_bounded_le ..
+  from assms have "m\<in>X"
+    unfolding subset_sfx_def by blast
+  thus "X\<noteq>{}" by blast
+  from \<open>m\<in>X\<close> * show "m \<in> X \<and> (\<forall>a\<in>X. a \<le> m)" ..
+qed 
+
+lemma
+  fixes X::"nat set"
+  shows "card {Y. Max Y = Max X \<and> card Y = card X \<and> less_eq_lex Y X} = (Max X choose (card X - 1))"
+sorry
+
 theorem nat_of_combination_altdef:
 "nat_of_combination X = (let cs = enumerate 1 (sorted_list_of_set X) in
               fold (\<lambda>(i, c) acc. acc + (c choose i)) cs 0)"
