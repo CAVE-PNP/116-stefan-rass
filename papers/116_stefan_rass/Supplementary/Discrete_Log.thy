@@ -139,6 +139,9 @@ proof -
   finally show "clog n \<le> dlog n + 1" .
 qed
 
+lemma clog_mono: "mono clog"
+  unfolding clog_def by (intro monoI) (rule add_le_mono1, rule log_le_iff, rule diff_le_mono)
+
 
 lemma power_two_decompose:
   fixes n::nat

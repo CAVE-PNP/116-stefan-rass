@@ -106,7 +106,17 @@ proof
     obtain l where "T(2*l) \<ge> t(2*l)" and "clog l \<ge> ?n"
     proof -
       from T_dominates_t obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l \<ge> t l" for l sorry (* TODO *)
-      obtain l\<^sub>2 :: nat where l2: "l \<ge> l\<^sub>2 \<Longrightarrow> clog l \<ge> ?n" for l sorry (* TODO *)
+
+      obtain l\<^sub>2 :: nat where l2: "l \<ge> l\<^sub>2 \<Longrightarrow> clog l \<ge> ?n" for l
+      proof
+        fix l :: nat
+        assume "l \<ge> 2^?n"
+
+        have "?n > 0" by simp
+        then have "?n = clog (2^?n)" by (rule clog_exp[symmetric])
+        also have "... \<le> clog l" using clog_mono \<open>l \<ge> 2^?n\<close> ..
+        finally show "clog l \<ge> ?n" .
+      qed
 
       let ?l = "max l\<^sub>1 l\<^sub>2"
       have "T (2*?l) \<ge> t (2*?l)" by (rule l1) force
