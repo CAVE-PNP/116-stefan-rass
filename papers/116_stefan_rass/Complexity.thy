@@ -99,10 +99,10 @@ text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_hal
     \<dagger> Note, however, that there are TM's that accept or reject without reading all their input.
       We choose to eliminate them from consideration."\<close>
 
-abbreviation (input) tcomp :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
+abbreviation tcomp :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
   where "tcomp T n \<equiv> nat (max (n + 1) \<lceil>T(n)\<rceil>)"
 
-abbreviation (input) tcomp\<^sub>w :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> word \<Rightarrow> nat"
+abbreviation tcomp\<^sub>w :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> word \<Rightarrow> nat"
   where "tcomp\<^sub>w T w \<equiv> tcomp T (tape_size <w>\<^sub>t\<^sub>p)"
 
 definition time_bounded_word :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> TM \<Rightarrow> word \<Rightarrow> bool"
@@ -124,24 +124,33 @@ lemma time_boundedE:
   unfolding time_bounded_altdef by blast
 
 
-lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def
+lemma tcomp_mono: "T n \<ge> t n \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def
   by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono) rule
+
+lemma time_bounded_word_mono:
+  fixes T t w
+  defines "l \<equiv> tape_size <w>\<^sub>t\<^sub>p"
+  assumes Tt: "T l \<ge> t l"
+    and tr: "time_bounded_word t M w"
+  shows "time_bounded_word T M w"
+  unfolding time_bounded_def
+proof -
+  from tr obtain n where n_tcomp: "n \<le> tcomp\<^sub>w t w"
+                     and final_n: "is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
+    unfolding time_bounded_def by blast
+
+  have "n \<le> tcomp\<^sub>w t w" by (fact n_tcomp)
+  also have "tcomp\<^sub>w t w \<le> tcomp\<^sub>w T w" using Tt unfolding l_def by (rule tcomp_mono)
+  finally have "n \<le> tcomp\<^sub>w T w" .
+  with final_n show "\<exists>n\<le>tcomp\<^sub>w T w. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" by blast
+qed
 
 lemma time_bounded_mono:
   fixes T t
   assumes Tt: "\<And>n. T n \<ge> t n"
     and tr: "time_bounded t M"
   shows "time_bounded T M"
-  unfolding time_bounded_def
-proof (intro allI)
-  fix w
-  from tr obtain n where n_tcomp: "n \<le> tcomp\<^sub>w t w"
-                     and final_n: "is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
-    unfolding time_bounded_def by blast
-
-  from le_trans n_tcomp tcomp_mono Tt have "n \<le> tcomp\<^sub>w T w" .
-  with final_n show "\<exists>n\<le>tcomp\<^sub>w T w. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" by blast
-qed
+  using assms by (intro allI) (rule time_bounded_word_mono[of t], blast+)
 
 
 text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>,
