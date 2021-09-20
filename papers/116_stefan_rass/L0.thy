@@ -103,7 +103,7 @@ proof
 
   have "L \<noteq> L\<^sub>D" if "L \<in> DTIME(t)" for L
   proof -
-    from \<open>L \<in> DTIME(t)\<close> obtain M\<^sub>w where "decides M\<^sub>w L" and "time_bounded t M\<^sub>w" ..
+    from \<open>L \<in> DTIME(t)\<close> obtain M\<^sub>w where "decides M\<^sub>w L" and "time_bounded t M\<^sub>w" and "tm_wf0 M\<^sub>w" ..
     define w' where "w' = encode_TM M\<^sub>w"
 
     let ?n = "length (encode_TM M\<^sub>w) + 2"
@@ -127,9 +127,8 @@ proof
       ultimately show ?thesis by (intro that)
     qed
 
-    have "tm_wf0 M\<^sub>w" sorry (* ??? *)
-    then obtain w where "length w = l" and dec_w: "TM_decode_pad w = M\<^sub>w"
-      using \<open>clog l \<ge> ?n\<close> by (rule embed_TM_in_len)
+    obtain w where "length w = l" and dec_w: "TM_decode_pad w = M\<^sub>w"
+      using \<open>tm_wf0 M\<^sub>w\<close> \<open>clog l \<ge> ?n\<close> by (rule embed_TM_in_len)
 
     have "w \<in> L \<longleftrightarrow> w \<notin> L\<^sub>D"
     proof

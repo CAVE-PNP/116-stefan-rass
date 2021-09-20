@@ -307,10 +307,11 @@ definition rejects :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "rejects M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
 
 definition decides_word :: "TM \<Rightarrow> lang \<Rightarrow> word \<Rightarrow> bool"
-  where decides_def[simp]: "decides_word M L w \<equiv> (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
+  where decides_def[simp]: "decides_word M L w \<equiv>
+    (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
 
 abbreviation decides :: "TM \<Rightarrow> lang \<Rightarrow> bool"
-  where "decides M L \<equiv> \<forall>w. decides_word M L w "
+  where "decides M L \<equiv> \<forall>w. decides_word M L w"
 
 
 lemma rej_TM_step1: "steps0 (1, (l, r)) Rejecting_TM 1 = (0, l, Bk # tl r)"
@@ -605,6 +606,130 @@ qed
 lemma TM_lang_unique: "\<exists>\<^sub>\<le>\<^sub>1L. decides M L" using decidesE by (intro Uniq_I) blast
 
 
+subsubsection\<open>Well-formed-ness\<close>
+
+definition repair_TM :: "TM \<Rightarrow> TM" where "repair_TM M \<equiv> let x = length M mod 2 in
+  (M @ (Nop, 0) \<up> (x + (2 * fold max (map snd M) 1 - (length M + x))))"
+
+lemma max_nat: "max a b = a + (b - a)" for a b :: nat
+  using nat_le_linear[of a b] by fastforce
+
+lemma fold_max_triv: "fold max xs x \<ge> x" for x :: "'a :: linorder" and xs
+  by (fold Max.set_eq_fold) simp
+
+lemma repair_TM_len:
+  fixes M
+  defines "m \<equiv> fold max (map snd M) 1"
+    and "l \<equiv> length M + length M mod 2"
+  shows "length (repair_TM M) = max l (2*m)"
+  unfolding repair_TM_def Let_def length_append length_replicate add.assoc max_nat m_def l_def ..
+
+lemma repair_TM_len_ge: "length (repair_TM M) \<ge> length M"
+proof -
+  have "length M \<le> length M + length M mod 2" by (rule le_add1)
+  also have "... \<le> length (repair_TM M)" unfolding repair_TM_len by (rule max.cobounded1)
+  finally show ?thesis .
+qed
+
+lemma repair_TM_wf: "tm_wf0 (repair_TM M)" unfolding tm_wf.simps
+proof (intro conjI ballI)
+  define m where "m \<equiv> fold max (map snd M) 1"
+  let ?l = "length M + length M mod 2"
+  have l: "length (repair_TM M) = max ?l (2*m)" unfolding m_def by (rule repair_TM_len)
+
+  have "2 \<le> 2*m" unfolding m_def using fold_max_triv by simp
+  also have "2*m \<le> max ?l (2*m)" by (rule max.cobounded2)
+  finally show "length (repair_TM M) \<ge> 2" unfolding l .
+  show "is_even (length (repair_TM M))" unfolding l by (rule max_cases) auto
+
+  fix x assume "x \<in> set (repair_TM M)"
+  obtain a c where x: "x \<equiv> (a, c)" by force
+
+  have *: "set (x \<up> n) \<subseteq> {x}" for n and x :: 'a by fastforce
+  have "set (repair_TM M) \<subseteq> set M \<union> {(Nop, 0)}" unfolding repair_TM_def Let_def set_append
+    by (intro Un_mono) (rule order_refl, rule *)
+  with \<open>x \<in> set (repair_TM M)\<close> have "(a, c) \<in> set M \<union> {(Nop, 0)}" unfolding x by (rule rev_subsetD)
+
+  then show "case x of (a, c) \<Rightarrow> c \<le> length (repair_TM M) div 2 + 0 \<and> 0 \<le> c" unfolding x
+  proof (elim UnE, intro case_prodI conjI)
+    assume "(a, c) \<in> set M"
+    then have "c \<in> set (map snd M)" by force
+    then have "c \<le> m" unfolding m_def Max.set_eq_fold[symmetric] by force
+    also have "m = (2*m) div 2 + 0" by force
+
+    finally show "c \<le> length (repair_TM M) div 2 + 0" unfolding l by simp (* TUNE *)
+  qed auto
+qed
+
+lemma repair_TM_nth_of:
+  fixes n
+  defines "f \<equiv> \<lambda>M. case nth_of M n of None \<Rightarrow> (Nop, 0) | Some i \<Rightarrow> i"
+  shows "f (repair_TM M) = f M"
+proof (cases "n \<ge> length M")
+  case True
+  then have "nth_of M n = None" unfolding nth_of.simps by (rule if_P)
+  have "f M = (Nop, 0)" unfolding f_def \<open>nth_of M n = None\<close> option.case(1) ..
+  show ?thesis unfolding \<open>f M = (Nop, 0)\<close>
+  proof (cases "n \<ge> length (repair_TM M)")
+    case True
+    then show "f (repair_TM M) = (Nop, 0)"
+      unfolding f_def nth_of.simps option.case_eq_if by (intro if_P)
+  next
+    let ?m = "length M mod 2 + (2 * fold max (map snd M) 1 - (length M + length M mod 2))"
+    case False
+    then have *: "nth_of (repair_TM M) n = Some (repair_TM M ! n)"
+      unfolding nth_of.simps by (rule if_not_P)
+    have "f (repair_TM M) = repair_TM M ! n" unfolding f_def * option.case(2) ..
+    also have "... = ((Nop, 0) \<up> ?m) ! (n - length M)"
+      unfolding repair_TM_def Let_def append_assoc nth_append
+      using \<open>length M \<le> n\<close>[THEN leD] by (rule if_not_P)
+    also have "... = (Nop, 0)"
+    proof (intro nth_replicate)
+      from \<open>\<not> n \<ge> length (repair_TM M)\<close> have "n < length (repair_TM M)" by (rule not_le_imp_less)
+      also have "... = length M + ?m" unfolding repair_TM_len add.assoc max_nat ..
+      finally show "n - length M < ?m" unfolding \<open>n \<ge> length M\<close>[THEN less_diff_conv2]
+        by (subst add.commute)
+    qed
+    finally show "f (repair_TM M) = (Nop, 0)" .
+  qed
+next
+  case False
+  then have h1: "nth_of M n = Some (M ! n)" unfolding nth_of.simps by (rule if_not_P)
+  from \<open>\<not> n \<ge> length M\<close> have "n < length M" by (rule not_le_imp_less)
+  also have "... \<le> length (repair_TM M)" by (rule repair_TM_len_ge)
+  finally have "\<not> n \<ge> length (repair_TM M)" unfolding not_le .
+  then have h2: "nth_of (repair_TM M) n = Some (repair_TM M ! n)"
+    unfolding nth_of.simps by (rule if_not_P)
+  have h3: "repair_TM M ! n = M ! n" unfolding repair_TM_def Let_def append_assoc nth_append
+      using \<open>n < length M\<close> by (rule if_P)
+  show ?thesis unfolding f_def h1 h2 h3 ..
+qed
+
+lemma repair_TM_fetch: "fetch (repair_TM M) st c = fetch M st c"
+proof (induction st)
+  case 0 thus ?case unfolding fetch.simps ..
+next
+  case (Suc st)
+  show ?case proof (induction c)
+    case Bk thus ?case unfolding fetch.simps repair_TM_nth_of ..
+  next
+    case Oc thus ?case unfolding fetch.simps repair_TM_nth_of ..
+  qed
+qed
+
+lemma repair_TM_step: "step c (repair_TM M, off) = step c (M, off)"
+  by (induction c) (unfold step.simps repair_TM_fetch, rule)
+
+lemma repair_TM_still_works: "steps c (repair_TM M, st) n = steps c (M, st) n"
+proof (induction n arbitrary: c)
+  case 0
+  thus ?case unfolding steps.simps ..
+next
+  case (Suc n)
+  thus ?case unfolding steps.simps repair_TM_step .
+qed
+
+
 subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
@@ -622,7 +747,20 @@ lemma in_dtimeE[elim]:
   obtains M
   where "decides M L"
     and "time_bounded T M"
-  using assms unfolding DTIME_def by blast
+    and "tm_wf0 M"
+proof -
+  from \<open>L \<in> DTIME T\<close> obtain M' where "decides M' L" and "time_bounded T M'"
+    unfolding DTIME_def by blast
+  let ?M = "repair_TM M'"
+
+  from \<open>decides M' L\<close> have "decides ?M L"
+    unfolding decides_def accepts_def rejects_def Hoare_halt_def repair_TM_still_works .
+  from \<open>time_bounded T M'\<close> have "time_bounded T ?M"
+    unfolding time_bounded_def repair_TM_still_works .
+  have "tm_wf0 ?M" by (rule repair_TM_wf)
+
+  from \<open>decides ?M L\<close> \<open>time_bounded T ?M\<close> \<open>tm_wf0 ?M\<close> show ?thesis by (fact that)
+qed
 
 lemma in_dtimeE'[elim]:
   assumes "L \<in> DTIME T"
