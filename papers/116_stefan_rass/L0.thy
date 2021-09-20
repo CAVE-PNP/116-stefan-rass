@@ -76,7 +76,9 @@ qed
 
 theorem time_hierarchy: "L\<^sub>D \<in> DTIME(T) - DTIME(t)"
 proof
-  \<comment> \<open>\<open>M\<close> is a modified universal TM that executes two TMs in parallel upon an input word \<open>w\<close>.
+  \<comment> \<open>Part 1: \<^term>\<open>L\<^sub>D \<in> DTIME(T)\<close>
+
+    \<open>M\<close> is a modified universal TM that executes two TMs in parallel upon an input word \<open>w\<close>.
     \<open>M\<^sub>w\<close> is the input word \<open>w\<close> treated as a TM (\<open>M\<^sub>w \<equiv> TM_decode_pad w\<close>).
     \<open>M\<^sub>T\<close> is a "stopwatch", that halts after exactly \<open>tcomp\<^sub>w T w\<close> steps.
     Its existence is assured by the assumption @{thm fully_tconstr_T}.
@@ -97,12 +99,14 @@ proof
   with \<open>time_bounded T M\<close> show "L\<^sub>D \<in> DTIME(T)" by blast
 
 
+  \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME(t)\<close>\<close>
+
   have "L \<noteq> L\<^sub>D" if "L \<in> DTIME(t)" for L
   proof -
-    from \<open>L \<in> DTIME(t)\<close> obtain M where "decides M L" and "time_bounded t M" ..
-    define w' where "w' = encode_TM M"
+    from \<open>L \<in> DTIME(t)\<close> obtain M\<^sub>w where "decides M\<^sub>w L" and "time_bounded t M\<^sub>w" ..
+    define w' where "w' = encode_TM M\<^sub>w"
 
-    let ?n = "length (encode_TM M) + 2"
+    let ?n = "length (encode_TM M\<^sub>w) + 2"
     obtain l where "T(2*l) \<ge> t(2*l)" and "clog l \<ge> ?n"
     proof -
       from T_dominates_t obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l \<ge> t l" for l sorry (* TODO *)
@@ -111,7 +115,6 @@ proof
       proof
         fix l :: nat
         assume "l \<ge> 2^?n"
-
         have "?n > 0" by simp
         then have "?n = clog (2^?n)" by (rule clog_exp[symmetric])
         also have "... \<le> clog l" using clog_mono \<open>l \<ge> 2^?n\<close> ..
@@ -121,41 +124,31 @@ proof
       let ?l = "max l\<^sub>1 l\<^sub>2"
       have "T (2*?l) \<ge> t (2*?l)" by (rule l1) force
       moreover have "clog ?l \<ge> ?n" by (rule l2) force
-
       ultimately show ?thesis by (intro that)
     qed
 
-    have "tm_wf0 M" sorry (* ??? *)
-    then obtain w where "length w = l" and "TM_decode_pad w = M"
+    have "tm_wf0 M\<^sub>w" sorry (* ??? *)
+    then obtain w where "length w = l" and dec_w: "TM_decode_pad w = M\<^sub>w"
       using \<open>clog l \<ge> ?n\<close> by (rule embed_TM_in_len)
 
-    define M\<^sub>w where "M\<^sub>w \<equiv> TM_decode_pad w"
-    have "M\<^sub>w = M" unfolding M\<^sub>w_def by (fact \<open>TM_decode_pad w = M\<close>)
-    have "L(M\<^sub>w) = L" unfolding \<open>M\<^sub>w = M\<close> using \<open>decides M L\<close> by (rule decidesE)
-
-    have "w \<in> L(M\<^sub>w) \<longleftrightarrow> w \<notin> L\<^sub>D"
+    have "w \<in> L \<longleftrightarrow> w \<notin> L\<^sub>D"
     proof
-      assume "w \<in> L(M\<^sub>w)"
-      then have "w \<in> L" unfolding \<open>L(M\<^sub>w) = L\<close> .
-      moreover from \<open>decides M L\<close> have "w \<notin> L \<longleftrightarrow> rejects M w" unfolding decides_def by blast
-      ultimately have "\<not> rejects M w" by blast
-  
-      then show "w \<notin> L\<^sub>D" unfolding LD_def mem_Collect_eq
-        unfolding \<open>TM_decode_pad w = M\<close> Let_def de_Morgan_conj ..
+      assume "w \<in> L"
+      moreover from \<open>decides M\<^sub>w L\<close> have "w \<notin> L \<longleftrightarrow> rejects M\<^sub>w w" unfolding decides_def by blast
+      ultimately have "\<not> rejects M\<^sub>w w" by blast
+      then show "w \<notin> L\<^sub>D" unfolding LD_def mem_Collect_eq dec_w by presburger
     next
       assume "w \<notin> L\<^sub>D"                                                                    
-      moreover have "time_bounded_word T M w"
+      moreover have "time_bounded_word T M\<^sub>w w"
       proof (rule time_bounded_word_mono)
         from \<open>T(2*l) \<ge> t(2*l)\<close> show "real (T (tape_size <w>\<^sub>t\<^sub>p)) \<ge> real (t (tape_size <w>\<^sub>t\<^sub>p))"
           unfolding tape_size_input \<open>length w = l\<close> by (rule of_nat_mono)
-        from \<open>time_bounded t M\<close> show "time_bounded_word t M w" ..
+        from \<open>time_bounded t M\<^sub>w\<close> show "time_bounded_word t M\<^sub>w w" ..
       qed
-      ultimately have "\<not> rejects M\<^sub>w w" unfolding \<open>M\<^sub>w = M\<close>[symmetric]
-        unfolding LD_def mem_Collect_eq Let_def M\<^sub>w_def by blast
-      with \<open>decides M L\<close> show "w \<in> L(M\<^sub>w)" unfolding \<open>L(M\<^sub>w) = L\<close> decides_def
-        unfolding \<open>M\<^sub>w = M\<close> by blast
+      ultimately have "\<not> rejects M\<^sub>w w" unfolding LD_def dec_w mem_Collect_eq Let_def by blast
+      with \<open>decides M\<^sub>w L\<close> show "w \<in> L" unfolding decides_def by blast
     qed
-    then show "L \<noteq> L\<^sub>D" unfolding \<open>L(M\<^sub>w) = L\<close> by blast
+    then show "L \<noteq> L\<^sub>D" by blast
   qed
   then show "L\<^sub>D \<notin> DTIME(t)" by blast
 qed
