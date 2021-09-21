@@ -11,6 +11,14 @@ record 'b tape =
   left :: "'b list"
   right :: "'b list"
 
+abbreviation "empty_tape \<equiv> \<lparr>left=[], right=[]\<rparr>"
+
+text\<open>TM execution begins with the head at the start of the input word.\<close>
+abbreviation input_tape ("<_>\<^sub>t\<^sub>p") where "<w>\<^sub>t\<^sub>p \<equiv> \<lparr>left=[], right=w\<rparr>"
+
+abbreviation size :: "'b tape \<Rightarrow> nat" where
+  "size tp \<equiv> length (left tp) + length (right tp)"
+
 fun tp_update :: "('b::blank) action \<Rightarrow> 'b tape \<Rightarrow> 'b tape" where
  "tp_update  L     \<lparr>left=[]  , right=rs  \<rparr> = \<lparr>left=[]  , right=B#rs\<rparr>"
 |"tp_update  L     \<lparr>left=l#ls, right=rs  \<rparr> = \<lparr>left=ls  , right=l#rs\<rparr>"
@@ -48,6 +56,7 @@ locale wf_TM =
        next_state M q w \<in> states M
      \<and> length (next_action M q w) = k M
      \<and> symbol_of_write ` set (next_action M q w) \<subseteq> symbols M"
+  and finalNextFinal: "\<forall>q\<in>final_states M. \<forall>w. next_state M q w \<in> final_states M"
 begin
 definition is_final :: "('a, 'b) TM_config \<Rightarrow> bool" where
   "is_final c \<longleftrightarrow> state c \<in> final_states M"
@@ -58,6 +67,22 @@ definition step :: "('a, 'b) TM_config \<Rightarrow> ('a, 'b) TM_config" where
       tapes=map2 tp_update (next_action M q w) (tapes c)
    \<rparr>)"
 
+lemma finalFinal: "is_final c \<Longrightarrow> is_final (step c)"
+  unfolding is_final_def step_def using finalNextFinal
+  by (metis TM_config.select_convs(1))
+
+definition start_config :: "'b list \<Rightarrow> ('a, 'b) TM_config" where
+  "start_config w = \<lparr>
+    state = start_state M,
+    tapes = <w>\<^sub>t\<^sub>p # replicate (k M - 1) empty_tape
+  \<rparr>"
+
 end \<comment> \<open>\<^locale>\<open>wf_TM\<close>\<close>
+
+locale acceptor = wf_TM +
+  fixes accepting_states :: "'a set"
+  assumes "accepting_states \<subseteq> states M"
+begin
+end
 
 end
