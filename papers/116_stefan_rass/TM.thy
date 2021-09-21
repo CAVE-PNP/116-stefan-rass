@@ -5,7 +5,7 @@ begin
 class blank =
   fixes B :: 'a
 
-datatype 'b action = L | R | W 'b
+datatype 'b action = L | R | W (symbol_of_write: 'b)
 
 record 'b tape =
   left :: "'b list"
@@ -44,8 +44,10 @@ locale wf_TM =
   assumes "1 \<le> k M"
   and "finite (states M)" "start_state M \<in> states M" "final_states M \<subseteq> states M"
   and "finite (symbols M)" "B \<in> (symbols M)"
-  and "\<forall>state\<in>states M. \<forall>head. set head \<subseteq> symbols M \<longrightarrow> next_state M state head \<in> states  M"
-  and "\<forall>state\<in>states M. \<forall>head. set head \<subseteq> symbols M \<longrightarrow> set (next_write M state head) \<subseteq> symbols M"
+  and "\<forall>q\<in>states M. \<forall>w. length w = k M \<longrightarrow> set w \<subseteq> symbols M \<longrightarrow>
+       next_state M q w \<in> states M
+     \<and> length (next_action M q w) = k M
+     \<and> symbol_of_write ` set (next_action M q w) \<subseteq> symbols M"
 begin
 definition is_final :: "('a, 'b) TM_config \<Rightarrow> bool" where
   "is_final c \<longleftrightarrow> state c \<in> final_states M"
