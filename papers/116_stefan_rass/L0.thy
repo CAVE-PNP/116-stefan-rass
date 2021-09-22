@@ -26,6 +26,61 @@ locale tht_assms =
     and t_min: "n \<le> t n"
 begin
 
+lemma T_ge_t_log_t_ae:
+  fixes c :: real
+  assumes "c > 0"
+  shows "\<exists>N. \<forall>n\<ge>N. c * t n * log 2 (t n) \<le> T n"
+proof -
+  let ?f = "\<lambda>n. t n * log 2 (t n) / T n"
+
+  define c' where "c' \<equiv> 1 / c"
+  from \<open>c > 0\<close> have "c' > 0" unfolding c'_def by simp
+
+  with T_dominates_t have "\<exists>N. \<forall>n\<ge>N. \<bar>?f n\<bar> < c'"
+    unfolding LIMSEQ_def dist_real_def diff_0_right by presburger
+  then obtain N where "n \<ge> N \<Longrightarrow> \<bar>?f n\<bar> < c'" for n by blast
+  let ?N = "max N 2"
+
+  have "c * t n * log 2 (t n) \<le> T n" if "n \<ge> ?N" for n
+  proof -
+    from \<open>n \<ge> ?N\<close> and \<open>n \<ge> N \<Longrightarrow> \<bar>?f n\<bar> < c'\<close> have "\<bar>?f n\<bar> < c'" and "n \<ge> 2" by fastforce+
+
+    from \<open>n \<ge> 2\<close> and t_min have "t n \<ge> 2" by (rule le_trans)
+    then have "log 2 (t n) \<ge> 1" by force
+    with \<open>t n \<ge> 2\<close> have "t n * log 2 (t n) > 0" by auto
+
+    have "c * t n * log 2 (t n) = c * \<bar>t n * log 2 (t n)\<bar>" using \<open>t n * log 2 (t n) > 0\<close> by fastforce
+    also have "... < \<bar>real (T n)\<bar>"
+    proof -
+      from \<open>\<bar>?f n\<bar> < c'\<close> and \<open>c > 0\<close> have "\<bar>?f n\<bar> * c < 1"
+        unfolding c'_def using pos_less_divide_eq by blast
+      then have "c * \<bar>?f n\<bar> < 1" by argo
+      then show ?thesis unfolding abs_divide times_divide_eq_right
+        by (subst (asm) divide_less_eq_1_pos) (use T_not_0 in simp)
+    qed
+    finally show "c * t n * log 2 (t n) \<le> T n" by simp
+  qed
+  then show "\<exists>N. \<forall>n\<ge>N. c * t n * log 2 (t n) \<le> T n" by blast
+qed
+
+lemma T_ge_t_ae: "\<exists>N. \<forall>n\<ge>N. T n \<ge> t n"
+proof -
+  from T_ge_t_log_t_ae[of 1] obtain N where *: "n \<ge> N \<Longrightarrow> t n * log 2 (t n) \<le> T n" for n by auto
+  let ?N = "max N 2"
+
+  have "t n \<le> T n" if "n \<ge> ?N" for n
+  proof -
+    from \<open>n \<ge> ?N\<close> and * have "n \<ge> 2" by simp
+    with t_min have "t n \<ge> 2" using le_trans by blast
+    then have "log 2 (t n) \<ge> 1" by force
+
+    have "t n \<le> t n * log 2 (t n)" using \<open>log 2 (t n) \<ge> 1\<close> \<open>t n \<ge> 2\<close> by fastforce
+    also have "... \<le> T n" using * \<open>n \<ge> ?N\<close> by simp
+    finally show "t n \<le> T n" by fastforce
+  qed
+  then show ?thesis by blast
+qed
+
 
 text\<open>\<open>L\<^sub>D\<close>, defined as part of the proof for the Time Hierarchy Theorem.
 
@@ -119,33 +174,7 @@ next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME(t)\<close
     let ?n = "length (encode_TM M\<^sub>w) + 2"
     obtain l where "T(2*l) \<ge> t(2*l)" and "clog l \<ge> ?n"
     proof -
-      have "\<exists>l\<^sub>1. \<forall>l\<ge>l\<^sub>1. T l \<ge> t l"
-      proof -
-        let ?f = "\<lambda>n. t n * log 2 (t n) / T n"
-        from T_dominates_t have "\<exists>N. \<forall>n\<ge>N. \<bar>?f n\<bar> < 1" unfolding LIMSEQ_def dist_real_def by simp
-        then obtain N where "n \<ge> N \<Longrightarrow> \<bar>?f n\<bar> < 1" for n by blast
-        let ?N = "max N 2"
-
-        have "t n \<le> T n" if "n \<ge> ?N" for n
-        proof -
-          from \<open>n \<ge> ?N\<close> and \<open>n \<ge> N \<Longrightarrow> \<bar>?f n\<bar> < 1\<close> have "\<bar>?f n\<bar> < 1" and "n \<ge> 2" by auto
-
-          from \<open>n \<ge> 2\<close> and t_min have "t n \<ge> 2" by (rule le_trans)
-          then have "log 2 (t n) \<ge> 1" by force
-          with t_min and \<open>n \<ge> 2\<close> have "t n * log 2 (t n) > 0"
-            by (smt (verit) mult_le_cancel_left1 of_nat_0_less_iff of_nat_mono pos2)
-
-          have "t n \<le> t n * log 2 (t n)" using \<open>log 2 (t n) \<ge> 1\<close> \<open>t n \<ge> 2\<close> by fastforce
-          also have "... = \<bar>...\<bar>" using \<open>t n * log 2 (t n) > 0\<close> by fastforce
-          also from \<open>\<bar>?f n\<bar> < 1\<close> have "\<bar>real (t n) * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>"
-            unfolding abs_divide by (subst (asm) divide_less_eq_1_pos) (use T_not_0 in simp)
-          also have "... = T n" by simp
-          finally show "t n \<le> T n" by fastforce
-        qed
-        then show "\<exists>l\<^sub>1. \<forall>l\<ge>l\<^sub>1. T l \<ge> t l" by blast
-      qed
-      then obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l \<ge> t l" for l by blast
-
+      obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l \<ge> t l" for l using T_ge_t_ae by blast
       obtain l\<^sub>2 :: nat where l2: "l \<ge> l\<^sub>2 \<Longrightarrow> clog l \<ge> ?n" for l
       proof
         fix l :: nat
