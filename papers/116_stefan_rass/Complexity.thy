@@ -768,7 +768,7 @@ lemma in_dtimeE'[elim]:
   using assms unfolding DTIME_def ..
 
 
-corollary in_dtime_mono: 
+corollary in_dtime_mono:
   fixes T t
   assumes Tt: "\<And>n. T n \<ge> t n"
     and tD: "L \<in> DTIME(t)"

@@ -10,7 +10,7 @@ begin
   proving non-emptiness of \<open>DTIME(T) - DTIME(t) = {}\<close>.
 
   The flaw is easily patched by adding an additional assumption along the lines of
-  \<^term>\<open>t(n) \<ge> n\<close> or \<^term>\<open>strict_mono T\<close>
+  \<^term>\<open>t(n) \<ge> n\<close> or \<^term>\<open>strict_mono T\<close>.
 
   Most code is taken directly from the main code-base,
   with the exception of the Time Hierarchy Theorem's definition itself,
@@ -120,12 +120,13 @@ proof -
 qed
 
 
-section\<open>Assumptions\<close>
+section\<open>Assumption\<close>
 
 theorem time_hierarchy: 
   fixes T t :: "nat \<Rightarrow> nat"
-  assumes "fully_tconstr T"
-    and "lim (\<lambda>l. t l * log 2 (t l) / T l) = 0"
+  assumes fully_tconstr_T: "fully_tconstr T"
+    and T_dominates_t: "(\<lambda>n. t n * log 2 (t n) / T n) \<longlonglongrightarrow> 0"
+    and T_not_0: "T n \<noteq> 0"
   shows "\<exists>L. L \<in> DTIME T - DTIME t"
   sorry
 
@@ -138,7 +139,8 @@ proof -
 
   have "fully_tconstr T" unfolding fully_tconstr_def T_def
     by (intro exI allI impI) (rule rej_TM_time)
-  moreover have "lim (\<lambda>l. T l * log 2 (T l) / T l) = 0" unfolding T_def by force
+  moreover have "(\<lambda>n. T n * log 2 (T n) / T n) \<longlonglongrightarrow> 0" unfolding T_def by force
+  moreover have "T n \<noteq> 0" for n unfolding T_def by (rule one_neq_zero) 
   ultimately have "\<exists>L. L \<in> DTIME(T) - DTIME(T)" by (rule time_hierarchy)
   then show False by blast
 qed

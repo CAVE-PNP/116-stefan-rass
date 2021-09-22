@@ -399,7 +399,8 @@ qed
 
 text\<open>2. The retraction of preceding 1-bits creates the needed infinitude of
         equivalent encodings of every possible TM \<open>M\<close>, as \<^emph>\<open>we can embed any code \<open>\<rho>(M)\<close>
-        in a word of length \<open>ℓ\<close> for which \<open>log(ℓ) > len (\<rho>(M))\<close>.\<close> [...]\<close>
+        in a word of length \<open>ℓ\<close> for which \<open>log(ℓ) > len (\<rho>(M))\<close>.\<close>
+        We will need this to prove the hierarchy theorem in Section 4.3.\<close>
 
 theorem embed_TM_in_len:
   fixes M l

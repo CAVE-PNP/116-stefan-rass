@@ -8,13 +8,22 @@ section\<open>Time Hierarchy Theorem and the Diagonal Language\<close>
 locale tht_assms =
   fixes T t :: "nat \<Rightarrow> nat"
   assumes fully_tconstr_T: "fully_tconstr T"
-    and T_dominates_t: "lim (\<lambda>l. t l * log 2 (t l) / T l) = 0"
+
+  \<comment> \<open>This assumption represents the statements containing \<open>lim\<close> (Rass) and \<open>lim inf\<close> (Hopcroft).
+      \<^const>\<open>LIMSEQ\<close> (\<^term>\<open>X \<longlonglongrightarrow> x\<close>) was chosen, as it seems to match the intended meaning
+      (@{thm LIMSEQ_def lim_sequentially}).\<close>
+    and T_dominates_t: "(\<lambda>n. t n * log 2 (t n) / T n) \<longlonglongrightarrow> 0"
+  \<comment> \<open>Additionally, \<open>T n\<close> is assumed not to be zero since in Isabelle,
+      \<open>x / 0 = 0\<close> holds over the reals (@{thm division_ring_divide_zero}).
+      Thus, the above assumption would trivially hold for \<open>T(n) = 0\<close>.\<close>
+    and T_not_0: "T n \<noteq> 0"
+
   \<comment> \<open>The following assumption is not found in the paper or the primary source (Hopcroft),
     but is taken from the AAU lecture slides of \<^emph>\<open>Algorithms and Complexity Theory\<close>.
     It patches a hole that allows one to prove \<^term>\<open>False\<close> from the Time Hierarchy Theorem below
     (\<open>time_hierarchy\<close>).
     This is demonstrated in \<^file>\<open>../../isa_examples/THT_inconsistencies_MWE.thy\<close>.\<close>
-    and "\<And>n. n \<le> t n"
+    and t_min: "n \<le> t n"
 begin
 
 
@@ -74,6 +83,7 @@ proof -
     unfolding M\<^sub>w_def LD'_def w'_def Let_def mem_Collect_eq ..
 qed
 
+
 theorem time_hierarchy: "L\<^sub>D \<in> DTIME(T) - DTIME(t)"
 proof
   \<comment> \<open>Part 1: \<^term>\<open>L\<^sub>D \<in> DTIME(T)\<close>
@@ -92,14 +102,14 @@ proof
 
   define L\<^sub>D_P where "L\<^sub>D_P \<equiv> \<lambda>w. let M\<^sub>w = TM_decode_pad w in
     rejects M\<^sub>w w \<and> time_bounded_word T M\<^sub>w w"
-  
+
   obtain M where "time_bounded T M"
     and *: "\<And>w. if L\<^sub>D_P w then accepts M w else rejects M w" sorry (* probably out of scope *)
   have "decides M L\<^sub>D" unfolding decides_altdef4 LD_def mem_Collect_eq L\<^sub>D_P_def[symmetric] using * ..
   with \<open>time_bounded T M\<close> show "L\<^sub>D \<in> DTIME(T)" by blast
 
 
-  \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME(t)\<close>\<close>
+next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME(t)\<close>\<close>
 
   have "L \<noteq> L\<^sub>D" if "L \<in> DTIME(t)" for L
   proof -
@@ -109,7 +119,32 @@ proof
     let ?n = "length (encode_TM M\<^sub>w) + 2"
     obtain l where "T(2*l) \<ge> t(2*l)" and "clog l \<ge> ?n"
     proof -
-      from T_dominates_t obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l \<ge> t l" for l sorry (* TODO *)
+      have "\<exists>l\<^sub>1. \<forall>l\<ge>l\<^sub>1. T l \<ge> t l"
+      proof -
+        let ?f = "\<lambda>n. t n * log 2 (t n) / T n"
+        from T_dominates_t have "\<exists>N. \<forall>n\<ge>N. \<bar>?f n\<bar> < 1" unfolding LIMSEQ_def dist_real_def by simp
+        then obtain N where "n \<ge> N \<Longrightarrow> \<bar>?f n\<bar> < 1" for n by blast
+        let ?N = "max N 2"
+
+        have "t n \<le> T n" if "n \<ge> ?N" for n
+        proof -
+          from \<open>n \<ge> ?N\<close> and \<open>n \<ge> N \<Longrightarrow> \<bar>?f n\<bar> < 1\<close> have "\<bar>?f n\<bar> < 1" and "n \<ge> 2" by auto
+
+          from \<open>n \<ge> 2\<close> and t_min have "t n \<ge> 2" by (rule le_trans)
+          then have "log 2 (t n) \<ge> 1" by force
+          with t_min and \<open>n \<ge> 2\<close> have "t n * log 2 (t n) > 0"
+            by (smt (verit) mult_le_cancel_left1 of_nat_0_less_iff of_nat_mono pos2)
+
+          have "t n \<le> t n * log 2 (t n)" using \<open>log 2 (t n) \<ge> 1\<close> \<open>t n \<ge> 2\<close> by fastforce
+          also have "... = \<bar>...\<bar>" using \<open>t n * log 2 (t n) > 0\<close> by fastforce
+          also from \<open>\<bar>?f n\<bar> < 1\<close> have "\<bar>real (t n) * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>"
+            unfolding abs_divide by (subst (asm) divide_less_eq_1_pos) (use T_not_0 in simp)
+          also have "... = T n" by simp
+          finally show "t n \<le> T n" by fastforce
+        qed
+        then show "\<exists>l\<^sub>1. \<forall>l\<ge>l\<^sub>1. T l \<ge> t l" by blast
+      qed
+      then obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l \<ge> t l" for l by blast
 
       obtain l\<^sub>2 :: nat where l2: "l \<ge> l\<^sub>2 \<Longrightarrow> clog l \<ge> ?n" for l
       proof
@@ -137,7 +172,7 @@ proof
       ultimately have "\<not> rejects M\<^sub>w w" by blast
       then show "w \<notin> L\<^sub>D" unfolding LD_def mem_Collect_eq dec_w by presburger
     next
-      assume "w \<notin> L\<^sub>D"                                                                    
+      assume "w \<notin> L\<^sub>D"
       moreover have "time_bounded_word T M\<^sub>w w"
       proof (rule time_bounded_word_mono)
         from \<open>T(2*l) \<ge> t(2*l)\<close> show "real (T (tape_size <w>\<^sub>t\<^sub>p)) \<ge> real (t (tape_size <w>\<^sub>t\<^sub>p))"
