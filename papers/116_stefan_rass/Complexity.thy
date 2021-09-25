@@ -186,7 +186,7 @@ end
 
 locale Rejecting_TM begin
 definition "Rejecting_TM \<equiv> \<lparr>
-  k = 1,
+  tape_count = 1,
   states = {1}::nat set,
   start_state = 1,
   final_states = {1},

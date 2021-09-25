@@ -41,7 +41,7 @@ fun tp_read :: "('b :: blank) tape \<Rightarrow> 'b" where
 | "tp_read \<lparr>left=_, right=r#rs\<rparr> = r"
 
 record ('a, 'b) TM =
-  k :: nat (*number of tapes*)
+  tape_count :: nat
 
   states       :: "'a set"
   start_state  :: 'a
@@ -58,12 +58,12 @@ record ('a, 'b) TM_config =
 
 locale wf_TM =
   fixes M :: "('a, 'b::blank) TM" (structure)
-  assumes "1 \<le> k M"
+  assumes "1 \<le> tape_count M"
   and "finite (states M)" "start_state M \<in> states M" "final_states M \<subseteq> states M"
   and "finite (symbols M)" "B \<in> (symbols M)"
-  and "\<forall>q\<in>states M. \<forall>w. length w = k M \<longrightarrow> set w \<subseteq> symbols M \<longrightarrow>
+  and "\<forall>q\<in>states M. \<forall>w. length w = tape_count M \<longrightarrow> set w \<subseteq> symbols M \<longrightarrow>
        next_state M q w \<in> states M
-     \<and> length (next_action M q w) = k M
+     \<and> length (next_action M q w) = tape_count M
      \<and> symbol_of_write ` set (next_action M q w) \<subseteq> symbols M"
   and final_state: "\<forall>q\<in>final_states M. \<forall>w. next_state M q w = q"
   and final_action: "\<forall>q\<in>final_states M. \<forall>w. set (next_action M q w) \<subseteq> {Nop}"
@@ -86,7 +86,7 @@ lemma final_steps: "\<And>n. is_final c \<Longrightarrow> (step^^n) c = c"
 definition start_config :: "'b list \<Rightarrow> ('a, 'b) TM_config" where
   "start_config w = \<lparr>
     state = start_state M,
-    tapes = <w>\<^sub>t\<^sub>p # replicate (k M - 1) empty_tape
+    tapes = <w>\<^sub>t\<^sub>p # replicate (tape_count M - 1) empty_tape
   \<rparr>"
 
 abbreviation "run n w \<equiv> (step^^n) (start_config w)"
