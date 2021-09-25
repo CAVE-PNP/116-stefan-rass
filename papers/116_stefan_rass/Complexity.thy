@@ -2,11 +2,6 @@ theory Complexity
   imports TM Goedel_Numbering
 begin
 
-subsubsection\<open>Encoding Words\<close>
-
-\<comment> \<open>The following predicate is useful for Hoare statements.\<close>
-abbreviation input where "input w \<equiv> (\<lambda>tp. tp = <w>\<^sub>t\<^sub>p)"
-
 subsubsection\<open>Time\<close>
 
 text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>,
@@ -33,7 +28,7 @@ abbreviation (input) tcomp\<^sub>w :: "(nat \<Rightarrow> 'a :: floor_ceiling) \
 
 definition (in wf_TM) time_bounded_word :: "(nat \<Rightarrow> 'c::floor_ceiling) \<Rightarrow> 'b list \<Rightarrow> bool"
   where time_bounded_def[simp]: "time_bounded_word T w \<equiv> \<exists>n.
-            n \<le> tcomp\<^sub>w T w \<and> is_final ((step^^n) (start_config w))"
+            n \<le> tcomp\<^sub>w T w \<and> is_final (run n w)"
 
 abbreviation (in wf_TM) time_bounded :: "(nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> bool"
   where "time_bounded T \<equiv> \<forall>w. time_bounded_word T w"
@@ -41,11 +36,11 @@ abbreviation (in wf_TM) time_bounded :: "(nat \<Rightarrow> 'c :: floor_ceiling)
 (* TODO (?) notation: \<open>p terminates_in_time T\<close> *)
 
 lemma (in wf_TM) time_bounded_altdef:
-  "time_bounded_word T w \<longleftrightarrow> is_final ((step^^tcomp\<^sub>w T w) (start_config w))"
+  "time_bounded_word T w \<longleftrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
   sorry
 
 lemma (in wf_TM) time_boundedE:
-  "time_bounded T \<Longrightarrow> is_final ((step^^tcomp\<^sub>w T w) (start_config w))"
+  "time_bounded T \<Longrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
   unfolding time_bounded_altdef by blast
 
 lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def
@@ -60,33 +55,31 @@ lemma (in wf_TM) time_bounded_mono:
 proof (intro allI)
   fix w
   from tr obtain n where n_tcomp: "n \<le> tcomp\<^sub>w t w"
-                     and final_n: "is_final ((step^^n) (start_config w))"
+                     and final_n: "is_final (run n w)"
     unfolding time_bounded_def by blast
 
   from le_trans n_tcomp tcomp_mono Tt have "n \<le> tcomp\<^sub>w T w" .
-  with final_n show "\<exists>n\<le>tcomp\<^sub>w T w. is_final ((step^^n) (start_config w))" by blast
+  with final_n show "\<exists>n\<le>tcomp\<^sub>w T w. is_final (run n w)" by blast
 qed
 
 
-text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>,
-  or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>x\<close>.\<close>
+text\<open>\<open>time\<^sub>M(w)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>w\<close>,
+  or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>w\<close>.\<close>
 
 definition (in wf_TM) time :: "'b list \<Rightarrow> nat option"
-  where "time x \<equiv> (
-    if \<exists>n. is_final ((step^^n) (start_config x))
-      then Some (LEAST n. is_final ((step^^n) (start_config x)))
+  where "time w \<equiv> (
+    if \<exists>n. is_final (run n w)
+      then Some (LEAST n. is_final (run n w))
       else None
     )"
+
+lemma (in wf_TM) time_Some_D: "time w = Some n \<Longrightarrow> \<exists>n. is_final (run n w)"
+  by (metis option.discI time_def)
 
 text\<open>Notion of time-constructible from Hopcroft ch. 12.3, p. 299:
   "A function T(n) is said to be time constructible if there exists a T(n) time-
   bounded multitape Turing machine M such that for each n there exists some input
   on which M actually makes T(n) moves."\<close>
-
-instantiation nat :: blank begin
-  definition B_nat :: nat where "B_nat = 0"
-  instance ..
-end
 
 definition tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
   where "tconstr T \<equiv> \<exists>M::(nat, nat) TM. \<forall>n. \<exists>w. wf_TM.time M w = Some (T n)"
@@ -106,9 +99,9 @@ lemma (in wf_TM) time_bounded_altdef2:
   unfolding time_bounded_def
 proof (intro iffI allI exI conjI)
   fix w
-  let ?f = "\<lambda>n. is_final ((step^^n) (start_config w))" let ?lf = "LEAST n. ?f n"
+  let ?f = "\<lambda>n. is_final (run n w)" let ?lf = "LEAST n. ?f n"
 
-  assume (* time_bounded T p *) "\<forall>w. \<exists>n \<le> tcomp\<^sub>w T w. is_final ((step^^n) (start_config w))"
+  assume (* time_bounded T p *) "\<forall>w. \<exists>n \<le> tcomp\<^sub>w T w. is_final (run n w)"
   then have n_ex: "\<exists>n. n \<le> tcomp\<^sub>w T w \<and> ?f n" ..
   then obtain n where "n \<le> tcomp\<^sub>w T w" and "?f n" by blast
 
@@ -119,7 +112,7 @@ proof (intro iffI allI exI conjI)
   finally show "?lf \<le> tcomp\<^sub>w T w" .
 next
   fix w
-  let ?f = "\<lambda>n. is_final ((step^^n) (start_config w))" let ?lf = "LEAST n. ?f n"
+  let ?f = "\<lambda>n. is_final (run n w)" let ?lf = "LEAST n. ?f n"
 
   assume "\<forall>w. \<exists>n. time w = Some n \<and> n \<le> tcomp\<^sub>w T w"
   then obtain n where n_some: "time w = Some n" and n_le: "n \<le> tcomp\<^sub>w T w" by blast
@@ -151,172 +144,104 @@ text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^t
   That is, for \<^term>\<open>w \<in> L\<close> the computation results in \<^term>\<open>Oc\<close> under the TM head,
   and for \<^term>\<open>w \<notin> L\<close> in \<^term>\<open>Bk\<close>.\<close>
 
-definition (in wf_TM) halts :: "word \<Rightarrow> bool"
-  where "halts w \<equiv> Hoare_halt (input w) M (\<lambda>_. True)"
+context wf_TM begin
 
-lemma halts_time: "halts M w \<Longrightarrow> \<exists>n. time M <w>\<^sub>t\<^sub>p = Some n"
-  unfolding halts_def Hoare_halt_def time_def by auto
+abbreviation input where "input w \<equiv> (\<lambda>c. c = start_config w)"
 
-lemma time_halts: "time M <w>\<^sub>t\<^sub>p = Some n \<Longrightarrow> halts M w"
-  unfolding halts_def Hoare_halt_def
-proof (intro allI impI exI conjI)
-  fix tp
-  assume "input w tp"
-  then have "tp = <w>\<^sub>t\<^sub>p" .
+lemma input_state_start_state: "input w c \<Longrightarrow> state c = start_state M"
+  unfolding start_config_def by simp
 
-  have if_h1: "(if P then a else b) = c \<Longrightarrow> b \<noteq> c \<Longrightarrow> P" for P and a b c :: 'a by argo
-  assume assm: "time M <w>\<^sub>t\<^sub>p = Some n"
-  then have ex_n: "\<exists>n. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" unfolding time_def
-    by (rule if_h1) (rule option.distinct(1))
+definition halts :: "'b list \<Rightarrow> bool"
+  where "halts w \<equiv> hoare_halt (input w) (\<lambda>_. True)"
 
-  have if_h2: "(if P then a else b) = c \<Longrightarrow> b \<noteq> c \<Longrightarrow> a = c" for P and a b c :: 'a by argo
-  from assm have "Some (LEAST n. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)) = Some n"
-    unfolding time_def by (rule if_h2) (rule option.distinct(1))
-  then have n: "n = (LEAST n. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n))" by blast
-  from ex_n show "is_final (steps0 (1, tp) M n)" unfolding n \<open>tp = <w>\<^sub>t\<^sub>p\<close> by (rule LeastI_ex)
+lemma halts_I: "\<exists>n. is_final (run n w) \<Longrightarrow> halts w"
+  unfolding halts_def hoare_halt_def by simp
 
-  obtain s l r where split: "steps0 (1, tp) M n = (s, l, r)" by (rule prod_cases3)
-  show "(\<lambda>_. True) holds_for steps0 (1, tp) M n" unfolding split holds_for.simps ..
-qed
+lemma halts_time: "halts w \<Longrightarrow> \<exists>n. time w = Some n"
+  unfolding halts_def hoare_halt_def time_def start_config_def by simp
 
-lemma halts_altdef: "halts M w \<longleftrightarrow> (\<exists>n. time M <w>\<^sub>t\<^sub>p = Some n)"
+lemma time_halts: "time w = Some n \<Longrightarrow> halts w"
+  using time_Some_D halts_I by simp
+
+lemma halts_altdef: "halts w \<longleftrightarrow> (\<exists>n. time w = Some n)"
   using halts_time time_halts by blast
 
+end
 
-definition accepts :: "TM \<Rightarrow> word \<Rightarrow> bool"
-  where "accepts M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
+type_synonym 'b lang = "'b list set"
 
-definition rejects :: "TM \<Rightarrow> word \<Rightarrow> bool"
-  where "rejects M w \<equiv> Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
+context TM_Acc begin
+definition accepts :: "'b list \<Rightarrow> bool"
+  where "accepts w \<equiv> hoare_halt (input w) (\<lambda>c. state c \<in> accepting_states)"
 
-definition decides_word :: "TM \<Rightarrow> lang \<Rightarrow> word \<Rightarrow> bool"
-  where decides_def[simp]: "decides_word M L w \<equiv> (w \<in> L \<longleftrightarrow> accepts M w) \<and> (w \<notin> L \<longleftrightarrow> rejects M w)"
+definition rejects :: "'b list \<Rightarrow> bool"
+  where "rejects w \<equiv> hoare_halt (input w) (\<lambda>c. state c \<notin> accepting_states)"
 
-abbreviation decides :: "TM \<Rightarrow> lang \<Rightarrow> bool"
-  where "decides M L \<equiv> \<forall>w. decides_word M L w "
+definition decides_word :: "'b lang \<Rightarrow> 'b list \<Rightarrow> bool"
+  where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
 
+abbreviation decides :: "'b lang \<Rightarrow> bool"
+  where "decides L \<equiv> \<forall>w. decides_word L w"
+end
 
-lemma rej_TM_step1: "steps0 (1, (l, r)) Rejecting_TM 1 = (0, l, Bk # tl r)"
+locale Rejecting_TM begin
+definition "Rejecting_TM \<equiv> \<lparr>
+  k = 1,
+  states = {1}::nat set,
+  start_state = 1,
+  final_states = {1},
+  symbols = {B},
+  next_state = \<lambda>q w. 1,
+  next_action = \<lambda>q w. [Nop]
+\<rparr>"
+interpretation TM_Acc Rejecting_TM "{}"
+  unfolding Rejecting_TM_def
+  by unfold_locales simp_all
+
+lemma rej_TM: "rejects w"
+  unfolding rejects_def proof
+  fix c0::"(nat, 'a::blank) TM_config"
+  assume "input w c0"
+  hence "state c0 = start_state Rejecting_TM"
+    by (rule input_state_start_state)
+  then have "is_final ((step^^0) c0)"
+    unfolding is_final_def unfolding Rejecting_TM_def by simp
+  thus "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<notin> {}"
+    unfolding empty_iff by metis
+qed
+
+lemma rej_TM_time: "time w = Some 0"
 proof -
-  have fetch: "fetch Rejecting_TM 1 b = (W0, 0)" for b unfolding Rejecting_TM_def
-    by (cases b) (simp_all add: fetch.simps nth_of.simps)
-
-  have "steps0 (1, (l, r)) Rejecting_TM 1 = step0 (1, l, r) Rejecting_TM"
-    unfolding One_nat_def steps.simps ..
-  also have "... = (0, update W0 (l, r))" unfolding step.simps diff_zero fetch by simp
-  also have "... = (0, l, Bk # tl r)" by simp
-  finally show ?thesis .
+  have "is_final (run 0 w)"
+    unfolding is_final_def start_config_def unfolding Rejecting_TM_def by simp
+  thus ?thesis unfolding time_def
+    using Least_eq_0 by presburger
 qed
+end
 
-lemma rej_TM: "rejects Rejecting_TM w" unfolding rejects_def
-proof (intro Hoare_haltI exI conjI)
-  fix l r
-  show "is_final (steps0 (1, l, r) Rejecting_TM 1)" unfolding rej_TM_step1 ..
-  show "(\<lambda>tp. head tp = Bk) holds_for steps0 (1, l, r) Rejecting_TM 1"
-    unfolding rej_TM_step1 holds_for.simps by simp
-qed
+lemma (in wf_TM) hoare_true: "hoare_halt P Q \<Longrightarrow> hoare_halt P (\<lambda>_. True)"
+  unfolding hoare_halt_def by metis
 
-lemma rej_TM_time: "time Rejecting_TM tp = Some 1"
-proof -
-  let ?f = "\<lambda>n. is_final (steps0 (1, tp) Rejecting_TM n)"
-
-  obtain l r where tp: "tp = (l, r)" by (rule prod.exhaust)
-  have "\<not> ?f 0" unfolding steps.simps tp is_final.simps by (rule one_neq_zero)
-  have "?f 1" unfolding tp rej_TM_step1 ..
-  then have c: "\<exists>n. ?f n" ..
-
-  then have "time Rejecting_TM tp = Some (LEAST n. ?f n)" unfolding time_def by (rule if_P)
-  also have "... = Some 1"
-  proof (intro arg_cong[where f=Some] Least_equality)
-    fix n assume "?f n"
-    show "n \<ge> 1" proof (rule ccontr, unfold not_le)
-      assume "n < 1"
-      then have "n = 0" unfolding One_nat_def less_Suc0 .
-      from \<open>?f n\<close> have "?f 0" unfolding \<open>n = 0\<close> .
-      with \<open>\<not> ?f 0\<close> show False by contradiction
-    qed
-  qed fact
-  finally show ?thesis .
-qed
-
-
-lemma Hoare_haltE[elim]:
-  fixes P M tp
-  assumes "Hoare_halt P M Q"
-    and "P tp"
-  obtains n
-  where "is_final (steps0 (1, tp) M n)"
-    and "Q holds_for steps0 (1, tp) M n"
-  using assms unfolding Hoare_halt_def by blast
-
-\<comment> \<open>to avoid conflicts in terms like \<open>P \<mapsto> Q\<close>\<close>
-no_notation Abacus_Hoare.assert_imp ("_ \<mapsto> _" [0, 0] 100)
-no_notation Abacus_Hoare.abc_Hoare_halt ("({(1_)}/ (_)/ {(1_)})" 50)
-
-lemma hoare_true: "Hoare_halt P M Q \<Longrightarrow> Hoare_halt P M (\<lambda>_. True)"
-proof (subst Hoare_consequence)
-  show "Q \<mapsto> (\<lambda>_. True)" unfolding Turing_Hoare.assert_imp_def by blast
-qed simp_all
-
-lemma accepts_halts: "accepts M w \<Longrightarrow> halts M w"
+lemma (in TM_Acc) accepts_halts: "accepts w \<Longrightarrow> halts w"
   unfolding accepts_def halts_def by (rule hoare_true)
-lemma rejects_halts: "rejects M w \<Longrightarrow> halts M w"
+lemma (in TM_Acc) rejects_halts: "rejects w \<Longrightarrow> halts w"
   unfolding rejects_def halts_def by (rule hoare_true)
 
-lemma holds_for_le:
-  assumes f: "is_final (steps0 (1, l, r) M n)"
-    and Qn: "Q holds_for steps0 (1, l, r) M n"
-    and "n \<le> m"
-  shows "Q holds_for steps0 (1, l, r) M m" (is "?Qh m")
-proof -
-  from \<open>n \<le> m\<close> obtain n' where "m = n + n'" by (rule less_eqE)
-  then have "?Qh m = Q holds_for steps0 (steps0 (1, l, r) M n) M n'" by simp
-  also have "... = ?Qh n" using f by (rule is_final_holds)
-  finally show ?thesis using Qn ..
-qed
+lemma (in wf_TM) hoare_and[intro]:
+  assumes h1: "hoare_halt P Q1"
+    and h2: "hoare_halt P Q2"
+  shows "hoare_halt P (\<lambda>c. Q1 c \<and> Q2 c)"
+proof
+  fix c assume "P c"
+  from \<open>P c\<close> h1 obtain n1 where fn1: "is_final ((step^^n1) c)" and q1: "Q1 ((step^^n1) c)" by rule
+  from \<open>P c\<close> h2 obtain n2 where fn2: "is_final ((step^^n2) c)" and q2: "Q2 ((step^^n2) c)" by rule
 
-lemma max_cases:
-  assumes "P a"
-    and "P b"
-  shows "P (max a b)"
-  using assms unfolding max_def by simp
-
-lemma holds_for_and[intro]:
-  assumes P: "P holds_for c"
-    and Q: "Q holds_for c"
-  shows "(\<lambda>tp. P tp \<and> Q tp) holds_for c"
-proof -
-  obtain s l r where c_def: "c = (s, l, r)" by (rule prod_cases3)
-  from c_def P have "P (l, r)" by simp
-  moreover from c_def Q have "Q (l, r)" by simp
-  ultimately show ?thesis unfolding c_def by simp
-qed
-
-lemma hoare_and[intro]:
-  assumes h1: "Hoare_halt P M Q1"
-    and h2: "Hoare_halt P M Q2"
-  shows "Hoare_halt P M (\<lambda>tp. Q1 tp \<and> Q2 tp)"
-proof (intro Hoare_haltI)
-  fix l r
-  assume p: "P (l, r)" (is "P ?tp")
-  from p h1 obtain n1
-    where f1: "is_final (steps0 (1, ?tp) M n1)"
-      and q1: "Q1 holds_for steps0 (1, ?tp) M n1" by blast
-  from p h2 obtain n2
-    where f2: "is_final (steps0 (1, ?tp) M n2)"
-      and q2: "Q2 holds_for steps0 (1, ?tp) M n2" by blast
-  define n where "n = max n1 n2"
-
-  have "is_final (steps0 (1, l, r) M n)" (is "?f n")
-    unfolding n_def using f1 f2 by (rule max_cases)
-  moreover have "(\<lambda>tp. Q1 tp \<and> Q2 tp) holds_for steps0 (1, l, r) M n" (is "?q n") unfolding n_def
-  proof (intro holds_for_and)
-    show "Q1 holds_for steps0 (1, l, r) M (max n1 n2)"
-      using f1 q1 max.cobounded1 by (rule holds_for_le)
-    show "Q2 holds_for steps0 (1, l, r) M (max n1 n2)"
-      using f2 q2 max.cobounded2 by (rule holds_for_le)
-  qed
-  ultimately show "\<exists>n. ?f n \<and> ?q n" by blast
+  define n::nat where "n \<equiv> max n1 n2"
+  hence "n1 \<le> n" "n2 \<le> n" by simp+
+  with fn1 fn2 final_le_steps
+  have "((step^^n1) c) = ((step^^n) c)" "((step^^n2) c) = ((step^^n) c)" by metis+
+  with fn1 q1 q2 have "let qn=(step^^n) c in is_final qn \<and> Q1 qn \<and> Q2 qn" by simp
+  thus "\<exists>n. let cn = (step ^^ n) c in is_final cn \<and> Q1 cn \<and> Q2 cn" ..
 qed
 
 lemma hoare_contr:

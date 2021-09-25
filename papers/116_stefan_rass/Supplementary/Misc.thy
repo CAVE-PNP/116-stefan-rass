@@ -27,5 +27,14 @@ proof -
   ultimately show thesis using that by simp
 qed
 
+(* Suppl_Nat.thy ? *)
+lemma funpow_fixpoint: "f x = x \<Longrightarrow> (f^^n) x = x"
+  by (induction n) simp_all
+
+lemma max_cases:
+  assumes "P a"
+    and "P b"
+  shows "P (max a b)"
+  using assms unfolding max_def by simp
 
 end

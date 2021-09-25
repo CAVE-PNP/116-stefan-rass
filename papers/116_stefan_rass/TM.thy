@@ -1,11 +1,19 @@
 theory TM
-  imports Main
+  imports Main "Supplementary/Misc"
 begin
 
 class blank =
   fixes B :: 'a
 
-datatype 'b action = L | R | W (symbol_of_write: 'b)
+instantiation nat :: blank begin
+  definition B_nat :: nat where "B_nat = 0"
+  instance ..
+end
+
+datatype 'b action = L | R | W 'b | Nop
+
+fun symbol_of_write :: "'b action \<Rightarrow> 'b::blank" where
+  "symbol_of_write (W w) = w" | "symbol_of_write _ = B"
 
 record 'b tape =
   left :: "'b list"
@@ -26,6 +34,7 @@ fun tp_update :: "('b::blank) action \<Rightarrow> 'b tape \<Rightarrow> 'b tape
 |"tp_update  R     \<lparr>left=ls  , right=r#rs\<rparr> = \<lparr>left=r#ls, right=rs  \<rparr>"
 |"tp_update (W w)  \<lparr>left=ls  , right=[]  \<rparr> = \<lparr>left=ls  , right=[w] \<rparr>"
 |"tp_update (W w)  \<lparr>left=ls  , right=r#rs\<rparr> = \<lparr>left=ls  , right=w#rs\<rparr>"
+|"tp_update Nop tape = tape"
 
 fun tp_read :: "('b :: blank) tape \<Rightarrow> 'b" where
   "tp_read \<lparr>left=_, right=[]  \<rparr> = B"
@@ -56,7 +65,8 @@ locale wf_TM =
        next_state M q w \<in> states M
      \<and> length (next_action M q w) = k M
      \<and> symbol_of_write ` set (next_action M q w) \<subseteq> symbols M"
-  and finalNextFinal: "\<forall>q\<in>final_states M. \<forall>w. next_state M q w \<in> final_states M"
+  and final_state: "\<forall>q\<in>final_states M. \<forall>w. next_state M q w = q"
+  and final_action: "\<forall>q\<in>final_states M. \<forall>w. set (next_action M q w) \<subseteq> {Nop}"
 begin
 definition is_final :: "('a, 'b) TM_config \<Rightarrow> bool" where
   "is_final c \<longleftrightarrow> state c \<in> final_states M"
@@ -67,9 +77,11 @@ definition step :: "('a, 'b) TM_config \<Rightarrow> ('a, 'b) TM_config" where
       tapes=map2 tp_update (next_action M q w) (tapes c)
    \<rparr>)"
 
-lemma finalFinal: "is_final c \<Longrightarrow> is_final (step c)"
-  unfolding is_final_def step_def using finalNextFinal
-  by (metis TM_config.select_convs(1))
+lemma final_step_fixpoint: "is_final c \<Longrightarrow> step c = c"
+  sorry
+
+lemma final_steps: "\<And>n. is_final c \<Longrightarrow> (step^^n) c = c"
+  using final_step_fixpoint[of c] funpow_fixpoint by metis
 
 definition start_config :: "'b list \<Rightarrow> ('a, 'b) TM_config" where
   "start_config w = \<lparr>
@@ -77,12 +89,57 @@ definition start_config :: "'b list \<Rightarrow> ('a, 'b) TM_config" where
     tapes = <w>\<^sub>t\<^sub>p # replicate (k M - 1) empty_tape
   \<rparr>"
 
+abbreviation "run n w \<equiv> (step^^n) (start_config w)"
+
+lemma final_le_steps:
+  assumes "is_final ((step^^n) c)"
+      and "n \<le> m"
+    shows "(step^^m) c = (step^^n) c"
+proof -
+  from \<open>n\<le>m\<close> obtain n' where "m = n' + n"
+    by (metis add.commute less_eqE)
+  then have "(step^^m) c = (step^^n') ((step^^n) c)"
+    using funpow_add[of n' n step] by simp
+  thus "(step^^m) c = (step^^n) c"
+    using final_steps[of "(step^^n) c" n'] assms(1) by simp
+qed
+
 end \<comment> \<open>\<^locale>\<open>wf_TM\<close>\<close>
 
-locale acceptor = wf_TM +
+subsection \<open>Hoare Rules\<close>
+
+type_synonym ('a, 'b) assert = "('a, 'b) TM_config \<Rightarrow> bool"
+
+definition (in wf_TM) hoare_halt :: "('a, 'b) assert \<Rightarrow> ('a, 'b) assert \<Rightarrow> bool" where
+  "hoare_halt P Q \<longleftrightarrow> (\<forall>c. P c \<longrightarrow>
+    (\<exists>n. let cn = (step^^n) c in is_final cn \<and> Q cn))"
+
+lemma (in wf_TM) hoare_haltI[intro]:
+  fixes P Q
+  assumes "\<And>c. P c \<Longrightarrow>
+             \<exists>n. let cn = (step^^n) c in is_final cn \<and> Q cn"
+  shows "hoare_halt P Q"
+  unfolding hoare_halt_def using assms by blast
+
+(* lemma (in wf_TM) hoare_haltI[intro]:
+  fixes P Q n
+  assumes "\<And>c. P c \<Longrightarrow> is_final ((step^^n) c)"
+  assumes "\<And>c. P c \<Longrightarrow> Q ((step^^n) c)"
+  shows "hoare_halt P Q"
+  unfolding hoare_halt_def Let_def using assms by blast *)
+
+lemma (in wf_TM) hoare_haltE[elim]:
+  fixes c
+  assumes "P c"
+      and "hoare_halt P Q"
+    obtains n where "is_final ((step^^n) c)" and "Q ((step^^n) c)"
+  using assms
+  unfolding hoare_halt_def by meson
+
+subsection \<open>Acceptors\<close>
+(*TODO: can we move accepting_states in a combined record? *)
+locale TM_Acc = wf_TM +
   fixes accepting_states :: "'a set"
-  assumes "accepting_states \<subseteq> states M"
-begin
-end
+  assumes "accepting_states \<subseteq> final_states M"
 
 end
