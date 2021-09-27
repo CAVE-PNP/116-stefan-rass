@@ -108,6 +108,23 @@ qed
 
 end \<comment> \<open>\<^locale>\<open>wf_TM\<close>\<close>
 
+subsection \<open>Composition of Turing Machines\<close>
+
+fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a1+'a2, 'b) TM" ("_ |+| _" [0, 0] 100)
+  where "tm_comp M1 M2 = \<lparr>
+    tape_count = max (tape_count M1) (tape_count M2),
+    states = states M1 <+> states M2,
+    start_state = Inl (start_state M1),
+    final_states = Inr`final_states M2,
+    accepting_states = Inr`accepting_states M2,
+    symbols = symbols M1 \<union> symbols M2,
+    next_state = (\<lambda>q w. q),
+    next_action = (\<lambda>q w. [W B])
+  \<rparr>" (*TODO!*)
+
+lemma "wf_TM M1 \<Longrightarrow> wf_TM M2 \<Longrightarrow> wf_TM (M1 |+| M2)"
+  sorry
+
 subsection \<open>Hoare Rules\<close>
 
 type_synonym ('a, 'b) assert = "('a, 'b) TM_config \<Rightarrow> bool"

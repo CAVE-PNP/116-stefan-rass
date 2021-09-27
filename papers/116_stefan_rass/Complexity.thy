@@ -316,87 +316,42 @@ next
   assume "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
   then show "decides_word L w" by (simp add: rejects_altdef)
 qed
+
+lemma decides_altdef3: "decides_word L w \<longleftrightarrow> hoare_halt (input w) (\<lambda>c. state c \<in> accepting_states M \<longleftrightarrow> w\<in>L)"
+  sorry
+
 end
-
-lemma decides_altdef2:
-  fixes M :: TM
-  shows "decides_word M L w \<longleftrightarrow> {input w} M {\<lambda>tp. head tp = (if w \<in> L then Oc else Bk)}"
-    (is "?dw M L w \<longleftrightarrow> {?pre w} M {?post w}")
-proof (intro iffI allI)
-  assume "?dw M L w"
-  then show "{?pre w} M {?post w}" unfolding decides_def accepts_def rejects_def
-  proof (cases "w \<in> L")
-    case False
-    from \<open>?dw M L w\<close> \<open>w \<notin> L\<close> have "rejects M w" unfolding decides_def by blast
-    thus ?thesis unfolding rejects_def using \<open>w \<notin> L\<close> by presburger
-  qed (* case "w \<in> L" by *) presburger
-next
-  assume assm: "{?pre w} M {?post w}"
-  show "?dw M L w" unfolding decides_def proof (intro conjI)
-    show "w \<in> L \<longleftrightarrow> accepts M w" proof
-      assume "w \<in> L"
-      thus "accepts M w" unfolding accepts_def using assm by presburger
-    next
-      assume "accepts M w"
-      then have "Oc = (if w\<in>L then Oc else Bk)"
-        unfolding accepts_def using assm head_halt_inj[of w M Oc] by presburger
-      thus "w \<in> L" using cell.distinct(1) by presburger
-    qed
-  next
-    show "w \<notin> L \<longleftrightarrow> rejects M w" proof
-      assume "w \<notin> L"
-      thus "rejects M w" unfolding rejects_def using assm by presburger
-    next
-      assume "rejects M w"
-      then have "Bk = (if w\<in>L then Oc else Bk)"
-        unfolding rejects_def using assm head_halt_inj[of w M Bk] by presburger
-      thus "w \<notin> L" by auto
-    qed
-  qed
-qed
-
-lemma decides_altdef3:
-  "decides_word M L w \<longleftrightarrow> {input w} M {\<lambda>tp. head tp = Oc \<longleftrightarrow> w \<in> L}"
-proof -
-  have *: "(a = Oc \<longleftrightarrow> c) \<longleftrightarrow> a = (if c then Oc else Bk)" for a c by (induction a) simp_all
-  show ?thesis unfolding * by (rule decides_altdef2)
-qed
-
-(* TODO (?) notation: \<open>p decides L\<close> *)
-
 
 subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
-definition DTIME :: "(nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> 'b lang set"
-  where "DTIME T \<equiv> {L. \<exists>M. TM_Acc.decides M L \<and> wf_TM.time_bounded M T}"
+definition DTIME :: "'a itself \<Rightarrow> (nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> ('b::blank) lang set" where
+  "DTIME TYPE('a) T \<equiv> {L. \<exists>M::('a, 'b) TM. wf_TM.decides M L \<and> wf_TM.time_bounded M T}"
 
-lemma in_dtimeI[intro]:
-  assumes "decides M L"
-    and "time_bounded T M"
-  shows "L \<in> DTIME T"
+lemma (in wf_TM) in_dtimeI[intro]:
+  assumes "decides L"
+    and "time_bounded T"
+  shows "L \<in> DTIME TYPE('a) T"
   unfolding DTIME_def using assms by blast
 
 lemma in_dtimeE[elim]:
-  assumes "L \<in> DTIME T"
-  obtains M
-  where "decides M L"
-    and "time_bounded T M"
+  assumes "L \<in> DTIME TYPE('a) T"
+  obtains M::"('a, 'b::blank) TM"
+  where "wf_TM.decides M L"
+    and "wf_TM.time_bounded M T"
   using assms unfolding DTIME_def by blast
 
 lemma in_dtimeE'[elim]:
-  assumes "L \<in> DTIME T"
-  shows "\<exists>M. decides M L \<and> time_bounded T M"
+  assumes "L \<in> DTIME TYPE('a) T"
+  shows "\<exists>M::('a, 'b::blank) TM. wf_TM.decides M L \<and> wf_TM.time_bounded M T"
   using assms unfolding DTIME_def ..
-
 
 corollary in_dtime_mono: 
   fixes T t
-  assumes Tt: "\<And>n. T n \<ge> t n"
-    and tD: "L \<in> DTIME(t)"
-  shows "L \<in> DTIME(T)"
-  using assms time_bounded_mono by (elim in_dtimeE, intro in_dtimeI) blast+
-
+  assumes "\<And>n. t n \<le> T n"
+    and "L \<in> DTIME TYPE('a) t"
+  shows "L \<in> DTIME TYPE('a) T"
+  sorry
 
 subsection\<open>Classical Results\<close>
 
@@ -413,7 +368,6 @@ text\<open>Hopcroft uses the finite control in Lemma 12.3
 definition almost_everywhere :: "('a \<Rightarrow> bool) \<Rightarrow> bool"
   where ae_def[simp]: "almost_everywhere P \<equiv> finite {x. \<not> P x}"
 
-
 lemma ae_everywhereI: "(\<And>x. P x) \<Longrightarrow> almost_everywhere P" by simp
 
 lemma word_length_ae:
@@ -427,7 +381,6 @@ proof (rule finite_subset)
   show "finite {w::word. length w < n}" by (rule finite_bin_len_less)
 qed
 
-
 text\<open>"Lemma 12.3  If \<open>L\<close> is accepted by a TM \<open>M\<close> that is \<open>S(n)\<close> space bounded a.e., then \<open>L\<close> is
   accepted by an \<open>S(n)\<close> space-bounded TM.
   Proof  Use the finite control to accept or reject strings of length \<open>n\<close> for the finite
@@ -440,11 +393,10 @@ text\<open>"Lemma 12.3  If \<open>L\<close> is accepted by a TM \<open>M\<close>
 
 
 lemma DTIME_ae:
-  assumes "almost_everywhere (decides_word M L)"
-    and "almost_everywhere (time_bounded_word T M)"
-  shows "L \<in> DTIME(T)"
+  assumes "almost_everywhere (wf_TM.decides_word M L)"
+    and "almost_everywhere (wf_TM.time_bounded_word M T)"
+  shows "L \<in> DTIME TYPE('a) T"
   sorry
-
 
 subsubsection\<open>Linear Speed-Up\<close>
 
@@ -462,22 +414,24 @@ lemma linear_time_speed_up:
   assumes "c > 0"
   \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close> required by Hopcroft, but simpler to define in Isabelle.\<close>
     and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
-    and "decides M\<^sub>1 L"
-    and "time_bounded T M\<^sub>1"
-  obtains M\<^sub>2 where "decides M\<^sub>2 L" and "time_bounded (\<lambda>n. c * T n) M\<^sub>2"
+    and "wf_TM.decides M\<^sub>1 L"
+    and "wf_TM.time_bounded M\<^sub>1 T"
+  obtains M\<^sub>2 where "wf_TM.decides M\<^sub>2 L" and "wf_TM.time_bounded M\<^sub>2 (\<lambda>n. c * T n)"
   sorry
 
 
 corollary DTIME_speed_up:
   assumes "c > 0"
     and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
-    and "L \<in> DTIME(T)"
-  shows "L \<in> DTIME(\<lambda>n. c * T n)"
+    and "L \<in> DTIME TYPE('a) T"
+  shows "L \<in> DTIME TYPE('a) (\<lambda>n. c * T n)"
 proof -
-  from \<open>L \<in> DTIME(T)\<close> obtain M\<^sub>1 where "decides M\<^sub>1 L" and "time_bounded T M\<^sub>1" ..
-  with assms(1-2) obtain M\<^sub>2 where "decides M\<^sub>2 L" and "time_bounded (\<lambda>n. c * T n) M\<^sub>2"
+  from \<open>L \<in> DTIME TYPE('a) T\<close> obtain M\<^sub>1::"('a, 'b::blank) TM"
+    where "wf_TM.decides M\<^sub>1 L" and "wf_TM.time_bounded M\<^sub>1 T" ..
+  with assms(1-2) obtain M\<^sub>2::"('a, 'b::blank) TM"
+    where "wf_TM.decides M\<^sub>2 L" and "wf_TM.time_bounded M\<^sub>2 (\<lambda>n. c * T n)"
     by (rule linear_time_speed_up)
-  then show ?thesis ..
+  then show ?thesis unfolding DTIME_def by blast
 qed
 
 lemma DTIME_speed_up_rev:
@@ -485,8 +439,8 @@ lemma DTIME_speed_up_rev:
   defines "T' \<equiv> \<lambda>n. c * T n"
   assumes "c > 0"
     and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
-    and "L \<in> DTIME(T')"
-  shows "L \<in> DTIME(T)"
+    and "L \<in> DTIME TYPE('a) T'"
+  shows "L \<in> DTIME TYPE('a) T"
 proof -
   define c' where "c' \<equiv> 1/c"
   have T_T': "T = (\<lambda>n. c' * T' n)" unfolding T'_def c'_def using \<open>c > 0\<close> by force
@@ -501,79 +455,69 @@ proof -
     from assms(3) have "\<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N'" ..
     then show "\<exists>n'. \<forall>n\<ge>n'. c*T(n)/n \<ge> N" unfolding N'_def * .
   qed
-  moreover note \<open>L \<in> DTIME(T')\<close>
-  ultimately show "L \<in> DTIME(T)" unfolding T_T' by (rule DTIME_speed_up)
+  moreover note \<open>L \<in> DTIME TYPE('a) T'\<close>
+  ultimately show "L \<in> DTIME TYPE('a) T" unfolding T_T' by (rule DTIME_speed_up)
 qed
 
 corollary DTIME_speed_up_eq:
   assumes "c > 0"
     and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
-  shows "DTIME(\<lambda>n. c * T n) = DTIME(T)"
+  shows "DTIME TYPE('a) (\<lambda>n. c * T n) = DTIME TYPE('a) T"
   using assms by (intro set_eqI iffI) (fact DTIME_speed_up_rev, fact DTIME_speed_up)
 
 corollary DTIME_speed_up_div:
   assumes "d > 0"
     and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
-    and "L \<in> DTIME(T)"
-  shows "L \<in> DTIME(\<lambda>n. T n / d)"
+    and "L \<in> DTIME TYPE('a) T"
+  shows "L \<in> DTIME TYPE('a) (\<lambda>n. T n / d)"
 proof -
   define c where "c \<equiv> 1 / d"
   have "a / d = c * a" for a unfolding c_def by simp
 
   from \<open>d > 0\<close> have "c > 0" unfolding c_def by simp
-  then show "L \<in> DTIME(\<lambda>n. T n / d)" unfolding \<open>\<And>a. a / d = c * a\<close>
+  then show "L \<in> DTIME TYPE('a) (\<lambda>n. T n / d)" unfolding \<open>\<And>a. a / d = c * a\<close>
     using assms(2-3) by (rule DTIME_speed_up)
 qed
-
 
 subsection\<open>Reductions\<close>
 
 lemma reduce_decides:
-  fixes A B :: lang and M\<^sub>R M\<^sub>B :: TM and f\<^sub>R :: "word \<Rightarrow> word" and w :: word
-  assumes "decides_word M\<^sub>B B (f\<^sub>R w)"
+  fixes A B :: "('b::blank) lang" and M\<^sub>R M\<^sub>B :: "('a, 'b) TM"
+    and f\<^sub>R :: "'b list \<Rightarrow> 'b list" and w :: "'b list"
+  assumes "wf_TM.decides_word M\<^sub>B B (f\<^sub>R w)"
     and f\<^sub>R: "w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B"
-    and M\<^sub>R_f\<^sub>R: "{input w} M\<^sub>R {input (f\<^sub>R w)}"
-    and "tm_wf0 M\<^sub>R"
+    and M\<^sub>R_f\<^sub>R: "wf_TM.hoare_halt M\<^sub>R (wf_TM.input M\<^sub>R w) (wf_TM.input M\<^sub>B (f\<^sub>R w))"
+    (* TODO: revise assumption *)
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
-  shows "decides_word M A w"
-proof -
-  have "{input w} M\<^sub>R |+| M\<^sub>B {\<lambda>tp. (head tp = Oc) = (f\<^sub>R w \<in> B)}" using M\<^sub>R_f\<^sub>R \<open>tm_wf0 M\<^sub>R\<close>
-  proof (intro Hoare_plus_halt)
-    from \<open>decides_word M\<^sub>B B (f\<^sub>R w)\<close> show "{input (f\<^sub>R w)} M\<^sub>B {\<lambda>tp. (head tp = Oc) = (f\<^sub>R w \<in> B)}"
-      unfolding decides_altdef3 .
-  qed
-  then have "{input w} M {\<lambda>tp. (head tp = Oc) = (w \<in> A)}" unfolding M_def \<open>w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B\<close> .
-  then show "decides_word M A w" unfolding decides_altdef3 .
-qed
-
+  shows "wf_TM.decides_word M A w"
+sorry
 
 lemma reduce_time_bounded:
-  fixes T\<^sub>B T\<^sub>R :: "nat \<Rightarrow> 'a :: floor_ceiling" and M\<^sub>R M\<^sub>B :: TM and f\<^sub>R :: "word \<Rightarrow> word" and w :: word
-  assumes "time_bounded_word T\<^sub>B M\<^sub>B (f\<^sub>R w)"
-    and "time_bounded_word T\<^sub>R M\<^sub>R w"
-    and M\<^sub>R_f\<^sub>R: "Hoare_halt (input w) M\<^sub>R (input (f\<^sub>R w))"
-    and f\<^sub>R_len: "length (f\<^sub>R w) \<le> length w"
-    (* and "tm_wf0 M\<^sub>R" *)
+  fixes T\<^sub>B T\<^sub>R :: "nat \<Rightarrow> 'c :: floor_ceiling"
+    and M\<^sub>R M\<^sub>B :: "('a, 'b::blank) TM"
+    and f\<^sub>R :: "'b list \<Rightarrow> 'b list" and w :: "'b list"
+  assumes "wf_TM.time_bounded_word M\<^sub>B T\<^sub>B (f\<^sub>R w)"
+    and "wf_TM.time_bounded_word M\<^sub>R T\<^sub>R w"
+    and "wf_TM.hoare_halt M\<^sub>R (wf_TM.input M\<^sub>R w) (wf_TM.input M\<^sub>B (f\<^sub>R w))"
+    and "length (f\<^sub>R w) \<le> length w"
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
-  defines "(T :: nat \<Rightarrow> 'a) \<equiv> \<lambda>n. of_nat (tcomp T\<^sub>R n + tcomp T\<^sub>B n)"
-  shows "time_bounded_word T M w"
+  defines "(T :: nat \<Rightarrow> 'c) \<equiv> \<lambda>n. of_nat (tcomp T\<^sub>R n + tcomp T\<^sub>B n)"
+  shows "wf_TM.time_bounded_word M T w"
 proof -
-  define l where "l \<equiv> tape_size <w>\<^sub>t\<^sub>p"
+  define l where "l \<equiv> size <w>\<^sub>t\<^sub>p"
 
     \<comment> \<open>Idea: We already know that the first machine \<^term>\<open>M\<^sub>R\<close> is time bounded
-    (@{thm \<open>time_bounded_word T\<^sub>R M\<^sub>R w\<close>}),
-    such that its run-time is bounded by \<^term>\<open>T\<^sub>R l = T\<^sub>R (2 * length w)\<close>
-    (@{thm tape_size_input}}).
+    (@{thm \<open>wf_TM.time_bounded_word M\<^sub>R T\<^sub>R w\<close>}).
 
     We also know that its execution will result in the encoded corresponding input word \<open>f\<^sub>R w\<close>
-    (@{thm \<open>{input w} M\<^sub>R {input (f\<^sub>R w)}\<close>}).
+    (@{thm \<open>wf_TM.hoare_halt M\<^sub>R (wf_TM.input M\<^sub>R w) (wf_TM.input M\<^sub>B (f\<^sub>R w))\<close>}).
     Since the length of the corresponding input word is no longer
     than the length of the original input word \<^term>\<open>w\<close> (@{thm \<open>length (f\<^sub>R w) \<le> length w\<close>}),
-    and the second machine \<^term>\<open>M\<^sub>B\<close> is time bounded (@{thm \<open>time_bounded_word T\<^sub>B M\<^sub>B (f\<^sub>R w)\<close>}),
+    and the second machine \<^term>\<open>M\<^sub>B\<close> is time bounded (@{thm \<open>wf_TM.time_bounded_word M\<^sub>B T\<^sub>B (f\<^sub>R w)\<close>}),
     we may conclude that the run-time of \<^term>\<open>M \<equiv> M\<^sub>R |+| M\<^sub>B\<close> on the input \<^term>\<open><w>\<^sub>t\<^sub>p\<close>
     is no longer than \<^term>\<open>T l \<equiv> T\<^sub>R l + T\<^sub>B l\<close>.
 
-    \<^const>\<open>time_bounded\<close> is defined in terms of \<^const>\<open>tcomp\<close>, however,
+    \<^const>\<open>wf_TM.time_bounded\<close> is defined in terms of \<^const>\<open>tcomp\<close>, however,
     which means that the resulting total run time \<^term>\<open>T l\<close> may be as large as
     \<^term>\<open>tcomp T\<^sub>R l + tcomp T\<^sub>B l \<equiv> nat (max (l + 1) \<lceil>T\<^sub>R l\<rceil>) + nat (max (l + 1) \<lceil>T\<^sub>B l\<rceil>)\<close>.
     If \<^term>\<open>\<lceil>T\<^sub>R l\<rceil> < l + 1\<close> or \<^term>\<open>\<lceil>T\<^sub>B l\<rceil> < l + 1\<close> then \<^term>\<open>tcomp T l < tcomp T\<^sub>R l + tcomp T\<^sub>B l\<close>.\<close>

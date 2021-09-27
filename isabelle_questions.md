@@ -54,11 +54,16 @@ see [proof_terms_example.thy](isa_examples/proof_terms_example.thy) for a demons
 
 #### How to introduce variables in Isar?
 
-`let ?t = ...`
+`let ?x = ...` or
+`define x where "x == ..."`
+Former expands automatically (producing larger terms),
+latter introduces a fact `x_def`.
 
 #### Coq Check
 
-`term`/`value` (get type/value of expression resp.) / `thm` (print facts) / <kbd>Ctrl</kbd>+MouseOver in Isabelle/jEdit (display full name and kind of items)
+- `term`/`value` (get type/value of expression resp.) 
+- `thm` (print facts)
+- <kbd>Ctrl</kbd>+MouseOver in Isabelle/jEdit (display full name and kind of items)
 
 #### How to find definitions of a (function|datatype|class)?
 
@@ -134,3 +139,7 @@ Restart Isabelle/jEdit.
 The library is compiled once, and will load near-instantly for subsequent launches.
 
 See the section on [Imports](max_notes/isabelle.md#imports) in the notes on Isabelle for more information.
+
+#### What's the difference between `fun` `function` and `primrec`. Which one should I use?
+
+#### How to extend a record and locales which use the record?
