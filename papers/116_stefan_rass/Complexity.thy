@@ -2,6 +2,8 @@ theory Complexity
   imports TM Goedel_Numbering
 begin
 
+type_synonym 'b lang = "'b list set"
+
 subsubsection\<open>Time\<close>
 
 text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>,
@@ -166,16 +168,11 @@ lemma time_halts: "time w = Some n \<Longrightarrow> halts w"
 lemma halts_altdef: "halts w \<longleftrightarrow> (\<exists>n. time w = Some n)"
   using halts_time time_halts by blast
 
-end
-
-type_synonym 'b lang = "'b list set"
-
-context TM_Acc begin
 definition accepts :: "'b list \<Rightarrow> bool"
-  where "accepts w \<equiv> hoare_halt (input w) (\<lambda>c. state c \<in> accepting_states)"
+  where "accepts w \<equiv> hoare_halt (input w) (\<lambda>c. state c \<in> accepting_states M)"
 
 definition rejects :: "'b list \<Rightarrow> bool"
-  where "rejects w \<equiv> hoare_halt (input w) (\<lambda>c. state c \<notin> accepting_states)"
+  where "rejects w \<equiv> hoare_halt (input w) (\<lambda>c. state c \<notin> accepting_states M)"
 
 definition decides_word :: "'b lang \<Rightarrow> 'b list \<Rightarrow> bool"
   where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
@@ -190,24 +187,27 @@ definition "Rejecting_TM \<equiv> \<lparr>
   states = {1}::nat set,
   start_state = 1,
   final_states = {1},
+  accepting_states = {},
   symbols = {B},
   next_state = \<lambda>q w. 1,
   next_action = \<lambda>q w. [Nop]
 \<rparr>"
-interpretation TM_Acc Rejecting_TM "{}"
+interpretation wf_TM Rejecting_TM
   unfolding Rejecting_TM_def
   by unfold_locales simp_all
 
 lemma rej_TM: "rejects w"
-  unfolding rejects_def proof
+unfolding rejects_def proof
   fix c0::"(nat, 'a::blank) TM_config"
   assume "input w c0"
   hence "state c0 = start_state Rejecting_TM"
-    by (rule input_state_start_state)
+    sorry (* by (rule input_state_start_state) *)
   then have "is_final ((step^^0) c0)"
     unfolding is_final_def unfolding Rejecting_TM_def by simp
-  thus "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<notin> {}"
-    unfolding empty_iff by metis
+  moreover have "accepting_states Rejecting_TM = {}"
+    unfolding Rejecting_TM_def by simp
+  ultimately show "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<notin> accepting_states Rejecting_TM"
+    using empty_iff by metis
 qed
 
 lemma rej_TM_time: "time w = Some 0"
@@ -219,15 +219,16 @@ proof -
 qed
 end
 
-lemma (in wf_TM) hoare_true: "hoare_halt P Q \<Longrightarrow> hoare_halt P (\<lambda>_. True)"
+context wf_TM begin
+lemma hoare_true: "hoare_halt P Q \<Longrightarrow> hoare_halt P (\<lambda>_. True)"
   unfolding hoare_halt_def by metis
 
-lemma (in TM_Acc) accepts_halts: "accepts w \<Longrightarrow> halts w"
+lemma accepts_halts: "accepts w \<Longrightarrow> halts w"
   unfolding accepts_def halts_def by (rule hoare_true)
-lemma (in TM_Acc) rejects_halts: "rejects w \<Longrightarrow> halts w"
+lemma rejects_halts: "rejects w \<Longrightarrow> halts w"
   unfolding rejects_def halts_def by (rule hoare_true)
 
-lemma (in wf_TM) hoare_and[intro]:
+lemma hoare_and[intro]:
   assumes h1: "hoare_halt P Q1"
     and h2: "hoare_halt P Q2"
   shows "hoare_halt P (\<lambda>c. Q1 c \<and> Q2 c)"
@@ -245,90 +246,77 @@ proof
 qed
 
 lemma hoare_contr:
-  fixes P M tp
-  assumes "Hoare_halt P M (\<lambda>_. False)" and "P tp"
+  fixes P and c
+  assumes "hoare_halt P (\<lambda>_. False)" and "P c"
   shows "False"
-proof - \<comment> \<open>This one is tricky since the automatic solvers do not pick apart pairs on their own.
-  Since @{thm holds_for.simps} is defined in terms of pair items, it is not directly applicable.\<close>
-  from assms obtain n where "(\<lambda>_. False) holds_for steps0 (1, tp) M n" ..
-  moreover obtain s l r where "steps0 (1, tp) M n = (s, l, r)" using prod_cases3 .
-  ultimately show "(\<lambda>_. False) (l, r)" (* \<equiv> False *) by simp
-qed
-
-lemma input_encoding: \<comment> \<open>Each word has an input encoding. Useful with @{thm hoare_contr}}\<close>
-  fixes w
-  shows "input w ([], encode_word (decode_word (encode_word w)))" unfolding encode_decode_word ..
-
-lemma holds_for_neg: "\<not> Q holds_for c \<longleftrightarrow> (\<lambda>tp. \<not> Q tp) holds_for c"
-proof -
-  obtain s l r where c_def: "c = (s, l, r)" by (rule prod_cases3)
-  show ?thesis unfolding c_def by simp
-qed
+using assms hoare_haltE[of P c "\<lambda>_. False"] by blast
 
 lemma hoare_halt_neg:
-  assumes "\<not> Hoare_halt (input w) M Q"
-    and "halts M w"
-  shows "Hoare_halt (input w) M (\<lambda>tp. \<not> Q tp)"
-  using assms unfolding Hoare_halt_def holds_for_neg[symmetric] halts_def by fast
+  assumes "\<not> hoare_halt (input w) Q"
+    and "halts w"
+  shows "hoare_halt (input w) (\<lambda>tp. \<not> Q tp)"
+using assms unfolding hoare_halt_def halts_def by meson
 
-lemma head_halt_inj:
-  assumes "Hoare_halt (input w) M (\<lambda>tp. head tp = x)"
-      and "Hoare_halt (input w) M (\<lambda>tp. head tp = y)"
+lemma halt_inj:
+  assumes "hoare_halt (input w) (\<lambda>c. f c = x)"
+      and "hoare_halt (input w) (\<lambda>c. f c = y)"
     shows "x = y"
 proof (rule ccontr)
   assume "x \<noteq> y"
   then have *: "a = x \<and> a = y \<longleftrightarrow> False" for a by blast
 
-  from hoare_and have "Hoare_halt (input w) M (\<lambda>tp. head tp = x \<and> head tp = y)"
+  from hoare_and have "hoare_halt (input w) (\<lambda>c. f c = x \<and> f c = y)"
     using assms .
-  then have "Hoare_halt (input w) M (\<lambda>_. False)" unfolding * .
-  thus False using input_encoding by (rule hoare_contr)
+  then have "hoare_halt (input w) (\<lambda>_. False)" unfolding * .
+  thus False using hoare_contr by auto
 qed
 
 lemma acc_not_rej:
-  assumes "accepts M w"
-  shows "\<not> rejects M w"
+  assumes "accepts w"
+  shows "\<not> rejects w"
 proof (intro notI)
-  assume "rejects M w"
+  assume "rejects w"
 
-  have "Hoare_halt (input w) M (\<lambda>tp. head tp = Oc)"
-    using \<open>accepts M w\<close> unfolding accepts_def .
-  moreover have "Hoare_halt (input w) M (\<lambda>tp. head tp = Bk)"
-    using \<open>rejects M w\<close> unfolding rejects_def .
-  ultimately show False using head_halt_inj[of w M Oc Bk] by blast
+  have "hoare_halt (input w) (\<lambda>c. state c \<in> accepting_states M)"
+    using \<open>accepts w\<close> unfolding accepts_def .
+  moreover have "hoare_halt (input w) (\<lambda>c. state c \<notin> accepting_states M)"
+    using \<open>rejects w\<close> unfolding rejects_def .
+  ultimately have "hoare_halt (input w) (\<lambda>c. False)"
+    using hoare_and[of "input w" "\<lambda>c. state c \<in> accepting_states M" "\<lambda>c. state c \<notin> accepting_states M"] 
+    by simp
+  then show False using hoare_contr by auto
 qed
-
 
 lemma rejects_altdef:
-  "rejects M w = (halts M w \<and> \<not> accepts M w)"
+  "rejects w = (halts w \<and> \<not> accepts w)"
 proof (intro iffI conjI)
-  assume "rejects M w"
-  then show "halts M w" unfolding rejects_def halts_def using hoare_true by fast
-  from \<open>rejects M w\<close> show "\<not> accepts M w" using acc_not_rej by auto
+  assume "rejects w"
+  then show "halts w" unfolding rejects_def halts_def
+    using hoare_true by simp
+  from \<open>rejects w\<close> show "\<not> accepts w" using acc_not_rej by auto
 next
-  have *: "c \<noteq> Oc \<longleftrightarrow> c = Bk" for c by (cases c) blast+
-
-  assume "halts M w \<and> \<not> accepts M w"
-  then have "Hoare_halt (input w) M (\<lambda>tp. head tp \<noteq> Oc)"
-    unfolding accepts_def by (intro hoare_halt_neg) blast+
-  then show "rejects M w" unfolding rejects_def * .
+  assume "halts w \<and> \<not> accepts w"
+  then have "hoare_halt (input w) (\<lambda>c. state c \<notin> accepting_states M)"
+    unfolding accepts_def using hoare_halt_neg by simp 
+  then show "rejects w" unfolding rejects_def .
 qed
 
-lemma decides_halts: "decides_word M L w \<Longrightarrow> halts M w"
+lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
   by (cases "w \<in> L") (intro accepts_halts, simp, intro rejects_halts, simp)
 
-
-lemma decides_altdef1: "decides_word M L w \<longleftrightarrow> halts M w \<and> (w \<in> L \<longleftrightarrow> accepts M w)"
+lemma decides_altdef:
+  "decides_word L w \<longleftrightarrow> halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
 proof (intro iffI)
   fix w
-  assume "decides_word M L w"
-  hence "halts M w" by (rule decides_halts)
-  moreover have "w \<in> L \<longleftrightarrow> accepts M w" using \<open>decides_word M L w\<close> by simp
-  ultimately show "halts M w \<and> (w \<in> L \<longleftrightarrow> accepts M w)" ..
+  assume "decides_word L w"
+  hence "halts w" by (rule decides_halts)
+  moreover have "w \<in> L \<longleftrightarrow> accepts w" using \<open>decides_word L w\<close> by simp
+  ultimately show "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)" ..
 next
-  assume "halts M w \<and> (w \<in> L \<longleftrightarrow> accepts M w)"
-  then show "decides_word M L w" by (simp add: rejects_altdef)
+  assume "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
+  then show "decides_word L w" by (simp add: rejects_altdef)
 qed
+end
 
 lemma decides_altdef2:
   fixes M :: TM
@@ -380,8 +368,8 @@ qed
 subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
-definition DTIME :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> lang set"
-  where "DTIME T \<equiv> {L. \<exists>M. decides M L \<and> time_bounded T M}"
+definition DTIME :: "(nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> 'b lang set"
+  where "DTIME T \<equiv> {L. \<exists>M. TM_Acc.decides M L \<and> wf_TM.time_bounded M T}"
 
 lemma in_dtimeI[intro]:
   assumes "decides M L"

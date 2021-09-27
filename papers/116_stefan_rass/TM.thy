@@ -46,6 +46,7 @@ record ('a, 'b) TM =
   states       :: "'a set"
   start_state  :: 'a
   final_states :: "'a set"
+  accepting_states :: "'a set"
 
   symbols :: "'b set"
     
@@ -60,6 +61,7 @@ locale wf_TM =
   fixes M :: "('a, 'b::blank) TM" (structure)
   assumes "1 \<le> tape_count M"
   and "finite (states M)" "start_state M \<in> states M" "final_states M \<subseteq> states M"
+  and "accepting_states M \<subseteq> final_states M"
   and "finite (symbols M)" "B \<in> (symbols M)"
   and "\<forall>q\<in>states M. \<forall>w. length w = tape_count M \<longrightarrow> set w \<subseteq> symbols M \<longrightarrow>
        next_state M q w \<in> states M
@@ -135,11 +137,5 @@ lemma (in wf_TM) hoare_haltE[elim]:
     obtains n where "is_final ((step^^n) c)" and "Q ((step^^n) c)"
   using assms
   unfolding hoare_halt_def by meson
-
-subsection \<open>Acceptors\<close>
-(*TODO: can we move accepting_states in a combined record? *)
-locale TM_Acc = wf_TM +
-  fixes accepting_states :: "'a set"
-  assumes "accepting_states \<subseteq> final_states M"
 
 end
