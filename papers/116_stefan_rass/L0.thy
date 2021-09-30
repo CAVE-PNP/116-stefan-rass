@@ -2,7 +2,6 @@ theory L0
   imports Complexity
 begin
 
-
 section\<open>Time Hierarchy Theorem and the Diagonal Language\<close>
 
 locale tht_assms =
@@ -109,35 +108,6 @@ definition L\<^sub>D' :: "lang"
   where LD'_def[simp]: "L\<^sub>D' \<equiv> {w. let M\<^sub>w = TM_decode_pad w; w' = strip_al_prefix (strip_exp_pad w) in
                   rejects M\<^sub>w w' \<and> time_bounded_word T M\<^sub>w w'}"
 
-lemma L\<^sub>DE[elim]:
-  fixes w
-  assumes "w \<in> L\<^sub>D"
-  defines "M\<^sub>w \<equiv> TM_decode_pad w"
-  shows "rejects M\<^sub>w w"
-    and "halts M\<^sub>w w"
-    and "time_bounded_word T M\<^sub>w w"
-proof -
-  from \<open>w \<in> L\<^sub>D\<close> show "rejects M\<^sub>w w" unfolding M\<^sub>w_def LD_def Let_def by blast
-  then show "halts M\<^sub>w w" unfolding rejects_def halts_def by (rule hoare_true)
-  from \<open>w \<in> L\<^sub>D\<close> show "time_bounded_word T M\<^sub>w w"
-    unfolding M\<^sub>w_def LD_def Let_def mem_Collect_eq ..
-qed
-
-lemma L\<^sub>D'E[elim]:
-  fixes w
-  assumes "w \<in> L\<^sub>D'"
-  defines "M\<^sub>w \<equiv> TM_decode_pad w"
-    and "w' \<equiv> strip_al_prefix (strip_exp_pad w)"
-  shows "rejects M\<^sub>w w'"
-    and "halts M\<^sub>w w'"
-    and "time_bounded_word T M\<^sub>w w'"
-proof -
-  from \<open>w \<in> L\<^sub>D'\<close> show "rejects M\<^sub>w w'" unfolding M\<^sub>w_def LD'_def w'_def Let_def by blast
-  then show "halts M\<^sub>w w'" by (rule rejects_halts)
-  from \<open>w \<in> L\<^sub>D'\<close> show "time_bounded_word T M\<^sub>w w'"
-    unfolding M\<^sub>w_def LD'_def w'_def Let_def mem_Collect_eq ..
-qed
-
 
 theorem time_hierarchy: "L\<^sub>D \<in> DTIME(T) - DTIME(t)"
 proof
@@ -216,54 +186,6 @@ next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME(t)\<close
   then show "L\<^sub>D \<notin> DTIME(t)" by blast
 qed
 
-theorem time_hierarchy': "L\<^sub>D' \<in> DTIME(T) - DTIME(t)"
-proof
-  show "L\<^sub>D' \<in> DTIME(T)" sorry (* unchanged *)
-
-  have "L \<noteq> L\<^sub>D'" if "L \<in> DTIME(t)" for L
-  proof -
-    from \<open>L \<in> DTIME(t)\<close> obtain M\<^sub>w where "decides M\<^sub>w L" and "time_bounded t M\<^sub>w" and "tm_wf0 M\<^sub>w" ..
-
-    let ?n = "length (encode_TM M\<^sub>w) + 2"
-    obtain l where "T(2*l) \<ge> t(2*l)" and "clog l \<ge> ?n" sorry (* unchanged *)
-    obtain w where "length w = l" and dec_w: "TM_decode_pad w = M\<^sub>w"
-      using \<open>tm_wf0 M\<^sub>w\<close> \<open>clog l \<ge> ?n\<close> by (rule embed_TM_in_len)
-
-    let ?w = "strip_al_prefix (strip_exp_pad w)"
-    have "?w \<in> L \<longleftrightarrow> w \<notin> L\<^sub>D'"
-    proof
-      assume "?w \<in> L"
-      moreover from \<open>decides M\<^sub>w L\<close> have "?w \<notin> L \<longleftrightarrow> rejects M\<^sub>w ?w" unfolding decides_def by blast
-      ultimately have "\<not> rejects M\<^sub>w ?w" by blast
-      then show "w \<notin> L\<^sub>D'" unfolding LD'_def mem_Collect_eq dec_w Let_def by presburger
-    next
-      assume "w \<notin> L\<^sub>D'"
-      moreover have "time_bounded_word T M\<^sub>w ?w" sorry (* probably works *)
-      ultimately have "\<not> rejects M\<^sub>w ?w" unfolding LD'_def dec_w mem_Collect_eq Let_def by blast
-      with \<open>decides M\<^sub>w L\<close> show "?w \<in> L" unfolding decides_def by blast
-    qed
-
-    have "w \<in> L \<longleftrightarrow> w \<notin> L\<^sub>D'"
-    proof
-      assume "w \<in> L"
-      moreover from \<open>decides M\<^sub>w L\<close> have "w \<notin> L \<longleftrightarrow> rejects M\<^sub>w w" unfolding decides_def by blast
-      ultimately have "\<not> rejects M\<^sub>w w" by blast
-      then show "w \<notin> L\<^sub>D'" unfolding LD'_def mem_Collect_eq dec_w Let_def by presburger (* nope *)
-    next
-      assume "w \<notin> L\<^sub>D'"
-      moreover have "time_bounded_word T M\<^sub>w w"
-      proof (rule time_bounded_word_mono)
-        from \<open>T(2*l) \<ge> t(2*l)\<close> show "real (T (tape_size <w>\<^sub>t\<^sub>p)) \<ge> real (t (tape_size <w>\<^sub>t\<^sub>p))"
-          unfolding tape_size_input \<open>length w = l\<close> by (rule of_nat_mono)
-        from \<open>time_bounded t M\<^sub>w\<close> show "time_bounded_word t M\<^sub>w w" ..
-      qed
-      ultimately have "\<not> rejects M\<^sub>w w" unfolding LD'_def dec_w mem_Collect_eq Let_def by blast (* nope *)
-      with \<open>decides M\<^sub>w L\<close> show "w \<in> L" unfolding decides_def by blast
-    qed
-    then show "L \<noteq> L\<^sub>D'" by blast
-  qed
-  then show "L\<^sub>D' \<notin> DTIME(t)" by blast
-qed
 
 end \<comment> \<open>\<^locale>\<open>tht_assms\<close>\<close>
 
@@ -325,7 +247,6 @@ lemma L\<^sub>D_adj_sq_iff:
   Note: with the current definition of \<^const>\<open>L\<^sub>D\<close>, this likely does not hold,
         as the whole word \<open>w\<close> is referenced in the definition.\<close>
   oops
-
 
 lemma L\<^sub>D'_adj_sq_iff:
   fixes w
@@ -474,6 +395,8 @@ proof -
   also have "... = dsqrt n" by (rule dens_SQ)
   finally show ?thesis .
 qed
+
+lemmas lemma4_6 = L0_time_hierarchy dens_L0
 
 end \<comment> \<open>\<^locale>\<open>tht_sq_assms\<close>\<close>
 

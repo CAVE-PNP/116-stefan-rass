@@ -710,24 +710,14 @@ proof (induction st)
   case 0 thus ?case unfolding fetch.simps ..
 next
   case (Suc st)
-  show ?case proof (induction c)
-    case Bk thus ?case unfolding fetch.simps repair_TM_nth_of ..
-  next
-    case Oc thus ?case unfolding fetch.simps repair_TM_nth_of ..
-  qed
+  show ?case by (induction c) (simp_all only: fetch.simps repair_TM_nth_of)
 qed
 
 lemma repair_TM_step: "step c (repair_TM M, off) = step c (M, off)"
-  by (induction c) (unfold step.simps repair_TM_fetch, rule)
+  by (induction c) (simp_all only: step.simps repair_TM_fetch)
 
 lemma repair_TM_still_works: "steps c (repair_TM M, st) n = steps c (M, st) n"
-proof (induction n arbitrary: c)
-  case 0
-  thus ?case unfolding steps.simps ..
-next
-  case (Suc n)
-  thus ?case unfolding steps.simps repair_TM_step .
-qed
+  by (induction n arbitrary: c) (simp_all only: steps.simps repair_TM_step)
 
 
 subsection\<open>DTIME\<close>
