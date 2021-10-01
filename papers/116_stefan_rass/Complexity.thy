@@ -137,10 +137,6 @@ qed
 
 subsection\<open>Deciding Languages\<close>
 
-\<comment> \<open>Since \<open>L\<close> is a typical name for unspecified languages in the literature,
-    the synonymous constructor \<^term>\<open>L\<close> of type \<^typ>\<open>'b action\<close> ("move head left") is hidden.\<close>
-hide_const (open) L
-
 text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^term>\<open>L\<close>, iff for every possible word \<^term>\<open>w\<close>
   it correctly calculates language membership.
   That is, for \<^term>\<open>w \<in> L\<close> the computation results in \<^term>\<open>Oc\<close> under the TM head,
@@ -188,7 +184,7 @@ definition "Rejecting_TM \<equiv> \<lparr>
   start_state = 1,
   final_states = {1},
   accepting_states = {},
-  symbols = {B},
+  symbols = {Bk},
   next_state = \<lambda>q w. 1,
   next_action = \<lambda>q w. [Nop]
 \<rparr>"

@@ -3,17 +3,17 @@ theory TM
 begin
 
 class blank =
-  fixes B :: 'a
+  fixes Bk :: 'a
 
 instantiation nat :: blank begin
-  definition B_nat :: nat where "B_nat = 0"
+  definition Bk_nat :: nat where "Bk_nat = 0"
   instance ..
 end
 
 datatype 'b action = L | R | W 'b | Nop
 
 fun symbol_of_write :: "'b action \<Rightarrow> 'b::blank" where
-  "symbol_of_write (W w) = w" | "symbol_of_write _ = B"
+  "symbol_of_write (W w) = w" | "symbol_of_write _ = Bk"
 
 record 'b tape =
   left :: "'b list"
@@ -28,16 +28,16 @@ abbreviation size :: "'b tape \<Rightarrow> nat" where
   "size tp \<equiv> length (left tp) + length (right tp)"
 
 fun tp_update :: "('b::blank) action \<Rightarrow> 'b tape \<Rightarrow> 'b tape" where
- "tp_update  L     \<lparr>left=[]  , right=rs  \<rparr> = \<lparr>left=[]  , right=B#rs\<rparr>"
-|"tp_update  L     \<lparr>left=l#ls, right=rs  \<rparr> = \<lparr>left=ls  , right=l#rs\<rparr>"
-|"tp_update  R     \<lparr>left=ls  , right=[]  \<rparr> = \<lparr>left=B#ls, right=[]  \<rparr>"
-|"tp_update  R     \<lparr>left=ls  , right=r#rs\<rparr> = \<lparr>left=r#ls, right=rs  \<rparr>"
-|"tp_update (W w)  \<lparr>left=ls  , right=[]  \<rparr> = \<lparr>left=ls  , right=[w] \<rparr>"
-|"tp_update (W w)  \<lparr>left=ls  , right=r#rs\<rparr> = \<lparr>left=ls  , right=w#rs\<rparr>"
+ "tp_update  L     \<lparr>left=[]  , right=rs  \<rparr> = \<lparr>left=[]   , right=Bk#rs\<rparr>"
+|"tp_update  L     \<lparr>left=l#ls, right=rs  \<rparr> = \<lparr>left=ls   , right=l#rs \<rparr>"
+|"tp_update  R     \<lparr>left=ls  , right=[]  \<rparr> = \<lparr>left=Bk#ls, right=[]   \<rparr>"
+|"tp_update  R     \<lparr>left=ls  , right=r#rs\<rparr> = \<lparr>left=r#ls , right=rs   \<rparr>"
+|"tp_update (W w)  \<lparr>left=ls  , right=[]  \<rparr> = \<lparr>left=ls   , right=[w]  \<rparr>"
+|"tp_update (W w)  \<lparr>left=ls  , right=r#rs\<rparr> = \<lparr>left=ls   , right=w#rs \<rparr>"
 |"tp_update Nop tape = tape"
 
 fun tp_read :: "('b :: blank) tape \<Rightarrow> 'b" where
-  "tp_read \<lparr>left=_, right=[]  \<rparr> = B"
+  "tp_read \<lparr>left=_, right=[]  \<rparr> = Bk"
 | "tp_read \<lparr>left=_, right=r#rs\<rparr> = r"
 
 record ('a, 'b) TM =
@@ -62,7 +62,7 @@ locale wf_TM =
   assumes "1 \<le> tape_count M"
   and "finite (states M)" "start_state M \<in> states M" "final_states M \<subseteq> states M"
   and "accepting_states M \<subseteq> final_states M"
-  and "finite (symbols M)" "B \<in> (symbols M)"
+  and "finite (symbols M)" "Bk \<in> (symbols M)"
   and "\<forall>q\<in>states M. \<forall>w. length w = tape_count M \<longrightarrow> set w \<subseteq> symbols M \<longrightarrow>
        next_state M q w \<in> states M
      \<and> length (next_action M q w) = tape_count M
@@ -119,7 +119,7 @@ fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a
     accepting_states = Inr`accepting_states M2,
     symbols = symbols M1 \<union> symbols M2,
     next_state = (\<lambda>q w. q),
-    next_action = (\<lambda>q w. [W B])
+    next_action = (\<lambda>q w. [W Bk])
   \<rparr>" (*TODO!*)
 
 lemma "wf_TM M1 \<Longrightarrow> wf_TM M2 \<Longrightarrow> wf_TM (M1 |+| M2)"
@@ -154,5 +154,11 @@ lemma (in wf_TM) hoare_haltE[elim]:
     obtains n where "is_final ((step^^n) c)" and "Q ((step^^n) c)"
   using assms
   unfolding hoare_halt_def by meson
+
+
+\<comment> \<open>Hide single letter constants outside this theory to avoid confusion.
+  \<open>(open)\<close> allows access for fully or partially qualified names
+  such as \<^const>\<open>action.L\<close>, \<^const>\<open>TM.action.L\<close> or \<^const>\<open>TM.L\<close>\<close>
+hide_const (open) "TM.action.L" "TM.action.R" "TM.action.W"
 
 end
