@@ -1,5 +1,5 @@
 theory TM
-  imports Main "Supplementary/Misc"
+  imports Main "Supplementary/Misc" "Supplementary/Lists"
 begin
 
 class blank =
@@ -110,9 +110,12 @@ end \<comment> \<open>\<^locale>\<open>wf_TM\<close>\<close>
 
 subsection \<open>Composition of Turing Machines\<close>
 
-fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a1+'a2, 'b) TM" ("_ |+| _" [0, 0] 100)
-  where "tm_comp M1 M2 = \<lparr>
-    tape_count = max (tape_count M1) (tape_count M2),
+value "pad 10 0 [5,3,4::nat]"
+
+fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a1+'a2, 'b) TM"
+  ("_ |+| _" [0, 0] 100)
+  where "tm_comp M1 M2 = (let k = max (tape_count M1) (tape_count M2) in \<lparr>
+    tape_count = k,
     states = states M1 <+> states M2,
     start_state = Inl (start_state M1),
     final_states = Inr`final_states M2,
@@ -125,8 +128,16 @@ fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a
                                     else Inl q'
                       | Inr qr \<Rightarrow> Inr (next_state M2 qr w)
                  ),
-    next_action = (\<lambda>q w. [W Bk])
-  \<rparr>" (*TODO!*)
+    next_action = (\<lambda>q w. pad k (W Bk) (
+                    case q of
+                    Inl ql \<Rightarrow> next_action M1 ql w
+                  | Inr qr \<Rightarrow> next_action M2 qr w
+    ))
+  \<rparr>)"
+
+\<comment> \<open>Here M2 re-uses all working tapes of M1 \<Longrightarrow> the initial config of M2
+   is different than \<^term>\<open>wf_TM.start_config\<close> suggests i.e. 
+   input is located on the first tape, all other tapes are blank. \<close>
 
 lemma "wf_TM M1 \<Longrightarrow> wf_TM M2 \<Longrightarrow> wf_TM (M1 |+| M2)"
   sorry

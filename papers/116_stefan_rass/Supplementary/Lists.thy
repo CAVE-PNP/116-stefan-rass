@@ -1,5 +1,5 @@
 theory Lists
-  imports HOL.List
+  imports Main
 begin
 
 lemma len_tl_Cons: "xs \<noteq> [] \<Longrightarrow> length (x # tl xs) = length xs" by simp
@@ -16,7 +16,6 @@ proof -
   finally show "drop L xs = drop L ys" .
 qed
 
-
 lemma inj_append:
   fixes xs ys :: "'a list"
   shows inj_append_L: "inj (\<lambda>xs. xs @ ys)"
@@ -31,12 +30,18 @@ proof -
   then show "infinite X" using finite_maxlen by (rule contrapos_nn)
 qed
 
+abbreviation "pad n x xs \<equiv> xs @ replicate (n - length xs) x"
+
+lemma pad_length: "length (pad n x xs) = max n (length xs)"
+  by simp
+
+lemma pad_le_length[simp]: "length xs \<le> n \<Longrightarrow> length (pad n x xs) = n"
+  by simp
 
 subsection\<open>\<open>ends_in\<close> - An Alternative to \<^const>\<open>last\<close>\<close>
 
 abbreviation (input) ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" where
   "ends_in x xs \<equiv> (\<exists>ys. xs = ys @ [x])"
-
 
 lemma ends_inI[intro]: "ends_in x (xs @ [x])" by blast
 

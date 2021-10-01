@@ -143,3 +143,9 @@ See the section on [Imports](max_notes/isabelle.md#imports) in the notes on Isab
 #### What's the difference between `fun` `function` and `primrec`. Which one should I use?
 
 #### How to extend a record and locales which use the record?
+
+#### How do I prove a record type is countable?
+```isabelle
+record Pt = x::nat y::nat
+instance Pt :: countable
+```
