@@ -110,11 +110,14 @@ end \<comment> \<open>\<^locale>\<open>wf_TM\<close>\<close>
 
 subsection \<open>Composition of Turing Machines\<close>
 
-value "pad 10 0 [5,3,4::nat]"
+\<comment> \<open>Let M1 be a k1-tape TM, M2 a k2-tape TM. We define the composition of M1 and M2
+    as a (k1+k2-1)-tape TM. First M1 operates on the tapes 0,1,...,k1-1.
+    When M1 finishes, M2 operates on the tapes 0,k1,k1+1,...,k1+k2-2.
+    Therefore, M1 is expected to write its output (M2's input) on the zeroth tape.\<close>
 
 fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a1+'a2, 'b) TM"
   ("_ |+| _" [0, 0] 100)
-  where "tm_comp M1 M2 = (let k = max (tape_count M1) (tape_count M2) in \<lparr>
+  where "tm_comp M1 M2 = (let k = tape_count M1 + tape_count M2 - 1 in \<lparr>
     tape_count = k,
     states = states M1 <+> states M2,
     start_state = Inl (start_state M1),
@@ -122,22 +125,22 @@ fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a
     accepting_states = Inr`accepting_states M2,
     symbols = symbols M1 \<union> symbols M2,
     next_state = (\<lambda>q w. case q of 
-                        Inl ql \<Rightarrow> let q' = next_state M1 ql w in
+                        Inl q1 \<Rightarrow> let w1 = nths w {0..<tape_count M1} in
+                                  let q' = next_state M1 q1 w1 in
                                   if q' \<in> final_states M1
                                     then Inr (start_state M2)
                                     else Inl q'
-                      | Inr qr \<Rightarrow> Inr (next_state M2 qr w)
+                      | Inr q2 \<Rightarrow> let w2 = nths w (insert 0 {tape_count M1..<k}) in
+                                  Inr (next_state M2 q2 w2)
                  ),
     next_action = (\<lambda>q w. pad k (W Bk) (
                     case q of
-                    Inl ql \<Rightarrow> next_action M1 ql w
-                  | Inr qr \<Rightarrow> next_action M2 qr w
+                    Inl q1 \<Rightarrow> let w1 = nths w {0..<tape_count M1} in
+                              next_action M1 q1 w1
+                  | Inr q2 \<Rightarrow> let w2 = nths w (insert 0 {tape_count M1..<k}) in
+                              next_action M2 q2 w2
     ))
   \<rparr>)"
-
-\<comment> \<open>Here M2 re-uses all working tapes of M1 \<Longrightarrow> the initial config of M2
-   is different than \<^term>\<open>wf_TM.start_config\<close> suggests i.e. 
-   input is located on the first tape, all other tapes are blank. \<close>
 
 lemma "wf_TM M1 \<Longrightarrow> wf_TM M2 \<Longrightarrow> wf_TM (M1 |+| M2)"
   sorry
