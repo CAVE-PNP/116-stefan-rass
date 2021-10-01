@@ -118,7 +118,13 @@ fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a
     final_states = Inr`final_states M2,
     accepting_states = Inr`accepting_states M2,
     symbols = symbols M1 \<union> symbols M2,
-    next_state = (\<lambda>q w. q),
+    next_state = (\<lambda>q w. case q of 
+                        Inl ql \<Rightarrow> let q' = next_state M1 ql w in
+                                  if q' \<in> final_states M1
+                                    then Inr (start_state M2)
+                                    else Inl q'
+                      | Inr qr \<Rightarrow> Inr (next_state M2 qr w)
+                 ),
     next_action = (\<lambda>q w. [W Bk])
   \<rparr>" (*TODO!*)
 
@@ -139,13 +145,6 @@ lemma (in wf_TM) hoare_haltI[intro]:
              \<exists>n. let cn = (step^^n) c in is_final cn \<and> Q cn"
   shows "hoare_halt P Q"
   unfolding hoare_halt_def using assms by blast
-
-(* lemma (in wf_TM) hoare_haltI[intro]:
-  fixes P Q n
-  assumes "\<And>c. P c \<Longrightarrow> is_final ((step^^n) c)"
-  assumes "\<And>c. P c \<Longrightarrow> Q ((step^^n) c)"
-  shows "hoare_halt P Q"
-  unfolding hoare_halt_def Let_def using assms by blast *)
 
 lemma (in wf_TM) hoare_haltE[elim]:
   fixes c
