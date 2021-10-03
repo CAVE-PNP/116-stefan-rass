@@ -137,20 +137,20 @@ qed
 
 subsection\<open>Deciding Languages\<close>
 
-text\<open>A TM \<^term>\<open>p\<close> is considered to decide a language \<^term>\<open>L\<close>, iff for every possible word \<^term>\<open>w\<close>
-  it correctly calculates language membership.
-  That is, for \<^term>\<open>w \<in> L\<close> the computation results in \<^term>\<open>Oc\<close> under the TM head,
-  and for \<^term>\<open>w \<notin> L\<close> in \<^term>\<open>Bk\<close>.\<close>
+abbreviation input where "input w \<equiv> (\<lambda>c. hd (tapes c) = <w>\<^sub>t\<^sub>p)"
 
 context wf_TM begin
 
-abbreviation input where "input w \<equiv> (\<lambda>c. c = start_config w)"
+abbreviation init where "init w \<equiv> (\<lambda>c. c = start_config w)"
 
-lemma input_state_start_state: "input w c \<Longrightarrow> state c = start_state M"
+lemma init_input: "init w c \<Longrightarrow> input w c"
+  unfolding start_config_def by simp
+
+lemma init_state_start_state: "init w c \<Longrightarrow> state c = start_state M"
   unfolding start_config_def by simp
 
 definition halts :: "'b list \<Rightarrow> bool"
-  where "halts w \<equiv> hoare_halt (input w) (\<lambda>_. True)"
+  where "halts w \<equiv> hoare_halt (init w) (\<lambda>_. True)"
 
 lemma halts_I: "\<exists>n. is_final (run n w) \<Longrightarrow> halts w"
   unfolding halts_def hoare_halt_def by simp
@@ -165,10 +165,10 @@ lemma halts_altdef: "halts w \<longleftrightarrow> (\<exists>n. time w = Some n)
   using halts_time time_halts by blast
 
 definition accepts :: "'b list \<Rightarrow> bool"
-  where "accepts w \<equiv> hoare_halt (input w) (\<lambda>c. state c \<in> accepting_states M)"
+  where "accepts w \<equiv> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
 
 definition rejects :: "'b list \<Rightarrow> bool"
-  where "rejects w \<equiv> hoare_halt (input w) (\<lambda>c. state c \<notin> accepting_states M)"
+  where "rejects w \<equiv> hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
 
 definition decides_word :: "'b lang \<Rightarrow> 'b list \<Rightarrow> bool"
   where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
@@ -195,9 +195,9 @@ interpretation wf_TM Rejecting_TM
 lemma rej_TM: "rejects w"
 unfolding rejects_def proof
   fix c0::"(nat, 'a::blank) TM_config"
-  assume "input w c0"
-  hence "state c0 = start_state Rejecting_TM"
-    sorry (* by (rule input_state_start_state) *)
+  assume "init w c0"
+  have "state c0 = start_state Rejecting_TM"
+    using init_state_start_state[OF \<open>init w c0\<close>] sorry
   then have "is_final ((step^^0) c0)"
     unfolding is_final_def unfolding Rejecting_TM_def by simp
   moreover have "accepting_states Rejecting_TM = {}"
@@ -248,22 +248,22 @@ lemma hoare_contr:
 using assms hoare_haltE[of P c "\<lambda>_. False"] by blast
 
 lemma hoare_halt_neg:
-  assumes "\<not> hoare_halt (input w) Q"
+  assumes "\<not> hoare_halt (init w) Q"
     and "halts w"
-  shows "hoare_halt (input w) (\<lambda>tp. \<not> Q tp)"
+  shows "hoare_halt (init w) (\<lambda>tp. \<not> Q tp)"
 using assms unfolding hoare_halt_def halts_def by meson
 
 lemma halt_inj:
-  assumes "hoare_halt (input w) (\<lambda>c. f c = x)"
-      and "hoare_halt (input w) (\<lambda>c. f c = y)"
+  assumes "hoare_halt (init w) (\<lambda>c. f c = x)"
+      and "hoare_halt (init w) (\<lambda>c. f c = y)"
     shows "x = y"
 proof (rule ccontr)
   assume "x \<noteq> y"
   then have *: "a = x \<and> a = y \<longleftrightarrow> False" for a by blast
 
-  from hoare_and have "hoare_halt (input w) (\<lambda>c. f c = x \<and> f c = y)"
+  from hoare_and have "hoare_halt (init w) (\<lambda>c. f c = x \<and> f c = y)"
     using assms .
-  then have "hoare_halt (input w) (\<lambda>_. False)" unfolding * .
+  then have "hoare_halt (init w) (\<lambda>_. False)" unfolding * .
   thus False using hoare_contr by auto
 qed
 
@@ -273,12 +273,12 @@ lemma acc_not_rej:
 proof (intro notI)
   assume "rejects w"
 
-  have "hoare_halt (input w) (\<lambda>c. state c \<in> accepting_states M)"
+  have "hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
     using \<open>accepts w\<close> unfolding accepts_def .
-  moreover have "hoare_halt (input w) (\<lambda>c. state c \<notin> accepting_states M)"
+  moreover have "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
     using \<open>rejects w\<close> unfolding rejects_def .
-  ultimately have "hoare_halt (input w) (\<lambda>c. False)"
-    using hoare_and[of "input w" "\<lambda>c. state c \<in> accepting_states M" "\<lambda>c. state c \<notin> accepting_states M"] 
+  ultimately have "hoare_halt (init w) (\<lambda>c. False)"
+    using hoare_and[of "init w" "\<lambda>c. state c \<in> accepting_states M" "\<lambda>c. state c \<notin> accepting_states M"] 
     by simp
   then show False using hoare_contr by auto
 qed
@@ -292,7 +292,7 @@ proof (intro iffI conjI)
   from \<open>rejects w\<close> show "\<not> accepts w" using acc_not_rej by auto
 next
   assume "halts w \<and> \<not> accepts w"
-  then have "hoare_halt (input w) (\<lambda>c. state c \<notin> accepting_states M)"
+  then have "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
     unfolding accepts_def using hoare_halt_neg by simp 
   then show "rejects w" unfolding rejects_def .
 qed
@@ -313,7 +313,7 @@ next
   then show "decides_word L w" by (simp add: rejects_altdef)
 qed
 
-lemma decides_altdef3: "decides_word L w \<longleftrightarrow> hoare_halt (input w) (\<lambda>c. state c \<in> accepting_states M \<longleftrightarrow> w\<in>L)"
+lemma decides_altdef3: "decides_word L w \<longleftrightarrow> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M \<longleftrightarrow> w\<in>L)"
   sorry
 
 end
@@ -478,12 +478,11 @@ qed
 subsection\<open>Reductions\<close>
 
 lemma reduce_decides:
-  fixes A B :: "('b::blank) lang" and M\<^sub>R M\<^sub>B :: "('a, 'b) TM"
+  fixes A B :: "('b::blank) lang" and M\<^sub>R :: "('a1, 'b) TM" and M\<^sub>B :: "('a2, 'b) TM"
     and f\<^sub>R :: "'b list \<Rightarrow> 'b list" and w :: "'b list"
   assumes "wf_TM.decides_word M\<^sub>B B (f\<^sub>R w)"
     and f\<^sub>R: "w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B"
-    and M\<^sub>R_f\<^sub>R: "wf_TM.hoare_halt M\<^sub>R (wf_TM.input M\<^sub>R w) (wf_TM.input M\<^sub>B (f\<^sub>R w))"
-    (* TODO: revise assumption *)
+    and M\<^sub>R_f\<^sub>R: "wf_TM.hoare_halt M\<^sub>R (wf_TM.init M\<^sub>R w) (input (f\<^sub>R w))"
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
   shows "wf_TM.decides_word M A w"
 sorry
@@ -494,7 +493,7 @@ lemma reduce_time_bounded:
     and f\<^sub>R :: "'b list \<Rightarrow> 'b list" and w :: "'b list"
   assumes "wf_TM.time_bounded_word M\<^sub>B T\<^sub>B (f\<^sub>R w)"
     and "wf_TM.time_bounded_word M\<^sub>R T\<^sub>R w"
-    and "wf_TM.hoare_halt M\<^sub>R (wf_TM.input M\<^sub>R w) (wf_TM.input M\<^sub>B (f\<^sub>R w))"
+    and "wf_TM.hoare_halt M\<^sub>R (wf_TM.init M\<^sub>R w) (input (f\<^sub>R w))"
     and "length (f\<^sub>R w) \<le> length w"
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
   defines "(T :: nat \<Rightarrow> 'c) \<equiv> \<lambda>n. of_nat (tcomp T\<^sub>R n + tcomp T\<^sub>B n)"
@@ -506,7 +505,7 @@ proof -
     (@{thm \<open>wf_TM.time_bounded_word M\<^sub>R T\<^sub>R w\<close>}).
 
     We also know that its execution will result in the encoded corresponding input word \<open>f\<^sub>R w\<close>
-    (@{thm \<open>wf_TM.hoare_halt M\<^sub>R (wf_TM.input M\<^sub>R w) (wf_TM.input M\<^sub>B (f\<^sub>R w))\<close>}).
+    (@{thm \<open>wf_TM.hoare_halt M\<^sub>R (wf_TM.init M\<^sub>R w) (input (f\<^sub>R w))\<close>}).
     Since the length of the corresponding input word is no longer
     than the length of the original input word \<^term>\<open>w\<close> (@{thm \<open>length (f\<^sub>R w) \<le> length w\<close>}),
     and the second machine \<^term>\<open>M\<^sub>B\<close> is time bounded (@{thm \<open>wf_TM.time_bounded_word M\<^sub>B T\<^sub>B (f\<^sub>R w)\<close>}),
