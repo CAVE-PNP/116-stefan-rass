@@ -133,13 +133,13 @@ fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a
                       | Inr q2 \<Rightarrow> let w2 = nths w (insert 0 {tape_count M1..<k}) in
                                   Inr (next_state M2 q2 w2)
                  ),
-    next_action = (\<lambda>q w. pad k (W Bk) (
-                    case q of
-                    Inl q1 \<Rightarrow> let w1 = nths w {0..<tape_count M1} in
-                              next_action M1 q1 w1
-                  | Inr q2 \<Rightarrow> let w2 = nths w (insert 0 {tape_count M1..<k}) in
-                              next_action M2 q2 w2
-    ))
+    next_action = (\<lambda>q w. case q of
+                         Inl q1 \<Rightarrow> let w1 = nths w {0..<tape_count M1} in
+                                   pad k (W Bk) (next_action M1 q1 w1)
+                       | Inr q2 \<Rightarrow> let w2 = nths w (insert 0 {tape_count M1..<k}) in
+                                   let a2 = next_action M2 q2 w2 in
+                                   hd a2 # replicate (tape_count M1 - 1) (W Bk) @ tl a2
+                        )
   \<rparr>)"
 
 lemma "wf_TM M1 \<Longrightarrow> wf_TM M2 \<Longrightarrow> wf_TM (M1 |+| M2)"
