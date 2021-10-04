@@ -2,17 +2,43 @@ theory Lists
   imports Main
 begin
 
-lemma len_tl_Cons: "xs \<noteq> [] \<Longrightarrow> length (x # tl xs) = length xs" by simp
+lemma map2_replicate: "map2 f (replicate n x) ys = map (f x) (take n ys)"
+  unfolding zip_replicate1 map_map by simp
+
+lemma map2_singleton:
+  assumes "set xs \<subseteq> {x}" and "length xs = length ys"
+  shows "map2 f xs ys = map (f x) ys"
+  using assms map2_replicate replicate_eqI
+  by (metis empty_iff map_snd_zip map_snd_zip_take min.idem singletonD subset_singletonD)
+
+lemma map2_id:
+  assumes "length xs = length ys"
+      and "set xs \<subseteq> {x}"
+      and "f x = id"
+    shows "map2 f xs ys = ys"
+  apply (subst map2_singleton)
+  using assms(1-2) apply blast+
+  unfolding assms(3) list.map_id0 id_apply ..
+
+lemma len_tl_Cons: "xs \<noteq> [] \<Longrightarrow> length (x # tl xs) = length xs"
+  by simp
+
+lemma drop_diff_length: "n \<le> length xs \<Longrightarrow> length (drop (length xs - n) xs) = n"
+  by simp
 
 lemma drop_eq_le:
   assumes "L \<ge> l"
     and "drop l xs = drop l ys"
   shows "drop L xs = drop L ys"
 proof -
-  from \<open>L \<ge> l\<close> obtain n where "L = n + l" unfolding add.commute[of _ l] by (rule less_eqE)
-  have "drop L xs = drop n (drop l xs)" unfolding \<open>L = n + l\<close> by (rule drop_drop[symmetric])
-  also have "... = drop n (drop l ys)" unfolding \<open>drop l xs = drop l ys\<close> ..
-  also have "... = drop L ys" unfolding \<open>L = n + l\<close> by (rule drop_drop)
+  from \<open>L \<ge> l\<close> obtain n where "L = n + l"
+    unfolding add.commute[of _ l] by (rule less_eqE)
+  have "drop L xs = drop n (drop l xs)"
+    unfolding \<open>L = n + l\<close> by (rule drop_drop[symmetric])
+  also have "... = drop n (drop l ys)"
+    unfolding \<open>drop l xs = drop l ys\<close> ..
+  also have "... = drop L ys"
+    unfolding \<open>L = n + l\<close> by (rule drop_drop)
   finally show "drop L xs = drop L ys" .
 qed
 
