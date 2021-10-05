@@ -77,14 +77,14 @@ begin
 definition wf_config where
   "wf_config c \<equiv> state c \<in> states M
                \<and> length (tapes c) = tape_count M
-               \<and> \<Union> (tape_symbols ` set (tapes c)) \<subseteq> symbols M"
+               \<and> list_all (\<lambda>tp. tape_symbols tp \<subseteq> symbols M) (tapes c)"
 
 lemma wf_configI:
   assumes "state c \<in> states M"
       and "length (tapes c) = tape_count M"
-      and "\<Union> (tape_symbols ` set (tapes c)) \<subseteq> symbols M"
+      and "list_all (\<lambda>tp. tape_symbols tp \<subseteq> symbols M) (tapes c)"
     shows "wf_config c"
-using assms unfolding wf_config_def by blast
+using assms unfolding wf_config_def list_all_iff by blast
 
 definition start_config :: "'b list \<Rightarrow> ('a, 'b) TM_config" where
   "start_config w = \<lparr>
@@ -95,7 +95,7 @@ definition start_config :: "'b list \<Rightarrow> ('a, 'b) TM_config" where
 lemma start_config_wf:
   assumes "set w \<subseteq> symbols M"
   shows "wf_config (start_config w)"
-unfolding start_config_def wf_config_def proof (simp, safe)
+unfolding start_config_def wf_config_def list_all_iff proof (simp, safe)
   show "start_state M \<in> states M"
     using start_state_state .
 next
@@ -125,7 +125,7 @@ proof (intro wf_configI)
   then show "length (tapes (step c)) = tape_count M"
     using assms unfolding wf_config_def step_def Let_def by simp
 
-  then show "\<Union> (tape_symbols ` set (tapes (step c))) \<subseteq> symbols M"
+  then show "list_all (\<lambda>tp. tape_symbols tp \<subseteq> symbols M) (tapes (step c))"
     sorry (*TODO*)
 qed
 
