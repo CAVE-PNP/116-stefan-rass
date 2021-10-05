@@ -21,6 +21,8 @@ record 'b tape =
 
 abbreviation "empty_tape \<equiv> \<lparr>left=[], right=[]\<rparr>"
 
+abbreviation "tape_symbols tp \<equiv> set (left tp) \<union> set (right tp)"
+
 text\<open>TM execution begins with the head at the start of the input word.\<close>
 abbreviation input_tape ("<_>\<^sub>t\<^sub>p") where "<w>\<^sub>t\<^sub>p \<equiv> \<lparr>left=[], right=w\<rparr>"
 
@@ -59,31 +61,30 @@ record ('a, 'b) TM_config =
 
 locale wf_TM =
   fixes M :: "('a, 'b::blank) TM" (structure)
-  assumes "1 \<le> tape_count M"
-  and "finite (states M)" "start_state M \<in> states M" "final_states M \<subseteq> states M"
+  assumes has_tape: "1 \<le> tape_count M"
+  and "finite (states M)"
+  and start_state_state: "start_state M \<in> states M"
+  and final_states_subset: "final_states M \<subseteq> states M"
   and "accepting_states M \<subseteq> final_states M"
   and "finite (symbols M)" "Bk \<in> (symbols M)"
-  and "\<forall>q\<in>states M. \<forall>w. length w = tape_count M \<longrightarrow> set w \<subseteq> symbols M \<longrightarrow>
+  and wf: "\<forall>q\<in>states M. \<forall>w.
        next_state M q w \<in> states M
      \<and> length (next_action M q w) = tape_count M
      \<and> symbol_of_write ` set (next_action M q w) \<subseteq> symbols M"
   and final_state: "\<forall>q\<in>final_states M. \<forall>w. next_state M q w = q"
   and final_action: "\<forall>q\<in>final_states M. \<forall>w. set (next_action M q w) \<subseteq> {Nop}"
 begin
-definition is_final :: "('a, 'b) TM_config \<Rightarrow> bool" where
-  "is_final c \<longleftrightarrow> state c \<in> final_states M"
+definition wf_config where
+  "wf_config c \<equiv> state c \<in> states M
+               \<and> length (tapes c) = tape_count M
+               \<and> \<Union> (tape_symbols ` set (tapes c)) \<subseteq> symbols M"
 
-definition step :: "('a, 'b) TM_config \<Rightarrow> ('a, 'b) TM_config" where
-  "step c = (let q=state c; w=map tp_read (tapes c) in \<lparr>
-      state=next_state M q w,
-      tapes=map2 tp_update (next_action M q w) (tapes c)
-   \<rparr>)"
-
-lemma final_step_fixpoint: "is_final c \<Longrightarrow> step c = c"
-  sorry
-
-lemma final_steps: "\<And>n. is_final c \<Longrightarrow> (step^^n) c = c"
-  using final_step_fixpoint[of c] funpow_fixpoint by metis
+lemma wf_configI:
+  assumes "state c \<in> states M"
+      and "length (tapes c) = tape_count M"
+      and "\<Union> (tape_symbols ` set (tapes c)) \<subseteq> symbols M"
+    shows "wf_config c"
+using assms unfolding wf_config_def by blast
 
 definition start_config :: "'b list \<Rightarrow> ('a, 'b) TM_config" where
   "start_config w = \<lparr>
@@ -91,7 +92,73 @@ definition start_config :: "'b list \<Rightarrow> ('a, 'b) TM_config" where
     tapes = <w>\<^sub>t\<^sub>p # replicate (tape_count M - 1) empty_tape
   \<rparr>"
 
+lemma start_config_wf:
+  assumes "set w \<subseteq> symbols M"
+  shows "wf_config (start_config w)"
+unfolding start_config_def wf_config_def proof (simp, safe)
+  show "start_state M \<in> states M"
+    using start_state_state .
+next
+  show "Suc (tape_count M - Suc 0) = tape_count M"
+    using has_tape by simp
+next
+  show "\<And>x. x \<in> set w \<Longrightarrow> x \<in> symbols M"
+    using assms ..
+qed
+
+definition step :: "('a, 'b) TM_config \<Rightarrow> ('a, 'b) TM_config" where
+  "step c = (let q=state c; w=map tp_read (tapes c) in \<lparr>
+      state=next_state M q w,
+      tapes=map2 tp_update (next_action M q w) (tapes c)
+   \<rparr>)"
+
+lemma step_config_wf:
+  assumes "wf_config c"
+  shows "wf_config (step c)"
+proof (intro wf_configI)
+  from assms have 1: "state c \<in> states M"
+    unfolding wf_config_def ..
+  then show "state (step c) \<in> states M"
+    using wf unfolding step_def Let_def by simp
+
+  from 1 wf have "\<And>w. length (next_action M (state c) w) = tape_count M" by fast
+  then show "length (tapes (step c)) = tape_count M"
+    using assms unfolding wf_config_def step_def Let_def by simp
+
+  then show "\<Union> (tape_symbols ` set (tapes (step c))) \<subseteq> symbols M"
+    sorry (*TODO*)
+qed
+
 abbreviation "run n w \<equiv> (step^^n) (start_config w)"
+
+lemma run_config_wf:
+  assumes "set w \<subseteq> symbols M"
+  shows "wf_config (run n w)"
+using assms start_config_wf step_config_wf by (induction n) simp_all
+
+abbreviation is_final :: "('a, 'b) TM_config \<Rightarrow> bool" where
+  "is_final c \<equiv> wf_config c \<and> state c \<in> final_states M"
+
+lemma final_replicate_nop: "\<forall>q\<in>final_states M. \<forall>w. next_action M q w = replicate (tape_count M) Nop"  
+  apply (safe, intro replicate_eqI)
+  using wf final_action final_states_subset apply blast+
+done
+
+lemma final_step_fixpoint: "is_final c \<Longrightarrow> step c = c"
+proof -
+  assume "is_final c" hence ss: "state c \<in> states M"
+    using final_states_subset by blast
+  from \<open>is_final c\<close> have "state (step c) = state c"
+    unfolding step_def Let_def using final_state by simp
+  moreover have "tapes (step c) = tapes c"
+    unfolding step_def Let_def apply simp
+    apply (subst map2_id)
+    sorry
+  ultimately show ?thesis by simp
+qed
+
+lemma final_steps: "\<And>n. is_final c \<Longrightarrow> (step^^n) c = c"
+  using final_step_fixpoint[of c] funpow_fixpoint by metis
 
 lemma final_le_steps:
   assumes "is_final ((step^^n) c)"
@@ -135,10 +202,10 @@ fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a
                  ),
     next_action = (\<lambda>q w. case q of
                          Inl q1 \<Rightarrow> let w1 = nths w {0..<tape_count M1} in
-                                   pad k (W Bk) (next_action M1 q1 w1)
+                                   pad k Nop (next_action M1 q1 w1)
                        | Inr q2 \<Rightarrow> let w2 = nths w (insert 0 {tape_count M1..<k}) in
                                    let a2 = next_action M2 q2 w2 in
-                                   hd a2 # replicate (tape_count M1 - 1) (W Bk) @ tl a2
+                                   hd a2 # replicate (tape_count M1 - 1) Nop @ tl a2
                         )
   \<rparr>)"
 
