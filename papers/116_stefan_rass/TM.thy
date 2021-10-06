@@ -72,7 +72,7 @@ next
   from \<open>right tp = t # ts\<close> show ?thesis by (subst expand_tp) simp
 qed
 
-corollary tp_read_symbol: "tp_read tp \<in> set (right tp) \<union> {Bk}" unfolding tp_read_def by simp
+corollary tp_read_set_of_tape: "tp_read tp \<in> set_of_tape tp" unfolding tp_read_def by simp
 
 
 record ('a, 'b) TM =
@@ -105,8 +105,9 @@ lemma wf_stateI[intro]:
   "\<lbrakk>q\<in>states M; length w = tape_count M; set w \<subseteq> symbols M\<rbrakk> \<Longrightarrow> wf_state_wrt_TM M q w"
   unfolding wf_state_wrt_TM_def by blast
 lemma wf_stateE[elim]:
-  assumes "wf_state_wrt_TM M q w" shows "q \<in> states M" "length w = tape_count M" "set w \<subseteq> symbols M"
-  using assms unfolding wf_state_wrt_TM_def by blast+
+  assumes "wf_state_wrt_TM M q w"
+  shows "q \<in> states M" "length w = tape_count M" "set w \<subseteq> symbols M" "list_all (\<lambda>x. x \<in> symbols M) w"
+  using assms unfolding wf_state_wrt_TM_def list_all_iff by blast+
 
 \<comment> \<open>A \<^typ>\<open>('a, 'b) TM_config\<close> \<open>c\<close> is considered well-formed w.r.t. a \<^typ>\<open>('a, 'b) TM\<close> \<open>M\<close>, iff
   the \<^const>\<open>state\<close> of \<open>c\<close> is valid for \<open>M\<close>,
@@ -116,20 +117,27 @@ definition wf_config_wrt_TM :: "('a, 'b :: blank) TM \<Rightarrow> ('a, 'b) TM_c
   "wf_config_wrt_TM M c \<equiv> let q = state c; ts = tapes c in
         q \<in> states M
       \<and> length ts = tape_count M
-      \<and> \<Union> (set_of_tape ` set ts) \<subseteq> symbols M"
+      \<and> list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) ts"
 
-lemma wf_configI[intro]:
+lemma wf_configI[intro?]:
   assumes "state c \<in> states M"
     and "length (tapes c) = tape_count M"
-    and "\<Union> (set_of_tape ` set (tapes c)) \<subseteq> symbols M"
+    and "list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) (tapes c)"
   shows "wf_config_wrt_TM M c"
   unfolding wf_config_wrt_TM_def Let_def using assms by blast
+lemma wf_configI'[intro]:
+  assumes "state c \<in> states M"
+    and "length (tapes c) = tape_count M"
+    and "\<forall>tp \<in> set (tapes c). set_of_tape tp \<subseteq> symbols M"
+  shows "wf_config_wrt_TM M c"
+  using assms by (fold list_all_iff) (rule wf_configI)
 lemma wf_configE[elim]:
   assumes "wf_config_wrt_TM M c"
   shows "state c \<in> states M"
     and "length (tapes c) = tape_count M"
-    and "\<Union> (set_of_tape ` set (tapes c)) \<subseteq> symbols M"
-  using assms unfolding wf_config_wrt_TM_def Let_def by blast+
+    and "list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) (tapes c)"
+    and "\<forall>tp \<in> set (tapes c). set_of_tape tp \<subseteq> symbols M"
+  using assms unfolding wf_config_wrt_TM_def Let_def list_all_iff by blast+
 
 
 locale wf_TM =
@@ -149,11 +157,16 @@ locale wf_TM =
         set (next_action M q w) \<subseteq> {Nop}"
 begin
 
+declare list_all_iff[iff]
+
 abbreviation wf_state where "wf_state \<equiv> wf_state_wrt_TM M"
 abbreviation wf_config where "wf_config \<equiv> wf_config_wrt_TM M"
 
 abbreviation wf_state_of_config ("wf'_state\<^sub>c")
   where "wf_state\<^sub>c c \<equiv> wf_state (state c) (map tp_read (tapes c))"
+
+
+lemma list_all_set_map[iff]: "set (map f xs) \<subseteq> A \<longleftrightarrow> list_all (\<lambda>x. f x \<in> A) xs" by auto
 
 lemma wf_config_state: "wf_config c \<Longrightarrow> wf_state\<^sub>c c"
 proof
@@ -164,10 +177,9 @@ proof
   from \<open>wf_config c\<close> have "length ?ts = tape_count M" ..
   then show "length (map tp_read (tapes c)) = tape_count M" by simp
 
-  have "set (map tp_read ?ts) \<subseteq> \<Union> (set_of_tape ` set (tapes c))"
-    unfolding set_map set_of_tape_def using tp_read_symbol by blast
-  also have "... \<subseteq> symbols M" using \<open>wf_config c\<close> ..
-  finally show "set (map tp_read (tapes c)) \<subseteq> symbols M" .
+  from \<open>wf_config c\<close> have "list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) ?ts" ..
+  then have "list_all (\<lambda>tp. tp_read tp \<in> symbols M) ?ts" using tp_read_set_of_tape by blast
+  then show "set (map tp_read (tapes c)) \<subseteq> symbols M" by blast
 qed
 
 corollary wf_state_tape_count: "wf_state\<^sub>c c \<Longrightarrow> length (tapes c) = tape_count M"
@@ -242,20 +254,17 @@ proof
     also have "... \<subseteq> symbols M"
     proof (intro Un_least)
       have "i < length ?ts" unfolding lts by (fact \<open>i < tape_count M\<close>)
-      from \<open>wf_config c\<close> have "\<Union> (set_of_tape ` set ?ts) \<subseteq> symbols M" ..
-      then have "\<forall>tp \<in> set ?ts. set_of_tape tp \<subseteq> symbols M" by blast
-      with \<open>i < length ?ts\<close> show "set_of_tape (?ts ! i) \<subseteq> symbols M" by (rule list_ball_nth)
+      moreover from \<open>wf_config c\<close> have "\<forall>tp \<in> set ?ts. set_of_tape tp \<subseteq> symbols M" ..
+      ultimately show "set_of_tape (?ts ! i) \<subseteq> symbols M" by (rule list_ball_nth)
 
       have "i < length ?na" unfolding lna by (fact \<open>i < tape_count M\<close>)
-      from \<open>wf_state\<^sub>c c\<close> have "symbol_of_write ` set ?na \<subseteq> symbols M" by (rule next_write_symbol)
-      then have "\<forall>tp \<in> set ?na. symbol_of_write tp \<in> symbols M" by blast
-      with \<open>i < length ?na\<close> show "{symbol_of_write (?na ! i)} \<subseteq> symbols M"
-        by (intro list_ball_nth) blast+
+      moreover have "\<forall>tp \<in> set ?na. symbol_of_write tp \<in> symbols M"
+        using next_write_symbol \<open>wf_state\<^sub>c c\<close> unfolding image_subset_iff .
+      ultimately show "{symbol_of_write (?na ! i)} \<subseteq> symbols M" by (intro list_ball_nth) blast+
     qed
     finally show "set_of_tape (?ts' ! i) \<subseteq> symbols M" .
   qed
-  then have "\<forall>tp \<in> set ?ts'. set_of_tape tp \<subseteq> symbols M" unfolding all_set_conv_all_nth .
-  then show "\<Union> (set_of_tape ` set ?ts') \<subseteq> symbols M" by blast
+  then show "\<forall>tp \<in> set ?ts'. set_of_tape tp \<subseteq> symbols M" unfolding all_set_conv_all_nth .
 qed
 
 corollary wf_config_steps: "wf_config c \<Longrightarrow> wf_config ((step^^n) c)"
@@ -273,16 +282,15 @@ abbreviation "run n w \<equiv> (step^^n) (start_config w)"
 
 lemma wf_start_config: "set w \<subseteq> symbols M \<Longrightarrow> wf_config (start_config w)"
 proof
+  let ?ts = "tapes (start_config w)"
   show "state (start_config w) \<in> states M" using state_axioms(2) by simp
-  show "length (tapes (start_config w)) = tape_count M" using at_least_one_tape by simp
+  show "length ?ts = tape_count M" using at_least_one_tape by simp
 
   assume "set w \<subseteq> symbols M"
-  have "set (tapes (start_config w)) \<subseteq> {<w>\<^sub>t\<^sub>p, empty_tape}" by fastforce
-  moreover have "set_of_tape empty_tape = {Bk}" by simp
-  moreover have "set_of_tape <w>\<^sub>t\<^sub>p = set w \<union> {Bk}" by simp
-  ultimately have "\<Union> (set_of_tape ` set (tapes (start_config w))) \<subseteq> set w \<union> {Bk}" by blast
-  also have "... \<subseteq> symbols M" using \<open>set w \<subseteq> symbols M\<close> symbols_axioms(2) by blast
-  finally show "\<Union> (set_of_tape ` set (tapes (start_config w))) \<subseteq> symbols M" .
+  have "set ?ts \<subseteq> {<w>\<^sub>t\<^sub>p} \<union> {empty_tape}" by fastforce
+  moreover have "set_of_tape empty_tape \<subseteq> symbols M" using symbols_axioms(2) by simp
+  moreover have "set_of_tape <w>\<^sub>t\<^sub>p \<subseteq> symbols M" using \<open>set w \<subseteq> symbols M\<close> symbols_axioms(2) by simp
+  ultimately show "\<forall>tp \<in> set ?ts. set_of_tape tp \<subseteq> symbols M" by blast
 qed
 
 corollary wf_config_run: "set w \<subseteq> symbols M \<Longrightarrow> wf_config (run n w)"
