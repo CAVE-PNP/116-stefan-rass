@@ -235,9 +235,13 @@ proof
 
   define n::nat where "n \<equiv> max n1 n2"
   hence "n1 \<le> n" "n2 \<le> n" by simp+
-  with fn1 fn2 final_le_steps
-  have "((step^^n1) c) = ((step^^n) c)" "((step^^n2) c) = ((step^^n) c)" by metis+
-  with fn1 q1 q2 have "let qn=(step^^n) c in is_final qn \<and> Q1 qn \<and> Q2 qn" by simp
+
+  have wf: "wf_config c" sorry (* TODO fix definitions or assumption to incorporate this *)
+
+  from wf fn1 \<open>n1 \<le> n\<close> have steps1: "((step^^n) c) = ((step^^n1) c)" by (rule final_le_steps)
+  from wf fn2 \<open>n2 \<le> n\<close> have steps2: "((step^^n) c) = ((step^^n2) c)" by (rule final_le_steps)
+  from fn1 q1 q2 have "let qn=(step^^n) c in is_final qn \<and> Q1 qn \<and> Q2 qn"
+    by (fold steps1 steps2) simp
   thus "\<exists>n. let cn = (step ^^ n) c in is_final cn \<and> Q1 cn \<and> Q2 cn" ..
 qed
 
