@@ -1,5 +1,6 @@
 theory TM
   imports Main "Supplementary/Misc" "Supplementary/Lists"
+    "Intro_Dest_Elim.IHOL_IDE"
 begin
 
 class blank =
@@ -101,13 +102,7 @@ record ('a, 'b) TM_config =
 definition wf_state_wrt_TM :: "('a, 'b) TM \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> bool" where
   "wf_state_wrt_TM M q w \<equiv> q \<in> states M \<and> length w = tape_count M \<and> set w \<subseteq> symbols M"
 
-lemma wf_stateI[intro]:
-  "\<lbrakk>q\<in>states M; length w = tape_count M; set w \<subseteq> symbols M\<rbrakk> \<Longrightarrow> wf_state_wrt_TM M q w"
-  unfolding wf_state_wrt_TM_def by blast
-lemma wf_stateE[elim]:
-  assumes "wf_state_wrt_TM M q w"
-  shows "q \<in> states M" "length w = tape_count M" "set w \<subseteq> symbols M" "list_all (\<lambda>x. x \<in> symbols M) w"
-  using assms unfolding wf_state_wrt_TM_def list_all_iff by blast+
+mk_ide wf_state_wrt_TM_def |intro wf_stateI[intro]| |elim wf_stateE[elim]| |dest wf_stateD[dest]|
 
 \<comment> \<open>A \<^typ>\<open>('a, 'b) TM_config\<close> \<open>c\<close> is considered well-formed w.r.t. a \<^typ>\<open>('a, 'b) TM\<close> \<open>M\<close>, iff
   the \<^const>\<open>state\<close> of \<open>c\<close> is valid for \<open>M\<close>,
@@ -119,25 +114,12 @@ definition wf_config_wrt_TM :: "('a, 'b :: blank) TM \<Rightarrow> ('a, 'b) TM_c
       \<and> length ts = tape_count M
       \<and> list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) ts"
 
-lemma wf_configI[intro?]:
-  assumes "state c \<in> states M"
-    and "length (tapes c) = tape_count M"
-    and "list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) (tapes c)"
-  shows "wf_config_wrt_TM M c"
-  unfolding wf_config_wrt_TM_def Let_def using assms by blast
-lemma wf_configI'[intro]:
-  assumes "state c \<in> states M"
-    and "length (tapes c) = tape_count M"
-    and "\<forall>tp \<in> set (tapes c). set_of_tape tp \<subseteq> symbols M"
-  shows "wf_config_wrt_TM M c"
-  using assms by (fold list_all_iff) (rule wf_configI)
-lemma wf_configE[elim]:
-  assumes "wf_config_wrt_TM M c"
-  shows "state c \<in> states M"
-    and "length (tapes c) = tape_count M"
-    and "list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) (tapes c)"
-    and "\<forall>tp \<in> set (tapes c). set_of_tape tp \<subseteq> symbols M"
-  using assms unfolding wf_config_wrt_TM_def Let_def list_all_iff by blast+
+mk_ide wf_config_wrt_TM_def[unfolded list_all_iff Let_def]
+  |intro wf_configI[intro]| |elim wf_configE[elim]| |dest wf_configD[dest]|
+
+lemma wf_configD'[dest]:
+  "wf_config_wrt_TM M c \<Longrightarrow> list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) (tapes c)"
+  unfolding list_all_iff by blast
 
 
 locale wf_TM =
@@ -169,18 +151,7 @@ abbreviation wf_state_of_config ("wf'_state\<^sub>c")
 lemma list_all_set_map[iff]: "set (map f xs) \<subseteq> A \<longleftrightarrow> list_all (\<lambda>x. f x \<in> A) xs" by auto
 
 lemma wf_config_state: "wf_config c \<Longrightarrow> wf_state\<^sub>c c"
-proof
-  let ?q = "state c" and ?ts = "tapes c"
-  assume "wf_config c"
-  then show "?q \<in> states M" ..
-
-  from \<open>wf_config c\<close> have "length ?ts = tape_count M" ..
-  then show "length (map tp_read (tapes c)) = tape_count M" by simp
-
-  from \<open>wf_config c\<close> have "list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) ?ts" ..
-  then have "list_all (\<lambda>tp. tp_read tp \<in> symbols M) ?ts" using tp_read_set_of_tape by blast
-  then show "set (map tp_read (tapes c)) \<subseteq> symbols M" by blast
-qed
+  by (intro wf_stateI) (blast, force, use tp_read_set_of_tape in fast)
 
 corollary wf_state_tape_count: "wf_state\<^sub>c c \<Longrightarrow> length (tapes c) = tape_count M"
   unfolding wf_state_wrt_TM_def by simp
@@ -219,7 +190,7 @@ proof -
 qed
 
 lemma final_steps: "wf_state\<^sub>c c \<Longrightarrow> is_final c \<Longrightarrow> (step^^n) c = c"
-  by (intro funpow_fixpoint) (rule final_step_fixpoint)
+  by (intro funpow_fixpoint final_step_fixpoint)
 
 
 lemma nth_map2:
