@@ -150,25 +150,26 @@ lemma init_state_start_state: "init w c \<Longrightarrow> state c = start_state 
   unfolding start_config_def by simp
 
 definition halts :: "'b list \<Rightarrow> bool"
-  where "halts w \<equiv> hoare_halt (init w) (\<lambda>_. True)"
+  where "halts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>_. True)"
 
-lemma halts_I: "\<exists>n. is_final (run n w) \<Longrightarrow> halts w"
+lemma halts_I: "wf_word w \<Longrightarrow> \<exists>n. is_final (run n w) \<Longrightarrow> halts w"
   unfolding halts_def hoare_halt_def by simp
 
 lemma halts_time: "halts w \<Longrightarrow> \<exists>n. time w = Some n"
-  unfolding halts_def hoare_halt_def time_def start_config_def by simp
+  unfolding halts_def hoare_halt_def time_def start_config_def
+  using wf_config_run wf_start_config by fastforce
 
-lemma time_halts: "time w = Some n \<Longrightarrow> halts w"
+lemma time_halts: "wf_word w \<Longrightarrow> time w = Some n \<Longrightarrow> halts w"
   using time_Some_D halts_I by simp
 
-lemma halts_altdef: "halts w \<longleftrightarrow> (\<exists>n. time w = Some n)"
-  using halts_time time_halts by blast
+lemma halts_altdef: "halts w \<longleftrightarrow> wf_word w \<and> (\<exists>n. time w = Some n)"
+  using halts_time time_halts wf_TM.halts_def wf_TM_axioms by blast
 
 definition accepts :: "'b list \<Rightarrow> bool"
-  where "accepts w \<equiv> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
+  where "accepts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
 
 definition rejects :: "'b list \<Rightarrow> bool"
-  where "rejects w \<equiv> hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
+  where "rejects w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
 
 definition decides_word :: "'b lang \<Rightarrow> 'b list \<Rightarrow> bool"
   where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
@@ -184,26 +185,29 @@ definition "Rejecting_TM \<equiv> \<lparr>
   start_state = 1,
   final_states = {1},
   accepting_states = {},
-  symbols = {Bk},
+  symbols = UNIV,
   next_state = \<lambda>q w. 1,
   next_action = \<lambda>q w. [Nop]
-\<rparr>"
+\<rparr> :: (nat, 'b::{blank, finite}) TM"
 interpretation wf_TM Rejecting_TM
   unfolding Rejecting_TM_def
   by unfold_locales simp_all
 
-lemma rej_TM: "rejects w"
-unfolding rejects_def proof
-  fix c0::"(nat, 'a::blank) TM_config"
+lemma rej_TM: "rejects w" unfolding rejects_def proof
+show "wf_word w" unfolding Rejecting_TM_def by simp
+next
+show "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states Rejecting_TM)" proof
+  fix c0::"(nat, 'a::{finite, blank}) TM_config"
   assume "init w c0"
   have "state c0 = start_state Rejecting_TM"
-    using init_state_start_state[OF \<open>init w c0\<close>] sorry
+    using init_state_start_state[OF \<open>init w c0\<close>] sorry (* wtf *)
   then have "is_final ((step^^0) c0)"
     unfolding Rejecting_TM_def by simp
   moreover have "accepting_states Rejecting_TM = {}"
     unfolding Rejecting_TM_def by simp
   ultimately show "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<notin> accepting_states Rejecting_TM"
     using empty_iff by metis
+qed
 qed
 
 lemma rej_TM_time: "time w = Some 0"
@@ -220,23 +224,23 @@ lemma hoare_true: "hoare_halt P Q \<Longrightarrow> hoare_halt P (\<lambda>_. Tr
   unfolding hoare_halt_def by metis
 
 lemma accepts_halts: "accepts w \<Longrightarrow> halts w"
-  unfolding accepts_def halts_def by (rule hoare_true)
+  unfolding accepts_def halts_def using hoare_true by blast
 lemma rejects_halts: "rejects w \<Longrightarrow> halts w"
-  unfolding rejects_def halts_def by (rule hoare_true)
+  unfolding rejects_def halts_def using hoare_true by blast
 
 lemma hoare_and[intro]:
   assumes h1: "hoare_halt P Q1"
     and h2: "hoare_halt P Q2"
   shows "hoare_halt P (\<lambda>c. Q1 c \<and> Q2 c)"
 proof
-  fix c assume "P c"
-  from \<open>P c\<close> h1 obtain n1 where fn1: "is_final ((step^^n1) c)" and q1: "Q1 ((step^^n1) c)" ..
-  from \<open>P c\<close> h2 obtain n2 where fn2: "is_final ((step^^n2) c)" and q2: "Q2 ((step^^n2) c)" ..
+  fix c assume "P c" and wf: "wf_config c"
+  from wf \<open>P c\<close> h1 obtain n1 where fn1: "is_final ((step^^n1) c)" and q1: "Q1 ((step^^n1) c)"
+    by (rule hoare_haltE)
+  from wf \<open>P c\<close> h2 obtain n2 where fn2: "is_final ((step^^n2) c)" and q2: "Q2 ((step^^n2) c)"
+    by (rule hoare_haltE)
 
   define n::nat where "n \<equiv> max n1 n2"
   hence "n1 \<le> n" "n2 \<le> n" by simp+
-
-  have wf: "wf_config c" sorry (* TODO fix definitions or assumption to incorporate this *)
 
   from wf fn1 \<open>n1 \<le> n\<close> have steps1: "((step^^n) c) = ((step^^n1) c)" by (rule final_le_steps)
   from wf fn2 \<open>n2 \<le> n\<close> have steps2: "((step^^n) c) = ((step^^n2) c)" by (rule final_le_steps)
@@ -247,28 +251,28 @@ qed
 
 lemma hoare_contr:
   fixes P and c
-  assumes "hoare_halt P (\<lambda>_. False)" and "P c"
+  assumes "wf_config c" "P c" "hoare_halt P (\<lambda>_. False)"
   shows "False"
-using assms hoare_haltE[of P c "\<lambda>_. False"] by blast
+using assms hoare_haltE hoare_haltE by blast
 
 lemma hoare_halt_neg:
   assumes "\<not> hoare_halt (init w) Q"
     and "halts w"
   shows "hoare_halt (init w) (\<lambda>tp. \<not> Q tp)"
-using assms unfolding hoare_halt_def halts_def by meson
+using assms unfolding hoare_halt_def halts_def by metis
 
 lemma halt_inj:
-  assumes "hoare_halt (init w) (\<lambda>c. f c = x)"
+  assumes "wf_word w"
+      and "hoare_halt (init w) (\<lambda>c. f c = x)"
       and "hoare_halt (init w) (\<lambda>c. f c = y)"
     shows "x = y"
 proof (rule ccontr)
   assume "x \<noteq> y"
   then have *: "a = x \<and> a = y \<longleftrightarrow> False" for a by blast
 
-  from hoare_and have "hoare_halt (init w) (\<lambda>c. f c = x \<and> f c = y)"
-    using assms .
+  from hoare_and assms(2-3) have "hoare_halt (init w) (\<lambda>c. f c = x \<and> f c = y)".
   then have "hoare_halt (init w) (\<lambda>_. False)" unfolding * .
-  thus False using hoare_contr by auto
+  thus False using hoare_contr wf_start_config[OF assms(1)] by fastforce
 qed
 
 lemma acc_not_rej:
@@ -278,13 +282,14 @@ proof (intro notI)
   assume "rejects w"
 
   have "hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
-    using \<open>accepts w\<close> unfolding accepts_def .
+    using \<open>accepts w\<close> unfolding accepts_def by (rule conjunct2)
   moreover have "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
-    using \<open>rejects w\<close> unfolding rejects_def .
+    using \<open>rejects w\<close> unfolding rejects_def by (rule conjunct2)
   ultimately have "hoare_halt (init w) (\<lambda>c. False)"
     using hoare_and[of "init w" "\<lambda>c. state c \<in> accepting_states M" "\<lambda>c. state c \<notin> accepting_states M"]
     by simp
-  then show False using hoare_contr by auto
+  then show False using hoare_contr
+    using wf_start_config assms(1) unfolding accepts_def by fastforce
 qed
 
 lemma rejects_altdef:
@@ -292,13 +297,15 @@ lemma rejects_altdef:
 proof (intro iffI conjI)
   assume "rejects w"
   then show "halts w" unfolding rejects_def halts_def
-    using hoare_true by simp
+    using hoare_true by blast
   from \<open>rejects w\<close> show "\<not> accepts w" using acc_not_rej by auto
 next
-  assume "halts w \<and> \<not> accepts w"
+  assume assm: "halts w \<and> \<not> accepts w"
   then have "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
-    unfolding accepts_def using hoare_halt_neg by simp
-  then show "rejects w" unfolding rejects_def .
+    unfolding accepts_def using hoare_halt_neg
+    by (metis assm halts_altdef)
+  then show "rejects w" unfolding rejects_def
+    using assm halts_altdef by blast
 qed
 
 lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
@@ -503,7 +510,7 @@ lemma reduce_time_bounded:
   defines "(T :: nat \<Rightarrow> 'c) \<equiv> \<lambda>n. of_nat (tcomp T\<^sub>R n + tcomp T\<^sub>B n)"
   shows "wf_TM.time_bounded_word M T w"
 proof -
-  define l where "l \<equiv> size <w>\<^sub>t\<^sub>p"
+  define l where "l \<equiv> tp_size <w>\<^sub>t\<^sub>p"
 
     \<comment> \<open>Idea: We already know that the first machine \<^term>\<open>M\<^sub>R\<close> is time bounded
     (@{thm \<open>wf_TM.time_bounded_word M\<^sub>R T\<^sub>R w\<close>}).

@@ -51,9 +51,8 @@ proof -
   proof (induction a)
     case L thus ?case by (induction l) auto next
     case R thus ?case by (induction r) auto next
-    case (W x) thus ?case by (induction r) auto next
-    case Nop thus ?case by simp
-  qed
+    case (W x) thus ?case by (induction r) auto
+  qed simp
 qed
 
 
@@ -114,10 +113,10 @@ lemma wf_stateE[elim]:
   the number of \<^const>\<open>tapes\<close> of \<open>c\<close> matches the number of tapes of \<open>M\<close>, and
   all symbols on all \<^const>\<open>tapes\<close> of \<open>c\<close> are valid symbols for \<open>M\<close>.\<close>
 definition wf_config_wrt_TM :: "('a, 'b :: blank) TM \<Rightarrow> ('a, 'b) TM_config \<Rightarrow> bool" where
-  "wf_config_wrt_TM M c \<equiv> let q = state c; ts = tapes c in
+  "wf_config_wrt_TM M c \<equiv> let q = state c; tps = tapes c in
         q \<in> states M
-      \<and> length ts = tape_count M
-      \<and> list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) ts"
+      \<and> length tps = tape_count M
+      \<and> list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) tps"
 
 lemma wf_configI[intro?]:
   assumes "state c \<in> states M"
@@ -148,13 +147,13 @@ locale wf_TM =
   and symbols_axioms: "finite (symbols M)" "Bk \<in> (symbols M)"
   and next_state: "\<And>q w. wf_state_wrt_TM M q w \<Longrightarrow> next_state M q w \<in> states M"
   and next_action_length: "\<And>q w. wf_state_wrt_TM M q w \<Longrightarrow>
-        length (next_action M q w) = tape_count M"
+                                 length (next_action M q w) = tape_count M"
   and next_write_symbol: "\<And>q w. wf_state_wrt_TM M q w \<Longrightarrow>
-        symbol_of_write ` set (next_action M q w) \<subseteq> symbols M"
+                                 symbol_of_write ` set (next_action M q w) \<subseteq> symbols M"
   and final_state: "\<And>q w. wf_state_wrt_TM M q w \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
-        next_state M q w = q"
+                          next_state M q w = q"
   and final_action: "\<And>q w. wf_state_wrt_TM M q w \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
-        set (next_action M q w) \<subseteq> {Nop}"
+                           set (next_action M q w) \<subseteq> {Nop}"
 begin
 
 declare list_all_iff[iff]
@@ -221,12 +220,6 @@ qed
 lemma final_steps: "wf_state\<^sub>c c \<Longrightarrow> is_final c \<Longrightarrow> (step^^n) c = c"
   by (intro funpow_fixpoint) (rule final_step_fixpoint)
 
-
-lemma nth_map2:
-  assumes "i < length xs" and "i < length ys"
-  shows "map2 f xs ys ! i = f (xs ! i) (ys ! i)"
-  using assms by (subst nth_map) auto
-
 lemma wf_config_step: "wf_config c \<Longrightarrow> wf_config (step c)"
 proof
   let ?q = "state c" and ?w = "map tp_read (tapes c)" and ?ts = "tapes c"
@@ -279,8 +272,9 @@ definition start_config :: "'b list \<Rightarrow> ('a, 'b) TM_config" where [sim
 
 abbreviation "run n w \<equiv> (step^^n) (start_config w)"
 
+abbreviation "wf_word w \<equiv> set w \<subseteq> symbols M"
 
-lemma wf_start_config: "set w \<subseteq> symbols M \<Longrightarrow> wf_config (start_config w)"
+lemma wf_start_config: "wf_word w \<Longrightarrow> wf_config (start_config w)"
 proof
   let ?ts = "tapes (start_config w)"
   show "state (start_config w) \<in> states M" using state_axioms(2) by simp
@@ -293,9 +287,8 @@ proof
   ultimately show "\<forall>tp \<in> set ?ts. set_of_tape tp \<subseteq> symbols M" by blast
 qed
 
-corollary wf_config_run: "set w \<subseteq> symbols M \<Longrightarrow> wf_config (run n w)"
+corollary wf_config_run: "wf_word w \<Longrightarrow> wf_config (run n w)"
   using wf_start_config by (rule wf_config_steps)
-
 
 lemma final_le_steps:
   assumes "wf_config c"
@@ -356,19 +349,19 @@ subsection \<open>Hoare Rules\<close>
 type_synonym ('a, 'b) assert = "('a, 'b) TM_config \<Rightarrow> bool"
 
 definition (in wf_TM) hoare_halt :: "('a, 'b) assert \<Rightarrow> ('a, 'b) assert \<Rightarrow> bool" where
-  "hoare_halt P Q \<longleftrightarrow> (\<forall>c. P c \<longrightarrow>
+  "hoare_halt P Q \<longleftrightarrow> (\<forall>c. wf_config c \<longrightarrow> P c \<longrightarrow>
     (\<exists>n. let cn = (step^^n) c in is_final cn \<and> Q cn))"
 
 lemma (in wf_TM) hoare_haltI[intro]:
   fixes P Q
-  assumes "\<And>c. P c \<Longrightarrow>
+  assumes "\<And>c. wf_config c \<Longrightarrow> P c \<Longrightarrow>
              \<exists>n. let cn = (step^^n) c in is_final cn \<and> Q cn"
   shows "hoare_halt P Q"
   unfolding hoare_halt_def using assms by blast
 
 lemma (in wf_TM) hoare_haltE[elim]:
   fixes c
-  assumes "P c"
+  assumes "wf_config c" "P c"
       and "hoare_halt P Q"
     obtains n where "is_final ((step^^n) c)" and "Q ((step^^n) c)"
   using assms
