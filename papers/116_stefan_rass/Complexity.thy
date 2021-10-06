@@ -26,7 +26,7 @@ abbreviation (input) tcomp :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightar
   where "tcomp T n \<equiv> nat (max (n + 1) \<lceil>T(n)\<rceil>)"
 
 abbreviation (input) tcomp\<^sub>w :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> 'b list \<Rightarrow> nat"
-  where "tcomp\<^sub>w T w \<equiv> tcomp T (size <w>\<^sub>t\<^sub>p)"
+  where "tcomp\<^sub>w T w \<equiv> tcomp T (tp_size <w>\<^sub>t\<^sub>p)"
 
 definition (in wf_TM) time_bounded_word :: "(nat \<Rightarrow> 'c::floor_ceiling) \<Rightarrow> 'b list \<Rightarrow> bool"
   where time_bounded_def[simp]: "time_bounded_word T w \<equiv> \<exists>n.
@@ -199,7 +199,7 @@ unfolding rejects_def proof
   have "state c0 = start_state Rejecting_TM"
     using init_state_start_state[OF \<open>init w c0\<close>] sorry
   then have "is_final ((step^^0) c0)"
-    unfolding is_final_def unfolding Rejecting_TM_def by simp
+    unfolding Rejecting_TM_def by simp
   moreover have "accepting_states Rejecting_TM = {}"
     unfolding Rejecting_TM_def by simp
   ultimately show "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<notin> accepting_states Rejecting_TM"
@@ -209,7 +209,7 @@ qed
 lemma rej_TM_time: "time w = Some 0"
 proof -
   have "is_final (run 0 w)"
-    unfolding is_final_def start_config_def unfolding Rejecting_TM_def by simp
+    unfolding start_config_def unfolding Rejecting_TM_def by simp
   thus ?thesis unfolding time_def
     using Least_eq_0 by presburger
 qed
@@ -230,8 +230,8 @@ lemma hoare_and[intro]:
   shows "hoare_halt P (\<lambda>c. Q1 c \<and> Q2 c)"
 proof
   fix c assume "P c"
-  from \<open>P c\<close> h1 obtain n1 where fn1: "is_final ((step^^n1) c)" and q1: "Q1 ((step^^n1) c)" by rule
-  from \<open>P c\<close> h2 obtain n2 where fn2: "is_final ((step^^n2) c)" and q2: "Q2 ((step^^n2) c)" by rule
+  from \<open>P c\<close> h1 obtain n1 where fn1: "is_final ((step^^n1) c)" and q1: "Q1 ((step^^n1) c)" ..
+  from \<open>P c\<close> h2 obtain n2 where fn2: "is_final ((step^^n2) c)" and q2: "Q2 ((step^^n2) c)" ..
 
   define n::nat where "n \<equiv> max n1 n2"
   hence "n1 \<le> n" "n2 \<le> n" by simp+
@@ -278,7 +278,7 @@ proof (intro notI)
   moreover have "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
     using \<open>rejects w\<close> unfolding rejects_def .
   ultimately have "hoare_halt (init w) (\<lambda>c. False)"
-    using hoare_and[of "init w" "\<lambda>c. state c \<in> accepting_states M" "\<lambda>c. state c \<notin> accepting_states M"] 
+    using hoare_and[of "init w" "\<lambda>c. state c \<in> accepting_states M" "\<lambda>c. state c \<notin> accepting_states M"]
     by simp
   then show False using hoare_contr by auto
 qed
@@ -293,7 +293,7 @@ proof (intro iffI conjI)
 next
   assume "halts w \<and> \<not> accepts w"
   then have "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
-    unfolding accepts_def using hoare_halt_neg by simp 
+    unfolding accepts_def using hoare_halt_neg by simp
   then show "rejects w" unfolding rejects_def .
 qed
 
@@ -342,7 +342,7 @@ lemma in_dtimeE'[elim]:
   shows "\<exists>M::('a, 'b::blank) TM. wf_TM.decides M L \<and> wf_TM.time_bounded M T"
   using assms unfolding DTIME_def ..
 
-corollary in_dtime_mono: 
+corollary in_dtime_mono:
   fixes T t
   assumes "\<And>n. t n \<le> T n"
     and "L \<in> DTIME TYPE('a) t"
