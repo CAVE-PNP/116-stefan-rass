@@ -221,11 +221,11 @@ lemma adj_sq_exp_pad:
 proof -
   from \<open>l \<ge> 20\<close> have "shared_MSBs (clog l) w w'" unfolding l w' by (rule adj_sq_sh_pfx_log)
   then have l_eq: "length w' = l" and d_eq: "drop (l - clog l) w' = drop (l - clog l) w"
-    unfolding l by (elim sh_msbE[symmetric])+
+    unfolding l by blast+
 
   have "strip_exp_pad w' = drop (l - clog l) w'" unfolding strip_exp_pad_def l_eq Let_def ..
   also have "... = drop (l - clog l) w" using d_eq .
-  also have "... = strip_exp_pad w" unfolding strip_exp_pad_def l[symmetric] Let_def ..
+  also have "... = strip_exp_pad w" unfolding strip_exp_pad_def l Let_def ..
   finally show ?thesis .
 qed
 
@@ -321,7 +321,7 @@ proof (rule ccontr, unfold not_not)
     fix w :: word
     assume "length w \<ge> 20"
     then have "length (adj_sq\<^sub>w w) \<le> length w"
-      by (intro eq_imp_le sh_msbE[symmetric]) (rule adj_sq_sh_pfx_log)
+      by (intro eq_imp_le sh_msbE) (rule adj_sq_sh_pfx_log)
     from \<open>length w \<ge> 20\<close> have "w \<in> L\<^sub>D \<longleftrightarrow> adj_sq\<^sub>w w \<in> L\<^sub>0" by (rule L\<^sub>D_L\<^sub>0_adj_sq_iff)
 
     from \<open>decides M\<^sub>0 L\<^sub>0\<close> have "decides_word M\<^sub>0 L\<^sub>0 (adj_sq\<^sub>w w)" ..
