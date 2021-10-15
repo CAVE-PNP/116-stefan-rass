@@ -238,14 +238,26 @@ corollary adj_sq_TM_dec:
 
 lemma L\<^sub>D_adj_sq_iff:
   fixes w
-  assumes "length w \<ge> 20"
-  defines "w' \<equiv> adj_sq\<^sub>w w"
+  assumes l: "length w \<ge> 20"
+  defines w': "w' \<equiv> adj_sq\<^sub>w w"
   shows "w' \<in> L\<^sub>D \<longleftrightarrow> w \<in> L\<^sub>D"
+proof -
     \<comment> \<open>Idea: since \<open>w\<close> and \<open>adj_sq\<^sub>w n\<close> share their prefix (@{thm adj_sq_sh_pfx_log}),
   the relevant parts are identical and this lemma should hold.
 
   Note: with the current definition of \<^const>\<open>L\<^sub>D\<close>, this likely does not hold,
         as the whole word \<open>w\<close> is referenced in the definition.\<close>
+
+  from l have dec: "TM_decode_pad w' = TM_decode_pad w" unfolding w' by (rule adj_sq_TM_dec)
+  from l have pad: "strip_exp_pad w' = strip_exp_pad w" unfolding w' by (rule adj_sq_exp_pad)
+  let ?Mw = "TM_decode_pad w"
+
+    \<comment> \<open>Both of the following statements are not provable without further assumptions
+        about the contents of \<^term>\<open>w\<close> (and thus \<^term>\<open>?Mw\<close>).\<close>
+  have a: "rejects ?Mw w' = rejects ?Mw w" sorry
+  have b: "time_bounded_word T ?Mw w' = time_bounded_word T ?Mw w" sorry
+  have "w' \<in> L\<^sub>D \<longleftrightarrow> w \<in> L\<^sub>D" unfolding LD_def mem_Collect_eq Let_def
+    unfolding dec pad unfolding a b ..
   oops
 
 lemma L\<^sub>D'_adj_sq_iff:
@@ -254,12 +266,9 @@ lemma L\<^sub>D'_adj_sq_iff:
   defines w': "w' \<equiv> adj_sq\<^sub>w w"
   shows "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'"
 proof -
-  from \<open>length w \<ge> 20\<close> have "shared_MSBs (clog (length w)) w w'" unfolding w' by (rule adj_sq_sh_pfx_log)
-  then have "length w' = length w" by (elim sh_msbE[symmetric])
-  then have len: "tape_size <w'>\<^sub>t\<^sub>p = tape_size <w>\<^sub>t\<^sub>p" unfolding tape_size_input by (rule arg_cong)
   from l have dec: "TM_decode_pad w' = TM_decode_pad w" unfolding w' by (rule adj_sq_TM_dec)
   from l have pad: "strip_exp_pad w' = strip_exp_pad w" unfolding w' by (rule adj_sq_exp_pad)
-  show "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'" unfolding LD'_def mem_Collect_eq unfolding dec pad len ..
+  show "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'" unfolding LD'_def mem_Collect_eq unfolding dec pad ..
 qed
 
 lemma L\<^sub>D'_L\<^sub>0'_adj_sq_iff:
