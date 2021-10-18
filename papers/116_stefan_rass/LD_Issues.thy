@@ -70,13 +70,17 @@ begin
   as the word that determines the time bound (\<open>x\<close>) differs from the input word (\<open>v\<close>).
   The alternative version shown in @{thm time_bounded_altdef} is used for simplicity.\<close>
 
-definition (in tht_assms) L\<^sub>D'' :: lang
+definition L\<^sub>D'' :: lang
   where "L\<^sub>D'' \<equiv> {w.
       let (l, x) = decode_pair w;
           v = drop (length x - l) x;
           M\<^sub>v = decode_TM (strip_al_prefix v) in
       rejects M\<^sub>v v \<and> is_final (steps0 (1, <v>\<^sub>t\<^sub>p) M\<^sub>v (tcomp\<^sub>w T x))
     }"
+
+definition L\<^sub>0'' :: lang
+  where [simp]: "L\<^sub>0'' \<equiv> L\<^sub>D'' \<inter> SQ"
+
 
 lemma L\<^sub>D''_adj_sq_iff:
   fixes w
@@ -85,7 +89,95 @@ lemma L\<^sub>D''_adj_sq_iff:
   shows "w' \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> L\<^sub>D''"
   unfolding L\<^sub>D''_def mem_Collect_eq w' len[THEN pair_adj_sq_eq] ..
 
-end \<comment> \<open>\<^locale>\<open>tht_assms\<close>\<close>
+lemma L\<^sub>D''_L\<^sub>0''_adj_sq_iff:
+  fixes w
+  defines w': "w' \<equiv> adj_sq\<^sub>w w"
+  assumes len: "length w \<ge> 9"
+  shows "w' \<in> L\<^sub>0'' \<longleftrightarrow> w \<in> L\<^sub>D''"
+  unfolding L\<^sub>0''_def w' using len[THEN L\<^sub>D''_adj_sq_iff] adj_sq_word_correct by blast
+
+
+lemma L\<^sub>D''_t: "L\<^sub>D'' \<notin> DTIME(t)"
+  sorry (* TODO *)
+
+lemma L\<^sub>D''_T: "L\<^sub>D'' \<in> DTIME(T)"
+  sorry (* TODO *)
+
+end \<comment> \<open>context \<^locale>\<open>tht_assms\<close>\<close>
+
+
+context tht_sq_assms
+begin
+
+text\<open>Lemma 4.6. Let \<open>t\<close>, \<open>T\<close> be as in Assumption 4.4 and assume \<open>T(n) \<ge> n\<^sup>3\<close>.
+  Then, there exists a language \<open>L\<^sub>0 \<in> DTIME(T) - DTIME(t)\<close> for which \<open>dens\<^sub>L\<^sub>0(x) \<le> \<surd>x\<close>.\<close>
+
+lemma L0''_t: "L\<^sub>0'' \<notin> DTIME(t)"
+proof (rule ccontr, unfold not_not)
+  assume "L\<^sub>0'' \<in> DTIME(t)"
+  then obtain M\<^sub>0 where "decides M\<^sub>0 L\<^sub>0''" and "time_bounded t M\<^sub>0" ..
+
+  \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be realized by a TM in time \<open>n\<^sup>3\<close>.\<close>
+  define T\<^sub>R where "T\<^sub>R \<equiv> \<lambda>n::nat. n^3"
+  obtain M\<^sub>R where "tm_wf0 M\<^sub>R"
+    and M\<^sub>R_correct: "\<And>w. {input w} M\<^sub>R {input (adj_sq\<^sub>w w)}"
+    and "time_bounded T\<^sub>R M\<^sub>R"
+    unfolding T\<^sub>R_def using T_lower_bound
+    sorry
+
+  define M where "M \<equiv> M\<^sub>R |+| M\<^sub>0"
+  define t' where "t' = (\<lambda>n. real (tcomp T\<^sub>R n + tcomp t n))"
+
+  have "L\<^sub>D'' \<in> DTIME(t')"
+  proof (intro DTIME_ae word_length_ae)
+    fix w :: word
+    assume len: "length w \<ge> 9"
+
+    from \<open>decides M\<^sub>0 L\<^sub>0''\<close> have "decides_word M\<^sub>0 L\<^sub>0'' (adj_sq\<^sub>w w)" ..
+    moreover from len have "adj_sq\<^sub>w w \<in> L\<^sub>0'' \<longleftrightarrow> w \<in> L\<^sub>D''" by (rule L\<^sub>D''_L\<^sub>0''_adj_sq_iff)
+    ultimately show "decides_word M L\<^sub>D'' w" unfolding M_def
+      using M\<^sub>R_correct \<open>tm_wf0 M\<^sub>R\<close> by (rule reduce_decides)
+
+    from \<open>time_bounded t M\<^sub>0\<close> have "time_bounded_word t M\<^sub>0 (adj_sq\<^sub>w w)" ..
+    moreover from \<open>time_bounded T\<^sub>R M\<^sub>R\<close> have "time_bounded_word T\<^sub>R M\<^sub>R w" ..
+    moreover from len have "length (adj_sq\<^sub>w w) \<le> length w"
+      by (intro eq_imp_le sh_msbD) (rule adj_sq_sh_pfx_half)
+    ultimately show "time_bounded_word t' M w" unfolding M_def t'_def
+      using M\<^sub>R_correct by (intro reduce_time_bounded)
+  qed
+
+  then have "L\<^sub>D'' \<in> DTIME(t)" sorry
+  \<comment> \<open>This is not correct, since \<^term>\<open>t\<close> could be arbitrarily small.
+    Let \<open>t(n) = n\<close> and \<open>T(n) = n\<^sup>3\<close>. Then \<open>DTIME(t)\<close> is limited by \<open>tcomp t n = n + 1\<close>
+    and \<open>DTIME(T)\<close> by \<open>tcomp t n = n\<^sup>3\<close> (for \<open>n > 1\<close>).\<close>
+
+  moreover have "L\<^sub>D'' \<notin> DTIME(t)" by (fact L\<^sub>D''_t)
+  ultimately show False by contradiction
+qed
+
+lemma L0''_T: "L\<^sub>0'' \<in> DTIME(T)"
+proof -
+  let ?T' = "\<lambda>n. real (max (T n) (n^3))"
+  from T_lower_bound have "?T' = T" by (intro ext, unfold of_nat_eq_iff) (rule max_absorb1)
+
+  from L\<^sub>D''_T and SQ_DTIME have "L\<^sub>0'' \<in> DTIME(?T')"
+    unfolding L\<^sub>0''_def of_nat_max by (rule DTIME_int')
+  then show "L\<^sub>0'' \<in> DTIME(T)" unfolding \<open>?T' = T\<close> .
+qed
+
+theorem L0''_time_hierarchy: "L\<^sub>0'' \<in> DTIME(T) - DTIME(t)" using L0''_T L0''_t ..
+
+theorem dens_L0'': "dens L\<^sub>0'' n \<le> dsqrt n"
+proof -
+  have "dens L\<^sub>0'' n = dens (L\<^sub>D'' \<inter> SQ) n" unfolding L\<^sub>0''_def ..
+  also have "... \<le> dens SQ n" by (subst Int_commute) (rule dens_intersect_le)
+  also have "... = dsqrt n" by (rule dens_SQ)
+  finally show ?thesis .
+qed
+
+lemmas lemma4_6 = L0_time_hierarchy dens_L0
+
+end \<comment> \<open>context \<^locale>\<open>tht_sq_assms\<close>\<close>
 
 
 end
