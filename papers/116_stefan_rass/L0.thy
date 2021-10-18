@@ -2,6 +2,46 @@ theory L0
   imports Complexity
 begin
 
+
+lemma SQ_DTIME: "SQ \<in> DTIME(\<lambda>n. n^3)" sorry
+
+lemma dominates_altdef:
+  fixes c :: real
+  assumes "\<And>n. T n \<noteq> 0"
+    and T_dominates_t: "(\<lambda>n. t n / T n) \<longlonglongrightarrow> 0"
+  shows "\<exists>N. \<forall>n\<ge>N. \<bar>c * t n\<bar> < \<bar>T n\<bar>" 
+proof (cases "c = 0")
+  assume "c = 0"
+  show ?thesis proof (intro exI allI impI)
+    fix n
+    have "\<bar>c * t n\<bar> = 0" unfolding \<open>c = 0\<close> by simp
+    also have "0 < \<bar>T n\<bar>" using \<open>T n \<noteq> 0\<close> by simp
+    finally show "\<bar>c * t n\<bar> < \<bar>T n\<bar>" .
+  qed
+next
+  let ?f = "\<lambda>n. t n / T n"
+  assume "c \<noteq> 0"
+  define c' where c': "c' \<equiv> 1 / c"
+  from \<open>c \<noteq> 0\<close> have "c' \<noteq> 0" unfolding c' by simp
+
+  with T_dominates_t have "\<exists>N. \<forall>n\<ge>N. \<bar>?f n\<bar> < \<bar>c'\<bar>"
+    unfolding LIMSEQ_def dist_real_def diff_0_right by force
+  then obtain N where "\<bar>?f n\<bar> < \<bar>c'\<bar>" if "n \<ge> N" for n by blast
+
+  have "\<bar>c * t n\<bar> < \<bar>T n\<bar>" if "n \<ge> N" for n
+  proof -
+    from \<open>T n \<noteq> 0\<close> have "\<bar>T n\<bar> > 0" unfolding zero_less_abs_iff .
+    from \<open>c \<noteq> 0\<close> have "\<bar>c\<bar> > 0" unfolding zero_less_abs_iff .
+
+    have "\<bar>?f n\<bar> < \<bar>c'\<bar>" using \<open>n \<ge> N\<close> by fact
+    then have "\<bar>t n\<bar> / \<bar>T n\<bar> < 1 / \<bar>c\<bar>" unfolding c' abs_divide abs_one .
+    then have "\<bar>t n\<bar> < \<bar>T n\<bar> / \<bar>c\<bar>" unfolding \<open>\<bar>T n\<bar> > 0\<close>[THEN pos_divide_less_eq] by argo
+    then show "\<bar>c * t n\<bar> < \<bar>T n\<bar>" unfolding \<open>\<bar>c\<bar> > 0\<close>[THEN pos_less_divide_eq] abs_mult by argo
+  qed
+  then show "\<exists>N. \<forall>n\<ge>N. \<bar>c * t n\<bar> < \<bar>T n\<bar>" by blast
+qed
+
+
 section\<open>Time Hierarchy Theorem and the Diagonal Language\<close>
 
 locale tht_assms =
@@ -27,55 +67,47 @@ begin
 
 lemma T_ge_t_log_t_ae:
   fixes c :: real
-  assumes "c > 0"
-  shows "\<exists>N. \<forall>n\<ge>N. c * t n * log 2 (t n) \<le> T n"
+  assumes "c \<ge> 0"
+  shows "\<exists>N. \<forall>n\<ge>N. c * t n * log 2 (t n) < T n"
 proof -
-  let ?f = "\<lambda>n. t n * log 2 (t n) / T n"
-
-  define c' where "c' \<equiv> 1 / c"
-  from \<open>c > 0\<close> have "c' > 0" unfolding c'_def by simp
-
-  with T_dominates_t have "\<exists>N. \<forall>n\<ge>N. \<bar>?f n\<bar> < c'"
-    unfolding LIMSEQ_def dist_real_def diff_0_right by presburger
-  then obtain N where "n \<ge> N \<Longrightarrow> \<bar>?f n\<bar> < c'" for n by blast
+  from T_not_0 have "real (T n) \<noteq> 0" for n unfolding of_nat_eq_0_iff .
+  then have "\<exists>N. \<forall>n\<ge>N. \<bar>c * (t n * log 2 (t n))\<bar> < \<bar>real (T n)\<bar>"
+    using T_dominates_t by (rule dominates_altdef)
+  then obtain N where *: "n \<ge> N \<Longrightarrow> \<bar>c * (t n * log 2 (t n))\<bar> < \<bar>real (T n)\<bar>" for n by blast
   let ?N = "max N 2"
 
-  have "c * t n * log 2 (t n) \<le> T n" if "n \<ge> ?N" for n
+  have "c * t n * log 2 (t n) < T n" if "n \<ge> ?N" for n
   proof -
-    from \<open>n \<ge> ?N\<close> and \<open>n \<ge> N \<Longrightarrow> \<bar>?f n\<bar> < c'\<close> have "\<bar>?f n\<bar> < c'" and "n \<ge> 2" by fastforce+
+    from \<open>n \<ge> ?N\<close> have "n \<ge> N" and "n \<ge> 2" by auto
+    from \<open>n \<ge> N\<close> have "\<bar>c * (t n * log 2 (t n))\<bar> < \<bar>real (T n)\<bar>" by (fact *)
 
     from \<open>n \<ge> 2\<close> and t_min have "t n \<ge> 2" by (rule le_trans)
     then have "log 2 (t n) \<ge> 1" by force
     with \<open>t n \<ge> 2\<close> have "t n * log 2 (t n) > 0" by auto
 
     have "c * t n * log 2 (t n) = c * \<bar>t n * log 2 (t n)\<bar>" using \<open>t n * log 2 (t n) > 0\<close> by fastforce
-    also have "... < \<bar>real (T n)\<bar>"
-    proof -
-      from \<open>\<bar>?f n\<bar> < c'\<close> and \<open>c > 0\<close> have "\<bar>?f n\<bar> * c < 1"
-        unfolding c'_def using pos_less_divide_eq by blast
-      then have "c * \<bar>?f n\<bar> < 1" by argo
-      then show ?thesis unfolding abs_divide times_divide_eq_right
-        by (subst (asm) divide_less_eq_1_pos) (use T_not_0 in simp)
-    qed
-    finally show "c * t n * log 2 (t n) \<le> T n" by simp
+    also from \<open>c \<ge> 0\<close> have "... = \<bar>c * (t n * log 2 (t n))\<bar>" unfolding abs_mult by force
+    also from \<open>n \<ge> N\<close> have "... < \<bar>real (T n)\<bar>" by (fact *)
+    also have "... = T n" by simp
+    finally show ?thesis .
   qed
-  then show "\<exists>N. \<forall>n\<ge>N. c * t n * log 2 (t n) \<le> T n" by blast
+  then show "\<exists>N. \<forall>n\<ge>N. c * t n * log 2 (t n) < T n" by blast
 qed
 
-lemma T_ge_t_ae: "\<exists>N. \<forall>n\<ge>N. T n \<ge> t n"
+lemma T_ge_t_ae: "\<exists>N. \<forall>n\<ge>N. T n > t n"
 proof -
-  from T_ge_t_log_t_ae[of 1] obtain N where *: "n \<ge> N \<Longrightarrow> t n * log 2 (t n) \<le> T n" for n by auto
+  from T_ge_t_log_t_ae[of 1] obtain N where *: "n \<ge> N \<Longrightarrow> t n * log 2 (t n) < T n" for n by auto
   let ?N = "max N 2"
 
-  have "t n \<le> T n" if "n \<ge> ?N" for n
+  have "t n < T n" if "n \<ge> ?N" for n
   proof -
     from \<open>n \<ge> ?N\<close> and * have "n \<ge> 2" by simp
     with t_min have "t n \<ge> 2" using le_trans by blast
     then have "log 2 (t n) \<ge> 1" by force
 
     have "t n \<le> t n * log 2 (t n)" using \<open>log 2 (t n) \<ge> 1\<close> \<open>t n \<ge> 2\<close> by fastforce
-    also have "... \<le> T n" using * \<open>n \<ge> ?N\<close> by simp
-    finally show "t n \<le> T n" by fastforce
+    also have "... < T n" using * \<open>n \<ge> ?N\<close> by simp
+    finally show "t n < T n" by fastforce
   qed
   then show ?thesis by blast
 qed
@@ -144,7 +176,7 @@ next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME(t)\<close
     let ?n = "length (encode_TM M\<^sub>w) + 2"
     obtain l where "T(2*l) \<ge> t(2*l)" and "clog l \<ge> ?n"
     proof -
-      obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l \<ge> t l" for l using T_ge_t_ae by blast
+      obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l > t l" for l using T_ge_t_ae by blast
       obtain l\<^sub>2 :: nat where l2: "l \<ge> l\<^sub>2 \<Longrightarrow> clog l \<ge> ?n" for l
       proof
         fix l :: nat
@@ -156,9 +188,9 @@ next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME(t)\<close
       qed
 
       let ?l = "max l\<^sub>1 l\<^sub>2"
-      have "T (2*?l) \<ge> t (2*?l)" by (rule l1) force
+      have "T (2*?l) \<ge> t (2*?l)" by (rule less_imp_le, rule l1) force
       moreover have "clog ?l \<ge> ?n" by (rule l2) force
-      ultimately show ?thesis by (intro that)
+      ultimately show ?thesis by (intro that) fast+
     qed
 
     obtain w where "length w = l" and dec_w: "TM_decode_pad w = M\<^sub>w"
@@ -275,7 +307,7 @@ lemma L\<^sub>D'_L\<^sub>0'_adj_sq_iff:
   fixes w
   assumes l: "length w \<ge> 20"
   defines "w' \<equiv> adj_sq\<^sub>w w"
-  shows "w \<in> L\<^sub>D' \<longleftrightarrow> w' \<in> L\<^sub>0'"
+  shows "w' \<in> L\<^sub>0' \<longleftrightarrow> w \<in> L\<^sub>D'"
 proof
   assume "w \<in> L\<^sub>D'"
   then have "w' \<in> L\<^sub>D'" unfolding w'_def using l by (subst L\<^sub>D'_adj_sq_iff)
@@ -294,7 +326,7 @@ lemma L\<^sub>D_L\<^sub>0_adj_sq_iff:
   fixes w
   assumes l: "length w \<ge> 20"
   defines "w' \<equiv> adj_sq\<^sub>w w"
-  shows "w \<in> L\<^sub>D \<longleftrightarrow> w' \<in> L\<^sub>0"
+  shows "w' \<in> L\<^sub>0 \<longleftrightarrow> w \<in> L\<^sub>D"
   sorry
 
 
@@ -309,7 +341,7 @@ proof (rule ccontr, unfold not_not)
   \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be realized by a TM in time \<open>n\<^sup>3\<close>.\<close>
   define T\<^sub>R where "T\<^sub>R \<equiv> \<lambda>n::nat. n^3"
   obtain M\<^sub>R where "tm_wf0 M\<^sub>R"
-    and "\<And>w. {input w} M\<^sub>R {input (adj_sq\<^sub>w w)}"
+    and M\<^sub>R_correct: "\<And>w. {input w} M\<^sub>R {input (adj_sq\<^sub>w w)}"
     and "time_bounded T\<^sub>R M\<^sub>R"
     sorry
 
@@ -319,21 +351,19 @@ proof (rule ccontr, unfold not_not)
   have "L\<^sub>D \<in> DTIME(t')"
   proof (intro DTIME_ae word_length_ae)
     fix w :: word
-    assume "length w \<ge> 20"
-    then have "length (adj_sq\<^sub>w w) \<le> length w"
-      by (intro eq_imp_le sh_msbE) (rule adj_sq_sh_pfx_log)
-    from \<open>length w \<ge> 20\<close> have "w \<in> L\<^sub>D \<longleftrightarrow> adj_sq\<^sub>w w \<in> L\<^sub>0" by (rule L\<^sub>D_L\<^sub>0_adj_sq_iff)
+    assume len: "length w \<ge> 20"
 
     from \<open>decides M\<^sub>0 L\<^sub>0\<close> have "decides_word M\<^sub>0 L\<^sub>0 (adj_sq\<^sub>w w)" ..
-    then show "decides_word M L\<^sub>D w" unfolding M_def
-      using \<open>w \<in> L\<^sub>D \<longleftrightarrow> adj_sq\<^sub>w w \<in> L\<^sub>0\<close> \<open>{input w} M\<^sub>R {input (adj_sq\<^sub>w w)}\<close> \<open>tm_wf0 M\<^sub>R\<close>
-      by (rule reduce_decides)
+    moreover from len have "adj_sq\<^sub>w w \<in> L\<^sub>0 \<longleftrightarrow> w \<in> L\<^sub>D" by (rule L\<^sub>D_L\<^sub>0_adj_sq_iff)
+    ultimately show "decides_word M L\<^sub>D w" unfolding M_def
+      using M\<^sub>R_correct \<open>tm_wf0 M\<^sub>R\<close> by (rule reduce_decides)
 
     from \<open>time_bounded t M\<^sub>0\<close> have "time_bounded_word t M\<^sub>0 (adj_sq\<^sub>w w)" ..
     moreover from \<open>time_bounded T\<^sub>R M\<^sub>R\<close> have "time_bounded_word T\<^sub>R M\<^sub>R w" ..
+    moreover from len have "length (adj_sq\<^sub>w w) \<le> length w"
+      by (intro eq_imp_le sh_msbD) (rule adj_sq_sh_pfx_log)
     ultimately show "time_bounded_word t' M w" unfolding M_def t'_def
-      using \<open>{input w} M\<^sub>R {input (adj_sq\<^sub>w w)}\<close> \<open>length (adj_sq\<^sub>w w) \<le> length w\<close>
-      by (rule reduce_time_bounded)
+      using M\<^sub>R_correct by (intro reduce_time_bounded)
   qed
 
   then have "L\<^sub>D \<in> DTIME(t)" sorry
@@ -345,8 +375,7 @@ proof (rule ccontr, unfold not_not)
   ultimately show False by contradiction
 qed
 
-
-lemma SQ_DTIME: "SQ \<in> DTIME(\<lambda>n. n^3)" sorry
+(* TODO move to Complexity.thy *)
 lemma DTIME_int: "L\<^sub>1 \<in> DTIME(T\<^sub>1) \<Longrightarrow> L\<^sub>2 \<in> DTIME(T\<^sub>2) \<Longrightarrow> L\<^sub>1 \<inter> L\<^sub>2 \<in> DTIME(\<lambda>n. T\<^sub>1 n + T\<^sub>2 n)" sorry
 
 lemma L0_T: "L\<^sub>0 \<in> DTIME(T)"
@@ -364,7 +393,7 @@ proof -
     have "N \<le> ?n'" by (rule real_nat_ceiling_ge)
     also have "... \<le> n" using \<open>?n' \<le> n\<close> by (rule of_nat_mono)
     also have "... \<le> n\<^sup>2" by (rule of_nat_mono) (rule power2_nat_le_imp_le, rule le_refl)
-    also have "n\<^sup>2 = n powr (3 - 1)" by force
+    also have "... = n powr (3 - 1)" by force
     also have "... = n^3 / n" unfolding powr_diff
       by (simp only: powr_numeral powr_one of_nat_power)
     also have "... \<le> T(n)/n" using T_lower_bound by (intro divide_right_mono of_nat_mono) auto
@@ -379,9 +408,10 @@ proof -
     using T_superlinear by (subst (asm) DTIME_speed_up_eq) linarith
 qed
 
-\<comment> \<open>Alternative proof for \<open>\<close> without the need for the Speed-Up Theorem.
+\<comment> \<open>Alternative proof for \<open>L\<^sub>0 \<in> DTIME(T)\<close> without the need for the Speed-Up Theorem.
   This version of @{thm DTIME_int} should work, if multiple tapes may be used.\<close>
 
+(* TODO move to Complexity.thy *)
 lemma DTIME_int': "L\<^sub>1 \<in> DTIME(T\<^sub>1) \<Longrightarrow> L\<^sub>2 \<in> DTIME(T\<^sub>2) \<Longrightarrow> L\<^sub>1 \<inter> L\<^sub>2 \<in> DTIME(\<lambda>n. max (T\<^sub>1 n) (T\<^sub>2 n))" sorry
 
 lemma L0_T': "L\<^sub>0 \<in> DTIME(T)"

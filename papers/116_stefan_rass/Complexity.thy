@@ -745,23 +745,18 @@ proof -
 
   from \<open>decides M' L\<close> have "decides ?M L"
     unfolding decides_def accepts_def rejects_def Hoare_halt_def repair_TM_still_works .
-  from \<open>time_bounded T M'\<close> have "time_bounded T ?M"
+  moreover from \<open>time_bounded T M'\<close> have "time_bounded T ?M"
     unfolding time_bounded_def repair_TM_still_works .
-  have "tm_wf0 ?M" by (rule repair_TM_wf)
+  moreover have "tm_wf0 ?M" by (rule repair_TM_wf)
 
-  from \<open>decides ?M L\<close> \<open>time_bounded T ?M\<close> \<open>tm_wf0 ?M\<close> show ?thesis by (fact that)
+  ultimately show ?thesis by (fact that)
 qed
-
-lemma in_dtimeE'[elim]:
-  assumes "L \<in> DTIME T"
-  shows "\<exists>M. decides M L \<and> time_bounded T M"
-  using assms unfolding DTIME_def ..
 
 
 corollary in_dtime_mono:
   fixes T t
-  assumes Tt: "\<And>n. T n \<ge> t n"
-    and tD: "L \<in> DTIME(t)"
+  assumes "\<And>n. T n \<ge> t n"
+    and "L \<in> DTIME(t)"
   shows "L \<in> DTIME(T)"
   using assms time_bounded_mono by (elim in_dtimeE, intro in_dtimeI) blast+
 
@@ -899,7 +894,7 @@ subsection\<open>Reductions\<close>
 lemma reduce_decides:
   fixes A B :: lang and M\<^sub>R M\<^sub>B :: TM and f\<^sub>R :: "word \<Rightarrow> word" and w :: word
   assumes "decides_word M\<^sub>B B (f\<^sub>R w)"
-    and f\<^sub>R: "w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B"
+    and f\<^sub>R: "f\<^sub>R w \<in> B \<longleftrightarrow> w \<in> A"
     and M\<^sub>R_f\<^sub>R: "{input w} M\<^sub>R {input (f\<^sub>R w)}"
     and "tm_wf0 M\<^sub>R"
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
@@ -910,7 +905,7 @@ proof -
     from \<open>decides_word M\<^sub>B B (f\<^sub>R w)\<close> show "{input (f\<^sub>R w)} M\<^sub>B {\<lambda>tp. (head tp = Oc) = (f\<^sub>R w \<in> B)}"
       unfolding decides_altdef3 .
   qed
-  then have "{input w} M {\<lambda>tp. (head tp = Oc) = (w \<in> A)}" unfolding M_def \<open>w \<in> A \<longleftrightarrow> f\<^sub>R w \<in> B\<close> .
+  then have "{input w} M {\<lambda>tp. (head tp = Oc) = (w \<in> A)}" unfolding M_def \<open>f\<^sub>R w \<in> B \<longleftrightarrow> w \<in> A\<close> .
   then show "decides_word M A w" unfolding decides_altdef3 .
 qed
 
