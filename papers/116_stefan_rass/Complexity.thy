@@ -99,8 +99,9 @@ text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_hal
     \<dagger> Note, however, that there are TM's that accept or reject without reading all their input.
       We choose to eliminate them from consideration."\<close>
 
+(* TODO consider turning \<open>tcomp\<close> into a definition to avoid large proof terms *)
 abbreviation tcomp :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
-  where "tcomp T n \<equiv> nat (max (n + 1) \<lceil>T(n)\<rceil>)"
+  where "tcomp T n \<equiv> max (n + 1) (nat \<lceil>T(n)\<rceil>)"
 
 abbreviation tcomp\<^sub>w :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> word \<Rightarrow> nat"
   where "tcomp\<^sub>w T w \<equiv> tcomp T (tape_size <w>\<^sub>t\<^sub>p)"
@@ -115,6 +116,25 @@ abbreviation time_bounded :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarr
 (* TODO (?) notation: \<open>p terminates_in_time T\<close> *)
 
 
+lemma
+  shows tcomp_altdef1: "nat (max ((int n) + 1) \<lceil>T(n)\<rceil>) = tcomp T n" (is "?def1 = tcomp T n")
+    and tcomp_altdef2: "nat (max (int (n + 1)) \<lceil>T(n)\<rceil>) = tcomp T n" (is "?def2 = tcomp T n")
+proof -
+  have h1: "int (n + 1) = int n + 1" by simp
+  have h2: "nat (int n + 1) = n + 1" by (fold h1) (fact nat_int)
+  have h3: "nat (int n + 1) \<le> nat \<lceil>T n\<rceil> \<longleftrightarrow> int n + 1 \<le> \<lceil>T n\<rceil>" by (rule nat_le_eq_zle) simp
+
+  have "tcomp T n = max (nat (int n + 1)) (nat \<lceil>T(n)\<rceil>)" unfolding h2 ..
+  also have "... = ?def1" unfolding max_def if_distrib[of nat] h3 ..
+  finally show "?def1 = tcomp T n" ..
+  then show "?def2 = tcomp T n" unfolding h1 .
+qed
+
+lemma tcomp_min: "tcomp f n \<ge> n + 1" by simp
+
+lemma tcomp_eq: "f n \<ge> n + 1 \<Longrightarrow> tcomp f n = f n"
+  unfolding max_def if_distrib[of nat] by (subst if_P) auto
+
 lemma time_bounded_altdef:
   "time_bounded_word T M w \<longleftrightarrow> is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M (tcomp\<^sub>w T w))"
   unfolding time_bounded_def using is_final by blast
@@ -125,32 +145,44 @@ lemma time_boundedE:
 
 
 lemma tcomp_mono: "T n \<ge> t n \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def
-  by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono) rule
+  by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono) (rule le_refl)
 
-lemma time_bounded_word_mono:
+lemma time_bounded_word_mono':
   fixes T t w
-  defines "l \<equiv> tape_size <w>\<^sub>t\<^sub>p"
-  assumes Tt: "T l \<ge> t l"
+  assumes Tt: "tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w"
     and tr: "time_bounded_word t M w"
   shows "time_bounded_word T M w"
-  unfolding time_bounded_def
+  using tr Tt unfolding time_bounded_def
 proof -
   from tr obtain n where n_tcomp: "n \<le> tcomp\<^sub>w t w"
                      and final_n: "is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)"
     unfolding time_bounded_def by blast
 
-  have "n \<le> tcomp\<^sub>w t w" by (fact n_tcomp)
-  also have "tcomp\<^sub>w t w \<le> tcomp\<^sub>w T w" using Tt unfolding l_def by (rule tcomp_mono)
-  finally have "n \<le> tcomp\<^sub>w T w" .
+  from n_tcomp Tt have "n \<le> tcomp\<^sub>w T w" by (fact le_trans)
   with final_n show "\<exists>n\<le>tcomp\<^sub>w T w. is_final (steps0 (1, <w>\<^sub>t\<^sub>p) M n)" by blast
 qed
+
+lemma time_bounded_word_mono:
+  fixes T t w
+  defines l: "l \<equiv> tape_size <w>\<^sub>t\<^sub>p"
+  assumes Tt: "T l \<ge> t l"
+    and tr: "time_bounded_word t M w"
+  shows "time_bounded_word T M w"
+  using tr Tt unfolding l by (intro time_bounded_word_mono'[of w t T] tcomp_mono)
+
+lemma time_bounded_mono':
+  fixes T t
+  assumes Tt: "\<And>w. tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w"
+    and tr: "time_bounded t M"
+  shows "time_bounded T M"
+  using assms by (intro allI) (rule time_bounded_word_mono'[of _ t], blast+)
 
 lemma time_bounded_mono:
   fixes T t
   assumes Tt: "\<And>n. T n \<ge> t n"
     and tr: "time_bounded t M"
   shows "time_bounded T M"
-  using assms by (intro allI) (rule time_bounded_word_mono[of t], blast+)
+  using assms by (intro time_bounded_mono'[of t T] tcomp_mono)
 
 
 text\<open>\<open>time\<^sub>M(x)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>x\<close>,
@@ -607,10 +639,12 @@ lemma TM_lang_unique: "\<exists>\<^sub>\<le>\<^sub>1L. decides M L" using decide
 
 
 subsubsection\<open>Well-formed-ness\<close>
+(* TODO this section does not depend on complexity; extract. *)
 
 definition repair_TM :: "TM \<Rightarrow> TM" where "repair_TM M \<equiv> let x = length M mod 2 in
   (M @ (Nop, 0) \<up> (x + (2 * fold max (map snd M) 1 - (length M + x))))"
 
+(* TODO the following two lemmas are supplementary *)
 lemma max_nat: "max a b = a + (b - a)" for a b :: nat
   using nat_le_linear[of a b] by fastforce
 
@@ -631,7 +665,7 @@ proof -
   finally show ?thesis .
 qed
 
-lemma repair_TM_wf: "tm_wf0 (repair_TM M)" unfolding tm_wf.simps
+lemma repair_TM_wf[simp]: "tm_wf0 (repair_TM M)" unfolding tm_wf.simps
 proof (intro conjI ballI)
   define m where "m \<equiv> fold max (map snd M) 1"
   let ?l = "length M + length M mod 2"
@@ -655,9 +689,11 @@ proof (intro conjI ballI)
     assume "(a, c) \<in> set M"
     then have "c \<in> set (map snd M)" by force
     then have "c \<le> m" unfolding m_def Max.set_eq_fold[symmetric] by force
-    also have "m = (2*m) div 2 + 0" by force
-
-    finally show "c \<le> length (repair_TM M) div 2 + 0" unfolding l by simp (* TUNE *)
+    also have "m = (2*m) div 2" by force
+    also have "... \<le> max (l div 2) ..." for l by (fact max.cobounded2)
+    also have "...(l) = max l (2*m) div 2" for l
+      using div_le_mono by (intro max_of_mono) (rule monoI)
+    finally show "c \<le> length (repair_TM M) div 2 + 0" unfolding l add_0_right .
   qed auto
 qed
 
@@ -716,8 +752,11 @@ qed
 lemma repair_TM_step: "step c (repair_TM M, off) = step c (M, off)"
   by (induction c) (simp_all only: step.simps repair_TM_fetch)
 
-lemma repair_TM_still_works: "steps c (repair_TM M, st) n = steps c (M, st) n"
+lemma repair_TM_still_works[simp]: "steps c (repair_TM M, st) n = steps c (M, st) n"
   by (induction n arbitrary: c) (simp_all only: steps.simps repair_TM_step)
+
+lemma repair_TM_Hoare[simp]: "Hoare_halt P (repair_TM M) = Hoare_halt P M"
+  unfolding Hoare_halt_def repair_TM_still_works ..
 
 
 subsection\<open>DTIME\<close>
@@ -744,7 +783,7 @@ proof -
   let ?M = "repair_TM M'"
 
   from \<open>decides M' L\<close> have "decides ?M L"
-    unfolding decides_def accepts_def rejects_def Hoare_halt_def repair_TM_still_works .
+    unfolding decides_def accepts_def rejects_def repair_TM_Hoare .
   moreover from \<open>time_bounded T M'\<close> have "time_bounded T ?M"
     unfolding time_bounded_def repair_TM_still_works .
   moreover have "tm_wf0 ?M" by (rule repair_TM_wf)
@@ -753,12 +792,19 @@ proof -
 qed
 
 
+corollary in_dtime_mono':
+  fixes T t
+  assumes "\<And>n. tcomp T n \<ge> tcomp t n"
+    and "L \<in> DTIME(t)"
+  shows "L \<in> DTIME(T)"
+  using assms time_bounded_mono' by (elim in_dtimeE, intro in_dtimeI) blast+
+
 corollary in_dtime_mono:
   fixes T t
   assumes "\<And>n. T n \<ge> t n"
     and "L \<in> DTIME(t)"
   shows "L \<in> DTIME(T)"
-  using assms time_bounded_mono by (elim in_dtimeE, intro in_dtimeI) blast+
+  using assms by (intro in_dtime_mono'[of t T] tcomp_mono)
 
 
 subsection\<open>Classical Results\<close>
@@ -779,16 +825,59 @@ definition almost_everywhere :: "('a \<Rightarrow> bool) \<Rightarrow> bool"
 
 lemma ae_everywhereI: "(\<And>x. P x) \<Longrightarrow> almost_everywhere P" by simp
 
-lemma word_length_ae:
+lemma ae_word_length_iff[iff]:
+  fixes P :: "word \<Rightarrow> bool"
+  shows "almost_everywhere P \<longleftrightarrow> (\<exists>n. \<forall>w. length w \<ge> n \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
+proof
+  assume ?rhs
+  then obtain n where "P w" if "length w \<ge> n" for w by blast
+  then have "\<not> P w \<Longrightarrow> length w < n" for w by (fold not_le) (rule contrapos_nn)
+  then have "{w. \<not> P w} \<subseteq> {w. length w < n}" by (intro Collect_mono impI)
+  moreover have "finite {w::word. length w < n}" by (rule finite_bin_len_less)
+  ultimately show ?lhs unfolding ae_def by (rule finite_subset)
+next
+  assume ?lhs
+  then have "finite {x. \<not> P x}" unfolding ae_def .
+  show ?rhs proof (cases "{x. \<not> P x} = {}")
+    assume "{x. \<not> P x} \<noteq> {}"
+    define n where "n = Suc (Max (length ` {x. \<not> P x}))"
+
+    have "P x" if "length x \<ge> n" for x
+    proof -
+      from \<open>length x \<ge> n\<close> have "length x > Max (length ` {x. \<not> P x})"
+        unfolding n_def by (fact Suc_le_lessD)
+      then have "length x \<notin> length ` {x. \<not> P x}"
+        using \<open>{x. \<not> P x} \<noteq> {}\<close> \<open>finite {x. \<not> P x}\<close> by (subst (asm) Max_less_iff) blast+
+   (* then have "x \<notin> {x. \<not> P x}" by blast *)
+      then show "P x" by blast
+    qed
+    then show ?rhs by blast
+  qed (* case "{x. \<not> P x} = {}" by *) blast
+qed
+
+lemma ae_word_lengthI[intro]:
   fixes P :: "word \<Rightarrow> bool"
   assumes "\<And>w. length w \<ge> n \<Longrightarrow> P w"
   shows "almost_everywhere P"
-  unfolding ae_def
-proof (rule finite_subset)
-  have "\<not> P w \<Longrightarrow> length w < n" for w using assms by (intro not_le_imp_less) (rule contrapos_nn)
-  then show "{w. \<not> P w} \<subseteq> {w. length w < n}" by (intro Collect_mono impI)
-  show "finite {w::word. length w < n}" by (rule finite_bin_len_less)
-qed
+  unfolding ae_word_length_iff using assms by blast
+
+lemma ae_word_lengthE[elim]:
+  fixes P :: "word \<Rightarrow> bool"
+  assumes "almost_everywhere P"
+  obtains n where "\<And>w. length w \<ge> n \<Longrightarrow> P w"
+  using assms unfolding ae_word_length_iff by blast
+
+
+lemma ae_conj_iff: "almost_everywhere (\<lambda>x. P x \<and> Q x) \<longleftrightarrow> almost_everywhere P \<and> almost_everywhere Q"
+  unfolding ae_def de_Morgan_conj Collect_disj_eq by blast
+
+lemma ae_conjI:
+  assumes "almost_everywhere P" and "almost_everywhere Q"
+  shows "almost_everywhere (\<lambda>x. P x \<and> Q x)"
+  unfolding ae_conj_iff using assms ..
+
+lemma ae_disj: "almost_everywhere P \<or> almost_everywhere Q \<Longrightarrow> almost_everywhere (\<lambda>x. P x \<or> Q x)"
+  by auto
 
 
 text\<open>"Lemma 12.3  If \<open>L\<close> is accepted by a TM \<open>M\<close> that is \<open>S(n)\<close> space bounded a.e., then \<open>L\<close> is
@@ -803,10 +892,45 @@ text\<open>"Lemma 12.3  If \<open>L\<close> is accepted by a TM \<open>M\<close>
 
 
 lemma DTIME_ae:
-  assumes "almost_everywhere (decides_word M L)"
-    and "almost_everywhere (time_bounded_word T M)"
+  assumes "\<exists>M. almost_everywhere (decides_word M L) \<and> almost_everywhere (time_bounded_word T M)"
   shows "L \<in> DTIME(T)"
-  sorry
+proof (unfold DTIME_def mem_Collect_eq)
+  from assms obtain M'
+    where "almost_everywhere (\<lambda>w. decides_word M' L w \<and> time_bounded_word T M' w)"
+    unfolding ae_conj_iff ..
+  then obtain n
+    where "decides_word M' L w" and "time_bounded_word T M' w"
+    if "length w \<ge> n" for w by blast
+
+  show "\<exists>M. decides M L \<and> time_bounded T M" sorry
+qed
+
+lemma DTIME_mono_ae':
+  assumes Tt: "\<And>n. n \<ge> N \<Longrightarrow> tcomp T n \<ge> tcomp t n"
+    and "L \<in> DTIME(t)"
+  shows "L \<in> DTIME(T)"
+proof -
+  from \<open>L \<in> DTIME(t)\<close> obtain M where "decides M L" and "time_bounded t M" ..
+
+  from \<open>decides M L\<close> have "almost_everywhere (decides_word M L)"
+    by (intro ae_everywhereI) blast
+  moreover have "almost_everywhere (time_bounded_word T M)"
+  proof (intro ae_word_lengthI exI allI impI)
+    fix w :: word
+    assume "length w \<ge> N"
+    then have "tape_size <w>\<^sub>t\<^sub>p \<ge> N" unfolding tape_size_input by simp
+    then have "tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w" by (fact Tt)
+    moreover from \<open>time_bounded t M\<close> have "time_bounded_word t M w" ..
+    ultimately show "time_bounded_word T M w" by (fact time_bounded_word_mono')
+  qed
+  ultimately show ?thesis by (intro DTIME_ae) blast
+qed
+
+lemma DTIME_mono_ae:
+  assumes Tt: "\<And>n. n \<ge> N \<Longrightarrow> T n \<ge> t n"
+    and "L \<in> DTIME(t)"
+  shows "L \<in> DTIME(T)"
+  using assms by (intro DTIME_mono_ae'[of N t T]) (rule tcomp_mono)
 
 
 subsubsection\<open>Linear Speed-Up\<close>
@@ -899,15 +1023,7 @@ lemma reduce_decides:
     and "tm_wf0 M\<^sub>R"
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
   shows "decides_word M A w"
-proof -
-  have "{input w} M\<^sub>R |+| M\<^sub>B {\<lambda>tp. (head tp = Oc) = (f\<^sub>R w \<in> B)}" using M\<^sub>R_f\<^sub>R \<open>tm_wf0 M\<^sub>R\<close>
-  proof (intro Hoare_plus_halt)
-    from \<open>decides_word M\<^sub>B B (f\<^sub>R w)\<close> show "{input (f\<^sub>R w)} M\<^sub>B {\<lambda>tp. (head tp = Oc) = (f\<^sub>R w \<in> B)}"
-      unfolding decides_altdef3 .
-  qed
-  then have "{input w} M {\<lambda>tp. (head tp = Oc) = (w \<in> A)}" unfolding M_def \<open>f\<^sub>R w \<in> B \<longleftrightarrow> w \<in> A\<close> .
-  then show "decides_word M A w" unfolding decides_altdef3 .
-qed
+  using assms(1,3-4) unfolding decides_altdef3 f\<^sub>R M_def by (intro Hoare_plus_halt)
 
 
 lemma reduce_time_bounded:

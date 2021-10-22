@@ -129,7 +129,7 @@ proof (rule ccontr, unfold not_not)
   define t' where "t' = (\<lambda>n. real (tcomp T\<^sub>R n + tcomp t n))"
 
   have "L\<^sub>D'' \<in> DTIME(t')"
-  proof (intro DTIME_ae word_length_ae)
+  proof (intro DTIME_ae ae_word_lengthI exI conjI)
     fix w :: word
     assume len: "length w \<ge> 9"
 

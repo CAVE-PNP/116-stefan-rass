@@ -9,7 +9,7 @@ lemma dominates_altdef:
   fixes c :: real
   assumes "\<And>n. T n \<noteq> 0"
     and T_dominates_t: "(\<lambda>n. t n / T n) \<longlonglongrightarrow> 0"
-  shows "\<exists>N. \<forall>n\<ge>N. \<bar>c * t n\<bar> < \<bar>T n\<bar>" 
+  shows "\<exists>N. \<forall>n\<ge>N. \<bar>c * t n\<bar> < \<bar>T n\<bar>"
 proof (cases "c = 0")
   assume "c = 0"
   show ?thesis proof (intro exI allI impI)
@@ -349,7 +349,7 @@ proof (rule ccontr, unfold not_not)
   define t' where "t' = (\<lambda>n. real (tcomp T\<^sub>R n + tcomp t n))"
 
   have "L\<^sub>D \<in> DTIME(t')"
-  proof (intro DTIME_ae word_length_ae)
+  proof (intro DTIME_ae ae_word_lengthI exI conjI)
     fix w :: word
     assume len: "length w \<ge> 20"
 
