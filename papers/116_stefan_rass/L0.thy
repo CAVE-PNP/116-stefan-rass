@@ -336,40 +336,28 @@ text\<open>Lemma 4.6. Let \<open>t\<close>, \<open>T\<close> be as in Assumption
 lemma L0_t: "L\<^sub>0 \<notin> DTIME(t)"
 proof (rule ccontr, unfold not_not)
   assume "L\<^sub>0 \<in> DTIME(t)"
-  then obtain M\<^sub>0 where "decides M\<^sub>0 L\<^sub>0" and "time_bounded t M\<^sub>0" ..
 
-  \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be realized by a TM in time \<open>n\<^sup>3\<close>.\<close>
-  define T\<^sub>R where "T\<^sub>R \<equiv> \<lambda>n::nat. n^3"
-  obtain M\<^sub>R where "tm_wf0 M\<^sub>R"
-    and M\<^sub>R_correct: "\<And>w. {input w} M\<^sub>R {input (adj_sq\<^sub>w w)}"
-    and "time_bounded T\<^sub>R M\<^sub>R"
-    sorry
+  have "L\<^sub>D \<in> DTIME(t)"
+  proof (rule reduce_DTIME)
+    show "almost_everywhere (\<lambda>w. (adj_sq\<^sub>w w \<in> L\<^sub>0) = (w \<in> L\<^sub>D) \<and> length (adj_sq\<^sub>w w) \<le> length w)"
+    proof (intro ae_word_lengthI exI allI impI conjI)
+      fix w :: word assume "length w \<ge> 20"
+      then show "adj_sq\<^sub>w w \<in> L\<^sub>0 \<longleftrightarrow> w \<in> L\<^sub>D" by (fact L\<^sub>D_L\<^sub>0_adj_sq_iff)
+      from \<open>length w \<ge> 20\<close> have "length w \<ge> 9" by simp
+      then show "length (adj_sq\<^sub>w w) \<le> length w"
+        by (intro eq_imp_le sh_msbD) (fact adj_sq_sh_pfx_half)
+    qed
+    
+    show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" sorry
+    \<comment> \<open>This is not correct, since \<^term>\<open>t\<close> could be arbitrarily small.
+      Let \<open>t(n) = n\<close> and \<open>T(n) = n\<^sup>3\<close>. Then \<open>DTIME(t)\<close> is limited by \<open>tcomp t n = n + 1\<close>
+      and \<open>DTIME(T)\<close> by \<open>tcomp t n = n\<^sup>3\<close> (for \<open>n > 1\<close>).\<close>
 
-  define M where "M \<equiv> M\<^sub>R |+| M\<^sub>0"
-  define t' where "t' = (\<lambda>n. real (tcomp T\<^sub>R n + tcomp t n))"
+    show "computable_in_time t adj_sq\<^sub>w" sorry
+    \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed by a TM in time \<open>n\<^sup>3\<close>.\<close>
 
-  have "L\<^sub>D \<in> DTIME(t')"
-  proof (intro DTIME_ae ae_word_lengthI exI conjI)
-    fix w :: word
-    assume len: "length w \<ge> 20"
-
-    from \<open>decides M\<^sub>0 L\<^sub>0\<close> have "decides_word M\<^sub>0 L\<^sub>0 (adj_sq\<^sub>w w)" ..
-    moreover from len have "adj_sq\<^sub>w w \<in> L\<^sub>0 \<longleftrightarrow> w \<in> L\<^sub>D" by (rule L\<^sub>D_L\<^sub>0_adj_sq_iff)
-    ultimately show "decides_word M L\<^sub>D w" unfolding M_def
-      using M\<^sub>R_correct \<open>tm_wf0 M\<^sub>R\<close> by (rule reduce_decides)
-
-    from \<open>time_bounded t M\<^sub>0\<close> have "time_bounded_word t M\<^sub>0 (adj_sq\<^sub>w w)" ..
-    moreover from \<open>time_bounded T\<^sub>R M\<^sub>R\<close> have "time_bounded_word T\<^sub>R M\<^sub>R w" ..
-    moreover from len have "length (adj_sq\<^sub>w w) \<le> length w"
-      by (intro eq_imp_le sh_msbD) (rule adj_sq_sh_pfx_log)
-    ultimately show "time_bounded_word t' M w" unfolding M_def t'_def
-      using M\<^sub>R_correct by (intro reduce_time_bounded)
+    show \<open>L\<^sub>0 \<in> DTIME(t)\<close> by fact
   qed
-
-  then have "L\<^sub>D \<in> DTIME(t)" sorry
-  \<comment> \<open>This is not correct, since \<^term>\<open>t\<close> could be arbitrarily small.
-    Let \<open>t(n) = n\<close> and \<open>T(n) = n\<^sup>3\<close>. Then \<open>DTIME(t)\<close> is limited by \<open>tcomp t n = n + 1\<close>
-    and \<open>DTIME(T)\<close> by \<open>tcomp t n = n\<^sup>3\<close> (for \<open>n > 1\<close>).\<close>
 
   moreover from time_hierarchy have "L\<^sub>D \<notin> DTIME(t)" ..
   ultimately show False by contradiction

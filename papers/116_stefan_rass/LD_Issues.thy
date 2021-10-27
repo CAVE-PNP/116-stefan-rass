@@ -141,6 +141,11 @@ lemma L\<^sub>D''_L\<^sub>0''_adj_sq_iff:
 
 subsection\<open>\<open>L\<^sub>D'' \<notin> DTIME(t)\<close> via Reduction to \<open>L\<^sub>D\<close>\<close>
 
+text\<open>Reduce \<open>L\<^sub>D''\<close> to \<open>L\<^sub>D\<close>:
+    Given a word \<open>w\<close>, construct its counterpart \<open>w' := 1\<^sup>l0x0\<^sup>l\<^sup>+\<^sup>9\<close>, where \<open>l = length w\<close>.
+    Decoding \<open>w'\<close> then yields \<open>(l, w)\<close> which results in the intermediate value \<open>v\<close>
+    being equal to \<open>w\<close> in the definition of \<^const>\<open>L\<^sub>D''\<close>.\<close>
+
 definition reduce_LD_LD'' :: "word \<Rightarrow> word"
   where "reduce_LD_LD'' w \<equiv> encode_pair (length w) w"
 
@@ -169,28 +174,10 @@ context tht_sq_assms begin
 lemma L\<^sub>D''_t: "L\<^sub>D'' \<notin> DTIME(t)"
 proof (rule ccontr, unfold not_not)
   assume "L\<^sub>D'' \<in> DTIME(t)"
-  then obtain M'' where "decides M'' L\<^sub>D''" and "time_bounded t M''" (* and "tm_wf0 M'" *) ..
 
-  \<comment> \<open>Assume that \<^const>\<open>reduce_LD_LD''\<close> can be realized by a TM in time \<open>O(n)\<close>.\<close>
-  define T\<^sub>R where "T\<^sub>R \<equiv> \<lambda>n::nat. n"
-  obtain M\<^sub>R where "tm_wf0 M\<^sub>R"
-    and M\<^sub>R_correct: "\<And>w. {input w} M\<^sub>R {input (reduce_LD_LD'' w)}"
-    and "time_bounded T\<^sub>R M\<^sub>R"
-    sorry
-
-  define M where "M \<equiv> M\<^sub>R |+| M''"
-  define t' where "t' = (\<lambda>n. tcomp T\<^sub>R n + tcomp t n)"
-
-  have "L\<^sub>D \<in> DTIME(t')"
-  proof (intro in_dtimeI allI)
-    fix w :: word
-
-    from \<open>decides M'' L\<^sub>D''\<close> have "decides_word M'' L\<^sub>D'' (reduce_LD_LD'' w)" ..
-    moreover have "reduce_LD_LD'' w \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> L\<^sub>D" by (rule reduce_LD_LD''_correct)
-    ultimately show "decides_word M L\<^sub>D w" unfolding M_def
-      using M\<^sub>R_correct[of w] \<open>tm_wf0 M\<^sub>R\<close> by (rule reduce_decides)
-
-    \<comment> \<open>This second part (M is \<open>t'\<close>-time-bounded) is considerably harder to show
+  have "L\<^sub>D \<in> DTIME(t)"
+  proof (rule reduce_DTIME)
+    \<comment> \<open>This part is considerably harder to show
       than for @{thm tht_sq_assms.L0_t}.
       Since the length of \<^term>\<open>reduce_LD_LD'' w\<close> is always greater than the length of \<^term>\<open>w\<close>
       (@{thm reduce_LD_LD''_len}),
@@ -200,52 +187,57 @@ proof (rule ccontr, unfold not_not)
       \<open>t'(n) := T\<^sub>R(n) + t(4n + 11)\<close>.
       The speed-up theorem does not help here, since for super-polynomial \<open>t\<close>,
       \<open>t(4n + 11)\<close> is not proportional to \<open>t(n)\<close>.\<close>
+    show "almost_everywhere (\<lambda>w. (reduce_LD_LD'' w \<in> L\<^sub>D'') = (w \<in> L\<^sub>D) \<and> length (reduce_LD_LD'' w) \<le> length w)"
+      sorry
+    
+    show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" sorry
+    \<comment> \<open>With the current assumptions, \<open>t\<close> is not necessarily super-linear.
+      A similar problem exists in the proof of @{thm L0_t} (and `L0''_t`, see below),
+      that requires \<open>t\<close> to be at least cubic.\<close>
 
-    from \<open>time_bounded t M''\<close> have "time_bounded_word t M'' (reduce_LD_LD'' w)" ..
-    moreover from \<open>time_bounded T\<^sub>R M\<^sub>R\<close> have "time_bounded_word T\<^sub>R M\<^sub>R w" ..
-    ultimately show "time_bounded_word t' M w" unfolding M_def t'_def
-      using M\<^sub>R_correct reduce_LD_LD''_len sorry
+    show "computable_in_time t reduce_LD_LD''" sorry
+    \<comment> \<open>Assume that \<^const>\<open>reduce_LD_LD''\<close> can be computed by a TM in time \<open>O(n)\<close>.\<close>
+
+    show \<open>L\<^sub>D'' \<in> DTIME(t)\<close> by fact
   qed
-
-  have t'_t: "real (t' n) \<le> 4 * real (t n)" if "n \<ge> 1" for n
-  proof -
-    have "tcomp T\<^sub>R n = n + 1" unfolding T\<^sub>R_def max_def ceiling_of_nat by simp
-    then have "tcomp T\<^sub>R n + tcomp t n = (n + 1) + tcomp t n" by simp
-    also have "... \<le> 2 * tcomp t n" unfolding mult_2 add_le_cancel_right by simp
-    finally have "t' n \<le> 2 * tcomp t n" unfolding t'_def of_nat_le_iff .
-
-    also have "... \<le> 2 * (2 * t n)"
-    proof (intro mult_le_mono2)
-      have "tcomp t n \<le> tcomp (\<lambda>n. 2 * t n) n"
-        unfolding ceiling_of_nat nat_int by (intro max.mono) auto
-      also have "... = 2 * t n"
-      proof -
-        have "n + 1 \<le> 2 * n" using \<open>n \<ge> 1\<close> by simp
-        also have "... \<le> 2 * t n" using t_min by simp
-        finally have "n + 1 \<le> 2 * t n" .
-        then show ?thesis unfolding ceiling_of_nat nat_int by (fact max_absorb2)
-      qed
-      finally show "tcomp t n \<le> 2 * t n" .
-    qed
-    finally have "t' n \<le> 4 * t n" by simp
-    then have "real (t' n) \<le> real (4 * t n)" by (fact of_nat_mono)
-    also have "... = 4 * real (t n)" by simp
-    finally show ?thesis .
-  qed
-  then have "L\<^sub>D \<in> DTIME(\<lambda>n. 4 * real (t n))" using \<open>L\<^sub>D \<in> DTIME(t')\<close> by (rule DTIME_mono_ae)
-
-  \<comment> \<open>With the current assumptions, \<open>t\<close> is not necessarily super-linear.
-    A similar requirement exists in the proof of @{thm L0_t} (and `L0''_t`, see below),
-    that requires \<open>t\<close> to be at least cubic.\<close>
-  moreover have "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. N \<le> real (t n) / real n" sorry
-  ultimately have "L\<^sub>D \<in> DTIME(t)" by (intro DTIME_speed_up_rev[of 4 t]) auto
 
   moreover from time_hierarchy have "L\<^sub>D \<notin> DTIME(t)" ..
   ultimately show False by contradiction
 qed
 
+
+subsection\<open>\<open>L\<^sub>D'' \<in> DTIME(T)\<close> via Reduction from \<open>L\<^sub>D\<close>\<close>
+
 lemma L\<^sub>D''_T: "L\<^sub>D'' \<in> DTIME(T)"
-  sorry (* TODO *)
+proof (rule reduce_DTIME)
+  from time_hierarchy show "L\<^sub>D \<in> DTIME(T)" ..
+
+  define f\<^sub>R where "f\<^sub>R \<equiv> \<lambda>w. let (l, x) = decode_pair w in drop (length x - l) x"
+
+  \<comment> \<open>This is very likely incorrect, as \<open>v\<close> and \<open>x\<close> are not necessarily equal.
+    The different time-bound could lead to differences in membership;
+    False positives when increased time-bounds allow \<open>M\<^sub>v\<close> compute additional steps and reject \<open>v\<close>,
+    or false negatives when shorter time-bounds do not afford \<open>M\<^sub>v\<close> enough time.\<close>
+  have "f\<^sub>R w \<in> L\<^sub>D \<longleftrightarrow> w \<in> L\<^sub>D''" for w
+  proof -
+    have "f\<^sub>R w \<in> L\<^sub>D \<longleftrightarrow> (let (l, x) = decode_pair w; v = drop (length x - l) x; M\<^sub>v = TM_decode_pad v
+           in rejects M\<^sub>v v \<and> time_bounded_word T M\<^sub>v v)"
+      unfolding LD_def mem_Collect_eq unfolding f\<^sub>R_def Let_def prod.case ..
+    also have "... \<longleftrightarrow> (let (l, x) = decode_pair w; v = drop (length x - l) x; M\<^sub>v = TM_decode_pad v
+           in rejects M\<^sub>v v \<and> is_final (steps0 (1, <v>\<^sub>t\<^sub>p) M\<^sub>v (tcomp\<^sub>w T v)))"
+      unfolding time_bounded_altdef ..
+    also have "... \<longleftrightarrow> (let (l, x) = decode_pair w; v = drop (length x - l) x; M\<^sub>v = TM_decode_pad v
+           in rejects M\<^sub>v v \<and> is_final (steps0 (1, <v>\<^sub>t\<^sub>p) M\<^sub>v (tcomp\<^sub>w T x)))" sorry (* nope *)
+    also have "... \<longleftrightarrow> w \<in> L\<^sub>D''"
+      unfolding L\<^sub>D''_def mem_Collect_eq time_bounded_def ..
+    finally show ?thesis .
+  qed
+  show "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>D) = (w \<in> L\<^sub>D'') \<and> length (f\<^sub>R w) \<le> length w)" sorry
+
+  show "computable_in_time T f\<^sub>R" sorry
+
+  show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> T m / m" sorry (* not correct with current assumptions *)
+qed
 
 
 text\<open>Lemma 4.6. Let \<open>t\<close>, \<open>T\<close> be as in Assumption 4.4 and assume \<open>T(n) \<ge> n\<^sup>3\<close>.
@@ -254,47 +246,26 @@ text\<open>Lemma 4.6. Let \<open>t\<close>, \<open>T\<close> be as in Assumption
 lemma L0''_t: "L\<^sub>0'' \<notin> DTIME(t)"
 proof (rule ccontr, unfold not_not)
   assume "L\<^sub>0'' \<in> DTIME(t)"
-  then obtain M\<^sub>0 where "decides M\<^sub>0 L\<^sub>0''" and "time_bounded t M\<^sub>0" ..
+  
+  have "L\<^sub>D'' \<in> DTIME(t)"
+  proof (rule reduce_DTIME)
+    show "almost_everywhere (\<lambda>w. (adj_sq\<^sub>w w \<in> L\<^sub>0'') = (w \<in> L\<^sub>D'') \<and> length (adj_sq\<^sub>w w) \<le> length w)"
+    proof (intro ae_word_lengthI exI allI impI conjI)
+      fix w :: word assume len: "length w \<ge> 9"
+      from len show "adj_sq\<^sub>w w \<in> L\<^sub>0'' \<longleftrightarrow> w \<in> L\<^sub>D''" by (fact L\<^sub>D''_L\<^sub>0''_adj_sq_iff)
+      from len show "length (adj_sq\<^sub>w w) \<le> length w"
+        by (intro eq_imp_le sh_msbD) (fact adj_sq_sh_pfx_half)
+    qed
 
-  \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be realized by a TM in time \<open>n\<^sup>3\<close>.\<close>
-  define T\<^sub>R where "T\<^sub>R \<equiv> \<lambda>n::nat. n^3"
-  obtain M\<^sub>R where "tm_wf0 M\<^sub>R"
-    and M\<^sub>R_correct: "\<And>w. {input w} M\<^sub>R {input (adj_sq\<^sub>w w)}"
-    and "time_bounded T\<^sub>R M\<^sub>R"
-    unfolding T\<^sub>R_def using T_lower_bound
-    sorry
+    \<comment> \<open>Not correct, \<^term>\<open>t\<close> could be arbitrarily small.\<close>
+    show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" sorry
 
-  define M where "M \<equiv> M\<^sub>R |+| M\<^sub>0"
-  define t' where "t' = (\<lambda>n. real (tcomp T\<^sub>R n + tcomp t n))"
+    \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<^term>\<open>t\<close>.
+      Assuming the computation of \<^const>\<open>adj_sq\<^sub>w\<close> requires \<open>n^3\<close> steps, this is not correct.\<close>
+    show "computable_in_time t adj_sq\<^sub>w" sorry
 
-  have "L\<^sub>D'' \<in> DTIME(t')"
-  proof (intro DTIME_ae ae_word_lengthI exI conjI)
-    fix w :: word
-    assume len: "length w \<ge> 9"
-
-    from \<open>decides M\<^sub>0 L\<^sub>0''\<close> have "decides_word M\<^sub>0 L\<^sub>0'' (adj_sq\<^sub>w w)" ..
-    moreover from len have "adj_sq\<^sub>w w \<in> L\<^sub>0'' \<longleftrightarrow> w \<in> L\<^sub>D''" by (rule L\<^sub>D''_L\<^sub>0''_adj_sq_iff)
-    ultimately show "decides_word M L\<^sub>D'' w" unfolding M_def
-      using M\<^sub>R_correct \<open>tm_wf0 M\<^sub>R\<close> by (rule reduce_decides)
-
-    from \<open>time_bounded t M\<^sub>0\<close> have "time_bounded_word t M\<^sub>0 (adj_sq\<^sub>w w)" ..
-    moreover from \<open>time_bounded T\<^sub>R M\<^sub>R\<close> have "time_bounded_word T\<^sub>R M\<^sub>R w" ..
-    moreover from len have "length (adj_sq\<^sub>w w) \<le> length w"
-      by (intro eq_imp_le sh_msbD) (rule adj_sq_sh_pfx_half)
-    ultimately show "time_bounded_word t' M w" unfolding M_def t'_def
-      using M\<^sub>R_correct by (intro reduce_time_bounded)
+    show \<open>L\<^sub>0'' \<in> DTIME(t)\<close> by fact
   qed
-
-  then have "L\<^sub>D'' \<in> DTIME(t)" sorry
-  \<comment> \<open>This is not correct, since \<^term>\<open>t\<close> could be arbitrarily small.
-    Let \<open>t(n) = n\<close> and \<open>T(n) = n\<^sup>3\<close>. Then \<open>DTIME(t)\<close> is limited by \<open>tcomp t n = n + 1\<close>
-    and \<open>DTIME(T)\<close> by \<open>tcomp t n = n\<^sup>3\<close> (for \<open>n > 1\<close>).
-
-    For speed-up to help in this case, \<^term>\<open>t\<close> must grow at least as fast as \<^term>\<open>T\<^sub>R\<close>.
-    (also, \<^term>\<open>t\<close> must be super-linear. See @{thm linear_time_speed_up}})
-    \<^term>\<open>T\<^sub>R\<close> is assumed to be \<open>n\<^sup>3\<close>, which allows a naive algorithm for \<^const>\<open>adj_square\<close>.
-    According to Wikipedia, the currently optimal algorithm for computing the square root on a TM
-    seems to be Newton's method with Harvey-Hoeven multiplication with complexity \<open>O(n log(n))\<close>.\<close>
 
   moreover have "L\<^sub>D'' \<notin> DTIME(t)" by (fact L\<^sub>D''_t)
   ultimately show False by contradiction

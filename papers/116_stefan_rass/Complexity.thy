@@ -284,7 +284,7 @@ lemma tape_size_mono: "n \<le> m \<Longrightarrow> space0 M x n \<le> space0 M x
 subsection\<open>Deciding Languages\<close>
 
 \<comment> \<open>Since \<open>L\<close> is a typical name for unspecified languages in the literature,
-    the synonymous constructor \<^term>\<open>L\<close> of type \<^typ>\<open>action\<close> ("move head left") is hidden.\<close>
+    the synonymous constructor \<^term>\<open>Turing.action.L\<close> ("move head left") is hidden.\<close>
 hide_const (open) L
 
 text\<open>A TM \<open>M\<close> is considered to halt on a word \<open>w\<close>, iff it reaches a final state upon input of \<open>w\<close>.
@@ -759,6 +759,27 @@ lemma repair_TM_Hoare[simp]: "Hoare_halt P (repair_TM M) = Hoare_halt P M"
   unfolding Hoare_halt_def repair_TM_still_works ..
 
 
+subsection\<open>Computation of Functions\<close>
+
+definition computes_word :: "TM \<Rightarrow> (word \<Rightarrow> word) \<Rightarrow> word \<Rightarrow> bool"
+  where computes_def[simp]: "computes_word M f w \<equiv> Hoare_halt (input w) M (input (f w))"
+
+abbreviation computes :: "TM \<Rightarrow> (word \<Rightarrow> word) \<Rightarrow> bool"
+  where "computes M f \<equiv> \<forall>w. computes_word M f w"
+
+definition computable_in_time :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> (word \<Rightarrow> word) \<Rightarrow> bool"
+  where "computable_in_time T f \<equiv> \<exists>M. computes M f \<and> time_bounded T M"
+
+lemma computableE[elim]:
+  assumes "computable_in_time T f"
+  obtains M where "computes M f" and "time_bounded T M" and "tm_wf0 M"
+proof -
+  from assms obtain M where "computes M f" and "time_bounded T M"
+    unfolding computable_in_time_def by blast
+  then show ?thesis by (intro that[of "repair_TM M"]) auto
+qed
+
+
 subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
@@ -857,7 +878,7 @@ qed
 
 lemma ae_word_lengthI[intro]:
   fixes P :: "word \<Rightarrow> bool"
-  assumes "\<And>w. length w \<ge> n \<Longrightarrow> P w"
+  assumes "\<exists>n. \<forall>w. length w \<ge> n \<longrightarrow> P w"
   shows "almost_everywhere P"
   unfolding ae_word_length_iff using assms by blast
 
@@ -866,6 +887,17 @@ lemma ae_word_lengthE[elim]:
   assumes "almost_everywhere P"
   obtains n where "\<And>w. length w \<ge> n \<Longrightarrow> P w"
   using assms unfolding ae_word_length_iff by blast
+
+
+lemma ae_mono:
+  assumes "\<And>x. P x \<Longrightarrow> Q x"
+    and "almost_everywhere P"
+  shows "almost_everywhere Q" (is "?ae Q")
+proof -
+  from \<open>\<And>x. P x \<Longrightarrow> Q x\<close> have "{x. \<not> Q x} \<subseteq> {x. \<not> P x}" by blast
+  moreover from \<open>?ae P\<close> have "finite {x. \<not> P x}" by simp
+  ultimately show "?ae Q" unfolding ae_def by (fact finite_subset)
+qed
 
 
 lemma ae_conj_iff: "almost_everywhere (\<lambda>x. P x \<and> Q x) \<longleftrightarrow> almost_everywhere P \<and> almost_everywhere Q"
@@ -892,18 +924,24 @@ text\<open>"Lemma 12.3  If \<open>L\<close> is accepted by a TM \<open>M\<close>
 
 
 lemma DTIME_ae:
-  assumes "\<exists>M. almost_everywhere (decides_word M L) \<and> almost_everywhere (time_bounded_word T M)"
+  assumes "\<exists>M. almost_everywhere (\<lambda>w. decides_word M L w \<and> time_bounded_word T M w)"
   shows "L \<in> DTIME(T)"
 proof (unfold DTIME_def mem_Collect_eq)
   from assms obtain M'
-    where "almost_everywhere (\<lambda>w. decides_word M' L w \<and> time_bounded_word T M' w)"
-    unfolding ae_conj_iff ..
+    where "almost_everywhere (\<lambda>w. decides_word M' L w \<and> time_bounded_word T M' w)" ..
   then obtain n
     where "decides_word M' L w" and "time_bounded_word T M' w"
     if "length w \<ge> n" for w by blast
 
   show "\<exists>M. decides M L \<and> time_bounded T M" sorry
 qed
+
+lemma DTIME_aeI:
+  assumes "\<And>w. length w \<ge> n \<Longrightarrow> decides_word M L w"
+    and "\<And>w. length w \<ge> n \<Longrightarrow> time_bounded_word T M w"
+  shows "L \<in> DTIME(T)"
+  using assms by (intro DTIME_ae) blast
+
 
 lemma DTIME_mono_ae':
   assumes Tt: "\<And>n. n \<ge> N \<Longrightarrow> tcomp T n \<ge> tcomp t n"
@@ -923,7 +961,7 @@ proof -
     moreover from \<open>time_bounded t M\<close> have "time_bounded_word t M w" ..
     ultimately show "time_bounded_word T M w" by (fact time_bounded_word_mono')
   qed
-  ultimately show ?thesis by (intro DTIME_ae) blast
+  ultimately show ?thesis by (intro DTIME_ae exI ae_conjI)
 qed
 
 lemma DTIME_mono_ae:
@@ -954,6 +992,29 @@ lemma linear_time_speed_up:
   obtains M\<^sub>2 where "decides M\<^sub>2 L" and "time_bounded (\<lambda>n. c * T n) M\<^sub>2"
   sorry
 
+
+lemma dominatesE:
+  fixes T :: "nat \<Rightarrow> real" and c :: real
+  assumes "\<forall>N. \<exists>n. \<forall>m\<ge>n. T(m)/m \<ge> N"
+  obtains n where "\<And>m. m \<ge> n \<Longrightarrow> T(m) \<ge> c*m"
+proof -
+  from assms obtain N where N: "T(n)/n \<ge> c" if "n \<ge> N" for n by blast
+
+  then have "T(n) \<ge> c*n" if "n \<ge> Suc N" (is "n \<ge> ?n") for n 
+  proof -
+    from \<open>n \<ge> Suc N\<close> have "n \<ge> N" by (fact Suc_leD)
+    with N have "T(n)/n \<ge> c" .
+    moreover from \<open>n \<ge> Suc N\<close> have "real n > 0" by simp
+    ultimately show "T(n) \<ge> c*n" by (subst (asm) pos_le_divide_eq)
+  qed
+  then show ?thesis by (rule that)
+qed
+
+lemma dominatesE':
+  fixes T :: "nat \<Rightarrow> real" and c :: real
+  assumes "\<forall>N. \<exists>n. \<forall>m\<ge>n. T(m)/m \<ge> N"
+  shows "\<exists>n. \<forall>m\<ge>n. T(m) \<ge> c*m"
+  using assms by (elim dominatesE) blast
 
 corollary DTIME_speed_up:
   assumes "c > 0"
@@ -1019,23 +1080,22 @@ lemma reduce_decides:
   fixes A B :: lang and M\<^sub>R M\<^sub>B :: TM and f\<^sub>R :: "word \<Rightarrow> word" and w :: word
   assumes "decides_word M\<^sub>B B (f\<^sub>R w)"
     and f\<^sub>R: "f\<^sub>R w \<in> B \<longleftrightarrow> w \<in> A"
-    and M\<^sub>R_f\<^sub>R: "{input w} M\<^sub>R {input (f\<^sub>R w)}"
+    and M\<^sub>R_f\<^sub>R: "computes_word M\<^sub>R f\<^sub>R w"
     and "tm_wf0 M\<^sub>R"
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
   shows "decides_word M A w"
-  using assms(1,3-4) unfolding decides_altdef3 f\<^sub>R M_def by (intro Hoare_plus_halt)
+  using assms(1,3-4) unfolding computes_def decides_altdef3 f\<^sub>R M_def by (intro Hoare_plus_halt)
 
 
 lemma reduce_time_bounded:
   fixes T\<^sub>B T\<^sub>R :: "nat \<Rightarrow> 'a :: floor_ceiling" and M\<^sub>R M\<^sub>B :: TM and f\<^sub>R :: "word \<Rightarrow> word" and w :: word
   assumes "time_bounded_word T\<^sub>B M\<^sub>B (f\<^sub>R w)"
     and "time_bounded_word T\<^sub>R M\<^sub>R w"
-    and M\<^sub>R_f\<^sub>R: "Hoare_halt (input w) M\<^sub>R (input (f\<^sub>R w))"
+    and M\<^sub>R_f\<^sub>R: "computes_word M\<^sub>R f\<^sub>R w"
     and f\<^sub>R_len: "length (f\<^sub>R w) \<le> length w"
     (* and "tm_wf0 M\<^sub>R" *)
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
-  defines "(T :: nat \<Rightarrow> 'a) \<equiv> \<lambda>n. of_nat (tcomp T\<^sub>R n + tcomp T\<^sub>B n)"
-  shows "time_bounded_word T M w"
+  shows "time_bounded_word (\<lambda>n. tcomp T\<^sub>R n + tcomp T\<^sub>B n) M w" (is "time_bounded_word ?T M w")
 proof -
   define l where "l \<equiv> tape_size <w>\<^sub>t\<^sub>p"
 
@@ -1045,19 +1105,104 @@ proof -
     (@{thm tape_size_input}}).
 
     We also know that its execution will result in the encoded corresponding input word \<open>f\<^sub>R w\<close>
-    (@{thm \<open>{input w} M\<^sub>R {input (f\<^sub>R w)}\<close>}).
+    (@{thm \<open>computes_word M\<^sub>R f\<^sub>R w\<close>}).
     Since the length of the corresponding input word is no longer
     than the length of the original input word \<^term>\<open>w\<close> (@{thm \<open>length (f\<^sub>R w) \<le> length w\<close>}),
     and the second machine \<^term>\<open>M\<^sub>B\<close> is time bounded (@{thm \<open>time_bounded_word T\<^sub>B M\<^sub>B (f\<^sub>R w)\<close>}),
     we may conclude that the run-time of \<^term>\<open>M \<equiv> M\<^sub>R |+| M\<^sub>B\<close> on the input \<^term>\<open><w>\<^sub>t\<^sub>p\<close>
-    is no longer than \<^term>\<open>T l \<equiv> T\<^sub>R l + T\<^sub>B l\<close>.
+    is no longer than \<open>?T l = T\<^sub>R l + T\<^sub>B l\<close>.
 
     \<^const>\<open>time_bounded\<close> is defined in terms of \<^const>\<open>tcomp\<close>, however,
-    which means that the resulting total run time \<^term>\<open>T l\<close> may be as large as
+    which means that the resulting total run time \<^term>\<open>?T l\<close> may be as large as
     \<^term>\<open>tcomp T\<^sub>R l + tcomp T\<^sub>B l \<equiv> nat (max (l + 1) \<lceil>T\<^sub>R l\<rceil>) + nat (max (l + 1) \<lceil>T\<^sub>B l\<rceil>)\<close>.
-    If \<^term>\<open>\<lceil>T\<^sub>R l\<rceil> < l + 1\<close> or \<^term>\<open>\<lceil>T\<^sub>B l\<rceil> < l + 1\<close> then \<^term>\<open>tcomp T l < tcomp T\<^sub>R l + tcomp T\<^sub>B l\<close>.\<close>
+    If \<^term>\<open>\<lceil>T\<^sub>R l\<rceil> < l + 1\<close> or \<^term>\<open>\<lceil>T\<^sub>B l\<rceil> < l + 1\<close> then \<^term>\<open>tcomp ?T l < tcomp T\<^sub>R l + tcomp T\<^sub>B l\<close>.\<close>
 
   show ?thesis sorry
+qed
+
+
+lemma exists_ge:
+  fixes P :: "'a :: linorder \<Rightarrow> bool"
+  assumes "\<exists>n. \<forall>m\<ge>n. P m"
+  shows "\<exists>n. \<forall>m\<ge>n. P m \<and> m \<ge> N"
+proof -
+  from assms obtain n where n': "P m" if "m \<ge> n" for m by blast
+  then have "m \<ge> max n N \<Longrightarrow> P m \<and> m \<ge> N" for m by simp
+  then show ?thesis by blast
+qed
+
+lemma exists_ge_eq: 
+  fixes P :: "nat \<Rightarrow> bool"
+  shows "(\<exists>n. \<forall>m\<ge>n. P m) \<longleftrightarrow> (\<exists>n. \<forall>m\<ge>n. P m \<and> m \<ge> N)"
+  by (intro iffI) (fact exists_ge, blast)
+
+lemma reduce_DTIME: (* TODO clean up and tidy assumptions *)
+  assumes f\<^sub>R_ae: "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> length w))"
+    and "computable_in_time T f\<^sub>R"
+    and T_superlinear:"\<forall>N. \<exists>n. \<forall>m\<ge>n. T(m)/m \<ge> N"
+    and "L\<^sub>1 \<in> DTIME(T)"
+  shows "L\<^sub>2 \<in> DTIME(T)"
+proof -
+  from \<open>computable_in_time T f\<^sub>R\<close> obtain M\<^sub>R where "computes M\<^sub>R f\<^sub>R" "time_bounded T M\<^sub>R" "tm_wf0 M\<^sub>R" ..
+  from \<open>L\<^sub>1 \<in> DTIME(T)\<close> obtain M\<^sub>1 where "decides M\<^sub>1 L\<^sub>1" and "time_bounded T M\<^sub>1" ..
+  define M where "M \<equiv> M\<^sub>R |+| M\<^sub>1"
+
+  let ?T' = "\<lambda>n. tcomp T n + tcomp T n"
+
+  from f\<^sub>R_ae obtain n
+    where f\<^sub>R_correct: "f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2"
+      and f\<^sub>R_len: "length (f\<^sub>R w) \<le> length w"
+    if "length w \<ge> n" for w by blast
+
+  \<comment> \<open>Prove \<^term>\<open>M\<close> to be \<^term>\<open>T\<close>-time-bounded.
+    Part 1: show a time-bound for \<^term>\<open>M\<close>.\<close>
+  have "L\<^sub>2 \<in> DTIME(?T')"
+  proof (rule DTIME_aeI)
+    fix w :: word
+    assume min_len: "length w \<ge> n"
+
+    show "decides_word M L\<^sub>2 w" unfolding M_def using \<open>tm_wf0 M\<^sub>R\<close>
+    proof (intro reduce_decides)
+      from \<open>decides M\<^sub>1 L\<^sub>1\<close> show "decides_word M\<^sub>1 L\<^sub>1 (f\<^sub>R w)" ..
+      from f\<^sub>R_correct and min_len show "f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2" .
+      from \<open>computes M\<^sub>R f\<^sub>R\<close> show "computes_word M\<^sub>R f\<^sub>R w" ..
+    qed
+
+    show "time_bounded_word ?T' M w" unfolding M_def
+    proof (intro reduce_time_bounded)
+      from \<open>time_bounded T M\<^sub>1\<close> show "time_bounded_word T M\<^sub>1 (f\<^sub>R w)" ..
+      from \<open>time_bounded T M\<^sub>R\<close> show "time_bounded_word T M\<^sub>R w" ..
+      from \<open>computes M\<^sub>R f\<^sub>R\<close> show "computes_word M\<^sub>R f\<^sub>R w" ..
+      from f\<^sub>R_len and min_len show "length (f\<^sub>R w) \<le> length w" .
+    qed
+  qed
+
+  (* TODO (?) split proof here *)
+
+  \<comment> \<open>Part 2: bound the run-time of M (\<^term>\<open>?T'\<close>) by a multiple of the desired time-bound \<^term>\<open>T\<close>.\<close>
+  from T_superlinear have "\<exists>n. \<forall>m\<ge>n. T m \<ge> 2 * m \<and> m \<ge> 1"
+    unfolding of_nat_mult by (intro exists_ge) (fact dominatesE')
+  then obtain m where m: "T n \<ge> 2*n" "n \<ge> 1" if "n \<ge> m" for n by blast
+
+  have "?T' n \<le> 4 * T n" if "n \<ge> m" for n
+  proof -
+    from \<open>n \<ge> m\<close> have "n \<ge> 1" and "T n \<ge> 2*n" by (fact m)+
+    then have "n + 1 \<le> 2 * n" by simp
+    also have "2 * n = nat \<lceil>2 * n\<rceil>" unfolding ceiling_of_nat nat_int ..
+    also from \<open>T n \<ge> 2*n\<close> have "nat \<lceil>2 * n\<rceil> \<le> nat \<lceil>T n\<rceil>" by (intro nat_mono ceiling_mono)
+    finally have *: "tcomp T n = nat \<lceil>T n\<rceil>" unfolding max_def by (subst if_P) auto
+
+    from \<open>T n \<ge> 2*n\<close> \<open>n \<ge> 1\<close> have "T n \<ge> 1" by simp
+    have "nat \<lceil>T n\<rceil> = real_of_int \<lceil>T n\<rceil>" using \<open>T n \<ge> 1\<close> by (intro of_nat_nat) simp
+    also have "\<lceil>T n\<rceil> \<le> T n + 1" by (fact of_int_ceiling_le_add_one)
+    also have "... \<le> 2 * T n" unfolding mult_2 using \<open>T n \<ge> 1\<close> by (fact add_left_mono)
+    finally have "?T' n \<le> 2 * (2 * T n)" unfolding * of_nat_add mult_2 by (intro add_mono)
+    also have "... = 4 * T n" by simp
+    finally show ?thesis .
+  qed
+
+  from this and \<open>L\<^sub>2 \<in> DTIME(?T')\<close> have "L\<^sub>2 \<in> DTIME(\<lambda>n. 4 * T n)" by (fact DTIME_mono_ae)
+  with T_superlinear show "L\<^sub>2 \<in> DTIME(T)" by (intro DTIME_speed_up_rev[where T=T]) auto
 qed
 
 
