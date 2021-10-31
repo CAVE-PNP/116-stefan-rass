@@ -20,6 +20,11 @@ lemma map2_id:
   using assms(1-2) apply blast+
   unfolding assms(3) list.map_id0 id_apply ..
 
+lemma nth_map2:
+  assumes "i < length xs" and "i < length ys"
+  shows "map2 f xs ys ! i = f (xs ! i) (ys ! i)"
+  using assms by (subst nth_map) auto
+
 lemma len_tl_Cons: "xs \<noteq> [] \<Longrightarrow> length (x # tl xs) = length xs"
   by simp
 
