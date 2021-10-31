@@ -2,8 +2,6 @@ theory Complexity
   imports TM Goedel_Numbering
 begin
 
-type_synonym 'b lang = "'b list set"
-
 subsubsection\<open>Time\<close>
 
 text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>,
@@ -28,27 +26,28 @@ abbreviation (input) tcomp :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightar
 abbreviation (input) tcomp\<^sub>w :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> 'b list \<Rightarrow> nat"
   where "tcomp\<^sub>w T w \<equiv> tcomp T (tp_size <w>\<^sub>t\<^sub>p)"
 
-definition (in wf_TM) time_bounded_word :: "(nat \<Rightarrow> 'c::floor_ceiling) \<Rightarrow> 'b list \<Rightarrow> bool"
+lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def
+  by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono) rule
+
+context wf_TM begin
+definition time_bounded_word :: "(nat \<Rightarrow> 'c::floor_ceiling) \<Rightarrow> 'b list \<Rightarrow> bool"
   where time_bounded_def[simp]: "time_bounded_word T w \<equiv> \<exists>n.
             n \<le> tcomp\<^sub>w T w \<and> is_final (run n w)"
 
-abbreviation (in wf_TM) time_bounded :: "(nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> bool"
+abbreviation time_bounded :: "(nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> bool"
   where "time_bounded T \<equiv> \<forall>w. time_bounded_word T w"
 
 (* TODO (?) notation: \<open>p terminates_in_time T\<close> *)
 
-lemma (in wf_TM) time_bounded_altdef:
+lemma time_bounded_altdef:
   "time_bounded_word T w \<longleftrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
   sorry
 
-lemma (in wf_TM) time_boundedE:
+lemma time_boundedE:
   "time_bounded T \<Longrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
   unfolding time_bounded_altdef by blast
 
-lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def
-  by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono) rule
-
-lemma (in wf_TM) time_bounded_mono:
+lemma time_bounded_mono:
   fixes T t
   assumes Tt: "\<And>n. T n \<ge> t n"
     and tr: "time_bounded t"
@@ -68,15 +67,74 @@ qed
 text\<open>\<open>time\<^sub>M(w)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>w\<close>,
   or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>w\<close>.\<close>
 
-definition (in wf_TM) time :: "'b list \<Rightarrow> nat option"
+definition time :: "'b list \<Rightarrow> nat option"
   where "time w \<equiv> (
     if \<exists>n. is_final (run n w)
       then Some (LEAST n. is_final (run n w))
       else None
     )"
 
-lemma (in wf_TM) time_Some_D: "time w = Some n \<Longrightarrow> \<exists>n. is_final (run n w)"
+lemma time_Some_D: "time w = Some n \<Longrightarrow> \<exists>n. is_final (run n w)"
   by (metis option.discI time_def)
+
+lemma halts_time: "halts w \<Longrightarrow> \<exists>n. time w = Some n"
+  unfolding halts_def hoare_halt_def time_def start_config_def
+  using wf_config_run wf_start_config by fastforce
+
+lemma time_halts: "wf_word w \<Longrightarrow> time w = Some n \<Longrightarrow> halts w"
+  by (meson halts_I wf_TM.time_Some_D wf_TM_axioms)
+
+lemma halts_altdef: "halts w \<longleftrightarrow> wf_word w \<and> (\<exists>n. time w = Some n)"
+  using halts_time time_halts wf_TM.halts_def wf_TM_axioms by blast
+
+end
+
+locale Rejecting_TM begin
+definition "Rejecting_TM \<equiv> \<lparr>
+  tape_count = 1,
+  states = {1}::nat set,
+  start_state = 1,
+  final_states = {1},
+  accepting_states = {},
+  symbols = UNIV,
+  next_state = \<lambda>q w. 1,
+  next_action = \<lambda>q w. [Nop]
+\<rparr> :: (nat, 'b::{blank, finite}) TM"
+interpretation wf_TM Rejecting_TM
+  unfolding Rejecting_TM_def
+  by unfold_locales simp_all
+
+lemma rej_TM:
+  fixes w :: "'a::{finite, blank} list"
+  shows "rejects w"
+  unfolding rejects_def
+proof
+  show "wf_word w" unfolding Rejecting_TM_def by simp
+next
+  show "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states Rejecting_TM)"
+  proof
+    fix c0::"(nat, 'a) TM_config"
+    assume "init w c0"
+    then have "state c0 = start_state (Rejecting_TM::(nat, 'a) TM)"
+      by (fact init_state_start_state)
+    then have "is_final ((step^^0) c0)"
+      unfolding Rejecting_TM_def by simp
+    moreover have "accepting_states Rejecting_TM = {}"
+      unfolding Rejecting_TM_def by simp
+    ultimately show "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<notin> accepting_states Rejecting_TM"
+      using empty_iff by metis
+  qed
+qed
+
+lemma rej_TM_time: "time w = Some 0"
+proof -
+  have "is_final (run 0 w)"
+    unfolding start_config_def unfolding Rejecting_TM_def by simp
+  thus ?thesis unfolding time_def
+    using Least_eq_0 by presburger
+qed
+
+end
 
 text\<open>Notion of time-constructible from Hopcroft ch. 12.3, p. 299:
   "A function T(n) is said to be time constructible if there exists a T(n) time-
@@ -134,205 +192,6 @@ proof (elim allE exE conjE)
   assume some_n: "time w = Some n" and n_le: "n \<le> tcomp\<^sub>w T w"
   from n_le show "the (time w) \<le> tcomp\<^sub>w T w" unfolding some_n option.sel .
 qed
-
-subsection\<open>Deciding Languages\<close>
-
-abbreviation input where "input w \<equiv> (\<lambda>c. hd (tapes c) = <w>\<^sub>t\<^sub>p)"
-
-context wf_TM begin
-
-abbreviation init where "init w \<equiv> (\<lambda>c. c = start_config w)"
-
-lemma init_input: "init w c \<Longrightarrow> input w c"
-  unfolding start_config_def by simp
-
-lemma init_state_start_state: "init w c \<Longrightarrow> state c = start_state M"
-  unfolding start_config_def by simp
-
-definition halts :: "'b list \<Rightarrow> bool"
-  where "halts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>_. True)"
-
-lemma halts_I: "wf_word w \<Longrightarrow> \<exists>n. is_final (run n w) \<Longrightarrow> halts w"
-  unfolding halts_def hoare_halt_def by simp
-
-lemma halts_time: "halts w \<Longrightarrow> \<exists>n. time w = Some n"
-  unfolding halts_def hoare_halt_def time_def start_config_def
-  using wf_config_run wf_start_config by fastforce
-
-lemma time_halts: "wf_word w \<Longrightarrow> time w = Some n \<Longrightarrow> halts w"
-  using time_Some_D halts_I by simp
-
-lemma halts_altdef: "halts w \<longleftrightarrow> wf_word w \<and> (\<exists>n. time w = Some n)"
-  using halts_time time_halts wf_TM.halts_def wf_TM_axioms by blast
-
-definition accepts :: "'b list \<Rightarrow> bool"
-  where "accepts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
-
-definition rejects :: "'b list \<Rightarrow> bool"
-  where "rejects w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
-
-definition decides_word :: "'b lang \<Rightarrow> 'b list \<Rightarrow> bool"
-  where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
-
-abbreviation decides :: "'b lang \<Rightarrow> bool"
-  where "decides L \<equiv> \<forall>w. decides_word L w"
-end
-
-locale Rejecting_TM begin
-definition "Rejecting_TM \<equiv> \<lparr>
-  tape_count = 1,
-  states = {1}::nat set,
-  start_state = 1,
-  final_states = {1},
-  accepting_states = {},
-  symbols = UNIV,
-  next_state = \<lambda>q w. 1,
-  next_action = \<lambda>q w. [Nop]
-\<rparr> :: (nat, 'b::{blank, finite}) TM"
-interpretation wf_TM Rejecting_TM
-  unfolding Rejecting_TM_def
-  by unfold_locales simp_all
-
-lemma rej_TM:
-  fixes w :: "'a::{finite, blank} list"
-  shows "rejects w"
-  unfolding rejects_def
-proof
-  show "wf_word w" unfolding Rejecting_TM_def by simp
-next
-  show "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states Rejecting_TM)"
-  proof
-    fix c0::"(nat, 'a) TM_config"
-    assume "init w c0"
-    then have "state c0 = start_state (Rejecting_TM::(nat, 'a) TM)"
-      by (fact init_state_start_state)
-    then have "is_final ((step^^0) c0)"
-      unfolding Rejecting_TM_def by simp
-    moreover have "accepting_states Rejecting_TM = {}"
-      unfolding Rejecting_TM_def by simp
-    ultimately show "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<notin> accepting_states Rejecting_TM"
-      using empty_iff by metis
-  qed
-qed
-
-lemma rej_TM_time: "time w = Some 0"
-proof -
-  have "is_final (run 0 w)"
-    unfolding start_config_def unfolding Rejecting_TM_def by simp
-  thus ?thesis unfolding time_def
-    using Least_eq_0 by presburger
-qed
-end
-
-context wf_TM begin
-lemma hoare_true: "hoare_halt P Q \<Longrightarrow> hoare_halt P (\<lambda>_. True)"
-  unfolding hoare_halt_def by metis
-
-lemma accepts_halts: "accepts w \<Longrightarrow> halts w"
-  unfolding accepts_def halts_def using hoare_true by blast
-lemma rejects_halts: "rejects w \<Longrightarrow> halts w"
-  unfolding rejects_def halts_def using hoare_true by blast
-
-lemma hoare_and[intro]:
-  assumes h1: "hoare_halt P Q1"
-    and h2: "hoare_halt P Q2"
-  shows "hoare_halt P (\<lambda>c. Q1 c \<and> Q2 c)"
-proof
-  fix c assume "P c" and wf: "wf_config c"
-  from wf \<open>P c\<close> h1 obtain n1 where fn1: "is_final ((step^^n1) c)" and q1: "Q1 ((step^^n1) c)"
-    by (rule hoare_haltE)
-  from wf \<open>P c\<close> h2 obtain n2 where fn2: "is_final ((step^^n2) c)" and q2: "Q2 ((step^^n2) c)"
-    by (rule hoare_haltE)
-
-  define n::nat where "n \<equiv> max n1 n2"
-  hence "n1 \<le> n" "n2 \<le> n" by simp+
-
-  from wf fn1 \<open>n1 \<le> n\<close> have steps1: "((step^^n) c) = ((step^^n1) c)" by (rule final_le_steps)
-  from wf fn2 \<open>n2 \<le> n\<close> have steps2: "((step^^n) c) = ((step^^n2) c)" by (rule final_le_steps)
-  from fn1 q1 q2 have "let qn=(step^^n) c in is_final qn \<and> Q1 qn \<and> Q2 qn"
-    by (fold steps1 steps2) simp
-  thus "\<exists>n. let cn = (step ^^ n) c in is_final cn \<and> Q1 cn \<and> Q2 cn" ..
-qed
-
-lemma hoare_contr:
-  fixes P and c
-  assumes "wf_config c" "P c" "hoare_halt P (\<lambda>_. False)"
-  shows "False"
-using assms hoare_haltE hoare_haltE by blast
-
-lemma hoare_halt_neg:
-  assumes "\<not> hoare_halt (init w) Q"
-    and "halts w"
-  shows "hoare_halt (init w) (\<lambda>tp. \<not> Q tp)"
-using assms unfolding hoare_halt_def halts_def by metis
-
-lemma halt_inj:
-  assumes "wf_word w"
-      and "hoare_halt (init w) (\<lambda>c. f c = x)"
-      and "hoare_halt (init w) (\<lambda>c. f c = y)"
-    shows "x = y"
-proof (rule ccontr)
-  assume "x \<noteq> y"
-  then have *: "a = x \<and> a = y \<longleftrightarrow> False" for a by blast
-
-  from hoare_and assms(2-3) have "hoare_halt (init w) (\<lambda>c. f c = x \<and> f c = y)".
-  then have "hoare_halt (init w) (\<lambda>_. False)" unfolding * .
-  thus False using hoare_contr wf_start_config[OF assms(1)] by fastforce
-qed
-
-lemma acc_not_rej:
-  assumes "accepts w"
-  shows "\<not> rejects w"
-proof (intro notI)
-  assume "rejects w"
-
-  have "hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
-    using \<open>accepts w\<close> unfolding accepts_def by (rule conjunct2)
-  moreover have "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
-    using \<open>rejects w\<close> unfolding rejects_def by (rule conjunct2)
-  ultimately have "hoare_halt (init w) (\<lambda>c. False)"
-    using hoare_and[of "init w" "\<lambda>c. state c \<in> accepting_states M" "\<lambda>c. state c \<notin> accepting_states M"]
-    by simp
-  then show False using hoare_contr
-    using wf_start_config assms(1) unfolding accepts_def by fastforce
-qed
-
-lemma rejects_altdef:
-  "rejects w = (halts w \<and> \<not> accepts w)"
-proof (intro iffI conjI)
-  assume "rejects w"
-  then show "halts w" unfolding rejects_def halts_def
-    using hoare_true by blast
-  from \<open>rejects w\<close> show "\<not> accepts w" using acc_not_rej by auto
-next
-  assume assm: "halts w \<and> \<not> accepts w"
-  then have "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
-    unfolding accepts_def using hoare_halt_neg
-    by (metis assm halts_altdef)
-  then show "rejects w" unfolding rejects_def
-    using assm halts_altdef by blast
-qed
-
-lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
-  by (cases "w \<in> L") (intro accepts_halts, simp, intro rejects_halts, simp)
-
-lemma decides_altdef:
-  "decides_word L w \<longleftrightarrow> halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
-proof (intro iffI)
-  fix w
-  assume "decides_word L w"
-  hence "halts w" by (rule decides_halts)
-  moreover have "w \<in> L \<longleftrightarrow> accepts w" using \<open>decides_word L w\<close> by simp
-  ultimately show "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)" ..
-next
-  assume "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
-  then show "decides_word L w" by (simp add: rejects_altdef)
-qed
-
-lemma decides_altdef3: "decides_word L w \<longleftrightarrow> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M \<longleftrightarrow> w\<in>L)"
-  sorry
-
-end
 
 subsection\<open>DTIME\<close>
 
@@ -413,28 +272,24 @@ lemma DTIME_ae:
 subsubsection\<open>Linear Speed-Up\<close>
 
 text\<open>Hopcroft:
-
  "Theorem 12.3  If \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>T(n)\<close> time-bounded Turing machine
   \<open>M\<^sub>1\<close>, then \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>cT(n)\<close> time-bounded TM \<open>M\<^sub>2\<close> for any \<open>c > 0\<close>,
   provided that \<open>k > 1\<close> and \<open>inf\<^sub>n\<^sub>\<rightarrow>\<^sub>\<infinity> T(n)/n = \<infinity>\<close>."
-
-  Note that the following formalization is likely false
-  (or at least not provable using the construction of Hopcroft),
-  as the used definition of TMs only allows single-tape TMs with a binary alphabet.\<close>
+\<close>
 
 lemma linear_time_speed_up:
   assumes "c > 0"
   \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close> required by Hopcroft, but simpler to define in Isabelle.\<close>
-    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
-    and "wf_TM.decides M\<^sub>1 L"
-    and "wf_TM.time_bounded M\<^sub>1 T"
-  obtains M\<^sub>2 where "wf_TM.decides M\<^sub>2 L" and "wf_TM.time_bounded M\<^sub>2 (\<lambda>n. c * T n)"
+    and "\<forall>S. \<exists>n0. \<forall>n\<ge>n0. T(n)/n \<ge> S"
+    and "wf_TM.decides M1 L"
+    and "wf_TM.time_bounded M1 T"
+  obtains M2 where "wf_TM.decides M2 L" and "wf_TM.time_bounded M2 (\<lambda>n. c * T n)"
   sorry
 
 
 corollary DTIME_speed_up:
   assumes "c > 0"
-    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
+    and "\<forall>S. \<exists>n0. \<forall>n\<ge>n0. T(n)/n \<ge> S"
     and "L \<in> DTIME TYPE('a) T"
   shows "L \<in> DTIME TYPE('a) (\<lambda>n. c * T n)"
 proof -

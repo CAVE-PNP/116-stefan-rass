@@ -11,6 +11,8 @@ definition Bk_nat :: nat where "Bk_nat = 0"
 instance ..
 end
 
+type_synonym 'b lang = "'b list set"
+
 datatype 'b action = L | R | W 'b | Nop
 
 fun symbol_of_write :: "'b action \<Rightarrow> 'b::blank" where
@@ -284,8 +286,7 @@ subsection \<open>Composition of Turing Machines\<close>
     When M1 finishes, M2 operates on the tapes 0,k1,k1+1,...,k1+k2-2.
     Therefore, M1 is expected to write its output (M2's input) on the zeroth tape.\<close>
 
-fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a1+'a2, 'b) TM"
-  ("_ |+| _" [0, 0] 100)
+fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a1+'a2, 'b) TM" ("_ |+| _" [0, 0] 100)
   where "tm_comp M1 M2 = (let k = tape_count M1 + tape_count M2 - 1 in \<lparr>
     tape_count = k,
     states = states M1 <+> states M2,
@@ -314,6 +315,7 @@ fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a
 lemma "wf_TM M1 \<Longrightarrow> wf_TM M2 \<Longrightarrow> wf_TM (M1 |+| M2)"
   sorry
 
+hide_const (open) "TM.action.L" "TM.action.R" "TM.action.W"
 
 subsection \<open>Hoare Rules\<close>
 
@@ -323,14 +325,15 @@ definition (in wf_TM) hoare_halt :: "('a, 'b) assert \<Rightarrow> ('a, 'b) asse
   "hoare_halt P Q \<longleftrightarrow> (\<forall>c. wf_config c \<longrightarrow> P c \<longrightarrow>
     (\<exists>n. let cn = (step^^n) c in is_final cn \<and> Q cn))"
 
-lemma (in wf_TM) hoare_haltI[intro]:
+context wf_TM begin
+lemma hoare_haltI[intro]:
   fixes P Q
   assumes "\<And>c. wf_config c \<Longrightarrow> P c \<Longrightarrow>
              \<exists>n. let cn = (step^^n) c in is_final cn \<and> Q cn"
   shows "hoare_halt P Q"
   unfolding hoare_halt_def using assms by blast
 
-lemma (in wf_TM) hoare_haltE[elim]:
+lemma hoare_haltE[elim]:
   fixes c
   assumes "wf_config c" "P c"
       and "hoare_halt P Q"
@@ -338,10 +341,147 @@ lemma (in wf_TM) hoare_haltE[elim]:
   using assms
   unfolding hoare_halt_def by meson
 
+lemma hoare_contr:
+  fixes P and c
+  assumes "wf_config c" "P c" "hoare_halt P (\<lambda>_. False)"
+  shows "False"
+using assms by (rule hoare_haltE)
 
-\<comment> \<open>Hide single letter constants outside this theory to avoid confusion.
-  \<open>(open)\<close> allows access for fully or partially qualified names
-  such as \<^const>\<open>action.L\<close>, \<^const>\<open>TM.action.L\<close> or \<^const>\<open>TM.L\<close>\<close>
-hide_const (open) "TM.action.L" "TM.action.R" "TM.action.W"
+lemma hoare_true: "hoare_halt P Q \<Longrightarrow> hoare_halt P (\<lambda>_. True)"
+  unfolding hoare_halt_def by metis
+
+lemma hoare_and[intro]:
+  assumes h1: "hoare_halt P Q1"
+    and h2: "hoare_halt P Q2"
+  shows "hoare_halt P (\<lambda>c. Q1 c \<and> Q2 c)"
+proof
+  fix c assume "P c" and wf: "wf_config c"
+  from wf \<open>P c\<close> h1 obtain n1 where fn1: "is_final ((step^^n1) c)" and q1: "Q1 ((step^^n1) c)"
+    by (rule hoare_haltE)
+  from wf \<open>P c\<close> h2 obtain n2 where fn2: "is_final ((step^^n2) c)" and q2: "Q2 ((step^^n2) c)"
+    by (rule hoare_haltE)
+
+  define n::nat where "n \<equiv> max n1 n2"
+  hence "n1 \<le> n" "n2 \<le> n" by simp+
+
+  from wf fn1 \<open>n1 \<le> n\<close> have steps1: "((step^^n) c) = ((step^^n1) c)" by (rule final_le_steps)
+  from wf fn2 \<open>n2 \<le> n\<close> have steps2: "((step^^n) c) = ((step^^n2) c)" by (rule final_le_steps)
+  from fn1 q1 q2 have "let qn=(step^^n) c in is_final qn \<and> Q1 qn \<and> Q2 qn"
+    by (fold steps1 steps2) simp
+  thus "\<exists>n. let cn = (step ^^ n) c in is_final cn \<and> Q1 cn \<and> Q2 cn" ..
+qed
+
+abbreviation init where "init w \<equiv> (\<lambda>c. c = start_config w)"
+
+definition halts :: "'b list \<Rightarrow> bool"
+  where "halts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>_. True)"
+
+lemma hoare_halt_neg:
+  assumes "\<not> hoare_halt (init w) Q"
+    and "halts w"
+  shows "hoare_halt (init w) (\<lambda>tp. \<not> Q tp)"
+  using assms unfolding hoare_halt_def halts_def by metis
+
+lemma halt_inj:
+  assumes "wf_word w"
+      and "hoare_halt (init w) (\<lambda>c. f c = x)"
+      and "hoare_halt (init w) (\<lambda>c. f c = y)"
+    shows "x = y"
+proof (rule ccontr)
+  assume "x \<noteq> y"
+  then have *: "a = x \<and> a = y \<longleftrightarrow> False" for a by blast
+
+  from hoare_and assms(2-3) have "hoare_halt (init w) (\<lambda>c. f c = x \<and> f c = y)".
+  then have "hoare_halt (init w) (\<lambda>_. False)" unfolding * .
+  thus False using hoare_contr wf_start_config[OF assms(1)] by fastforce
+qed
+
+end
+
+subsection\<open>Deciding Languages\<close>
+
+abbreviation input where "input w \<equiv> (\<lambda>c. hd (tapes c) = <w>\<^sub>t\<^sub>p)"
+
+context wf_TM begin
+
+lemma init_input: "init w c \<Longrightarrow> input w c"
+  unfolding start_config_def by simp
+
+lemma init_state_start_state: "init w c \<Longrightarrow> state c = start_state M"
+  unfolding start_config_def by simp
+
+lemma halts_I: "wf_word w \<Longrightarrow> \<exists>n. is_final (run n w) \<Longrightarrow> halts w"
+  unfolding halts_def hoare_halt_def by simp
+
+definition accepts :: "'b list \<Rightarrow> bool"
+  where "accepts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
+
+definition rejects :: "'b list \<Rightarrow> bool"
+  where "rejects w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
+
+definition decides_word :: "'b lang \<Rightarrow> 'b list \<Rightarrow> bool"
+  where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
+
+abbreviation decides :: "'b lang \<Rightarrow> bool"
+  where "decides L \<equiv> \<forall>w. decides_word L w"
+
+lemma accepts_halts: "accepts w \<Longrightarrow> halts w"
+  unfolding accepts_def halts_def using hoare_true by blast
+lemma rejects_halts: "rejects w \<Longrightarrow> halts w"
+  unfolding rejects_def halts_def using hoare_true by blast
+
+lemma acc_not_rej:
+  assumes "accepts w"
+  shows "\<not> rejects w"
+proof (intro notI)
+  assume "rejects w"
+
+  have "hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
+    using \<open>accepts w\<close> unfolding accepts_def by (rule conjunct2)
+  moreover have "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
+    using \<open>rejects w\<close> unfolding rejects_def by (rule conjunct2)
+  ultimately have "hoare_halt (init w) (\<lambda>c. False)"
+    using hoare_and[of "init w" "\<lambda>c. state c \<in> accepting_states M" "\<lambda>c. state c \<notin> accepting_states M"]
+    by simp
+  then show False using hoare_contr
+    using wf_start_config assms(1) unfolding accepts_def by fastforce
+qed
+
+lemma rejects_altdef:
+  "rejects w = (halts w \<and> \<not> accepts w)"
+proof (intro iffI conjI)
+  assume "rejects w"
+  then show "halts w" unfolding rejects_def halts_def
+    using hoare_true by blast
+  from \<open>rejects w\<close> show "\<not> accepts w" using acc_not_rej by auto
+next
+  assume assm: "halts w \<and> \<not> accepts w"
+  then have "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
+    unfolding accepts_def using hoare_halt_neg
+    by (metis assm halts_def)
+  then show "rejects w" unfolding rejects_def
+    using assm halts_def by blast
+qed
+
+lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
+  by (cases "w \<in> L") (intro accepts_halts, simp, intro rejects_halts, simp)
+
+lemma decides_altdef:
+  "decides_word L w \<longleftrightarrow> halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
+proof (intro iffI)
+  fix w
+  assume "decides_word L w"
+  hence "halts w" by (rule decides_halts)
+  moreover have "w \<in> L \<longleftrightarrow> accepts w" using \<open>decides_word L w\<close> by simp
+  ultimately show "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)" ..
+next
+  assume "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
+  then show "decides_word L w" by (simp add: rejects_altdef)
+qed
+
+lemma decides_altdef3: "decides_word L w \<longleftrightarrow> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M \<longleftrightarrow> w\<in>L)"
+  sorry
+
+end
 
 end
