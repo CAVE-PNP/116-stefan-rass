@@ -193,21 +193,26 @@ interpretation wf_TM Rejecting_TM
   unfolding Rejecting_TM_def
   by unfold_locales simp_all
 
-lemma rej_TM: "rejects w" unfolding rejects_def proof
-show "wf_word w" unfolding Rejecting_TM_def by simp
+lemma rej_TM:
+  fixes w :: "'a::{finite, blank} list"
+  shows "rejects w"
+  unfolding rejects_def
+proof
+  show "wf_word w" unfolding Rejecting_TM_def by simp
 next
-show "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states Rejecting_TM)" proof
-  fix c0::"(nat, 'a::{finite, blank}) TM_config"
-  assume "init w c0"
-  have "state c0 = start_state Rejecting_TM"
-    using init_state_start_state[OF \<open>init w c0\<close>] sorry (* wtf *)
-  then have "is_final ((step^^0) c0)"
-    unfolding Rejecting_TM_def by simp
-  moreover have "accepting_states Rejecting_TM = {}"
-    unfolding Rejecting_TM_def by simp
-  ultimately show "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<notin> accepting_states Rejecting_TM"
-    using empty_iff by metis
-qed
+  show "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states Rejecting_TM)"
+  proof
+    fix c0::"(nat, 'a) TM_config"
+    assume "init w c0"
+    then have "state c0 = start_state (Rejecting_TM::(nat, 'a) TM)"
+      by (fact init_state_start_state)
+    then have "is_final ((step^^0) c0)"
+      unfolding Rejecting_TM_def by simp
+    moreover have "accepting_states Rejecting_TM = {}"
+      unfolding Rejecting_TM_def by simp
+    ultimately show "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<notin> accepting_states Rejecting_TM"
+      using empty_iff by metis
+  qed
 qed
 
 lemma rej_TM_time: "time w = Some 0"
