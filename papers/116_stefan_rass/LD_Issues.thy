@@ -139,7 +139,7 @@ lemma L\<^sub>D''_L\<^sub>0''_adj_sq_iff:
   unfolding L\<^sub>0''_def w' using len[THEN L\<^sub>D''_adj_sq_iff] adj_sq_word_correct by blast
 
 
-subsection\<open>\<open>L\<^sub>D'' \<notin> DTIME(t)\<close> via Reduction to \<open>L\<^sub>D\<close>\<close>
+subsection\<open>\<open>L\<^sub>D'' \<notin> DTIME(t)\<close> via Reduction from \<open>L\<^sub>D\<close> to \<open>L\<^sub>D''\<close>\<close>
 
 text\<open>Reduce \<open>L\<^sub>D''\<close> to \<open>L\<^sub>D\<close>:
     Given a word \<open>w\<close>, construct its counterpart \<open>w' := 1\<^sup>l0x0\<^sup>l\<^sup>+\<^sup>9\<close>, where \<open>l = length w\<close>.
@@ -173,7 +173,7 @@ context tht_sq_assms begin
 \<comment> \<open>The following proof is similar to that of @{thm tht_sq_assms.L0_t}.\<close>
 lemma L\<^sub>D''_t: "L\<^sub>D'' \<notin> DTIME(t)"
 proof (rule ccontr, unfold not_not)
-  assume "L\<^sub>D'' \<in> DTIME(t)"
+  assume assm: "L\<^sub>D'' \<in> DTIME(t)"
 
   have "L\<^sub>D \<in> DTIME(t)"
   proof (rule reduce_DTIME)
@@ -189,7 +189,7 @@ proof (rule ccontr, unfold not_not)
       \<open>t(4n + 11)\<close> is not proportional to \<open>t(n)\<close>.\<close>
     show "almost_everywhere (\<lambda>w. (reduce_LD_LD'' w \<in> L\<^sub>D'') = (w \<in> L\<^sub>D) \<and> length (reduce_LD_LD'' w) \<le> length w)"
       sorry
-    
+
     show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" sorry
     \<comment> \<open>With the current assumptions, \<open>t\<close> is not necessarily super-linear.
       A similar problem exists in the proof of @{thm L0_t} (and `L0''_t`, see below),
@@ -198,7 +198,7 @@ proof (rule ccontr, unfold not_not)
     show "computable_in_time t reduce_LD_LD''" sorry
     \<comment> \<open>Assume that \<^const>\<open>reduce_LD_LD''\<close> can be computed by a TM in time \<open>O(n)\<close>.\<close>
 
-    show \<open>L\<^sub>D'' \<in> DTIME(t)\<close> by fact
+    from assm show \<open>L\<^sub>D'' \<in> DTIME(t)\<close> .
   qed
 
   moreover from time_hierarchy have "L\<^sub>D \<notin> DTIME(t)" ..
@@ -232,7 +232,16 @@ proof (rule reduce_DTIME)
       unfolding L\<^sub>D''_def mem_Collect_eq time_bounded_def ..
     finally show ?thesis .
   qed
-  show "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>D) = (w \<in> L\<^sub>D'') \<and> length (f\<^sub>R w) \<le> length w)" sorry
+  moreover have "length (f\<^sub>R w) \<le> length w" for w
+  proof -
+    have "length (f\<^sub>R w) \<le> length (decode_pair_x w)" unfolding f\<^sub>R_def by simp
+    also have "... \<le> length (strip_sq_pad w)" unfolding decode_pair_x_def
+      unfolding Let_def prod.case length_rev length_tl dropWhile_eq_drop length_drop by simp
+    also have "... \<le> length w" unfolding strip_sq_pad_def by simp
+    finally show ?thesis .
+  qed
+  ultimately show "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>D) = (w \<in> L\<^sub>D'') \<and> length (f\<^sub>R w) \<le> length w)"
+    by blast
 
   show "computable_in_time T f\<^sub>R" sorry
 
@@ -246,7 +255,7 @@ text\<open>Lemma 4.6. Let \<open>t\<close>, \<open>T\<close> be as in Assumption
 lemma L0''_t: "L\<^sub>0'' \<notin> DTIME(t)"
 proof (rule ccontr, unfold not_not)
   assume "L\<^sub>0'' \<in> DTIME(t)"
-  
+
   have "L\<^sub>D'' \<in> DTIME(t)"
   proof (rule reduce_DTIME)
     show "almost_everywhere (\<lambda>w. (adj_sq\<^sub>w w \<in> L\<^sub>0'') = (w \<in> L\<^sub>D'') \<and> length (adj_sq\<^sub>w w) \<le> length w)"

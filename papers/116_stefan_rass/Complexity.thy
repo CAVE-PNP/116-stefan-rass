@@ -993,6 +993,8 @@ lemma linear_time_speed_up:
   sorry
 
 
+(* TODO these lemmas are only about superlinear functions and not general ones,
+ *      find more fitting names or generalize *)
 lemma dominatesE:
   fixes T :: "nat \<Rightarrow> real" and c :: real
   assumes "\<forall>N. \<exists>n. \<forall>m\<ge>n. T(m)/m \<ge> N"
@@ -1000,7 +1002,7 @@ lemma dominatesE:
 proof -
   from assms obtain N where N: "T(n)/n \<ge> c" if "n \<ge> N" for n by blast
 
-  then have "T(n) \<ge> c*n" if "n \<ge> Suc N" (is "n \<ge> ?n") for n 
+  then have "T(n) \<ge> c*n" if "n \<ge> Suc N" (is "n \<ge> ?n") for n
   proof -
     from \<open>n \<ge> Suc N\<close> have "n \<ge> N" by (fact Suc_leD)
     with N have "T(n)/n \<ge> c" .
@@ -1092,10 +1094,11 @@ lemma reduce_time_bounded:
   assumes "time_bounded_word T\<^sub>B M\<^sub>B (f\<^sub>R w)"
     and "time_bounded_word T\<^sub>R M\<^sub>R w"
     and M\<^sub>R_f\<^sub>R: "computes_word M\<^sub>R f\<^sub>R w"
-    and f\<^sub>R_len: "length (f\<^sub>R w) \<le> length w"
+    and f\<^sub>R_len: "length (f\<^sub>R w) \<le> l\<^sub>R (length w)"
     (* and "tm_wf0 M\<^sub>R" *)
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
-  shows "time_bounded_word (\<lambda>n. tcomp T\<^sub>R n + tcomp T\<^sub>B n) M w" (is "time_bounded_word ?T M w")
+  defines "T \<equiv> \<lambda>n. tcomp (\<lambda>m. T\<^sub>R (l\<^sub>R m)) n + tcomp T\<^sub>B n"
+  shows "time_bounded_word T M w"
 proof -
   define l where "l \<equiv> tape_size <w>\<^sub>t\<^sub>p"
 
@@ -1106,16 +1109,16 @@ proof -
 
     We also know that its execution will result in the encoded corresponding input word \<open>f\<^sub>R w\<close>
     (@{thm \<open>computes_word M\<^sub>R f\<^sub>R w\<close>}).
-    Since the length of the corresponding input word is no longer
-    than the length of the original input word \<^term>\<open>w\<close> (@{thm \<open>length (f\<^sub>R w) \<le> length w\<close>}),
+    Since the length of the corresponding input word is bounded by \<^term>\<open>l\<^sub>R (length w)\<close>
+    (@{thm \<open>length (f\<^sub>R w) \<le> l\<^sub>R (length w)\<close>}),
     and the second machine \<^term>\<open>M\<^sub>B\<close> is time bounded (@{thm \<open>time_bounded_word T\<^sub>B M\<^sub>B (f\<^sub>R w)\<close>}),
     we may conclude that the run-time of \<^term>\<open>M \<equiv> M\<^sub>R |+| M\<^sub>B\<close> on the input \<^term>\<open><w>\<^sub>t\<^sub>p\<close>
-    is no longer than \<open>?T l = T\<^sub>R l + T\<^sub>B l\<close>.
+    is no longer than \<open>T l = T\<^sub>R (l\<^sub>R l) + T\<^sub>B l\<close>.
 
     \<^const>\<open>time_bounded\<close> is defined in terms of \<^const>\<open>tcomp\<close>, however,
-    which means that the resulting total run time \<^term>\<open>?T l\<close> may be as large as
-    \<^term>\<open>tcomp T\<^sub>R l + tcomp T\<^sub>B l \<equiv> nat (max (l + 1) \<lceil>T\<^sub>R l\<rceil>) + nat (max (l + 1) \<lceil>T\<^sub>B l\<rceil>)\<close>.
-    If \<^term>\<open>\<lceil>T\<^sub>R l\<rceil> < l + 1\<close> or \<^term>\<open>\<lceil>T\<^sub>B l\<rceil> < l + 1\<close> then \<^term>\<open>tcomp ?T l < tcomp T\<^sub>R l + tcomp T\<^sub>B l\<close>.\<close>
+    which means that the resulting total run time \<^term>\<open>T l\<close> may be as large as
+    \<^term>\<open>tcomp (T\<^sub>R \<circ> l\<^sub>R) l + tcomp T\<^sub>B l \<equiv> nat (max (l + 1) \<lceil>T\<^sub>R (l\<^sub>R l)\<rceil>) + nat (max (l + 1) \<lceil>T\<^sub>B l\<rceil>)\<close>.
+    If \<^term>\<open>\<lceil>T\<^sub>R l\<rceil> < l + 1\<close> or \<^term>\<open>\<lceil>T\<^sub>B l\<rceil> < l + 1\<close> then \<^term>\<open>tcomp T l < tcomp (T\<^sub>R \<circ> l\<^sub>R) l + tcomp T\<^sub>B l\<close>.\<close>
 
   show ?thesis sorry
 qed
@@ -1131,27 +1134,34 @@ proof -
   then show ?thesis by blast
 qed
 
-lemma exists_ge_eq: 
+lemma exists_ge_eq:
   fixes P :: "nat \<Rightarrow> bool"
   shows "(\<exists>n. \<forall>m\<ge>n. P m) \<longleftrightarrow> (\<exists>n. \<forall>m\<ge>n. P m \<and> m \<ge> N)"
   by (intro iffI) (fact exists_ge, blast)
 
-lemma reduce_DTIME: (* TODO clean up and tidy assumptions *)
-  assumes f\<^sub>R_ae: "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> length w))"
+lemma reduce_DTIME':
+  fixes T :: "nat \<Rightarrow> real"
+    and L\<^sub>1 L\<^sub>2 :: lang
+    and f\<^sub>R :: "word \<Rightarrow> word" \<comment> \<open>the reduction\<close>
+    and l\<^sub>R :: "nat \<Rightarrow> nat" \<comment> \<open>length bound of the reduction\<close>
+  assumes f\<^sub>R_ae: "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> l\<^sub>R (length w)))"
+    \<comment> \<open>The following assumption allows reasoning about \<^term>\<open>T\<close> and \<^term>\<open>l\<^sub>R\<close>,
+      as if both were \<^const>\<open>mono\<close>.\<close>
+    and "\<And>n. T (l\<^sub>R n) \<ge> T(n)"
     and "computable_in_time T f\<^sub>R"
-    and T_superlinear:"\<forall>N. \<exists>n. \<forall>m\<ge>n. T(m)/m \<ge> N"
+    and T_superlinear: "\<forall>N. \<exists>n. \<forall>m\<ge>n. T(m)/m \<ge> N"
     and "L\<^sub>1 \<in> DTIME(T)"
-  shows "L\<^sub>2 \<in> DTIME(T)"
+  shows "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
 proof -
   from \<open>computable_in_time T f\<^sub>R\<close> obtain M\<^sub>R where "computes M\<^sub>R f\<^sub>R" "time_bounded T M\<^sub>R" "tm_wf0 M\<^sub>R" ..
   from \<open>L\<^sub>1 \<in> DTIME(T)\<close> obtain M\<^sub>1 where "decides M\<^sub>1 L\<^sub>1" and "time_bounded T M\<^sub>1" ..
   define M where "M \<equiv> M\<^sub>R |+| M\<^sub>1"
 
-  let ?T' = "\<lambda>n. tcomp T n + tcomp T n"
+  let ?T' = "\<lambda>n. tcomp (T \<circ> l\<^sub>R) n + tcomp T n"
 
   from f\<^sub>R_ae obtain n
     where f\<^sub>R_correct: "f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2"
-      and f\<^sub>R_len: "length (f\<^sub>R w) \<le> length w"
+      and f\<^sub>R_len: "length (f\<^sub>R w) \<le> l\<^sub>R (length w)"
     if "length w \<ge> n" for w by blast
 
   \<comment> \<open>Prove \<^term>\<open>M\<close> to be \<^term>\<open>T\<close>-time-bounded.
@@ -1168,12 +1178,12 @@ proof -
       from \<open>computes M\<^sub>R f\<^sub>R\<close> show "computes_word M\<^sub>R f\<^sub>R w" ..
     qed
 
-    show "time_bounded_word ?T' M w" unfolding M_def
+    show "time_bounded_word ?T' M w" unfolding M_def comp_def
     proof (intro reduce_time_bounded)
       from \<open>time_bounded T M\<^sub>1\<close> show "time_bounded_word T M\<^sub>1 (f\<^sub>R w)" ..
       from \<open>time_bounded T M\<^sub>R\<close> show "time_bounded_word T M\<^sub>R w" ..
       from \<open>computes M\<^sub>R f\<^sub>R\<close> show "computes_word M\<^sub>R f\<^sub>R w" ..
-      from f\<^sub>R_len and min_len show "length (f\<^sub>R w) \<le> length w" .
+      from f\<^sub>R_len and min_len show "length (f\<^sub>R w) \<le> l\<^sub>R (length w)" .
     qed
   qed
 
@@ -1184,26 +1194,51 @@ proof -
     unfolding of_nat_mult by (intro exists_ge) (fact dominatesE')
   then obtain m where m: "T n \<ge> 2*n" "n \<ge> 1" if "n \<ge> m" for n by blast
 
-  have "?T' n \<le> 4 * T n" if "n \<ge> m" for n
+  have "?T' n \<le> 4 * T (l\<^sub>R n)" if "n \<ge> m" for n
   proof -
     from \<open>n \<ge> m\<close> have "n \<ge> 1" and "T n \<ge> 2*n" by (fact m)+
     then have "n + 1 \<le> 2 * n" by simp
     also have "2 * n = nat \<lceil>2 * n\<rceil>" unfolding ceiling_of_nat nat_int ..
     also from \<open>T n \<ge> 2*n\<close> have "nat \<lceil>2 * n\<rceil> \<le> nat \<lceil>T n\<rceil>" by (intro nat_mono ceiling_mono)
-    finally have *: "tcomp T n = nat \<lceil>T n\<rceil>" unfolding max_def by (subst if_P) auto
+    finally have "n + 1 \<le> nat \<lceil>T n\<rceil>" .
+    also from \<open>T (l\<^sub>R n) \<ge> T(n)\<close> have "... \<le> nat \<lceil>T (l\<^sub>R n)\<rceil>" by (intro nat_mono ceiling_mono)
+    finally have "n + 1 \<le> nat \<lceil>T (l\<^sub>R n)\<rceil>" .
 
-    from \<open>T n \<ge> 2*n\<close> \<open>n \<ge> 1\<close> have "T n \<ge> 1" by simp
-    have "nat \<lceil>T n\<rceil> = real_of_int \<lceil>T n\<rceil>" using \<open>T n \<ge> 1\<close> by (intro of_nat_nat) simp
-    also have "\<lceil>T n\<rceil> \<le> T n + 1" by (fact of_int_ceiling_le_add_one)
-    also have "... \<le> 2 * T n" unfolding mult_2 using \<open>T n \<ge> 1\<close> by (fact add_left_mono)
-    finally have "?T' n \<le> 2 * (2 * T n)" unfolding * of_nat_add mult_2 by (intro add_mono)
-    also have "... = 4 * T n" by simp
+    from \<open>n + 1 \<le> nat \<lceil>T n\<rceil>\<close> have h1: "tcomp T n = nat \<lceil>T n\<rceil>"
+      unfolding max_def by (subst if_P) auto
+    from \<open>n + 1 \<le> nat \<lceil>T (l\<^sub>R n)\<rceil>\<close> have h2: "tcomp (T \<circ> l\<^sub>R) n = nat \<lceil>T (l\<^sub>R n)\<rceil>"
+      unfolding max_def comp_def by (subst if_P) auto
+
+    have "real (?T' n) \<le> real (2 * nat \<lceil>T (l\<^sub>R n)\<rceil>)" unfolding mult_2 h1 h2
+      by (intro of_nat_mono add_left_mono) (fact \<open>nat \<lceil>T n\<rceil> \<le> nat \<lceil>T (l\<^sub>R n)\<rceil>\<close>)
+    also have "... \<le> 2 * (2 * T (l\<^sub>R n))" unfolding of_nat_mult of_nat_numeral
+    proof (intro mult_left_mono)
+      from \<open>T n \<ge> 2*n\<close> \<open>n \<ge> 1\<close> \<open>T (l\<^sub>R n) \<ge> T(n)\<close> have "T (l\<^sub>R n) \<ge> 1" by simp
+      have "nat \<lceil>T (l\<^sub>R n)\<rceil> = real_of_int \<lceil>T (l\<^sub>R n)\<rceil>" using \<open>T (l\<^sub>R n) \<ge> 1\<close> by (intro of_nat_nat) simp
+      also have "\<lceil>T (l\<^sub>R n)\<rceil> \<le> T (l\<^sub>R n) + 1" by (fact of_int_ceiling_le_add_one)
+      also have "... \<le> 2 * T (l\<^sub>R n)" unfolding mult_2 using \<open>T (l\<^sub>R n) \<ge> 1\<close> by (fact add_left_mono)
+      finally show "nat \<lceil>T (l\<^sub>R n)\<rceil> \<le> 2 * T (l\<^sub>R n)" .
+    qed simp
+    also have "... = 4 * T (l\<^sub>R n)" by simp
     finally show ?thesis .
   qed
+  from this and \<open>L\<^sub>2 \<in> DTIME(?T')\<close> have I: "L\<^sub>2 \<in> DTIME(\<lambda>n. 4 * T (l\<^sub>R n))" by (fact DTIME_mono_ae)
 
-  from this and \<open>L\<^sub>2 \<in> DTIME(?T')\<close> have "L\<^sub>2 \<in> DTIME(\<lambda>n. 4 * T n)" by (fact DTIME_mono_ae)
-  with T_superlinear show "L\<^sub>2 \<in> DTIME(T)" by (intro DTIME_speed_up_rev[where T=T]) auto
+  from \<open>\<And>n. T (l\<^sub>R n) \<ge> T(n)\<close> have "T m / m \<le> T (l\<^sub>R m) / m" for m
+    by (intro divide_right_mono) auto
+  then have "N \<le> T m / m \<Longrightarrow> N \<le> T (l\<^sub>R m) / m" for N m using dual_order.trans by blast
+  with T_superlinear have II: "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. N \<le> T(l\<^sub>R n)/n" by meson
+
+  show "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))" by (rule DTIME_speed_up_rev) (use I II in auto)
 qed
 
+
+lemma reduce_DTIME:
+  assumes f\<^sub>R_ae: "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> length w))"
+    and "computable_in_time T f\<^sub>R"
+    and T_superlinear: "\<forall>N. \<exists>n. \<forall>m\<ge>n. T(m)/m \<ge> N"
+    and "L\<^sub>1 \<in> DTIME(T)"
+  shows "L\<^sub>2 \<in> DTIME(T)" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
+  by (rule reduce_DTIME') (use assms in auto)
 
 end
