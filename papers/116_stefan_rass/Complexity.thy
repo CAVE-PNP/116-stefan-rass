@@ -252,40 +252,44 @@ using assms that unfolding computable_in_time_def by blast
 subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
-definition DTIME :: "'a itself \<Rightarrow> (nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> ('b::blank) lang set" where
-  "DTIME TYPE('a) T \<equiv> {L. \<exists>M::('a, 'b) TM. TM M \<and> TM.decides M L \<and> TM.time_bounded M T}"
+definition typed_DTIME :: "'a itself \<Rightarrow> (nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> ('b::blank) lang set" where
+  "typed_DTIME TYPE('a) T \<equiv> {L. \<exists>M::('a, 'b) TM. TM M \<and> TM.decides M L \<and> TM.time_bounded M T}"
+
+abbreviation DTIME where
+  "DTIME T \<equiv> typed_DTIME TYPE(nat) T"
+
 
 lemma (in TM) in_dtimeI[intro]:
   assumes "decides L"
     and "time_bounded T"
-  shows "L \<in> DTIME TYPE('a) T"
-  unfolding DTIME_def using assms TM_axioms by blast
+  shows "L \<in> typed_DTIME TYPE('a) T"
+  unfolding typed_DTIME_def using assms TM_axioms by blast
 
 lemma in_dtimeE[elim]:
-  assumes "L \<in> DTIME TYPE('a) T"
+  assumes "L \<in> typed_DTIME TYPE('a) T"
   obtains M::"('a, 'b::blank) TM"
   where "TM.decides M L"
     and "TM.time_bounded M T"
     and "TM M"
-  using assms unfolding DTIME_def by blast
+  using assms unfolding typed_DTIME_def by blast
 
 lemma in_dtimeE'[elim]:
-  assumes "L \<in> DTIME TYPE('a) T"
+  assumes "L \<in> typed_DTIME TYPE('a) T"
   shows "\<exists>M::('a, 'b::blank) TM. TM M \<and> TM.decides M L \<and> TM.time_bounded M T"
-  using assms unfolding DTIME_def ..
+  using assms unfolding typed_DTIME_def ..
 
 corollary in_dtime_mono':
   fixes T t
   assumes "\<And>n. tcomp T n \<ge> tcomp t n"
-    and "L \<in> DTIME TYPE('a) t"
-  shows "L \<in> DTIME TYPE('a) T"
+    and "L \<in> typed_DTIME TYPE('a) t"
+  shows "L \<in> typed_DTIME TYPE('a) T"
   using assms TM.time_bounded_mono' by (elim in_dtimeE, intro TM.in_dtimeI) blast+
 
 corollary in_dtime_mono:
   fixes T t
   assumes "\<And>n. t n \<le> T n"
-    and "L \<in> DTIME TYPE('a) t"
-  shows "L \<in> DTIME TYPE('a) T"
+    and "L \<in> typed_DTIME TYPE('a) t"
+  shows "L \<in> typed_DTIME TYPE('a) T"
   using assms by (intro in_dtime_mono'[of t T] tcomp_mono)
 
 subsection\<open>Classical Results\<close>
@@ -365,22 +369,22 @@ text\<open>"Lemma 12.3  If \<open>L\<close> is accepted by a TM \<open>M\<close>
 
 lemma DTIME_ae:
   assumes "\<exists>M::('a, 'b::blank) TM. TM.alm_all M (\<lambda>w. TM.decides_word M L w \<and> TM.time_bounded_word M T w)"
-  shows "L \<in> DTIME TYPE('a) T"
+  shows "L \<in> typed_DTIME TYPE('a) T"
 sorry
 
 lemma (in TM) DTIME_aeI:
   assumes "\<And>w. wf_word w \<Longrightarrow> n \<le> length w \<Longrightarrow> decides_word L w"
     and "\<And>w. wf_word w \<Longrightarrow> length w \<ge> n \<Longrightarrow> time_bounded_word T w"
-  shows "L \<in> DTIME TYPE('a) T"
+  shows "L \<in> typed_DTIME TYPE('a) T"
   using assms by (intro DTIME_ae) blast
 
 lemma DTIME_mono_ae':
   fixes L :: "('b::blank) lang"
   assumes Tt: "\<And>n. N \<le> n \<Longrightarrow> tcomp T n \<ge> tcomp t n"
-    and "L \<in> DTIME TYPE('a) t"
-  shows "L \<in> DTIME TYPE('a) T"
+    and "L \<in> typed_DTIME TYPE('a) t"
+  shows "L \<in> typed_DTIME TYPE('a) T"
 proof -
-  from \<open>L \<in> DTIME TYPE('a) t\<close>
+  from \<open>L \<in> typed_DTIME TYPE('a) t\<close>
   obtain M::"('a, 'b) TM"
     where wf: "TM M" and decides: "TM.decides M L" and "TM.time_bounded M t" ..
 
@@ -405,8 +409,8 @@ qed
 
 lemma DTIME_mono_ae:
   assumes Tt: "\<And>n. n \<ge> N \<Longrightarrow> T n \<ge> t n"
-    and "L \<in> DTIME TYPE('a) t"
-  shows "L \<in> DTIME TYPE('a) T"
+    and "L \<in> typed_DTIME TYPE('a) t"
+  shows "L \<in> typed_DTIME TYPE('a) T"
   using assms by (intro DTIME_mono_ae'[of N t T]) (rule tcomp_mono)
 
 subsubsection\<open>Linear Speed-Up\<close>
@@ -458,15 +462,15 @@ corollary DTIME_speed_up:
   fixes L::"'b::blank lang"
   assumes "c > 0"
     and "unbounded (\<lambda>n. T(n)/n)"
-    and "L \<in> DTIME TYPE('a1) T"
-  shows "L \<in> DTIME TYPE('a2) (\<lambda>n. c * T n)"
+    and "L \<in> typed_DTIME TYPE('a1) T"
+  shows "L \<in> typed_DTIME TYPE('a2) (\<lambda>n. c * T n)"
 proof -
-  from \<open>L \<in> DTIME TYPE('a1) T\<close> obtain M1::"('a1, 'b::blank) TM"
+  from \<open>L \<in> typed_DTIME TYPE('a1) T\<close> obtain M1::"('a1, 'b::blank) TM"
     where "TM M1" and "TM.decides M1 L" and "TM.time_bounded M1 T" ..
   with assms(1-2) obtain M2::"('a2, 'b::blank) TM"
     where "TM M2" "TM.decides M2 L" "TM.time_bounded M2 (\<lambda>n. c * T n)"
     by (rule linear_time_speed_up)
-  then show ?thesis unfolding DTIME_def by blast
+  then show ?thesis unfolding typed_DTIME_def by blast
 qed
 
 lemma DTIME_speed_up_rev:
@@ -474,8 +478,8 @@ lemma DTIME_speed_up_rev:
   defines "T' \<equiv> \<lambda>n. c * T n"
   assumes "c > 0"
     and "unbounded (\<lambda>n. T(n)/n)"
-    and "L \<in> DTIME TYPE('a1) T'"
-  shows "L \<in> DTIME TYPE('a2) T"
+    and "L \<in> typed_DTIME TYPE('a1) T'"
+  shows "L \<in> typed_DTIME TYPE('a2) T"
 proof -
   define c' where "c' \<equiv> 1/c"
   have T: "T = (\<lambda>n. c' * T' n)" unfolding T'_def c'_def using \<open>c > 0\<close> by force
@@ -490,27 +494,27 @@ proof -
     from assms(3) have "\<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N'" unfolding unbounded_def ..
     then show "\<exists>n'. \<forall>n\<ge>n'. c*T(n)/n \<ge> N" unfolding N'_def * .
   qed
-  moreover note \<open>L \<in> DTIME TYPE('a1) T'\<close>
-  ultimately show "L \<in> DTIME TYPE('a2) T" unfolding T by (rule DTIME_speed_up)
+  moreover note \<open>L \<in> typed_DTIME TYPE('a1) T'\<close>
+  ultimately show "L \<in> typed_DTIME TYPE('a2) T" unfolding T by (rule DTIME_speed_up)
 qed
 
 corollary DTIME_speed_up_eq:
   assumes "c > 0"
     and "unbounded (\<lambda>n. T(n)/n)"
-  shows "DTIME TYPE('a1) (\<lambda>n. c * T n) = DTIME TYPE('a2) T"
+  shows "typed_DTIME TYPE('a1) (\<lambda>n. c * T n) = typed_DTIME TYPE('a2) T"
   using assms by (intro set_eqI iffI) (fact DTIME_speed_up_rev, fact DTIME_speed_up)
 
 corollary DTIME_speed_up_div:
   assumes "d > 0"
     and "unbounded (\<lambda>n. T(n)/n)"
-    and "L \<in> DTIME TYPE('a) T"
-  shows "L \<in> DTIME TYPE('a) (\<lambda>n. T n / d)"
+    and "L \<in> typed_DTIME TYPE('a) T"
+  shows "L \<in> typed_DTIME TYPE('a) (\<lambda>n. T n / d)"
 proof -
   define c where "c \<equiv> 1 / d"
   have "a / d = c * a" for a unfolding c_def by simp
 
   from \<open>d > 0\<close> have "c > 0" unfolding c_def by simp
-  then show "L \<in> DTIME TYPE('a) (\<lambda>n. T n / d)" unfolding \<open>\<And>a. a / d = c * a\<close>
+  then show "L \<in> typed_DTIME TYPE('a) (\<lambda>n. T n / d)" unfolding \<open>\<And>a. a / d = c * a\<close>
     using assms(2-3) by (rule DTIME_speed_up)
 qed
 
@@ -582,13 +586,13 @@ lemma reduce_DTIME: (* TODO clean up and tidy assumptions *)
   assumes f\<^sub>R_ae: "Alm_all (\<lambda>w. (f\<^sub>R w \<in> L1 \<longleftrightarrow> w \<in> L2) \<and> (length (f\<^sub>R w) \<le> length w))"
     and "computable_in_time TYPE('a0) T (f\<^sub>R :: 'b::blank list \<Rightarrow> 'b list)"
     and T_superlinear: "unbounded (\<lambda>n::nat. T(n)/n)"
-    and "(L1::'b list set) \<in> DTIME TYPE('a1) T"
-  shows "(L2::'b list set) \<in> DTIME TYPE('a0 + 'a1) T"
+    and "(L1::'b list set) \<in> typed_DTIME TYPE('a1) T"
+  shows "(L2::'b list set) \<in> typed_DTIME TYPE('a0 + 'a1) T"
 proof -
   from \<open>computable_in_time TYPE('a0) T f\<^sub>R\<close> obtain M\<^sub>R::"('a0, 'b) TM"
     where "TM.computes M\<^sub>R f\<^sub>R" "TM.time_bounded  M\<^sub>R T" "TM M\<^sub>R"
     unfolding computable_in_time_def by auto
-  from \<open>L1 \<in> DTIME TYPE('a1) T\<close>
+  from \<open>L1 \<in> typed_DTIME TYPE('a1) T\<close>
   obtain M1::"('a1, 'b) TM" where "TM M1" "TM.decides M1 L1" "TM.time_bounded M1 T" ..
   define M where "M \<equiv> M\<^sub>R |+| M1"
   from \<open>TM M\<^sub>R\<close> \<open>TM M1\<close> have "TM M"
@@ -604,7 +608,7 @@ proof -
 
   \<comment> \<open>Prove \<^term>\<open>M\<close> to be \<^term>\<open>T\<close>-time-bounded.
     Part 1: show a time-bound for \<^term>\<open>M\<close>.\<close>
-  have "L2 \<in> DTIME TYPE('a0+'a1) ?T'"
+  have "L2 \<in> typed_DTIME TYPE('a0+'a1) ?T'"
   proof (rule TM.DTIME_aeI)
     show "TM M" by fact
 
@@ -651,9 +655,9 @@ proof -
     finally show ?thesis .
   qed
 
-  from this and \<open>L2 \<in> DTIME TYPE('a0+'a1) ?T'\<close>
-  have "L2 \<in> DTIME TYPE('a0+'a1) (\<lambda>n. 4 * T n)" by (fact DTIME_mono_ae)
-  with T_superlinear show "L2 \<in> DTIME TYPE('a0+'a1) T"
+  from this and \<open>L2 \<in> typed_DTIME TYPE('a0+'a1) ?T'\<close>
+  have "L2 \<in> typed_DTIME TYPE('a0+'a1) (\<lambda>n. 4 * T n)" by (fact DTIME_mono_ae)
+  with T_superlinear show "L2 \<in> typed_DTIME TYPE('a0+'a1) T"
     by (intro DTIME_speed_up_rev[where T=T]) auto
 qed
 

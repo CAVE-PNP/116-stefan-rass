@@ -171,7 +171,7 @@ definition step :: "('a, 'b) TM_config \<Rightarrow> ('a, 'b) TM_config" where
       tapes=map2 tp_update (next_action M q w) (tapes c)
    \<rparr>)"
 
-abbreviation all_Nop ("Nop\<^sub>k") where "Nop\<^sub>k \<equiv> replicate (tape_count M) Nop"
+abbreviation all_Nop ("Nop\<^sub>k") where "Nop\<^sub>k \<equiv> Nop \<up> (tape_count M)"
 
 
 corollary all_Nop_update[simp]: "length ts = tape_count M \<Longrightarrow> map2 tp_update Nop\<^sub>k ts = ts"
@@ -244,7 +244,7 @@ corollary wf_config_steps: "wf_config c \<Longrightarrow> wf_config ((step^^n) c
 definition start_config :: "'b list \<Rightarrow> ('a, 'b) TM_config" where [simp]:
   "start_config w = \<lparr>
     state = start_state M,
-    tapes = <w>\<^sub>t\<^sub>p # replicate (tape_count M - 1) empty_tape
+    tapes = <w>\<^sub>t\<^sub>p # empty_tape \<up> (tape_count M - 1)
   \<rparr>"
 
 abbreviation "run n w \<equiv> (step^^n) (start_config w)"
@@ -317,7 +317,7 @@ fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a
                                    pad k Nop (next_action M1 q1 w1)
                        | Inr q2 \<Rightarrow> let w2 = nths w (insert 0 {tape_count M1..<k}) in
                                    let a2 = next_action M2 q2 w2 in
-                                   hd a2 # replicate (tape_count M1 - 1) Nop @ tl a2
+                                   hd a2 # Nop \<up> (tape_count M1 - 1) @ tl a2
                         )
   \<rparr>)"
 
@@ -555,6 +555,6 @@ definition computes_word :: "('b list \<Rightarrow> 'b list) \<Rightarrow> 'b li
 abbreviation computes :: "('b list \<Rightarrow> 'b list) \<Rightarrow> bool"
   where "computes f \<equiv> \<forall>w. computes_word f w"
 
-end
+end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
 
 end

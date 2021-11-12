@@ -2,7 +2,11 @@ theory Lists
   imports Main
 begin
 
-lemma map2_replicate: "map2 f (replicate n x) ys = map (f x) (take n ys)"
+\<comment> \<open>From \<^session>\<open>Universal_Turing_Machine\<close>.\<close>
+abbreviation replicate_exponent :: "'a \<Rightarrow> nat \<Rightarrow> 'a list" ("_ \<up> _" [100, 99] 100)
+  where "x \<up> n \<equiv> replicate n x"
+
+lemma map2_replicate: "map2 f (x \<up> n) ys = map (f x) (take n ys)"
   unfolding zip_replicate1 map_map by simp
 
 lemma map2_singleton:
@@ -61,7 +65,7 @@ proof -
   then show "infinite X" using finite_maxlen by (rule contrapos_nn)
 qed
 
-abbreviation "pad n x xs \<equiv> xs @ replicate (n - length xs) x"
+abbreviation "pad n x xs \<equiv> xs @ x \<up> (n - length xs)"
 
 lemma pad_length: "length (pad n x xs) = max n (length xs)"
   by simp
