@@ -555,6 +555,6 @@ definition computes_word :: "('b list \<Rightarrow> 'b list) \<Rightarrow> 'b li
 abbreviation computes :: "('b list \<Rightarrow> 'b list) \<Rightarrow> bool"
   where "computes f \<equiv> \<forall>w. computes_word f w"
 
-end \<comment> \<open>context \<^locale>\<open>wf_TM\<close>\<close>
+end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
 
 end
