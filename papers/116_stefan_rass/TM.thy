@@ -545,6 +545,7 @@ lemma TM_lang_unique: "\<exists>\<^sub>\<le>\<^sub>1L. decides L"
 
 end
 
+
 subsection\<open>Computation of Functions\<close>
 
 context TM begin
@@ -556,5 +557,52 @@ abbreviation computes :: "('b list \<Rightarrow> 'b list) \<Rightarrow> bool"
   where "computes f \<equiv> \<forall>w. computes_word f w"
 
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
+
+
+subsection\<open>Rejecting TM\<close>
+
+locale Rejecting_TM
+begin
+
+definition "Rejecting_TM \<equiv> \<lparr>
+  tape_count = 1,
+  states = {1}::nat set,
+  start_state = 1,
+  final_states = {1},
+  accepting_states = {},
+  symbols = UNIV,
+  next_state = \<lambda>q w. 1,
+  next_action = \<lambda>q w. [Nop]
+\<rparr> :: (nat, 'b::{blank, finite}) TM"
+
+sublocale TM:
+  TM Rejecting_TM
+  unfolding Rejecting_TM_def
+  by (unfold_locales) simp_all
+
+lemma rej_TM:
+  fixes w :: "'a::{finite, blank} list"
+  shows "TM.rejects w"
+  unfolding TM.rejects_def
+proof
+  show "TM.wf_word w" unfolding Rejecting_TM_def by simp
+next
+  show "TM.hoare_halt (TM.init w) (\<lambda>c. state c \<notin> accepting_states Rejecting_TM)"
+  proof
+    fix c0::"(nat, 'a) TM_config"
+    assume "TM.init w c0"
+    then have "state c0 = start_state (Rejecting_TM::(nat, 'a) TM)"
+      by (fact TM.init_state_start_state)
+    then have "TM.is_final ((TM.step^^0) c0)"
+      unfolding Rejecting_TM_def by simp
+    moreover have "accepting_states Rejecting_TM = {}"
+      unfolding Rejecting_TM_def by simp
+    ultimately show "\<exists>n. let cn = (TM.step ^^ n) c0 in TM.is_final cn \<and> state cn \<notin> accepting_states Rejecting_TM"
+      using empty_iff by metis
+  qed
+qed
+
+end \<comment> \<open>\<^locale>\<open>Rejecting_TM\<close>\<close>
+
 
 end

@@ -31,6 +31,7 @@ lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tc
   by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono) rule
 
 context TM begin
+
 definition time_bounded_word :: "(nat \<Rightarrow> 'c::floor_ceiling) \<Rightarrow> 'b list \<Rightarrow> bool"
   where time_bounded_def[simp]: "time_bounded_word T w \<equiv> \<exists>n.
             n \<le> tcomp\<^sub>w T w \<and> is_final (run n w)"
@@ -133,54 +134,16 @@ lemma time_halts: "wf_word w \<Longrightarrow> time w = Some n \<Longrightarrow>
 lemma halts_altdef: "halts w \<longleftrightarrow> wf_word w \<and> (\<exists>n. time w = Some n)"
   using halts_time time_halts TM.halts_def TM_axioms by blast
 
-end
-
-locale Rejecting_TM begin
-definition "Rejecting_TM \<equiv> \<lparr>
-  tape_count = 1,
-  states = {1}::nat set,
-  start_state = 1,
-  final_states = {1},
-  accepting_states = {},
-  symbols = UNIV,
-  next_state = \<lambda>q w. 1,
-  next_action = \<lambda>q w. [Nop]
-\<rparr> :: (nat, 'b::{blank, finite}) TM"
-interpretation TM Rejecting_TM
-  unfolding Rejecting_TM_def
-  by unfold_locales simp_all
-
-lemma rej_TM:
-  fixes w :: "'a::{finite, blank} list"
-  shows "rejects w"
-  unfolding rejects_def
-proof
-  show "wf_word w" unfolding Rejecting_TM_def by simp
-next
-  show "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states Rejecting_TM)"
-  proof
-    fix c0::"(nat, 'a) TM_config"
-    assume "init w c0"
-    then have "state c0 = start_state (Rejecting_TM::(nat, 'a) TM)"
-      by (fact init_state_start_state)
-    then have "is_final ((step^^0) c0)"
-      unfolding Rejecting_TM_def by simp
-    moreover have "accepting_states Rejecting_TM = {}"
-      unfolding Rejecting_TM_def by simp
-    ultimately show "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<notin> accepting_states Rejecting_TM"
-      using empty_iff by metis
-  qed
-qed
-
-lemma rej_TM_time: "time w = Some 0"
+lemma (in Rejecting_TM) rej_TM_time: "TM.time w = Some 0"
 proof -
-  have "is_final (run 0 w)"
-    unfolding start_config_def unfolding Rejecting_TM_def by simp
-  thus ?thesis unfolding time_def
+  have "TM.is_final (TM.run 0 w)"
+    unfolding TM.start_config_def unfolding Rejecting_TM_def by simp
+  thus ?thesis unfolding TM.time_def
     using Least_eq_0 by presburger
 qed
 
-end
+end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
+
 
 text\<open>Notion of time-constructible from Hopcroft ch. 12.3, p. 299:
   "A function T(n) is said to be time constructible if there exists a T(n) time-
