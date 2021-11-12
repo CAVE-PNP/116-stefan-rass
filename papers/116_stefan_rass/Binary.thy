@@ -67,10 +67,10 @@ lemma nat_of_bin_app1: "nat_of_bin (xs @ [True]) = nat_of_bin xs + 2 ^ length xs
 lemma nat_of_bin_app: "nat_of_bin (lo @ up) = (nat_of_bin up) * 2^(length lo) + (nat_of_bin lo)"
   by (induction lo) auto
 
-lemma nat_of_bin_0s [simp]: "nat_of_bin (replicate k False) = 0" by (induction k) auto
-corollary nat_of_bin_app_0s: "nat_of_bin (replicate k False @ up) = (nat_of_bin up) * 2^k"
+lemma nat_of_bin_0s [simp]: "nat_of_bin (False \<up> k) = 0" by (induction k) auto
+corollary nat_of_bin_app_0s: "nat_of_bin (False \<up> k @ up) = (nat_of_bin up) * 2^k"
   using nat_of_bin_app by simp
-corollary nat_of_bin_leading_0s[simp]: "nat_of_bin (xs @ replicate k False) = nat_of_bin xs"
+corollary nat_of_bin_leading_0s[simp]: "nat_of_bin (xs @ False \<up> k) = nat_of_bin xs"
   using nat_of_bin_app by simp
 
 lemma hd_one_nonzero: "nat_of_bin (True # xs) > 0" by simp
@@ -357,7 +357,7 @@ qed
 
 lemma bin_of_nat_app_0s:
   assumes "n > 0"
-  shows "bin_of_nat (n * 2^k) = replicate k False @ bin_of_nat n"
+  shows "bin_of_nat (n * 2^k) = False \<up> k @ bin_of_nat n"
     (is "?lhs = ?zs @ ?n")
 proof -
   from \<open>n > 0\<close> have "?n \<noteq> []" using bin_of_nat_len_gt_0 by simp
@@ -370,7 +370,7 @@ proof -
   finally show ?thesis .
 qed
 
-lemma nat_of_bin_app_1s: "nat_of_bin (replicate n True @ xs) = nat_of_bin xs * 2^n + 2^n - 1"
+lemma nat_of_bin_app_1s: "nat_of_bin (True \<up> n @ xs) = nat_of_bin xs * 2^n + 2^n - 1"
 proof (induction n)
   case (Suc n)
 
@@ -378,7 +378,7 @@ proof (induction n)
   have h2: "nat_of_bin xs * 2^(Suc n) + 2^(Suc n) \<ge> 2" by (intro trans_le_add2) simp
   note h3 = h2[THEN h1]
 
-  have "nat_of_bin (replicate (Suc n) True @ xs) = nat_of_bin (True # replicate n True @ xs)" by simp
+  have "nat_of_bin (True \<up> (Suc n) @ xs) = nat_of_bin (True # True \<up> n  @ xs)" by simp
   also have "\<dots> = 2 * (nat_of_bin xs * 2^n + 2^n - 1) + 1" using Suc.IH by simp
   also have "\<dots> = 2 * (nat_of_bin xs * 2^n + 2^n) - 2 + 1" unfolding diff_mult_distrib2 by simp
   also have "\<dots> = nat_of_bin xs * 2 * 2^n + 2 * 2^n - 2 + 1"

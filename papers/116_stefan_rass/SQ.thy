@@ -360,13 +360,13 @@ lemma pow2_min: "0 < n \<Longrightarrow> n < 2^k \<Longrightarrow> k > 0" for n 
 lemma add_suffix_bin:
   fixes up lo k :: nat
   assumes "lo < 2^k"
-  shows "up * 2^k + lo = ((bin_of_nat lo) @ (replicate (k - (bit_length lo)) False) @ (bin_of_nat up))\<^sub>2"
+  shows "up * 2^k + lo = ((bin_of_nat lo) @ (False \<up> (k - (bit_length lo))) @ (bin_of_nat up))\<^sub>2"
     (is "?lhs = (?lo @ ?zs @ ?up)\<^sub>2")
 proof (cases "up > 0", cases "lo > 0")
   assume "up > 0" and "lo > 0"
   let ?n = nat_of_bin
     and ?b = bin_of_nat
-    and ?z = "\<lambda>l. replicate l False"
+    and ?z = "\<lambda>l. False \<up> l"
 
   have "k > 0" using \<open>lo > 0\<close> \<open>lo < 2^k\<close> by (rule pow2_min)
   have "bit_length lo \<le> k" using \<open>lo < 2^k\<close> by (rule bit_len_le_pow2)
@@ -383,7 +383,7 @@ corollary add_suffix_bin':
   fixes up lo k :: nat
   assumes "up > 0" (* required to prevent leading zeroes *)
     and "lo < 2^k"
-  shows "bin_of_nat (up * 2^k + lo) = (bin_of_nat lo) @ (replicate (k - (length (bin_of_nat lo))) False) @ (bin_of_nat up)"
+  shows "bin_of_nat (up * 2^k + lo) = (bin_of_nat lo) @ (False \<up> (k - (length (bin_of_nat lo)))) @ (bin_of_nat up)"
     (is "?lhs = ?lo @ ?zs @ ?up")
 proof -
   from \<open>up > 0\<close> have "ends_in True ?up" unfolding bin_of_nat_end_True .
@@ -406,7 +406,7 @@ proof -
   then have drop_k_lo: "drop k (bin_of_nat (lo)\<^sub>2) = []" by (rule drop_all)
 
   let ?lo = "bin_of_nat (lo)\<^sub>2"
-  let ?loz = "?lo @ replicate (k - length ?lo) False"
+  let ?loz = "?lo @ False \<up> (k - length ?lo)"
 
   have lo_simps: "length ?loz = k" "drop k ?lo = []" using \<open>bit_length (lo)\<^sub>2 \<le> k\<close> by force+
   have split: "?lhs = ?loz @ bin_of_nat (up)\<^sub>2" unfolding append.assoc
@@ -436,7 +436,7 @@ proof (cases "lo > 0")
   qed
 
   let ?up = "bin_of_nat up" and ?lo = "bin_of_nat lo"
-    and ?z = "\<lambda>k. replicate k False" and ?lb = "\<lambda>n. length (bin_of_nat n)"
+    and ?z = "\<lambda>k. False \<up> k" and ?lb = "\<lambda>n. length (bin_of_nat n)"
 
   from \<open>up > 0\<close> have "n' > 0" unfolding n'_def by simp
   then have "n > 0" unfolding n_def by simp
