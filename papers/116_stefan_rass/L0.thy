@@ -120,7 +120,7 @@ text\<open>\<open>L\<^sub>D\<close>, defined as part of the proof for the Time H
 
 definition L\<^sub>D :: "'b lang"
   where LD_def[simp]: "L\<^sub>D \<equiv> {w. let M\<^sub>w = TM_decode_pad w in
-                  wf_TM.rejects M\<^sub>w w \<and> wf_TM.time_bounded_word M\<^sub>w T w}"
+                  TM.rejects M\<^sub>w w \<and> TM.time_bounded_word M\<^sub>w T w}"
 
 \<comment> \<open>In the above definition, membership is dependent on the whole word \<open>w\<close>,
   as this is the input for \<open>M\<^sub>w\<close>.
@@ -157,22 +157,22 @@ proof
     Thus \<open>M\<close> accepts \<open>w\<close>, iff \<open>M\<^sub>w\<close> rejects \<open>w\<close> in time \<open>tcomp\<^sub>w T w\<close>.\<close>
 
   define L\<^sub>D_P where "L\<^sub>D_P \<equiv> \<lambda>w. let M\<^sub>w = TM_decode_pad w in
-    wf_TM.rejects M\<^sub>w w \<and> wf_TM.time_bounded_word M\<^sub>w T w"
+    TM.rejects M\<^sub>w w \<and> TM.time_bounded_word M\<^sub>w T w"
 
-  obtain M where "wf_TM.time_bounded M T"
-    and *: "\<And>w. if L\<^sub>D_P w then wf_TM.accepts M w else wf_TM.rejects M w" sorry (* probably out of scope *)
-  have "wf_TM.decides M L\<^sub>D"
+  obtain M where "TM.time_bounded M T"
+    and *: "\<And>w. if L\<^sub>D_P w then TM.accepts M w else TM.rejects M w" sorry (* probably out of scope *)
+  have "TM.decides M L\<^sub>D"
     unfolding decides_altdef4 LD_def mem_Collect_eq L\<^sub>D_P_def[symmetric] using * ..
-  with \<open>wf_TM.time_bounded M T\<close> show "L\<^sub>D \<in> DTIME TYPE('a) T" by blast
+  with \<open>TM.time_bounded M T\<close> show "L\<^sub>D \<in> DTIME TYPE('a) T" by blast
 
 next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME TYPE('a) t\<close>\<close>
   have "L \<noteq> L\<^sub>D" if "L \<in> DTIME TYPE('a) t" for L::"'b lang"
   proof -
     from \<open>L \<in> DTIME TYPE('a) t\<close> obtain M\<^sub>w::"('a, 'b) TM"
-      where "wf_TM M\<^sub>w" "wf_TM.decides M\<^sub>w L" "wf_TM.time_bounded M\<^sub>w t"  sorry (* .. *)
+      where "TM M\<^sub>w" "TM.decides M\<^sub>w L" "TM.time_bounded M\<^sub>w t"  sorry (* .. *)
     define w' where "w' = encode_TM M\<^sub>w"
 
-    from \<open>wf_TM M\<^sub>w\<close> interpret wf_TM M\<^sub>w .
+    from \<open>TM M\<^sub>w\<close> interpret TM M\<^sub>w .
     
     let ?n = "length (encode_TM M\<^sub>w) + 2"
     obtain l where "T(2*l) \<ge> t(2*l)" and "clog l \<ge> ?n"
@@ -195,26 +195,26 @@ next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME TYPE('a) 
     qed
 
     obtain w::"'b list" where "length w = l" and dec_w: "TM_decode_pad w = M\<^sub>w"
-      using \<open>wf_TM M\<^sub>w\<close> \<open>clog l \<ge> ?n\<close> by (rule embed_TM_in_len)
+      using \<open>TM M\<^sub>w\<close> \<open>clog l \<ge> ?n\<close> by (rule embed_TM_in_len)
 
     have "w \<in> L \<longleftrightarrow> w \<notin> L\<^sub>D"
     proof
       assume "w \<in> L"
-      moreover from \<open>wf_TM.decides M\<^sub>w L\<close>
-      have "w \<notin> L \<longleftrightarrow> wf_TM.rejects M\<^sub>w w" unfolding decides_def by blast
-      ultimately have "\<not> wf_TM.rejects M\<^sub>w w" by blast
+      moreover from \<open>TM.decides M\<^sub>w L\<close>
+      have "w \<notin> L \<longleftrightarrow> TM.rejects M\<^sub>w w" unfolding decides_def by blast
+      ultimately have "\<not> TM.rejects M\<^sub>w w" by blast
       then show "w \<notin> L\<^sub>D" unfolding LD_def mem_Collect_eq dec_w by presburger
     next
       
       assume "w \<notin> L\<^sub>D"
-      moreover have "wf_TM.time_bounded_word M\<^sub>w T w"
+      moreover have "TM.time_bounded_word M\<^sub>w T w"
       proof (rule time_bounded_word_mono)
         from \<open>T(2*l) \<ge> t(2*l)\<close> show "real (T (tp_size <w>\<^sub>t\<^sub>p)) \<ge> real (t (tp_size <w>\<^sub>t\<^sub>p))"
           unfolding tape_size_input \<open>length w = l\<close> by (rule of_nat_mono)
-        from \<open>wf_TM.time_bounded M\<^sub>w t\<close> show "wf_TM.time_bounded_word M\<^sub>w t w" ..
+        from \<open>TM.time_bounded M\<^sub>w t\<close> show "TM.time_bounded_word M\<^sub>w t w" ..
       qed
       ultimately have "\<not> rejects M\<^sub>w w" unfolding LD_def dec_w mem_Collect_eq Let_def by blast
-      with \<open>wf_TM.decides M\<^sub>w L\<close> show "w \<in> L" unfolding decides_def by blast
+      with \<open>TM.decides M\<^sub>w L\<close> show "w \<in> L" unfolding decides_def by blast
     qed
     then show "L \<noteq> L\<^sub>D" by blast
   qed

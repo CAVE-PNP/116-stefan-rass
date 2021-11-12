@@ -30,7 +30,7 @@ abbreviation (input) tcomp\<^sub>w :: "(nat \<Rightarrow> 'c :: floor_ceiling) \
 lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def
   by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono) rule
 
-context wf_TM begin
+context TM begin
 definition time_bounded_word :: "(nat \<Rightarrow> 'c::floor_ceiling) \<Rightarrow> 'b list \<Rightarrow> bool"
   where time_bounded_def[simp]: "time_bounded_word T w \<equiv> \<exists>n.
             n \<le> tcomp\<^sub>w T w \<and> is_final (run n w)"
@@ -128,10 +128,10 @@ lemma halts_time: "halts w \<Longrightarrow> \<exists>n. time w = Some n"
   using wf_config_run wf_start_config by fastforce
 
 lemma time_halts: "wf_word w \<Longrightarrow> time w = Some n \<Longrightarrow> halts w"
-  by (meson halts_I wf_TM.time_Some_D wf_TM_axioms)
+  by (meson halts_I TM.time_Some_D TM_axioms)
 
 lemma halts_altdef: "halts w \<longleftrightarrow> wf_word w \<and> (\<exists>n. time w = Some n)"
-  using halts_time time_halts wf_TM.halts_def wf_TM_axioms by blast
+  using halts_time time_halts TM.halts_def TM_axioms by blast
 
 end
 
@@ -146,7 +146,7 @@ definition "Rejecting_TM \<equiv> \<lparr>
   next_state = \<lambda>q w. 1,
   next_action = \<lambda>q w. [Nop]
 \<rparr> :: (nat, 'b::{blank, finite}) TM"
-interpretation wf_TM Rejecting_TM
+interpretation TM Rejecting_TM
   unfolding Rejecting_TM_def
   by unfold_locales simp_all
 
@@ -188,7 +188,7 @@ text\<open>Notion of time-constructible from Hopcroft ch. 12.3, p. 299:
   on which M actually makes T(n) moves."\<close>
 
 definition tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "tconstr T \<equiv> \<exists>M::(nat, nat) TM. \<forall>n. \<exists>w. wf_TM.time M w = Some (T n)"
+  where "tconstr T \<equiv> \<exists>M::(nat, nat) TM. \<forall>n. \<exists>w. TM.time M w = Some (T n)"
 
 text\<open>Fully time-constructible, ibid.:
   "We say that T(n) is fully time-constructible if there is a TM
@@ -196,13 +196,13 @@ text\<open>Fully time-constructible, ibid.:
 
 definition fully_tconstr :: "'a itself \<Rightarrow> 'b::blank itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
   where "fully_tconstr TYPE('a) TYPE('b) T \<equiv>
-    \<exists>M::('a, 'b) TM. \<forall>n w. length w = n \<longrightarrow> wf_TM.time M w = Some (T n)"
+    \<exists>M::('a, 'b) TM. \<forall>n w. length w = n \<longrightarrow> TM.time M w = Some (T n)"
 
 lemma ftc_altdef: "fully_tconstr TYPE('a) TYPE('b::blank) T \<longleftrightarrow> 
-                   (\<exists>M::('a, 'b) TM. \<forall>w. wf_TM.time M w = Some (T (length w)))"
+                   (\<exists>M::('a, 'b) TM. \<forall>w. TM.time M w = Some (T (length w)))"
   unfolding fully_tconstr_def by simp
 
-lemma (in wf_TM) time_bounded_altdef2:
+lemma (in TM) time_bounded_altdef2:
   "time_bounded T \<longleftrightarrow> (\<forall>w. \<exists>n. time w = Some n \<and> n \<le> tcomp\<^sub>w T w)"
   unfolding time_bounded_def
 proof (intro iffI allI exI conjI)
@@ -233,7 +233,7 @@ next
   show "?lf \<le> tcomp\<^sub>w T w" unfolding \<open>?lf = n\<close> using n_le .
 qed
 
-corollary (in wf_TM) time_bounded_time: "time_bounded T \<Longrightarrow> the (time w) \<le> tcomp\<^sub>w T w"
+corollary (in TM) time_bounded_time: "time_bounded T \<Longrightarrow> the (time w) \<le> tcomp\<^sub>w T w"
   unfolding time_bounded_altdef2
 proof (elim allE exE conjE)
   fix w n
@@ -242,36 +242,36 @@ proof (elim allE exE conjE)
 qed
 
 definition computable_in_time :: "'a itself \<Rightarrow> (nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> ('b::blank list \<Rightarrow> 'b list) \<Rightarrow> bool"
-  where "computable_in_time TYPE('a) T f \<equiv> \<exists>M::('a, 'b) TM. wf_TM M \<and> wf_TM.computes M f \<and> wf_TM.time_bounded M T"
+  where "computable_in_time TYPE('a) T f \<equiv> \<exists>M::('a, 'b) TM. TM M \<and> TM.computes M f \<and> TM.time_bounded M T"
 
 lemma computableE[elim]:
   assumes "computable_in_time TYPE('a) T f"
-  obtains M::"('a, 'b::blank) TM" where "wf_TM.computes M f" and "wf_TM.time_bounded M T" and "wf_TM M"
+  obtains M::"('a, 'b::blank) TM" where "TM.computes M f" and "TM.time_bounded M T" and "TM M"
 using assms that unfolding computable_in_time_def by blast
 
 subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
 definition DTIME :: "'a itself \<Rightarrow> (nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> ('b::blank) lang set" where
-  "DTIME TYPE('a) T \<equiv> {L. \<exists>M::('a, 'b) TM. wf_TM M \<and> wf_TM.decides M L \<and> wf_TM.time_bounded M T}"
+  "DTIME TYPE('a) T \<equiv> {L. \<exists>M::('a, 'b) TM. TM M \<and> TM.decides M L \<and> TM.time_bounded M T}"
 
-lemma (in wf_TM) in_dtimeI[intro]:
+lemma (in TM) in_dtimeI[intro]:
   assumes "decides L"
     and "time_bounded T"
   shows "L \<in> DTIME TYPE('a) T"
-  unfolding DTIME_def using assms wf_TM_axioms by blast
+  unfolding DTIME_def using assms TM_axioms by blast
 
 lemma in_dtimeE[elim]:
   assumes "L \<in> DTIME TYPE('a) T"
   obtains M::"('a, 'b::blank) TM"
-  where "wf_TM.decides M L"
-    and "wf_TM.time_bounded M T"
-    and "wf_TM M"
+  where "TM.decides M L"
+    and "TM.time_bounded M T"
+    and "TM M"
   using assms unfolding DTIME_def by blast
 
 lemma in_dtimeE'[elim]:
   assumes "L \<in> DTIME TYPE('a) T"
-  shows "\<exists>M::('a, 'b::blank) TM. wf_TM M \<and> wf_TM.decides M L \<and> wf_TM.time_bounded M T"
+  shows "\<exists>M::('a, 'b::blank) TM. TM M \<and> TM.decides M L \<and> TM.time_bounded M T"
   using assms unfolding DTIME_def ..
 
 corollary in_dtime_mono':
@@ -279,7 +279,7 @@ corollary in_dtime_mono':
   assumes "\<And>n. tcomp T n \<ge> tcomp t n"
     and "L \<in> DTIME TYPE('a) t"
   shows "L \<in> DTIME TYPE('a) T"
-  using assms wf_TM.time_bounded_mono' by (elim in_dtimeE, intro wf_TM.in_dtimeI) blast+
+  using assms TM.time_bounded_mono' by (elim in_dtimeE, intro TM.in_dtimeI) blast+
 
 corollary in_dtime_mono:
   fixes T t
@@ -291,7 +291,7 @@ corollary in_dtime_mono:
 subsection\<open>Classical Results\<close>
 
 subsubsection\<open>Almost Everywhere\<close>
-context wf_TM begin
+context TM begin
 definition "alm_all P \<equiv> finite {w \<in> wf_words. \<not> P w}"
 
 lemma alm_all_altdef: "alm_all P \<longleftrightarrow> (MOST w. w \<notin> wf_words \<or> P w)"
@@ -364,11 +364,11 @@ text\<open>"Lemma 12.3  If \<open>L\<close> is accepted by a TM \<open>M\<close>
   but it seems reasonable that a similar construction works on time bounds.\<close>
 
 lemma DTIME_ae:
-  assumes "\<exists>M::('a, 'b::blank) TM. wf_TM.alm_all M (\<lambda>w. wf_TM.decides_word M L w \<and> wf_TM.time_bounded_word M T w)"
+  assumes "\<exists>M::('a, 'b::blank) TM. TM.alm_all M (\<lambda>w. TM.decides_word M L w \<and> TM.time_bounded_word M T w)"
   shows "L \<in> DTIME TYPE('a) T"
 sorry
 
-lemma (in wf_TM) DTIME_aeI:
+lemma (in TM) DTIME_aeI:
   assumes "\<And>w. wf_word w \<Longrightarrow> n \<le> length w \<Longrightarrow> decides_word L w"
     and "\<And>w. wf_word w \<Longrightarrow> length w \<ge> n \<Longrightarrow> time_bounded_word T w"
   shows "L \<in> DTIME TYPE('a) T"
@@ -382,10 +382,10 @@ lemma DTIME_mono_ae':
 proof -
   from \<open>L \<in> DTIME TYPE('a) t\<close>
   obtain M::"('a, 'b) TM"
-    where wf: "wf_TM M" and decides: "wf_TM.decides M L" and "wf_TM.time_bounded M t" ..
+    where wf: "TM M" and decides: "TM.decides M L" and "TM.time_bounded M t" ..
 
   { 
-    from wf interpret wf_TM M .
+    from wf interpret TM M .
 
     from decides have "alm_all (decides_word L)" by auto
     moreover have "alm_all (time_bounded_word T)"
@@ -400,7 +400,7 @@ proof -
 
     note this = this calculation
   }
-  then show ?thesis using DTIME_ae[of L T] wf_TM.ae_conjI wf by blast
+  then show ?thesis using DTIME_ae[of L T] TM.ae_conjI wf by blast
 qed
 
 lemma DTIME_mono_ae:
@@ -423,10 +423,10 @@ lemma linear_time_speed_up:
   assumes "c > 0"
   \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close> required by Hopcroft, but simpler to define in Isabelle.\<close>
     and "unbounded (\<lambda>n. T(n)/n)"
-    and "wf_TM M1"
-    and "wf_TM.decides M1 L"
-    and "wf_TM.time_bounded M1 T"
-  obtains M2 where "wf_TM M2" and "wf_TM.decides M2 L" and "wf_TM.time_bounded M2 (\<lambda>n. c * T n)"
+    and "TM M1"
+    and "TM.decides M1 L"
+    and "TM.time_bounded M1 T"
+  obtains M2 where "TM M2" and "TM.decides M2 L" and "TM.time_bounded M2 (\<lambda>n. c * T n)"
   sorry
 
 
@@ -462,9 +462,9 @@ corollary DTIME_speed_up:
   shows "L \<in> DTIME TYPE('a2) (\<lambda>n. c * T n)"
 proof -
   from \<open>L \<in> DTIME TYPE('a1) T\<close> obtain M1::"('a1, 'b::blank) TM"
-    where "wf_TM M1" and "wf_TM.decides M1 L" and "wf_TM.time_bounded M1 T" ..
+    where "TM M1" and "TM.decides M1 L" and "TM.time_bounded M1 T" ..
   with assms(1-2) obtain M2::"('a2, 'b::blank) TM"
-    where "wf_TM M2" "wf_TM.decides M2 L" "wf_TM.time_bounded M2 (\<lambda>n. c * T n)"
+    where "TM M2" "TM.decides M2 L" "TM.time_bounded M2 (\<lambda>n. c * T n)"
     by (rule linear_time_speed_up)
   then show ?thesis unfolding DTIME_def by blast
 qed
@@ -520,12 +520,12 @@ lemma reduce_decides:
   fixes A B :: "'b::blank lang"
     and M\<^sub>R :: "('a1, 'b) TM" and M\<^sub>B :: "('a2, 'b) TM"
     and f\<^sub>R :: "'b list \<Rightarrow> 'b list" and w :: "'b list"
-  assumes "wf_TM.decides_word M\<^sub>B B (f\<^sub>R w)"
+  assumes "TM.decides_word M\<^sub>B B (f\<^sub>R w)"
     and f\<^sub>R: "f\<^sub>R w \<in> B \<longleftrightarrow> w \<in> A"
-    and M\<^sub>R_f\<^sub>R: "wf_TM.computes_word M\<^sub>R f\<^sub>R w"
-    and "wf_TM M\<^sub>R"
+    and M\<^sub>R_f\<^sub>R: "TM.computes_word M\<^sub>R f\<^sub>R w"
+    and "TM M\<^sub>R"
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
-  shows "wf_TM.decides_word M A w"
+  shows "TM.decides_word M A w"
   sorry (* likely inconsistent: see hoare_comp *)
 
 
@@ -533,28 +533,28 @@ lemma reduce_time_bounded:
   fixes T\<^sub>B T\<^sub>R :: "nat \<Rightarrow> 'c :: floor_ceiling"
     and M\<^sub>R :: "('a1, 'b::blank) TM" and  M\<^sub>B :: "('a2, 'b) TM"
     and f\<^sub>R :: "'b list \<Rightarrow> 'b list" and w :: "'b list"
-  assumes "wf_TM.time_bounded_word M\<^sub>B T\<^sub>B (f\<^sub>R w)"
-    and "wf_TM.time_bounded_word M\<^sub>R T\<^sub>R w"
-    and M\<^sub>R_f\<^sub>R: "wf_TM.computes_word M\<^sub>R f\<^sub>R w"
+  assumes "TM.time_bounded_word M\<^sub>B T\<^sub>B (f\<^sub>R w)"
+    and "TM.time_bounded_word M\<^sub>R T\<^sub>R w"
+    and M\<^sub>R_f\<^sub>R: "TM.computes_word M\<^sub>R f\<^sub>R w"
     and f\<^sub>R_len: "length (f\<^sub>R w) \<le> length w"
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
-  shows "wf_TM.time_bounded_word M (\<lambda>n. tcomp T\<^sub>R n + tcomp T\<^sub>B n) w" (is "wf_TM.time_bounded_word M ?T w")
+  shows "TM.time_bounded_word M (\<lambda>n. tcomp T\<^sub>R n + tcomp T\<^sub>B n) w" (is "TM.time_bounded_word M ?T w")
 
 proof -
   define l where "l \<equiv> tp_size <w>\<^sub>t\<^sub>p"
 
     \<comment> \<open>Idea: We already know that the first machine \<^term>\<open>M\<^sub>R\<close> is time bounded
-    (@{thm \<open>wf_TM.time_bounded_word M\<^sub>R T\<^sub>R w\<close>}).
+    (@{thm \<open>TM.time_bounded_word M\<^sub>R T\<^sub>R w\<close>}).
 
     We also know that its execution will result in the encoded corresponding input word \<open>f\<^sub>R w\<close>
-    (@{thm \<open>wf_TM.computes_word M\<^sub>R f\<^sub>R w\<close>}).
+    (@{thm \<open>TM.computes_word M\<^sub>R f\<^sub>R w\<close>}).
     Since the length of the corresponding input word is no longer
     than the length of the original input word \<^term>\<open>w\<close> (@{thm \<open>length (f\<^sub>R w) \<le> length w\<close>}),
-    and the second machine \<^term>\<open>M\<^sub>B\<close> is time bounded (@{thm \<open>wf_TM.time_bounded_word M\<^sub>B T\<^sub>B (f\<^sub>R w)\<close>}),
+    and the second machine \<^term>\<open>M\<^sub>B\<close> is time bounded (@{thm \<open>TM.time_bounded_word M\<^sub>B T\<^sub>B (f\<^sub>R w)\<close>}),
     we may conclude that the run-time of \<^term>\<open>M \<equiv> M\<^sub>R |+| M\<^sub>B\<close> on the input \<^term>\<open><w>\<^sub>t\<^sub>p\<close>
     is no longer than \<open>?T l = T\<^sub>R l + T\<^sub>B l\<close>.
 
-    \<^const>\<open>wf_TM.time_bounded\<close> is defined in terms of \<^const>\<open>tcomp\<close>, however,
+    \<^const>\<open>TM.time_bounded\<close> is defined in terms of \<^const>\<open>tcomp\<close>, however,
     which means that the resulting total run time \<^term>\<open>?T l\<close> may be as large as
     \<^term>\<open>tcomp T\<^sub>R l + tcomp T\<^sub>B l \<equiv> nat (max (l + 1) \<lceil>T\<^sub>R l\<rceil>) + nat (max (l + 1) \<lceil>T\<^sub>B l\<rceil>)\<close>.
     If \<^term>\<open>\<lceil>T\<^sub>R l\<rceil> < l + 1\<close> or \<^term>\<open>\<lceil>T\<^sub>B l\<rceil> < l + 1\<close> then \<^term>\<open>tcomp ?T l < tcomp T\<^sub>R l + tcomp T\<^sub>B l\<close>.\<close>
@@ -586,12 +586,12 @@ lemma reduce_DTIME: (* TODO clean up and tidy assumptions *)
   shows "(L2::'b list set) \<in> DTIME TYPE('a0 + 'a1) T"
 proof -
   from \<open>computable_in_time TYPE('a0) T f\<^sub>R\<close> obtain M\<^sub>R::"('a0, 'b) TM"
-    where "wf_TM.computes M\<^sub>R f\<^sub>R" "wf_TM.time_bounded  M\<^sub>R T" "wf_TM M\<^sub>R"
+    where "TM.computes M\<^sub>R f\<^sub>R" "TM.time_bounded  M\<^sub>R T" "TM M\<^sub>R"
     unfolding computable_in_time_def by auto
   from \<open>L1 \<in> DTIME TYPE('a1) T\<close>
-  obtain M1::"('a1, 'b) TM" where "wf_TM M1" "wf_TM.decides M1 L1" "wf_TM.time_bounded M1 T" ..
+  obtain M1::"('a1, 'b) TM" where "TM M1" "TM.decides M1 L1" "TM.time_bounded M1 T" ..
   define M where "M \<equiv> M\<^sub>R |+| M1"
-  from \<open>wf_TM M\<^sub>R\<close> \<open>wf_TM M1\<close> have "wf_TM M"
+  from \<open>TM M\<^sub>R\<close> \<open>TM M1\<close> have "TM M"
     unfolding M_def by (rule wf_tm_comp)
 
   let ?T' = "\<lambda>n. tcomp T n + tcomp T n"
@@ -605,24 +605,24 @@ proof -
   \<comment> \<open>Prove \<^term>\<open>M\<close> to be \<^term>\<open>T\<close>-time-bounded.
     Part 1: show a time-bound for \<^term>\<open>M\<close>.\<close>
   have "L2 \<in> DTIME TYPE('a0+'a1) ?T'"
-  proof (rule wf_TM.DTIME_aeI)
-    show "wf_TM M" by fact
+  proof (rule TM.DTIME_aeI)
+    show "TM M" by fact
 
     fix w :: "'b list"
     assume min_len: "n \<le> length w"
 
-    show "wf_TM.decides_word M L2 w" unfolding M_def using \<open>wf_TM M\<^sub>R\<close>
+    show "TM.decides_word M L2 w" unfolding M_def using \<open>TM M\<^sub>R\<close>
     proof (intro reduce_decides)
-      from \<open>wf_TM.decides M1 L1\<close> show "wf_TM.decides_word M1 L1 (f\<^sub>R w)" ..
+      from \<open>TM.decides M1 L1\<close> show "TM.decides_word M1 L1 (f\<^sub>R w)" ..
       from f\<^sub>R_correct and min_len show "f\<^sub>R w \<in> L1 \<longleftrightarrow> w \<in> L2" .
-      from \<open>wf_TM.computes M\<^sub>R f\<^sub>R\<close> show "wf_TM.computes_word M\<^sub>R f\<^sub>R w" ..
+      from \<open>TM.computes M\<^sub>R f\<^sub>R\<close> show "TM.computes_word M\<^sub>R f\<^sub>R w" ..
     qed
 
-    show "wf_TM.time_bounded_word M ?T' w" unfolding M_def
+    show "TM.time_bounded_word M ?T' w" unfolding M_def
     proof (intro reduce_time_bounded)
-      from \<open>wf_TM.time_bounded M1 T\<close> show "wf_TM.time_bounded_word M1 T (f\<^sub>R w)" ..
-      from \<open>wf_TM.time_bounded M\<^sub>R T\<close> show "wf_TM.time_bounded_word M\<^sub>R T w" ..
-      from \<open>wf_TM.computes M\<^sub>R f\<^sub>R\<close> show "wf_TM.computes_word M\<^sub>R f\<^sub>R w" ..
+      from \<open>TM.time_bounded M1 T\<close> show "TM.time_bounded_word M1 T (f\<^sub>R w)" ..
+      from \<open>TM.time_bounded M\<^sub>R T\<close> show "TM.time_bounded_word M\<^sub>R T w" ..
+      from \<open>TM.computes M\<^sub>R f\<^sub>R\<close> show "TM.computes_word M\<^sub>R f\<^sub>R w" ..
       from f\<^sub>R_len and min_len show "length (f\<^sub>R w) \<le> length w" .
     qed
   qed

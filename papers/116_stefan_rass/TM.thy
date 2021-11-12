@@ -131,7 +131,7 @@ lemma wf_configD'[dest]:
 
 end \<comment> \<open>\<^locale>\<open>pre_TM\<close>\<close>
 
-locale wf_TM = pre_TM +
+locale TM = pre_TM +
   assumes at_least_one_tape: "1 \<le> tape_count M"
   and state_axioms: "finite (states M)" "start_state M \<in> states M"
                     "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
@@ -286,7 +286,7 @@ proof -
   finally show "(step^^m) c = (step^^n) c" .
 qed
 
-end \<comment> \<open>\<^locale>\<open>wf_TM\<close>\<close>
+end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
 subsection \<open>Composition of Turing Machines\<close>
 
@@ -321,7 +321,7 @@ fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a
                         )
   \<rparr>)"
 
-lemma wf_tm_comp: "wf_TM M1 \<Longrightarrow> wf_TM M2 \<Longrightarrow> wf_TM (M1 |+| M2)"
+lemma wf_tm_comp: "TM M1 \<Longrightarrow> TM M2 \<Longrightarrow> TM (M1 |+| M2)"
   sorry
 
 hide_const (open) "TM.action.L" "TM.action.R" "TM.action.W"
@@ -330,11 +330,11 @@ subsection \<open>Hoare Rules\<close>
 
 type_synonym ('a, 'b) assert = "('a, 'b) TM_config \<Rightarrow> bool"
 
-definition (in wf_TM) hoare_halt :: "('a, 'b) assert \<Rightarrow> ('a, 'b) assert \<Rightarrow> bool" where
+definition (in TM) hoare_halt :: "('a, 'b) assert \<Rightarrow> ('a, 'b) assert \<Rightarrow> bool" where
   "hoare_halt P Q \<longleftrightarrow> (\<forall>c. wf_config c \<longrightarrow> P c \<longrightarrow>
     (\<exists>n. let cn = (step^^n) c in is_final cn \<and> Q cn))"
 
-context wf_TM begin
+context TM begin
 lemma hoare_haltI[intro]:
   fixes P Q
   assumes "\<And>c. wf_config c \<Longrightarrow> P c \<Longrightarrow>
@@ -413,16 +413,16 @@ abbreviation "input_assert (P::'b list \<Rightarrow> bool) \<equiv> \<lambda>c::
 lemma hoare_comp:
   fixes M1 :: "('a1, 'b::blank) TM" and M2 :: "('a2, 'b) TM"
     and Q :: "'b list \<Rightarrow> bool"
-  assumes "wf_TM.hoare_halt M1 (input_assert P) (input_assert Q)"
-      and "wf_TM.hoare_halt M2 (input_assert Q) (input_assert S)"
-    shows "wf_TM.hoare_halt (M1 |+| M2) (input_assert P) (input_assert S)"
+  assumes "TM.hoare_halt M1 (input_assert P) (input_assert Q)"
+      and "TM.hoare_halt M2 (input_assert Q) (input_assert S)"
+    shows "TM.hoare_halt (M1 |+| M2) (input_assert P) (input_assert S)"
 sorry
 
 subsection\<open>Deciding Languages\<close>
 
 abbreviation input where "input w \<equiv> (\<lambda>c. hd (tapes c) = <w>\<^sub>t\<^sub>p)"
 
-context wf_TM begin
+context TM begin
 
 lemma init_input: "init w c \<Longrightarrow> input w c"
   unfolding start_config_def by simp
@@ -513,9 +513,9 @@ end
 subsubsection\<open>TM Languages\<close>
 
 definition TM_lang :: "('a, 'b::blank) TM \<Rightarrow> 'b lang" ("L'(_')")
-  where "L(M) \<equiv> if (\<forall>w. wf_TM.halts M w) then {w. wf_TM.accepts M w} else undefined"
+  where "L(M) \<equiv> if (\<forall>w. TM.halts M w) then {w. TM.accepts M w} else undefined"
 
-context wf_TM begin
+context TM begin
 
 lemma decides_TM_lang_accepts: "(\<And>w. halts w) \<Longrightarrow> decides {w. accepts w}"
   unfolding decides_def rejects_altdef mem_Collect_eq by blast
@@ -547,7 +547,7 @@ end
 
 subsection\<open>Computation of Functions\<close>
 
-context wf_TM begin
+context TM begin
 
 definition computes_word :: "('b list \<Rightarrow> 'b list) \<Rightarrow> 'b list \<Rightarrow> bool"
   where computes_def[simp]: "computes_word f w \<equiv> hoare_halt (input w) (input (f w))"
