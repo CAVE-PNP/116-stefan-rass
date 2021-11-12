@@ -11,6 +11,11 @@ definition Bk_nat :: nat where "Bk_nat = 0"
 instance ..
 end
 
+instantiation option :: (type) blank begin
+definition "Bk_option \<equiv> None"
+instance ..
+end
+
 type_synonym 'b lang = "'b list set"
 
 datatype 'b action = L | R | W 'b | Nop
