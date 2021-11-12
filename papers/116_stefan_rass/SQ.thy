@@ -1,23 +1,22 @@
 theory SQ
-  imports Language_Density "Supplementary/Discrete_Log" "Supplementary/Discrete_Sqrt"
-    "Supplementary/Sublists"
+  imports Language_Density
+    "Supplementary/Discrete_Log" "Supplementary/Discrete_Sqrt" "Supplementary/Sublists"
+    "Intro_Dest_Elim.IHOL_IDE"
 begin
 
 subsection\<open>Language of Integer Squares\<close>
 
 (* SQ is an overloaded identifier in the paper *)
 definition SQ :: lang \<comment> \<open>the language of non-zero square numbers, represented by binary strings without leading ones.\<close>
-  where "SQ \<equiv> {w. \<exists>x. gn w = x\<^sup>2}"
+  where [simp]: "SQ \<equiv> {w. \<exists>x. gn w = x\<^sup>2}"
 
 definition SQ_nat :: "nat set" \<comment> \<open>the analogous set \<open>SQ \<subseteq> \<nat>\<close>, as defined in ch 4.1\<close>
   where "SQ_nat \<equiv> {y. y \<noteq> 0 \<and> (\<exists>x. y = x\<^sup>2)}"
 
-declare SQ_def[simp] SQ_nat_def[simp]
-
 lemma SQ_nat_zero:
 	"insert 0 SQ_nat = {y. \<exists>x. y = x ^ 2}"
 	"SQ_nat = {y. \<exists>x. y = x ^ 2} - {0}"
-	by auto
+	by (auto simp add: SQ_nat_def)
 
 (* relating SQ and SQ_nat *)
 lemma SQ_SQ_nat:
@@ -28,9 +27,9 @@ lemma SQ_SQ_nat:
 lemma SQ_nat_im: "SQ_nat = gn ` SQ"
 proof (intro subset_antisym subsetI image_eqI CollectI)
   fix n assume "n \<in> SQ_nat"
-  then have "n > 0" by simp
+  then have "n > 0" by (simp add: SQ_nat_def)
   with sym inv_gn_id show "n = gn (gn_inv n)" .
-  from \<open>n \<in> SQ_nat\<close> have "\<exists>x. n = x ^ 2" by simp
+  from \<open>n \<in> SQ_nat\<close> have "\<exists>x. n = x ^ 2" by (simp add: SQ_nat_def)
   then obtain x where b: "n = x ^ 2" ..
   then show "gn_inv n \<in> SQ" unfolding SQ_def
     by (intro image_eqI CollectI exI) (fold \<open>n = gn (gn_inv n)\<close>)
@@ -42,7 +41,7 @@ next
   then have "\<exists>x. gn (gn_inv n) = x ^ 2" by blast
   then obtain x where "gn (gn_inv n) = x ^ 2" ..
   with \<open>n > 0\<close> have "n = x ^ 2" using inv_gn_id by simp
-  with \<open>n > 0\<close> show "n \<in> SQ_nat" by simp
+  with \<open>n > 0\<close> show "n \<in> SQ_nat" by (simp add: SQ_nat_def)
 qed
 
 
@@ -261,7 +260,9 @@ lemma next_sq_diff: "next_square n - n < 2 ^ (4 + bit_length n div 2)"
 subsection\<open>Adjacent Square\<close>
 
 definition suffix_len :: "bin \<Rightarrow> nat"
-  where suffix_len_def[simp]: "suffix_len w \<equiv> 5 + length w div 2"
+  where "suffix_len w \<equiv> 5 + length w div 2"
+
+lemma suffix_min_len: "length w \<ge> 9 \<Longrightarrow> suffix_len w \<le> length w" unfolding suffix_len_def by linarith
 
 (*
  * Choose the adjacent square of \<open>n\<close> as the \<open>next_square\<close> of the smallest number sharing its prefix.
@@ -288,14 +289,24 @@ lemma adj_sq_word_correct: "adj_sq\<^sub>w w \<in> SQ" unfolding adj_sq_word_def
 
 subsection\<open>Shared Prefix\<close>
 
-definition shared_suffix :: "nat \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> bool"
-  where sh_sfx_def[simp]: "shared_suffix l a b \<equiv> drop (length a - l) a = drop (length b - l) b"
-
 definition shared_MSBs :: "nat \<Rightarrow> bin \<Rightarrow> bin \<Rightarrow> bool"
-  where sh_msb_def[simp]: "shared_MSBs l a b \<equiv> length a = length b \<and> shared_suffix l a b"
+  where "shared_MSBs l a b \<equiv> length b = length a \<and> drop (length b - l) b = drop (length a - l) a"
+
+
+mk_ide shared_MSBs_def |intro sh_msbI[intro]| |dest sh_msbD[dest]|
+
+lemma sh_msbD'[dest]:
+  assumes "shared_MSBs l a b"
+  shows "drop (length a - l) b = drop (length a - l) a"
+proof -
+  from assms have *: "length b = length a" ..
+  from assms have "drop (length b - l) b = drop (length a - l) a" ..
+  then show ?thesis unfolding * .
+qed
+
 
 (* comparison to old definition:
-lemma sh_pfx_altdef: "shared_suffix l a b \<and> l \<le> length a
+lemma sh_pfx_altdef: "drop (length b - l) b = drop (length a - l) a \<and> l \<le> length a
                         \<longleftrightarrow> (\<exists>ps. length ps = l \<and> suffix ps a \<and> suffix ps b)"
 proof (unfold sh_sfx_def, intro iffI exI conjI; elim exE conjE)
   assume "l \<le> length a" and drop_eq: "drop (length a - l) a = drop (length b - l) b"
@@ -315,39 +326,21 @@ next
 qed
 *)
 
-lemma sh_msbI[intro]:
-  assumes "length a = length b"
-    and "drop (length a - l) a = drop (length b - l) b"
-  shows "shared_MSBs l a b"
-  unfolding sh_sfx_def sh_msb_def using assms ..
-
-lemma sh_msbE[elim]:
-  assumes "shared_MSBs l a b"
-  shows "length a = length b"
-    and "drop (length a - l) a = drop (length b - l) b"
-    and "drop (length a - l) a = drop (length a - l) b"
-proof -
-  from assms show "length a = length b" by (unfold sh_msb_def sh_sfx_def) (elim conjunct1)
-  from assms show "drop (length a - l) a = drop (length b - l) b"
-    by (unfold sh_msb_def sh_sfx_def) (elim conjunct2)
-  then show "drop (length a - l) a = drop (length a - l) b" unfolding \<open>length a = length b\<close> .
-qed
-
 lemma sh_msb_le:
   assumes "L \<ge> l"
     and shL: "shared_MSBs L a b"
   shows "shared_MSBs l a b"
 proof -
-  from shL have l_ab: "length a = length b" ..
+  from shL have l_ab: "length b = length a" ..
 
   from \<open>L \<ge> l\<close> have "length a - L \<le> length a - l" by (rule diff_le_mono2)
-  moreover from shL have "drop (length a - L) a = drop (length a - L) b" ..
-  ultimately have "drop (length a - l) a = drop (length b - l) b" by (fold l_ab) (rule drop_eq_le)
+  moreover from shL have "drop (length a - L) b = drop (length a - L) a" ..
+  ultimately have "drop (length b - l) b = drop (length a - l) a" unfolding l_ab by (rule drop_eq_le)
 
   with l_ab show "shared_MSBs l a b" ..
 qed
 
-lemma sh_msb_comm: "shared_MSBs l a b \<Longrightarrow> shared_MSBs l b a" unfolding sh_sfx_def sh_msb_def by argo
+lemma sh_msb_comm: "shared_MSBs l a b \<Longrightarrow> shared_MSBs l b a" unfolding shared_MSBs_def by argo
 
 lemma bit_len_le_pow2: "n < 2 ^ k \<Longrightarrow> bit_length n \<le> k"
 proof (cases "n > 0", cases "k > 0")
@@ -487,15 +480,12 @@ proof (intro sh_msbI)
   define n' where n': "n' = n - lo"
   let ?lo = "bin_of_nat lo" and ?up = "bin_of_nat up"
 
-  have "k = 5 + (length w) div 2" unfolding k suffix_len_def ..
-  also have "... < length w + 1" using len by linarith
-  finally have "k < length w + 1" .
-  then have "k \<le> length w" by simp
+  from len have "k \<le> length w" unfolding k by (rule suffix_min_len)
   then have "up > 0" unfolding up ps wn by force
   have "lo < 2 ^ k" unfolding lo using zero_less_power pos2 by (intro pos_mod_bound)
   then have "bit_length lo \<le> k" by (rule bit_len_le_pow2)
 
-  from \<open>k < length w + 1\<close> have "k < length w\<^sub>n" unfolding wn_def n len_gn .
+  from \<open>k \<le> length w\<close> have "k < length w\<^sub>n" unfolding wn_def n len_gn by simp
   moreover have "ends_in True w\<^sub>n" unfolding wn ..
   ultimately have "ends_in True ps" unfolding ps by (rule ends_in_drop)
 
@@ -530,7 +520,7 @@ proof (intro sh_msbI)
     using \<open>up > 0\<close> \<open>sq_diff < 2 ^ k\<close> by (rule suffix_len_eq[symmetric])
   also have "... = length w' + 1" unfolding w' sq n unfolding adj_sq_word_def len_gn_inv
     unfolding nat_minus_add_max using * by (subst max_absorb1) blast+
-  finally show l: "length w = length w'" by (rule add_right_imp_eq)
+  finally show l: "length w' = length w" by simp
 
   have lk: "length w - (length w - k) = k" using \<open>length w \<ge> k\<close> by (rule diff_diff_cancel)
   have lwl: "k - length w = 0" by (subst lk[symmetric]) force
@@ -542,8 +532,8 @@ proof (intro sh_msbI)
     using \<open>sq_diff < 2 ^ k\<close> \<open>ends_in True ps\<close> by (subst drop_suffix_bin) force+
   also have "... = drop k (bin_of_nat sq)" unfolding sq_split nat_bin_nat ..
   finally have "drop k w = drop k w'" unfolding wn sq_w' drop_append lwl l[symmetric] by blast
-  then show "drop (length w - (length w - k)) w = drop (length w' - (length w - k)) w'"
-    unfolding l[symmetric] lk by blast
+  then show "drop (length w' - (length w - k)) w' = drop (length w - (length w - k)) w"
+    unfolding l lk ..
 qed
 
 

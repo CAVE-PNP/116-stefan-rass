@@ -21,7 +21,6 @@ fun symbol_of_write :: "'b action \<Rightarrow> 'b::blank" where
 lemma symbol_of_write_def: "symbol_of_write a = (case a of W w \<Rightarrow> w | _ \<Rightarrow> Bk)"
   by (induction a) auto
 
-
 record 'b tape =
   left :: "'b list"
   right :: "'b list"
@@ -29,7 +28,6 @@ record 'b tape =
 abbreviation "empty_tape \<equiv> \<lparr>left=[], right=[]\<rparr>"
 
 definition [simp]: "set_of_tape tp \<equiv> set (left tp) \<union> set (right tp) \<union> {Bk}"
-
 
 text\<open>TM execution begins with the head at the start of the input word.\<close>
 abbreviation input_tape ("<_>\<^sub>t\<^sub>p") where "<w>\<^sub>t\<^sub>p \<equiv> \<lparr>left=[], right=w\<rparr>"
@@ -247,6 +245,11 @@ abbreviation "run n w \<equiv> (step^^n) (start_config w)"
 
 abbreviation "wf_word w \<equiv> set w \<subseteq> symbols M"
 
+abbreviation "wf_words \<equiv> {w. wf_word w}"
+
+lemma words_length_finite[simp]: "finite {w\<in>wf_words. length w \<le> n}"
+  using symbols_axioms(1) finite_lists_length_le[of "symbols M"] by simp
+
 lemma wf_start_config: "wf_word w \<Longrightarrow> wf_config (start_config w)"
 proof
   let ?ts = "tapes (start_config w)"
@@ -312,7 +315,7 @@ fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a
                         )
   \<rparr>)"
 
-lemma "wf_TM M1 \<Longrightarrow> wf_TM M2 \<Longrightarrow> wf_TM (M1 |+| M2)"
+lemma wf_tm_comp: "wf_TM M1 \<Longrightarrow> wf_TM M2 \<Longrightarrow> wf_TM (M1 |+| M2)"
   sorry
 
 hide_const (open) "TM.action.L" "TM.action.R" "TM.action.W"
@@ -398,6 +401,17 @@ qed
 
 end
 
+abbreviation "tps_word c \<equiv> let tp = hd (tapes c) in left tp @ right tp"
+abbreviation "input_assert (P::'b list \<Rightarrow> bool) \<equiv> \<lambda>c::('a, 'b) TM_config. P (tps_word c)"
+
+lemma hoare_comp:
+  fixes M1 :: "('a1, 'b::blank) TM" and M2 :: "('a2, 'b) TM"
+    and Q :: "'b list \<Rightarrow> bool"
+  assumes "wf_TM.hoare_halt M1 (input_assert P) (input_assert Q)"
+      and "wf_TM.hoare_halt M2 (input_assert Q) (input_assert S)"
+    shows "wf_TM.hoare_halt (M1 |+| M2) (input_assert P) (input_assert S)"
+sorry
+
 subsection\<open>Deciding Languages\<close>
 
 abbreviation input where "input w \<equiv> (\<lambda>c. hd (tapes c) = <w>\<^sub>t\<^sub>p)"
@@ -466,6 +480,9 @@ qed
 lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
   by (cases "w \<in> L") (intro accepts_halts, simp, intro rejects_halts, simp)
 
+corollary decides_halts_all: "decides L \<Longrightarrow> halts w"
+  using decides_halts by blast
+
 lemma decides_altdef:
   "decides_word L w \<longleftrightarrow> halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
 proof (intro iffI)
@@ -481,6 +498,56 @@ qed
 
 lemma decides_altdef3: "decides_word L w \<longleftrightarrow> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M \<longleftrightarrow> w\<in>L)"
   sorry
+
+lemma decides_altdef4: "decides_word L w \<longleftrightarrow> (if w \<in> L then accepts w else rejects w)"
+  unfolding decides_def using acc_not_rej by (cases "w \<in> L") auto
+
+end
+
+subsubsection\<open>TM Languages\<close>
+
+definition TM_lang :: "('a, 'b::blank) TM \<Rightarrow> 'b lang" ("L'(_')")
+  where "L(M) \<equiv> if (\<forall>w. wf_TM.halts M w) then {w. wf_TM.accepts M w} else undefined"
+
+context wf_TM begin
+
+lemma decides_TM_lang_accepts: "(\<And>w. halts w) \<Longrightarrow> decides {w. accepts w}"
+  unfolding decides_def rejects_altdef mem_Collect_eq by blast
+
+lemma decides_TM_lang: "(\<And>w. halts w) \<Longrightarrow> decides L(M)"
+  unfolding TM_lang_def using decides_TM_lang_accepts by presburger
+
+lemma decidesE: "decides L \<Longrightarrow> L(M) = L"
+proof safe
+  assume \<open>decides L\<close>
+  then have "halts w" for w by (rule decides_halts_all)
+  then have L_M: "L(M) = {w. accepts w}" unfolding TM_lang_def by presburger
+
+  fix w
+  show "w \<in> L(M)" if "w \<in> L" proof -
+    from \<open>w \<in> L\<close> \<open>decides L\<close> have "accepts w" unfolding decides_def by blast
+    then show "w \<in> L(M)" unfolding L_M ..
+  qed
+  show "w \<in> L" if "w \<in> L(M)" proof -
+    from \<open>w \<in> L(M)\<close> have "accepts w" unfolding L_M by blast
+    with \<open>decides L\<close> show "w \<in> L" unfolding decides_def by blast
+  qed
+qed
+
+lemma TM_lang_unique: "\<exists>\<^sub>\<le>\<^sub>1L. decides L"
+  using decidesE by (intro Uniq_I) blast
+
+end
+
+subsection\<open>Computation of Functions\<close>
+
+context wf_TM begin
+
+definition computes_word :: "('b list \<Rightarrow> 'b list) \<Rightarrow> 'b list \<Rightarrow> bool"
+  where computes_def[simp]: "computes_word f w \<equiv> hoare_halt (input w) (input (f w))"
+
+abbreviation computes :: "('b list \<Rightarrow> 'b list) \<Rightarrow> bool"
+  where "computes f \<equiv> \<forall>w. computes_word f w"
 
 end
 

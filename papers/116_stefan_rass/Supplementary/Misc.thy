@@ -27,14 +27,20 @@ proof -
   ultimately show thesis using that by simp
 qed
 
-(* Suppl_Nat.thy ? *)
-lemma funpow_fixpoint: "f x = x \<Longrightarrow> (f^^n) x = x"
-  by (induction n) simp_all
-
 lemma max_cases:
   assumes "P a"
     and "P b"
   shows "P (max a b)"
   using assms unfolding max_def by simp
+
+lemma max_nat: "max a b = a + (b - a)" for a b :: nat
+  using nat_le_linear[of a b] by fastforce
+
+lemma fold_max_triv: "fold max xs x \<ge> x" for x :: "'a :: linorder" and xs
+  by (fold Max.set_eq_fold) simp
+
+(* Suppl_Nat.thy ? *)
+lemma funpow_fixpoint: "f x = x \<Longrightarrow> (f^^n) x = x"
+  by (induction n) simp_all
 
 end
