@@ -93,55 +93,56 @@ record ('a, 'b) TM_config =
   tapes :: "'b tape list"
 
 
-\<comment> \<open>A state \<open>q\<close> in combination with a vector (\<^typ>\<open>'b list\<close>) of symbols currently under the TM-heads \<open>w\<close>,
+locale pre_TM =
+  fixes M :: "('a, 'b::blank) TM" (structure)
+begin
+
+\<comment> \<open>A state \<open>q\<close> in combination with a vector \<open>w\<close> (\<^typ>\<open>'b list\<close>) of symbols currently under the TM-heads,
   is considered a well-formed state w.r.t. a \<^typ>\<open>('a, 'b) TM\<close> \<open>M\<close>, iff
   \<open>q\<close> is a valid state for \<open>M\<close>,
   the number of elements of \<open>w\<close> matches the number of tapes of \<open>M\<close>, and
   all elements of \<open>w\<close> are valid symbols for \<open>M\<close> (members of \<open>M\<close>'s tape alphabet).\<close>
-definition wf_state_wrt_TM :: "('a, 'b) TM \<Rightarrow> 'a \<Rightarrow> 'b list \<Rightarrow> bool" where
-  "wf_state_wrt_TM M q w \<equiv> q \<in> states M \<and> length w = tape_count M \<and> set w \<subseteq> symbols M"
+definition wf_state :: "'a \<Rightarrow> 'b list \<Rightarrow> bool" where
+  "wf_state q w \<equiv> q \<in> states M \<and> length w = tape_count M \<and> set w \<subseteq> symbols M"
 
-mk_ide wf_state_wrt_TM_def |intro wf_stateI[intro]| |elim wf_stateE[elim]| |dest wf_stateD[dest]|
+mk_ide wf_state_def |intro wf_stateI[intro]| |elim wf_stateE[elim]| |dest wf_stateD[dest]|
 
 \<comment> \<open>A \<^typ>\<open>('a, 'b) TM_config\<close> \<open>c\<close> is considered well-formed w.r.t. a \<^typ>\<open>('a, 'b) TM\<close> \<open>M\<close>, iff
   the \<^const>\<open>state\<close> of \<open>c\<close> is valid for \<open>M\<close>,
   the number of \<^const>\<open>tapes\<close> of \<open>c\<close> matches the number of tapes of \<open>M\<close>, and
   all symbols on all \<^const>\<open>tapes\<close> of \<open>c\<close> are valid symbols for \<open>M\<close>.\<close>
-definition wf_config_wrt_TM :: "('a, 'b :: blank) TM \<Rightarrow> ('a, 'b) TM_config \<Rightarrow> bool" where
-  "wf_config_wrt_TM M c \<equiv> let q = state c; tps = tapes c in
+definition wf_config :: "('a, 'b) TM_config \<Rightarrow> bool" where
+  "wf_config c \<equiv> let q = state c; tps = tapes c in
         q \<in> states M
       \<and> length tps = tape_count M
       \<and> list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) tps"
 
-mk_ide wf_config_wrt_TM_def[unfolded list_all_iff Let_def]
+mk_ide wf_config_def[unfolded list_all_iff Let_def]
   |intro wf_configI[intro]| |elim wf_configE[elim]| |dest wf_configD[dest]|
 
 lemma wf_configD'[dest]:
-  "wf_config_wrt_TM M c \<Longrightarrow> list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) (tapes c)"
+  "wf_config c \<Longrightarrow> list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) (tapes c)"
   unfolding list_all_iff by blast
 
+end \<comment> \<open>\<^locale>\<open>pre_TM\<close>\<close>
 
-locale wf_TM =
-  fixes M :: "('a, 'b::blank) TM" (structure)
+locale wf_TM = pre_TM +
   assumes at_least_one_tape: "1 \<le> tape_count M"
   and state_axioms: "finite (states M)" "start_state M \<in> states M"
                     "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
   and symbols_axioms: "finite (symbols M)" "Bk \<in> (symbols M)"
-  and next_state: "\<And>q w. wf_state_wrt_TM M q w \<Longrightarrow> next_state M q w \<in> states M"
-  and next_action_length: "\<And>q w. wf_state_wrt_TM M q w \<Longrightarrow>
+  and next_state: "\<And>q w. wf_state q w \<Longrightarrow> next_state M q w \<in> states M"
+  and next_action_length: "\<And>q w. wf_state q w \<Longrightarrow>
                                  length (next_action M q w) = tape_count M"
-  and next_write_symbol: "\<And>q w. wf_state_wrt_TM M q w \<Longrightarrow>
+  and next_write_symbol: "\<And>q w. wf_state q w \<Longrightarrow>
                                  symbol_of_write ` set (next_action M q w) \<subseteq> symbols M"
-  and final_state: "\<And>q w. wf_state_wrt_TM M q w \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
+  and final_state: "\<And>q w. wf_state q w \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
                           next_state M q w = q"
-  and final_action: "\<And>q w. wf_state_wrt_TM M q w \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
+  and final_action: "\<And>q w. wf_state q w \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
                            set (next_action M q w) \<subseteq> {Nop}"
 begin
 
 declare list_all_iff[iff]
-
-abbreviation wf_state where "wf_state \<equiv> wf_state_wrt_TM M"
-abbreviation wf_config where "wf_config \<equiv> wf_config_wrt_TM M"
 
 abbreviation wf_state_of_config ("wf'_state\<^sub>c")
   where "wf_state\<^sub>c c \<equiv> wf_state (state c) (map tp_read (tapes c))"
@@ -153,7 +154,7 @@ lemma wf_config_state: "wf_config c \<Longrightarrow> wf_state\<^sub>c c"
   by (intro wf_stateI) (blast, force, use tp_read_set_of_tape in fast)
 
 corollary wf_state_tape_count: "wf_state\<^sub>c c \<Longrightarrow> length (tapes c) = tape_count M"
-  unfolding wf_state_wrt_TM_def by simp
+  unfolding wf_state_def by simp
 
 
 abbreviation is_final :: "('a, 'b) TM_config \<Rightarrow> bool" where
