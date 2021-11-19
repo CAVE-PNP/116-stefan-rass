@@ -1,6 +1,6 @@
 theory TM
   imports Main "Supplementary/Misc" "Supplementary/Lists"
-    "Intro_Dest_Elim.IHOL_IDE"
+    "Intro_Dest_Elim.IHOL_IDE" "HOL-Library.Countable_Set"
 begin
 
 class blank =
@@ -25,6 +25,12 @@ fun symbol_of_write :: "'b action \<Rightarrow> 'b::blank" where
 
 lemma symbol_of_write_def: "symbol_of_write a = (case a of W w \<Rightarrow> w | _ \<Rightarrow> Bk)"
   by (induction a) auto
+
+fun action_app :: "('b1 \<Rightarrow> 'b2) \<Rightarrow> 'b1 action \<Rightarrow> 'b2 action" where
+  "action_app _ L = L"
+| "action_app _ R = R"
+| "action_app f (W x) = W (f x)"
+| "action_app _ Nop = Nop"
 
 record 'b tape =
   left :: "'b list"
@@ -135,7 +141,7 @@ locale TM = pre_TM +
   assumes at_least_one_tape: "1 \<le> tape_count M"
   and state_axioms: "finite (states M)" "start_state M \<in> states M"
                     "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
-  and symbols_axioms: "finite (symbols M)" "Bk \<in> (symbols M)"
+  and symbol_axioms: "finite (symbols M)" "Bk \<in> (symbols M)"
   and next_state: "\<And>q w. wf_state q w \<Longrightarrow> next_state M q w \<in> states M"
   and next_action_length: "\<And>q w. wf_state q w \<Longrightarrow>
                                  length (next_action M q w) = tape_count M"
@@ -254,7 +260,7 @@ abbreviation "wf_word w \<equiv> set w \<subseteq> symbols M"
 abbreviation "wf_words \<equiv> {w. wf_word w}"
 
 lemma words_length_finite[simp]: "finite {w\<in>wf_words. length w \<le> n}"
-  using symbols_axioms(1) finite_lists_length_le[of "symbols M"] by simp
+  using symbol_axioms(1) finite_lists_length_le[of "symbols M"] by simp
 
 lemma wf_start_config: "wf_word w \<Longrightarrow> wf_config (start_config w)"
 proof
@@ -264,8 +270,8 @@ proof
 
   assume "set w \<subseteq> symbols M"
   have "set ?ts \<subseteq> {<w>\<^sub>t\<^sub>p} \<union> {empty_tape}" by fastforce
-  moreover have "set_of_tape empty_tape \<subseteq> symbols M" using symbols_axioms(2) by simp
-  moreover have "set_of_tape <w>\<^sub>t\<^sub>p \<subseteq> symbols M" using \<open>set w \<subseteq> symbols M\<close> symbols_axioms(2) by simp
+  moreover have "set_of_tape empty_tape \<subseteq> symbols M" using symbol_axioms(2) by simp
+  moreover have "set_of_tape <w>\<^sub>t\<^sub>p \<subseteq> symbols M" using \<open>set w \<subseteq> symbols M\<close> symbol_axioms(2) by simp
   ultimately show "\<forall>tp \<in> set ?ts. set_of_tape tp \<subseteq> symbols M" by blast
 qed
 
@@ -483,6 +489,9 @@ next
     using assm halts_def by blast
 qed
 
+lemma halts_acc_or_rej: "halts w \<Longrightarrow> accepts w \<or> rejects w"
+  using rejects_altdef[of w] by blast
+
 lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
   by (cases "w \<in> L") (intro accepts_halts, simp, intro rejects_halts, simp)
 
@@ -604,5 +613,41 @@ qed
 
 end \<comment> \<open>\<^locale>\<open>Rejecting_TM\<close>\<close>
 
+subsection\<open>(nat, nat) TM\<close>
+text \<open>Every well-formed TM is equivalent to some (nat, nat) TM\<close>
+
+context TM begin
+
+(* TODO: split into multiple lemmas *)
+lemma natify:
+  obtains natM :: "(nat, nat) TM" and f :: "'a \<Rightarrow> nat" and g :: "'b \<Rightarrow> nat"
+  where "inj_on f (states M)" and "inj_on g (symbols M)"
+  and "TM natM"
+  and "\<And>w. halts w \<Longrightarrow> TM.halts natM (map g w)"
+  and "\<And>w. accepts w \<Longrightarrow> TM.accepts natM (map g w)"
+  and "\<And>w. rejects w \<Longrightarrow> TM.rejects natM (map g w)"
+proof
+  obtain f :: "'a \<Rightarrow> nat" where "inj_on f (states M)"
+    using countable_finite[OF state_axioms(1)] unfolding countable_def ..
+  define f_inv :: "nat \<Rightarrow> 'a" where "f_inv \<equiv> the_inv_into (states M) f"
+
+  obtain g :: "'b \<Rightarrow> nat" where "inj_on g (symbols M)"
+    using countable_finite[OF symbol_axioms(1)] unfolding countable_def ..
+  define g_inv :: "nat \<Rightarrow> 'b" where "g_inv \<equiv> the_inv_into (symbols M) g"
+
+  define natM :: "(nat, nat) TM" where "natM \<equiv> \<lparr>
+      tape_count = tape_count M,
+      states = f ` states M,
+      start_state = f (start_state M),
+      final_states = f ` (final_states M),
+      accepting_states = f ` (accepting_states M),
+      symbols = g ` (symbols M),
+      next_state = \<lambda>q w. f (next_state M (f_inv q) (map g_inv w)),
+      next_action = \<lambda>q w. map (action_app g) (next_action M (f_inv q) (map g_inv w))
+  \<rparr>"
+
+qed
+
+end
 
 end
