@@ -615,38 +615,45 @@ end \<comment> \<open>\<^locale>\<open>Rej_TM\<close>\<close>
 subsection\<open>(nat, nat) TM\<close>
 text \<open>Every well-formed TM is equivalent to some (nat, nat) TM\<close>
 
-context TM begin
+locale nat_TM = TM +
+  fixes f :: "'a \<Rightarrow> nat" and f_inv
+    and g :: "'b \<Rightarrow> nat" and g_inv
+  defines "f \<equiv> SOME f. inj_on f (states M)"  and "f_inv \<equiv> the_inv_into (states M) f"
+    and   "g \<equiv> SOME g. inj_on g (symbols M)" and "g_inv \<equiv> the_inv_into (symbols M) g"
+begin
 
-(* TODO: split into multiple lemmas *)
-lemma natify:
-  obtains natM :: "(nat, nat) TM" and f :: "'a \<Rightarrow> nat" and g :: "'b \<Rightarrow> nat"
-  where "inj_on f (states M)" and "inj_on g (symbols M)"
-  and "TM natM"
-  and "\<And>w. halts w \<Longrightarrow> TM.halts natM (map g w)"
-  and "\<And>w. accepts w \<Longrightarrow> TM.accepts natM (map g w)"
-  and "\<And>w. rejects w \<Longrightarrow> TM.rejects natM (map g w)"
-proof
-  obtain f :: "'a \<Rightarrow> nat" where "inj_on f (states M)"
-    using countable_finite[OF state_axioms(1)] unfolding countable_def ..
-  define f_inv :: "nat \<Rightarrow> 'a" where "f_inv \<equiv> the_inv_into (states M) f"
+lemma f_inj: "inj_on f (states M)" unfolding f_def
+  using countable_finite[OF state_axioms(1)] unfolding countable_def ..
+lemma "q \<in> states M \<Longrightarrow> f_inv (f q) = q" unfolding f_inv_def
+  using f_inj by (rule the_inv_into_f_f)
 
-  obtain g :: "'b \<Rightarrow> nat" where "inj_on g (symbols M)"
-    using countable_finite[OF symbol_axioms(1)] unfolding countable_def ..
-  define g_inv :: "nat \<Rightarrow> 'b" where "g_inv \<equiv> the_inv_into (symbols M) g"
+lemma g_inj: "inj_on g (symbols M)" unfolding g_def
+  using countable_finite[OF symbol_axioms(1)] unfolding countable_def ..
+lemma "\<sigma> \<in> symbols M \<Longrightarrow> g_inv (g \<sigma>) = \<sigma>" unfolding g_inv_def
+  using g_inj by (rule the_inv_into_f_f)
 
-  define natM :: "(nat, nat) TM" where "natM \<equiv> \<lparr>
-      tape_count = tape_count M,
-      states = f ` states M,
-      start_state = f (start_state M),
-      final_states = f ` (final_states M),
-      accepting_states = f ` (accepting_states M),
-      symbols = g ` (symbols M),
-      next_state = \<lambda>q w. f (next_state M (f_inv q) (map g_inv w)),
-      next_action = \<lambda>q w. map (action_app g) (next_action M (f_inv q) (map g_inv w))
+definition natM :: "(nat, nat) TM" ("M\<^sub>\<nat>")
+  where "natM \<equiv> \<lparr>
+    tape_count = tape_count M,
+    states = f ` states M,
+    start_state = f (start_state M),
+    final_states = f ` (final_states M),
+    accepting_states = f ` (accepting_states M),
+    symbols = g ` (symbols M),
+    next_state = \<lambda>q w. f (next_state M (f_inv q) (map g_inv w)),
+    next_action = \<lambda>q w. map (action_app g) (next_action M (f_inv q) (map g_inv w))
   \<rparr>"
 
-qed
+(* using the same name ("natM") for both sublocale and definition works,
+ * since the sublocale is only used as namespace *)
+sublocale natM: TM natM
+  sorry
 
-end
+lemma "\<And>w. halts w \<Longrightarrow> natM.halts (map g w)"
+  and "\<And>w. accepts w \<Longrightarrow> natM.accepts (map g w)"
+  and "\<And>w. rejects w \<Longrightarrow> natM.rejects (map g w)"
+  sorry
+
+end \<comment> \<open>\<^locale>\<open>nat_TM\<close>\<close>
 
 end
