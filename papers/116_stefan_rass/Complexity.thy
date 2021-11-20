@@ -129,7 +129,7 @@ lemma halts_time: "halts w \<Longrightarrow> \<exists>n. time w = Some n"
   using wf_config_run wf_start_config by fastforce
 
 lemma time_halts: "wf_word w \<Longrightarrow> time w = Some n \<Longrightarrow> halts w"
-  by (meson halts_I TM.time_Some_D TM_axioms)
+  using TM_axioms by (intro halts_I TM.time_Some_D)
 
 lemma halts_altdef: "halts w \<longleftrightarrow> wf_word w \<and> (\<exists>n. time w = Some n)"
   using halts_time time_halts TM.halts_def TM_axioms by blast
@@ -310,7 +310,7 @@ lemma ae_disj: "alm_all P \<or> alm_all Q \<Longrightarrow> alm_all (\<lambda>x.
   by auto
 
 lemma ae_conj_iff: "alm_all (\<lambda>x. P x \<and> Q x) \<longleftrightarrow> alm_all P \<and> alm_all Q"
-  unfolding alm_all_altdef using eventually_elim2 by smt
+  unfolding alm_all_altdef MOST_conj_distrib[symmetric] disj_conj_distribL ..
 
 lemma ae_conjI:
   assumes "alm_all P" "alm_all Q"

@@ -392,7 +392,7 @@ lemma hoare_halt_neg:
   assumes "\<not> hoare_halt (init w) Q"
     and "halts w"
   shows "hoare_halt (init w) (\<lambda>tp. \<not> Q tp)"
-  using assms unfolding hoare_halt_def halts_def by metis
+  using assms unfolding hoare_halt_def halts_def Let_def unfolding wf_config_def by fast
 
 lemma halt_inj:
   assumes "wf_word w"
@@ -458,16 +458,19 @@ lemma acc_not_rej:
   shows "\<not> rejects w"
 proof (intro notI)
   assume "rejects w"
+  let ?acc = "accepting_states M"
 
-  have "hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
+  have "hoare_halt (init w) (\<lambda>c. state c \<in> ?acc)"
     using \<open>accepts w\<close> unfolding accepts_def by (rule conjunct2)
-  moreover have "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
+  moreover have "hoare_halt (init w) (\<lambda>c. state c \<notin> ?acc)"
     using \<open>rejects w\<close> unfolding rejects_def by (rule conjunct2)
-  ultimately have "hoare_halt (init w) (\<lambda>c. False)"
-    using hoare_and[of "init w" "\<lambda>c. state c \<in> accepting_states M" "\<lambda>c. state c \<notin> accepting_states M"]
-    by simp
-  then show False using hoare_contr
-    using wf_start_config assms(1) unfolding accepts_def by fastforce
+  ultimately have "hoare_halt (init w) (\<lambda>c. state c \<in> ?acc \<and> state c \<notin> ?acc)" by (fact hoare_and)
+  then have "hoare_halt (init w) (\<lambda>c. False)" by presburger
+
+  moreover from assms have "wf_config (start_config w)"
+    unfolding accepts_def by (intro wf_start_config) blast
+  moreover have "init w (start_config w)" ..
+  ultimately show False by (intro hoare_contr)
 qed
 
 lemma rejects_altdef:
@@ -480,8 +483,7 @@ proof (intro iffI conjI)
 next
   assume assm: "halts w \<and> \<not> accepts w"
   then have "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
-    unfolding accepts_def using hoare_halt_neg
-    by (metis assm halts_def)
+    unfolding accepts_def by (intro hoare_halt_neg, unfold halts_def) blast+
   then show "rejects w" unfolding rejects_def
     using assm halts_def by blast
 qed
