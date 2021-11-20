@@ -134,11 +134,11 @@ lemma time_halts: "wf_word w \<Longrightarrow> time w = Some n \<Longrightarrow>
 lemma halts_altdef: "halts w \<longleftrightarrow> wf_word w \<and> (\<exists>n. time w = Some n)"
   using halts_time time_halts TM.halts_def TM_axioms by blast
 
-lemma (in Rejecting_TM) rej_TM_time: "TM.time w = Some 0"
+lemma (in Rej_TM) rej_TM_time: "time w = Some 0"
 proof -
-  have "TM.is_final (TM.run 0 w)"
-    unfolding TM.start_config_def unfolding Rejecting_TM_def by simp
-  thus ?thesis unfolding TM.time_def
+  have "is_final (run 0 w)"
+    unfolding start_config_def unfolding Rejecting_TM_def by simp
+  thus ?thesis unfolding time_def
     using Least_eq_0 by presburger
 qed
 
