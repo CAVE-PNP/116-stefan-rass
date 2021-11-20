@@ -570,18 +570,19 @@ subsection\<open>Rejecting TM\<close>
 
 locale Rej_TM =
   fixes \<Sigma> :: "'b::blank set"
+    and \<alpha> :: 'a
   assumes finite_alphabet: "finite \<Sigma>"
 begin
 
-definition Rejecting_TM :: "(nat, 'b) TM"
+definition Rejecting_TM :: "('a, 'b) TM"
   where [simp]: "Rejecting_TM \<equiv> \<lparr>
     tape_count = 1,
-    states = {1}::nat set,
-    start_state = 1,
-    final_states = {1},
+    states = {\<alpha>},
+    start_state = \<alpha>,
+    final_states = {\<alpha>},
     accepting_states = {},
     symbols = \<Sigma> \<union> {Bk},
-    next_state = \<lambda>q w. 1,
+    next_state = \<lambda>q w. \<alpha>,
     next_action = \<lambda>q w. [Nop]
   \<rparr>"
 
