@@ -24,7 +24,7 @@ text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_hal
 abbreviation tcomp :: "(nat \<Rightarrow> 'c::floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
   where "tcomp T n \<equiv> max (n + 1) (nat \<lceil>T n\<rceil>)"
 
-abbreviation (input) tcomp\<^sub>w :: "(nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> 'b list \<Rightarrow> nat"
+abbreviation (input) tcomp\<^sub>w :: "(nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> 'b::blank list \<Rightarrow> nat"
   where "tcomp\<^sub>w T w \<equiv> tcomp T (tp_size <w>\<^sub>t\<^sub>p)"
 
 lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def
@@ -161,7 +161,7 @@ definition fully_tconstr :: "'a itself \<Rightarrow> 'b::blank itself \<Rightarr
   where "fully_tconstr TYPE('a) TYPE('b) T \<equiv>
     \<exists>M::('a, 'b) TM. \<forall>n w. length w = n \<longrightarrow> TM.time M w = Some (T n)"
 
-lemma ftc_altdef: "fully_tconstr TYPE('a) TYPE('b::blank) T \<longleftrightarrow> 
+lemma ftc_altdef: "fully_tconstr TYPE('a) TYPE('b::blank) T \<longleftrightarrow>
                    (\<exists>M::('a, 'b) TM. \<forall>w. TM.time M w = Some (T (length w)))"
   unfolding fully_tconstr_def by simp
 
@@ -309,7 +309,7 @@ lemma ae_word_lengthE[elim]:
 lemma ae_disj: "alm_all P \<or> alm_all Q \<Longrightarrow> alm_all (\<lambda>x. P x \<or> Q x)"
   by auto
 
-lemma ae_conj_iff: "alm_all (\<lambda>x. P x \<and> Q x) \<longleftrightarrow> alm_all P \<and> alm_all Q"  
+lemma ae_conj_iff: "alm_all (\<lambda>x. P x \<and> Q x) \<longleftrightarrow> alm_all P \<and> alm_all Q"
   unfolding alm_all_altdef using eventually_elim2 by smt
 
 lemma ae_conjI:
@@ -351,15 +351,17 @@ proof -
   obtain M::"('a, 'b) TM"
     where wf: "TM M" and decides: "TM.decides M L" and "TM.time_bounded M t" ..
 
-  { 
+  {
     from wf interpret TM M .
 
     from decides have "alm_all (decides_word L)" by auto
     moreover have "alm_all (time_bounded_word T)"
     proof (intro ae_word_lengthI exI allI impI, safe)
       fix w :: "'b list"
-      assume "length w \<ge> N"
-      then have "tp_size <w>\<^sub>t\<^sub>p \<ge> N" by simp
+      assume "length w \<ge> Suc N"
+      then have "w \<noteq> []" by force
+      then have tp_len: "tp_size <w>\<^sub>t\<^sub>p = length w" unfolding input_tape_def by force
+      from \<open>length w \<ge> Suc N\<close> have "tp_size <w>\<^sub>t\<^sub>p \<ge> N" unfolding tp_len by (fact Suc_leD)
       then have "tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w" by (fact Tt)
       moreover from \<open>time_bounded t\<close> have "time_bounded_word t w" ..
       ultimately show "time_bounded_word T w" by (fact time_bounded_word_mono')
@@ -405,7 +407,7 @@ proof -
   from assms obtain N where N: "T(n)/n \<ge> c" if "n \<ge> N" for n
     unfolding unbounded_def by blast
 
-  then have "T(n) \<ge> c*n" if "n \<ge> Suc N" (is "n \<ge> ?n") for n 
+  then have "T(n) \<ge> c*n" if "n \<ge> Suc N" (is "n \<ge> ?n") for n
   proof -
     from \<open>n \<ge> Suc N\<close> have "n \<ge> N" by (fact Suc_leD)
     with N have "T(n)/n \<ge> c" .
@@ -540,7 +542,7 @@ proof -
   then show ?thesis by blast
 qed
 
-lemma exists_ge_eq: 
+lemma exists_ge_eq:
   fixes P :: "nat \<Rightarrow> bool"
   shows "(\<exists>n. \<forall>m\<ge>n. P m) \<longleftrightarrow> (\<exists>n. \<forall>m\<ge>n. P m \<and> m \<ge> N)"
   by (intro iffI) (fact exists_ge, blast)

@@ -34,56 +34,50 @@ fun action_app :: "('b1 \<Rightarrow> 'b2) \<Rightarrow> 'b1 action \<Rightarrow
 
 record 'b tape =
   left :: "'b list"
+  middle :: 'b
   right :: "'b list"
 
-abbreviation "empty_tape \<equiv> \<lparr>left=[], right=[]\<rparr>"
+fun tape_app :: "('b1 \<Rightarrow> 'b2) \<Rightarrow> 'b1 tape \<Rightarrow> 'b2 tape" where
+  "tape_app f \<lparr> left = l, middle = m, right = r \<rparr> = \<lparr> left = map f l, middle = f m, right = map f r \<rparr>"
 
-definition [simp]: "set_of_tape tp \<equiv> set (left tp) \<union> set (right tp) \<union> {Bk}"
+abbreviation "empty_tape \<equiv> \<lparr> left=[], middle = Bk, right=[] \<rparr>"
+
+definition [simp]: "set_of_tape tp \<equiv> set (left tp) \<union> {middle tp} \<union> set (right tp) \<union> {Bk}"
+
+lemma set_of_tape_helpers: "middle tp \<in> set_of_tape tp" "Bk \<in> set_of_tape tp" by auto
 
 text\<open>TM execution begins with the head at the start of the input word.\<close>
-abbreviation input_tape ("<_>\<^sub>t\<^sub>p") where "<w>\<^sub>t\<^sub>p \<equiv> \<lparr>left=[], right=w\<rparr>"
+fun input_tape ("<_>\<^sub>t\<^sub>p") where
+  "<[]>\<^sub>t\<^sub>p = empty_tape"
+| "<x # xs>\<^sub>t\<^sub>p = \<lparr> left=[], middle = x, right = xs \<rparr>"
+
+lemma input_tape_def:
+  "<w>\<^sub>t\<^sub>p = (if w = [] then empty_tape else \<lparr> left=[], middle = hd w, right = tl w \<rparr>)"
+  by (induction w) auto
 
 abbreviation tp_size :: "'b tape \<Rightarrow> nat" where
-  "tp_size tp \<equiv> length (left tp) + length (right tp)"
+  "tp_size tp \<equiv> length (left tp) + length (right tp) + 1"
 
 fun tp_update :: "('b::blank) action \<Rightarrow> 'b tape \<Rightarrow> 'b tape" where
-  "tp_update  L     \<lparr>left=[]  , right=rs  \<rparr> = \<lparr>left=[]   , right=Bk#rs\<rparr>"
-| "tp_update  L     \<lparr>left=l#ls, right=rs  \<rparr> = \<lparr>left=ls   , right=l#rs \<rparr>"
-| "tp_update  R     \<lparr>left=ls  , right=[]  \<rparr> = \<lparr>left=Bk#ls, right=[]   \<rparr>"
-| "tp_update  R     \<lparr>left=ls  , right=r#rs\<rparr> = \<lparr>left=r#ls , right=rs   \<rparr>"
-| "tp_update (W w)  \<lparr>left=ls  , right=[]  \<rparr> = \<lparr>left=ls   , right=[w]  \<rparr>"
-| "tp_update (W w)  \<lparr>left=ls  , right=r#rs\<rparr> = \<lparr>left=ls   , right=w#rs \<rparr>"
-| "tp_update Nop tape = tape"
-
+  "tp_update L \<lparr>left=[],   middle = m, right=rs  \<rparr> = \<lparr>left=[],   middle = Bk, right=m#rs \<rparr>"
+| "tp_update L \<lparr>left=l#ls, middle = m, right=rs  \<rparr> = \<lparr>left=ls,   middle = l,  right=m#rs \<rparr>"
+| "tp_update R \<lparr>left=ls,   middle = m, right=[]  \<rparr> = \<lparr>left=m#ls, middle = Bk, right=[]   \<rparr>"
+| "tp_update R \<lparr>left=ls,   middle = m, right=r#rs\<rparr> = \<lparr>left=m#ls, middle = r,  right=rs   \<rparr>"
+| "tp_update (W w) tp = tp\<lparr> middle := w \<rparr>"
+| "tp_update Nop tp = tp"
 
 lemma tp_update_set: "set_of_tape (tp_update a tp) \<subseteq> set_of_tape tp \<union> {symbol_of_write a}"
 proof -
-  obtain l r where expand_tp: "tp = \<lparr>left=l,right=r\<rparr>" by (rule tape.cases)
+  obtain l m r where expand_tp: "tp = \<lparr>left=l, middle=m, right=r\<rparr>" by (rule tape.cases)
   show ?thesis unfolding expand_tp
   proof (induction a)
-    case L thus ?case by (induction l) auto next
-    case R thus ?case by (induction r) auto next
-    case (W x) thus ?case by (induction r) auto
+    case L show ?case by (induction l) auto next
+    case R show ?case by (induction r) auto next
+    case (W x) show ?case by (induction r) auto
   qed simp
 qed
 
-
-fun tp_read :: "('b :: blank) tape \<Rightarrow> 'b" where
-  "tp_read \<lparr>left=_, right=[]  \<rparr> = Bk"
-| "tp_read \<lparr>left=_, right=r#rs\<rparr> = r"
-
-lemma tp_read_def: "tp_read tp = (if right tp = [] then Bk else hd (right tp))"
-proof (cases "right tp")
-  case Nil
-  then have expand_tp: "tp = \<lparr> left=left tp, right = [] \<rparr>" by simp
-  from \<open>right tp = []\<close> show ?thesis by (subst expand_tp) simp
-next
-  case (Cons t ts)
-  then have expand_tp: "tp = \<lparr> left=left tp, right = t#ts \<rparr>" by simp
-  from \<open>right tp = t # ts\<close> show ?thesis by (subst expand_tp) simp
-qed
-
-corollary tp_read_set_of_tape: "tp_read tp \<in> set_of_tape tp" unfolding tp_read_def by simp
+abbreviation "tp_read \<equiv> middle"
 
 
 record ('a, 'b) TM =
@@ -162,7 +156,7 @@ abbreviation wf_state_of_config ("wf'_state\<^sub>c")
 lemma list_all_set_map[iff]: "set (map f xs) \<subseteq> A \<longleftrightarrow> list_all (\<lambda>x. f x \<in> A) xs" by auto
 
 lemma wf_config_state: "wf_config c \<Longrightarrow> wf_state\<^sub>c c"
-  by (intro wf_stateI) (blast, force, use tp_read_set_of_tape in fast)
+  by (intro wf_stateI) (blast, force, use set_of_tape_helpers in fast)
 
 corollary wf_state_tape_count: "wf_state\<^sub>c c \<Longrightarrow> length (tapes c) = tape_count M"
   unfolding wf_state_def by simp
@@ -262,6 +256,9 @@ abbreviation "wf_words \<equiv> {w. wf_word w}"
 lemma words_length_finite[simp]: "finite {w\<in>wf_words. length w \<le> n}"
   using symbol_axioms(1) finite_lists_length_le[of "symbols M"] by simp
 
+lemma set_of_wf_word: "wf_word w \<Longrightarrow> set_of_tape <w>\<^sub>t\<^sub>p \<subseteq> symbols M"
+  using symbol_axioms(2) by (induction w) auto
+
 lemma wf_start_config: "wf_word w \<Longrightarrow> wf_config (start_config w)"
 proof
   let ?ts = "tapes (start_config w)"
@@ -271,7 +268,7 @@ proof
   assume "set w \<subseteq> symbols M"
   have "set ?ts \<subseteq> {<w>\<^sub>t\<^sub>p} \<union> {empty_tape}" by fastforce
   moreover have "set_of_tape empty_tape \<subseteq> symbols M" using symbol_axioms(2) by simp
-  moreover have "set_of_tape <w>\<^sub>t\<^sub>p \<subseteq> symbols M" using \<open>set w \<subseteq> symbols M\<close> symbol_axioms(2) by simp
+  moreover have "set_of_tape <w>\<^sub>t\<^sub>p \<subseteq> symbols M" using \<open>set w \<subseteq> symbols M\<close> by (fact set_of_wf_word)
   ultimately show "\<forall>tp \<in> set ?ts. set_of_tape tp \<subseteq> symbols M" by blast
 qed
 
