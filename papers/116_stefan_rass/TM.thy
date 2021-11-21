@@ -388,6 +388,16 @@ abbreviation init where "init w \<equiv> (\<lambda>c. c = start_config w)"
 definition halts :: "'b list \<Rightarrow> bool"
   where "halts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>_. True)"
 
+lemma halts_I[intro]: "wf_word w \<Longrightarrow> \<exists>n. is_final (run n w) \<Longrightarrow> halts w"
+  unfolding halts_def hoare_halt_def by simp
+
+lemma halts_E[elim]:
+  assumes "halts w"
+  shows "wf_word w"
+    and "\<exists>n. is_final (run n w)"
+  using assms hoare_halt_def wf_start_config
+  unfolding halts_def by fastforce+
+
 lemma hoare_halt_neg:
   assumes "\<not> hoare_halt (init w) Q"
     and "halts w"
@@ -433,25 +443,44 @@ lemma init_input: "init w c \<Longrightarrow> input w c"
 lemma init_state_start_state: "init w c \<Longrightarrow> state c = start_state M"
   unfolding start_config_def by simp
 
-lemma halts_I: "wf_word w \<Longrightarrow> \<exists>n. is_final (run n w) \<Longrightarrow> halts w"
-  unfolding halts_def hoare_halt_def by simp
-
 definition accepts :: "'b list \<Rightarrow> bool"
   where "accepts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
+
+lemma acceptsI[intro]:
+  assumes "wf_word w"
+    and "state (run n w) \<in> accepting_states M"
+  shows "accepts w"
+  using assms unfolding accepts_def hoare_halt_def
+  by (meson state_axioms(4) subsetD)
 
 definition rejects :: "'b list \<Rightarrow> bool"
   where "rejects w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
 
-definition decides_word :: "'b lang \<Rightarrow> 'b list \<Rightarrow> bool"
-  where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
+lemma rejectsI[intro]:
+  assumes "wf_word w"
+    and "is_final (run n w)"
+    and "state (run n w) \<notin> accepting_states M"
+  shows "rejects w"
+  using assms unfolding rejects_def hoare_halt_def
+  by meson
 
-abbreviation decides :: "'b lang \<Rightarrow> bool"
-  where "decides L \<equiv> \<forall>w. decides_word L w"
-
-lemma accepts_halts: "accepts w \<Longrightarrow> halts w"
-  unfolding accepts_def halts_def using hoare_true by blast
-lemma rejects_halts: "rejects w \<Longrightarrow> halts w"
-  unfolding rejects_def halts_def using hoare_true by blast
+lemma halts_iff: "halts w \<longleftrightarrow> accepts w \<or> rejects w"
+proof (intro iffI)
+  assume "halts w"
+  then obtain n where fin: "is_final (run n w)" and wf: "wf_word w"
+    using halts_E by blast
+  thus "accepts w \<or> rejects w"
+  proof (cases "state (run n w) \<in> accepting_states M")
+    case True hence "accepts w"
+      using fin wf acceptsI by blast
+  next
+    case False hence "rejects w"
+      using fin wf rejectsI by blast
+  qed blast+
+next
+  assume "accepts w \<or> rejects w" thus "halts w"
+  unfolding accepts_def rejects_def halts_def using hoare_true by blast
+qed
 
 lemma acc_not_rej:
   assumes "accepts w"
@@ -475,24 +504,16 @@ qed
 
 lemma rejects_altdef:
   "rejects w = (halts w \<and> \<not> accepts w)"
-proof (intro iffI conjI)
-  assume "rejects w"
-  then show "halts w" unfolding rejects_def halts_def
-    using hoare_true by blast
-  from \<open>rejects w\<close> show "\<not> accepts w" using acc_not_rej by auto
-next
-  assume assm: "halts w \<and> \<not> accepts w"
-  then have "hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
-    unfolding accepts_def by (intro hoare_halt_neg, unfold halts_def) blast+
-  then show "rejects w" unfolding rejects_def
-    using assm halts_def by blast
-qed
+  using acc_not_rej halts_iff by blast
 
-lemma halts_acc_or_rej: "halts w \<Longrightarrow> accepts w \<or> rejects w"
-  using rejects_altdef[of w] by blast
+definition decides_word :: "'b lang \<Rightarrow> 'b list \<Rightarrow> bool"
+  where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
+
+abbreviation decides :: "'b lang \<Rightarrow> bool"
+  where "decides L \<equiv> \<forall>w. decides_word L w"
 
 lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
-  by (cases "w \<in> L") (intro accepts_halts, simp, intro rejects_halts, simp)
+  by (cases "w \<in> L") (simp add: halts_iff)+
 
 corollary decides_halts_all: "decides L \<Longrightarrow> halts w"
   using decides_halts by blast
