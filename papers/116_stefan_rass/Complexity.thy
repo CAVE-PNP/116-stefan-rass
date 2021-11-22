@@ -351,25 +351,21 @@ proof -
   obtain M::"('a, 'b) TM"
     where wf: "TM M" and decides: "TM.decides M L" and "TM.time_bounded M t" ..
 
-  {
-    from wf interpret TM M .
+  from wf interpret TM M .
 
-    from decides have "alm_all (decides_word L)" by auto
-    moreover have "alm_all (time_bounded_word T)"
-    proof (intro ae_word_lengthI exI allI impI, safe)
-      fix w :: "'b list"
-      assume "length w \<ge> Suc N"
-      then have "w \<noteq> []" by force
-      then have tp_len: "tp_size <w>\<^sub>t\<^sub>p = length w" unfolding input_tape_def by force
-      from \<open>length w \<ge> Suc N\<close> have "tp_size <w>\<^sub>t\<^sub>p \<ge> N" unfolding tp_len by (fact Suc_leD)
-      then have "tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w" by (fact Tt)
-      moreover from \<open>time_bounded t\<close> have "time_bounded_word t w" ..
-      ultimately show "time_bounded_word T w" by (fact time_bounded_word_mono')
-    qed
-
-    note this = this calculation
-  }
-  then show ?thesis using DTIME_ae[of L T] TM.ae_conjI wf by blast
+  from decides have "alm_all (decides_word L)" by auto
+  moreover have "alm_all (time_bounded_word T)"
+  proof (intro ae_word_lengthI exI allI impI, safe)
+    fix w :: "'b list"
+    assume "length w \<ge> Suc N"
+    then have "w \<noteq> []" by force
+    then have tp_len: "tp_size <w>\<^sub>t\<^sub>p = length w" unfolding input_tape_def by force
+    from \<open>length w \<ge> Suc N\<close> have "tp_size <w>\<^sub>t\<^sub>p \<ge> N" unfolding tp_len by (fact Suc_leD)
+    then have "tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w" by (fact Tt)
+    moreover from \<open>time_bounded t\<close> have "time_bounded_word t w" ..
+    ultimately show "time_bounded_word T w" by (fact time_bounded_word_mono')
+  qed
+  ultimately show ?thesis using DTIME_ae[of L T] TM.ae_conjI wf by blast
 qed
 
 lemma DTIME_mono_ae:

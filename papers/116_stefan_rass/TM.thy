@@ -36,14 +36,11 @@ lemma symbol_action_app[simp]:
   assumes "g Bk = Bk"
   shows "symbol_of_write ` action_app g ` A \<subseteq> g ` symbol_of_write ` A"
 proof -
-  {
-    fix a::"'b action"
-    from assms have "symbol_of_write (action_app g a) = g (symbol_of_write a)"
-      by (cases a) simp_all
-  }
+  from assms have "symbol_of_write (action_app g a) = g (symbol_of_write a)" for a::"'b action"
+    by (cases a) simp_all
   then show ?thesis by auto
 qed
-  
+
 record 'b tape =
   left :: "'b list"
   middle :: 'b
@@ -615,9 +612,11 @@ definition Rejecting_TM :: "('a, 'b) TM"
     next_action = \<lambda>q w. [Nop]
   \<rparr>"
 
-sublocale TM "Rejecting_TM"
+lemma wf_rej_TM: "TM Rejecting_TM"
   unfolding Rejecting_TM_def using finite_alphabet
   by unfold_locales simp_all
+
+sublocale TM "Rejecting_TM" by (fact wf_rej_TM)
 
 lemma rej_TM:
   assumes "set w \<subseteq> \<Sigma>"
@@ -640,6 +639,12 @@ next
 qed
 
 end \<comment> \<open>\<^locale>\<open>Rej_TM\<close>\<close>
+
+lemma exists_wf_TM: "\<exists>M::('a, 'b::blank) TM. TM M"
+proof
+  fix \<alpha> :: 'a
+  show "TM (Rej_TM.Rejecting_TM {} \<alpha>)" by (intro Rej_TM.wf_rej_TM) (unfold_locales, blast)
+qed
 
 
 subsection\<open>(nat, nat) TM\<close>
@@ -705,7 +710,7 @@ sublocale natM: TM natM
   apply (smt (verit, del_insts) TM.TM.select_convs(6) f_inj f_inv_def g_inv_word_wf image_iff image_mono length_map natM_def next_write_symbol pre_TM.wf_state_def subset_trans the_inv_into_f_f)
 
   apply (fold natM_def)
-  
+
   using final_state natM_wf_state_inv
   apply (smt (z3) TM.TM.select_convs(4) TM.TM.select_convs(7) f_inj f_inv_def image_iff natM_def state_axioms(3) subsetD the_inv_into_f_f)
 proof -
@@ -725,5 +730,9 @@ lemma "\<And>w. halts w \<Longrightarrow> natM.halts (map g w)"
   sorry
 
 end \<comment> \<open>\<^locale>\<open>nat_TM\<close>\<close>
+
+
+typedef (overloaded) ('a, 'b::blank) wf_TM = "{M::('a, 'b) TM. TM M}"
+  using exists_wf_TM by blast
 
 end
