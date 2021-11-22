@@ -32,9 +32,18 @@ fun action_app :: "('b1 \<Rightarrow> 'b2) \<Rightarrow> 'b1 action \<Rightarrow
 | "action_app f (W x) = W (f x)"
 | "action_app _ Nop = Nop"
 
-lemma symbol_action_app: "g Bk = Bk \<Longrightarrow> symbol_of_write ` action_app g ` A = g ` symbol_of_write ` A"
-  sorry
-
+lemma symbol_action_app[simp]:
+  assumes "g Bk = Bk"
+  shows "symbol_of_write ` action_app g ` A \<subseteq> g ` symbol_of_write ` A"
+proof -
+  {
+    fix a::"'b action"
+    from assms have "symbol_of_write (action_app g a) = g (symbol_of_write a)"
+      by (cases a) simp_all
+  }
+  then show ?thesis by auto
+qed
+  
 record 'b tape =
   left :: "'b list"
   middle :: 'b
@@ -666,15 +675,9 @@ definition natM :: "(nat, nat) TM" ("M\<^sub>\<nat>")
     next_action = \<lambda>q w. map (action_app g) (next_action M (f_inv q) (map g_inv w))
   \<rparr>"
 
-lemma g_word_wf: "wf_word w \<Longrightarrow> pre_TM.wf_word natM (map g w)"
-  by (simp add: image_mono natM_def)
-
 lemma g_inv_word_wf: "pre_TM.wf_word natM w \<Longrightarrow> wf_word (map g_inv w)"
   unfolding natM_def apply simp
   by (metis g_inj g_inv_def image_mono the_inv_into_onto)
-
-lemma natM_wf_state: "wf_state q w \<Longrightarrow> pre_TM.wf_state natM (f q) (map g w)"
-  unfolding natM_def pre_TM.wf_state_def by auto
 
 lemma natM_wf_state_inv: "pre_TM.wf_state natM q w \<Longrightarrow> wf_state (f_inv q) (map g_inv w)"
   unfolding natM_def pre_TM.wf_state_def apply simp
@@ -698,7 +701,8 @@ sublocale natM: TM natM
   using next_action_length natM_wf_state_inv apply (simp add: natM_def)
 
   apply (unfold pre_TM.wf_state_def)[1] apply simp
-  unfolding symbol_action_app[of g, OF g_Bk] apply (metis (no_types, lifting) TM.TM.select_convs(6) f_inj f_inv_def g_inv_word_wf image_iff image_mono length_map natM_def next_write_symbol pre_TM.wf_stateI the_inv_into_f_f)
+  using symbol_action_app[of g, OF g_Bk]
+  apply (smt (verit, del_insts) TM.TM.select_convs(6) f_inj f_inv_def g_inv_word_wf image_iff image_mono length_map natM_def next_write_symbol pre_TM.wf_state_def subset_trans the_inv_into_f_f)
 
   apply (fold natM_def)
   
