@@ -108,4 +108,7 @@ lemma ends_in_drop:
   shows "ends_in x (drop k xs)"
   using assms by force
 
+declare list_all_iff[iff]
+lemma list_all_set_map[iff]: "set (map f xs) \<subseteq> A \<longleftrightarrow> list_all (\<lambda>x. f x \<in> A) xs" by auto
+
 end

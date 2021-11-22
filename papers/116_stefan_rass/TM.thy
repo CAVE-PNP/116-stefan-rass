@@ -32,6 +32,9 @@ fun action_app :: "('b1 \<Rightarrow> 'b2) \<Rightarrow> 'b1 action \<Rightarrow
 | "action_app f (W x) = W (f x)"
 | "action_app _ Nop = Nop"
 
+lemma symbol_action_app: "g Bk = Bk \<Longrightarrow> symbol_of_write ` action_app g ` A = g ` symbol_of_write ` A"
+  sorry
+
 record 'b tape =
   left :: "'b list"
   middle :: 'b
@@ -102,13 +105,17 @@ locale pre_TM =
   fixes M :: "('a, 'b::blank) TM" (structure)
 begin
 
+abbreviation "wf_word w \<equiv> set w \<subseteq> symbols M"
+
+abbreviation "wf_words \<equiv> {w. wf_word w}"
+
 \<comment> \<open>A state \<open>q\<close> in combination with a vector \<open>w\<close> (\<^typ>\<open>'b list\<close>) of symbols currently under the TM-heads,
   is considered a well-formed state w.r.t. a \<^typ>\<open>('a, 'b) TM\<close> \<open>M\<close>, iff
   \<open>q\<close> is a valid state for \<open>M\<close>,
   the number of elements of \<open>w\<close> matches the number of tapes of \<open>M\<close>, and
   all elements of \<open>w\<close> are valid symbols for \<open>M\<close> (members of \<open>M\<close>'s tape alphabet).\<close>
 definition wf_state :: "'a \<Rightarrow> 'b list \<Rightarrow> bool" where
-  "wf_state q w \<equiv> q \<in> states M \<and> length w = tape_count M \<and> set w \<subseteq> symbols M"
+  "wf_state q w \<equiv> q \<in> states M \<and> length w = tape_count M \<and> wf_word w"
 
 mk_ide wf_state_def |intro wf_stateI[intro]| |elim wf_stateE[elim]| |dest wf_stateD[dest]|
 
@@ -147,20 +154,14 @@ locale TM = pre_TM +
                            set (next_action M q w) \<subseteq> {Nop}"
 begin
 
-declare list_all_iff[iff]
-
 abbreviation wf_state_of_config ("wf'_state\<^sub>c")
   where "wf_state\<^sub>c c \<equiv> wf_state (state c) (map tp_read (tapes c))"
-
-
-lemma list_all_set_map[iff]: "set (map f xs) \<subseteq> A \<longleftrightarrow> list_all (\<lambda>x. f x \<in> A) xs" by auto
 
 lemma wf_config_state: "wf_config c \<Longrightarrow> wf_state\<^sub>c c"
   by (intro wf_stateI) (blast, force, use set_of_tape_helpers in fast)
 
 corollary wf_state_tape_count: "wf_state\<^sub>c c \<Longrightarrow> length (tapes c) = tape_count M"
   unfolding wf_state_def by simp
-
 
 abbreviation is_final :: "('a, 'b) TM_config \<Rightarrow> bool" where
   "is_final c \<equiv> state c \<in> final_states M"
@@ -248,10 +249,6 @@ definition start_config :: "'b list \<Rightarrow> ('a, 'b) TM_config" where [sim
   \<rparr>"
 
 abbreviation "run n w \<equiv> (step^^n) (start_config w)"
-
-abbreviation "wf_word w \<equiv> set w \<subseteq> symbols M"
-
-abbreviation "wf_words \<equiv> {w. wf_word w}"
 
 lemma words_length_finite[simp]: "finite {w\<in>wf_words. length w \<le> n}"
   using symbol_axioms(1) finite_lists_length_le[of "symbols M"] by simp
@@ -643,7 +640,7 @@ locale nat_TM = TM +
   fixes f :: "'a \<Rightarrow> nat" and f_inv
     and g :: "'b \<Rightarrow> nat" and g_inv
   defines "f \<equiv> SOME f. inj_on f (states M)"  and "f_inv \<equiv> the_inv_into (states M) f"
-    and   "g \<equiv> SOME g. inj_on g (symbols M)" and "g_inv \<equiv> the_inv_into (symbols M) g"
+    and   "g \<equiv> SOME g. inj_on g (symbols M) \<and> g Bk = Bk" and "g_inv \<equiv> the_inv_into (symbols M) g"
 begin
 
 lemma f_inj: "inj_on f (states M)" unfolding f_def
@@ -652,7 +649,8 @@ lemma "q \<in> states M \<Longrightarrow> f_inv (f q) = q" unfolding f_inv_def
   using f_inj by (rule the_inv_into_f_f)
 
 lemma g_inj: "inj_on g (symbols M)" unfolding g_def
-  using countable_finite[OF symbol_axioms(1)] unfolding countable_def ..
+  using countable_finite[OF symbol_axioms(1)] unfolding countable_def sorry
+lemma g_Bk: "g Bk = Bk" sorry
 lemma "\<sigma> \<in> symbols M \<Longrightarrow> g_inv (g \<sigma>) = \<sigma>" unfolding g_inv_def
   using g_inj by (rule the_inv_into_f_f)
 
@@ -668,10 +666,54 @@ definition natM :: "(nat, nat) TM" ("M\<^sub>\<nat>")
     next_action = \<lambda>q w. map (action_app g) (next_action M (f_inv q) (map g_inv w))
   \<rparr>"
 
+lemma g_word_wf: "wf_word w \<Longrightarrow> pre_TM.wf_word natM (map g w)"
+  by (simp add: image_mono natM_def)
+
+lemma g_inv_word_wf: "pre_TM.wf_word natM w \<Longrightarrow> wf_word (map g_inv w)"
+  unfolding natM_def apply simp
+  by (metis g_inj g_inv_def image_mono the_inv_into_onto)
+
+lemma natM_wf_state: "wf_state q w \<Longrightarrow> pre_TM.wf_state natM (f q) (map g w)"
+  unfolding natM_def pre_TM.wf_state_def by auto
+
+lemma natM_wf_state_inv: "pre_TM.wf_state natM q w \<Longrightarrow> wf_state (f_inv q) (map g_inv w)"
+  unfolding natM_def pre_TM.wf_state_def apply simp
+  by (metis f_inj f_inv_def g_inj g_inv_def image_eqI image_mono the_inv_into_onto)
+
+(* lemmas something = f_inj f_inv_def g_inj g_inv_def image_eqI image_mono length_map list.set_map pre_TM.wf_state_def the_inv_into_onto *)
+
 (* using the same name ("natM") for both sublocale and definition works,
  * since the sublocale is only used as namespace *)
 sublocale natM: TM natM
-  sorry
+  apply unfold_locales
+  unfolding natM_def
+  using at_least_one_tape apply force
+  using state_axioms(1) apply simp
+  using state_axioms(2) apply simp
+  using state_axioms(3) apply auto[1]
+  using state_axioms(4) apply auto[1]
+  using symbol_axioms(1) apply auto[1]
+  apply simp using g_Bk symbol_axioms(2) apply force
+  using next_state natM_wf_state_inv using natM_def apply force
+  using next_action_length natM_wf_state_inv apply (simp add: natM_def)
+
+  apply (unfold pre_TM.wf_state_def)[1] apply simp
+  unfolding symbol_action_app[of g, OF g_Bk] apply (metis (no_types, lifting) TM.TM.select_convs(6) f_inj f_inv_def g_inv_word_wf image_iff image_mono length_map natM_def next_write_symbol pre_TM.wf_stateI the_inv_into_f_f)
+
+  apply (fold natM_def)
+  
+  using final_state natM_wf_state_inv
+  apply (smt (z3) TM.TM.select_convs(4) TM.TM.select_convs(7) f_inj f_inv_def image_iff natM_def state_axioms(3) subsetD the_inv_into_f_f)
+proof -
+  fix q w
+  assume wfn: "pre_TM.wf_state natM q w" and finn: "q \<in> final_states natM"
+  from wfn have wf: "wf_state (f_inv q) (map g_inv w)" by (rule natM_wf_state_inv)
+  from finn have fin: "f_inv q \<in> final_states M"
+    by (smt (verit, del_insts) TM.TM.select_convs(4) f_inj f_inv_def image_iff natM_def state_axioms(3) subsetD the_inv_into_f_f)
+  from final_action[OF wf fin] action_app.simps(4)[of g]
+  show "set (next_action M\<^sub>\<nat> q w) \<subseteq> {Nop}"
+    unfolding natM_def by auto
+qed
 
 lemma "\<And>w. halts w \<Longrightarrow> natM.halts (map g w)"
   and "\<And>w. accepts w \<Longrightarrow> natM.accepts (map g w)"
