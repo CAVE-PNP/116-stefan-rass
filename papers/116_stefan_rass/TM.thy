@@ -659,14 +659,11 @@ begin
 
 lemma f_inj: "inj_on f (states M)" unfolding f_def
   using countable_finite[OF state_axioms(1)] unfolding countable_def ..
-lemma "q \<in> states M \<Longrightarrow> f_inv (f q) = q" unfolding f_inv_def
-  using f_inj by (rule the_inv_into_f_f)
 
-lemma g_inj: "inj_on g (symbols M)" unfolding g_def
-  using countable_finite[OF symbol_axioms(1)] unfolding countable_def sorry
-lemma g_Bk: "g Bk = Bk" sorry
-lemma "\<sigma> \<in> symbols M \<Longrightarrow> g_inv (g \<sigma>) = \<sigma>" unfolding g_inv_def
-  using g_inj by (rule the_inv_into_f_f)
+lemma g_ex: "\<exists>g::'b \<Rightarrow> nat. inj_on g (symbols M) \<and> g Bk = Bk"
+  using finite_imp_inj_to_nat_fix_one symbol_axioms(1) .
+lemma g_inj: "inj_on g (symbols M)" using g_def g_ex sorry (* someI *)
+lemma g_Bk: "g Bk = Bk" using g_def g_ex sorry (* someI *)
 
 definition natM :: "(nat, nat) TM" ("M\<^sub>\<nat>")
   where "natM \<equiv> \<lparr>
@@ -687,8 +684,6 @@ lemma g_inv_word_wf: "pre_TM.wf_word natM w \<Longrightarrow> wf_word (map g_inv
 lemma natM_wf_state_inv: "pre_TM.wf_state natM q w \<Longrightarrow> wf_state (f_inv q) (map g_inv w)"
   unfolding natM_def pre_TM.wf_state_def apply simp
   by (metis f_inj f_inv_def g_inj g_inv_def image_eqI image_mono the_inv_into_onto)
-
-(* lemmas something = f_inj f_inv_def g_inj g_inv_def image_eqI image_mono length_map list.set_map pre_TM.wf_state_def the_inv_into_onto *)
 
 (* using the same name ("natM") for both sublocale and definition works,
  * since the sublocale is only used as namespace *)
