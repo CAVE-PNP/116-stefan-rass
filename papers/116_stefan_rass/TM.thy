@@ -115,6 +115,8 @@ abbreviation "wf_word w \<equiv> set w \<subseteq> symbols M"
 
 abbreviation "wf_words \<equiv> {w. wf_word w}"
 
+abbreviation "wf_lang X \<equiv> X \<subseteq> wf_words"
+
 \<comment> \<open>A state \<open>q\<close> in combination with a vector \<open>w\<close> (\<^typ>\<open>'b list\<close>) of symbols currently under the TM-heads,
   is considered a well-formed state w.r.t. a \<^typ>\<open>('a, 'b) TM\<close> \<open>M\<close>, iff
   \<open>q\<close> is a valid state for \<open>M\<close>,
@@ -513,26 +515,13 @@ definition decides_word :: "'b lang \<Rightarrow> 'b list \<Rightarrow> bool"
   where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
 
 abbreviation decides :: "'b lang \<Rightarrow> bool"
-  where "decides L \<equiv> \<forall>w. decides_word L w"
+  where "decides L \<equiv> \<forall>w\<in>wf_words. decides_word L w"
 
 lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
   by (cases "w \<in> L") (simp add: halts_iff)+
 
-corollary decides_halts_all: "decides L \<Longrightarrow> halts w"
+corollary decides_halts_all: "decides L \<Longrightarrow> \<forall>w\<in>wf_words. halts w"
   using decides_halts by blast
-
-corollary decides_symbols_UNIV: "decides L \<Longrightarrow> symbols M = UNIV"
-proof -
-  assume "decides L"
-  hence *: "\<And>w. wf_word w"
-    using decides_halts_all unfolding halts_def by simp
-  have "\<forall>x::'b. x \<in> symbols M" proof
-    fix x
-    from * have "wf_word [x]" .
-    thus "x \<in> symbols M" by simp
-  qed
-  thus "symbols M = UNIV" by blast
-qed
 
 lemma decides_altdef:
   "decides_word L w \<longleftrightarrow> halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
@@ -558,35 +547,38 @@ end
 subsubsection\<open>TM Languages\<close>
 
 definition TM_lang :: "('a, 'b::blank) TM \<Rightarrow> 'b lang" ("L'(_')")
-  where "L(M) \<equiv> if (\<forall>w. TM.halts M w) then {w. TM.accepts M w} else undefined"
+  where "L(M) \<equiv> if (\<forall>w\<in>pre_TM.wf_words M. TM.halts M w)
+                then {w\<in>pre_TM.wf_words M. TM.accepts M w}
+                else undefined"
 
 context TM begin
 
-lemma decides_TM_lang_accepts: "(\<And>w. halts w) \<Longrightarrow> decides {w. accepts w}"
+lemma decides_TM_lang_accepts: "(\<And>w. wf_word w \<Longrightarrow> halts w) \<Longrightarrow> decides {w. accepts w}"
   unfolding decides_def rejects_altdef mem_Collect_eq by blast
 
-lemma decides_TM_lang: "(\<And>w. halts w) \<Longrightarrow> decides L(M)"
-  unfolding TM_lang_def using decides_TM_lang_accepts by presburger
+lemma decides_TM_lang: "(\<And>w. wf_word w \<Longrightarrow> halts w) \<Longrightarrow> decides L(M)"
+  unfolding TM_lang_def using decides_TM_lang_accepts by simp
 
-lemma decidesE: "decides L \<Longrightarrow> L(M) = L"
+lemma decidesE: "wf_lang L \<Longrightarrow> decides L \<Longrightarrow> L(M) = L"
 proof safe
-  assume \<open>decides L\<close>
-  then have "halts w" for w by (rule decides_halts_all)
-  then have L_M: "L(M) = {w. accepts w}" unfolding TM_lang_def by presburger
+  assume wfl: \<open>wf_lang L\<close> and dec: \<open>decides L\<close>
+  from dec have "\<forall>w\<in>wf_words. halts w" by (rule decides_halts_all)
+  then have L_M: "L(M) = {w\<in>wf_words. accepts w}" unfolding TM_lang_def by presburger
 
   fix w
   show "w \<in> L(M)" if "w \<in> L" proof -
-    from \<open>w \<in> L\<close> \<open>decides L\<close> have "accepts w" unfolding decides_def by blast
-    then show "w \<in> L(M)" unfolding L_M ..
+    from \<open>w\<in>L\<close> wfl have "wf_word w" by blast
+    moreover from \<open>w\<in>L\<close> \<open>wf_word w\<close> \<open>decides L\<close> have "accepts w" unfolding decides_def by blast
+    ultimately show "w \<in> L(M)" unfolding L_M by fastforce
   qed
   show "w \<in> L" if "w \<in> L(M)" proof -
-    from \<open>w \<in> L(M)\<close> have "accepts w" unfolding L_M by blast
+    from \<open>w \<in> L(M)\<close> have "accepts w" "wf_word w" unfolding L_M by blast+
     with \<open>decides L\<close> show "w \<in> L" unfolding decides_def by blast
   qed
 qed
 
-lemma TM_lang_unique: "\<exists>\<^sub>\<le>\<^sub>1L. decides L"
-  using decidesE by (intro Uniq_I) blast
+lemma TM_lang_unique: "\<exists>\<^sub>\<le>\<^sub>1L. wf_lang L \<and> decides L"
+  using decidesE by (intro Uniq_I) metis
 
 end
 
@@ -732,7 +724,7 @@ sublocale natM: TM natM
   using symbol_axioms(1) apply auto[1]
   apply simp using g_Bk symbol_axioms(2) apply force
   using next_state natM_wf_state_inv using natM_def apply force
-  using next_action_length natM_wf_state_inv apply (simp add: natM_def)
+  using next_action_length natM_wf_state_inv apply simp
 
   apply (unfold pre_TM.wf_state_def)[1] apply simp
   using symbol_action_app[of g, OF g_Bk]

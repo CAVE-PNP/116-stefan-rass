@@ -13,7 +13,7 @@ lemma finite_imp_inj_to_nat_fix_one:
   shows "\<exists>g. inj_on g A \<and> g x = y"
 proof -
   from finite_imp_inj_to_nat_seg[OF assms]
-  obtain f n where "f ` A = {..<n::nat}" and "inj_on f A" by auto
+  obtain f::"'a \<Rightarrow> nat" where "inj_on f A" by fast
 
   define g where "g = (\<lambda>x. f x + y + 1)(x := y)"
   from g_def have 1: "g x' = y \<Longrightarrow> x' = x" for x'

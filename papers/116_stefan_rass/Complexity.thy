@@ -353,7 +353,7 @@ proof -
 
   from wf interpret TM M .
 
-  from decides have "alm_all (decides_word L)" by auto
+  from decides have "alm_all (decides_word L)" by blast
   moreover have "alm_all (time_bounded_word T)"
   proof (intro ae_word_lengthI exI allI impI, safe)
     fix w :: "'b list"
@@ -578,7 +578,8 @@ proof -
 
     show "TM.decides_word M L2 w" unfolding M_def using \<open>TM M\<^sub>R\<close>
     proof (intro reduce_decides)
-      from \<open>TM.decides M1 L1\<close> show "TM.decides_word M1 L1 (f\<^sub>R w)" ..
+      have "pre_TM.wf_word M1 (f\<^sub>R w)" sorry (* missing assumption? *)
+      with \<open>TM.decides M1 L1\<close> show "TM.decides_word M1 L1 (f\<^sub>R w)" by simp
       from f\<^sub>R_correct and min_len show "f\<^sub>R w \<in> L1 \<longleftrightarrow> w \<in> L2" .
       from \<open>TM.computes M\<^sub>R f\<^sub>R\<close> show "TM.computes_word M\<^sub>R f\<^sub>R w" ..
     qed
