@@ -521,6 +521,19 @@ lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
 corollary decides_halts_all: "decides L \<Longrightarrow> halts w"
   using decides_halts by blast
 
+corollary decides_symbols_UNIV: "decides L \<Longrightarrow> symbols M = UNIV"
+proof -
+  assume "decides L"
+  hence *: "\<And>w. wf_word w"
+    using decides_halts_all unfolding halts_def by simp
+  have "\<forall>x::'b. x \<in> symbols M" proof
+    fix x
+    from * have "wf_word [x]" .
+    thus "x \<in> symbols M" by simp
+  qed
+  thus "symbols M = UNIV" by blast
+qed
+
 lemma decides_altdef:
   "decides_word L w \<longleftrightarrow> halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
 proof (intro iffI)
