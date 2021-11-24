@@ -660,13 +660,17 @@ begin
 lemma f_inj: "inj_on f (states M)" unfolding f_def
   using countable_finite[OF state_axioms(1)] unfolding countable_def ..
 
-lemma g_ex: "\<exists>g::'b \<Rightarrow> nat. inj_on g (symbols M) \<and> g Bk = Bk"
-  using finite_imp_inj_to_nat_fix_one symbol_axioms(1) .
-lemma g_inj: "inj_on g (symbols M)" using g_def g_ex sorry (* someI *)
-lemma g_Bk: "g Bk = Bk" using g_def g_ex sorry (* someI *)
+lemma g_inj: "inj_on g (symbols M)" and g_Bk: "g Bk = Bk"
+proof -
+  from symbol_axioms(1) have "\<exists>g::'b \<Rightarrow> nat. inj_on g (symbols M) \<and> g Bk = Bk"
+    by (fact finite_imp_inj_to_nat_fix_one)
+  then have "inj_on g (symbols M) \<and> g Bk = Bk" unfolding g_def by (fact someI_ex)
+  then show "inj_on g (symbols M)" and "g Bk = Bk" by auto
+qed
+
 
 definition natM :: "(nat, nat) TM" ("M\<^sub>\<nat>")
-  where "natM \<equiv> \<lparr>
+  where [simp]: "natM \<equiv> \<lparr>
     tape_count = tape_count M,
     states = f ` states M,
     start_state = f (start_state M),
@@ -680,13 +684,26 @@ definition natM :: "(nat, nat) TM" ("M\<^sub>\<nat>")
 
 sublocale pre_natM: pre_TM natM .
 
-lemma g_inv_word_wf: "pre_natM.wf_word w \<Longrightarrow> wf_word (map g_inv w)"
-  unfolding natM_def apply simp
-  by (metis g_inj g_inv_def image_mono the_inv_into_onto)
+lemmas natM_simps = natM_def TM.TM.simps
 
-lemma natM_wf_state_inv: "pre_natM.wf_state q w \<Longrightarrow> wf_state (f_inv q) (map g_inv w)"
-  unfolding natM_def pre_TM.wf_state_def apply simp
-  by (metis f_inj f_inv_def g_inj g_inv_def image_eqI image_mono the_inv_into_onto)
+
+lemma g_inv_word_wf: "pre_natM.wf_word w \<Longrightarrow> wf_word (map g_inv w)"
+proof simp
+  assume "set w \<subseteq> g ` symbols M"
+  then have "g_inv ` set w \<subseteq> g_inv ` g ` symbols M" by (fact image_mono)
+  also have "... = symbols M" using g_inj unfolding g_inv_def by (intro the_inv_into_onto)
+  finally show "g_inv ` set w \<subseteq> symbols M" .
+qed
+
+lemma natM_wf_state_inv: "pre_natM.wf_state q w \<Longrightarrow> wf_state (f_inv q) (map g_inv w)" 
+proof (unfold pre_TM.wf_state_def, elim conjE, intro conjI)
+  assume "q \<in> states natM"
+  with f_inj show "f_inv q \<in> states M"
+    unfolding natM_simps f_inv_def by (rule the_inv_into_into) simp
+
+  assume "length w = tape_count natM" thus "length (map g_inv w) = tape_count M" by force
+  assume "pre_natM.wf_word w" thus "wf_word (map g_inv w)" by (fact g_inv_word_wf)
+qed
 
 
 (* using the same name ("natM") for both sublocale and definition works,
