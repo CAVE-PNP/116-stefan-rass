@@ -677,13 +677,17 @@ definition natM :: "(nat, nat) TM" ("M\<^sub>\<nat>")
     next_action = \<lambda>q w. map (action_app g) (next_action M (f_inv q) (map g_inv w))
   \<rparr>"
 
-lemma g_inv_word_wf: "pre_TM.wf_word natM w \<Longrightarrow> wf_word (map g_inv w)"
+
+sublocale pre_natM: pre_TM natM .
+
+lemma g_inv_word_wf: "pre_natM.wf_word w \<Longrightarrow> wf_word (map g_inv w)"
   unfolding natM_def apply simp
   by (metis g_inj g_inv_def image_mono the_inv_into_onto)
 
-lemma natM_wf_state_inv: "pre_TM.wf_state natM q w \<Longrightarrow> wf_state (f_inv q) (map g_inv w)"
+lemma natM_wf_state_inv: "pre_natM.wf_state q w \<Longrightarrow> wf_state (f_inv q) (map g_inv w)"
   unfolding natM_def pre_TM.wf_state_def apply simp
   by (metis f_inj f_inv_def g_inj g_inv_def image_eqI image_mono the_inv_into_onto)
+
 
 (* using the same name ("natM") for both sublocale and definition works,
  * since the sublocale is only used as namespace *)
