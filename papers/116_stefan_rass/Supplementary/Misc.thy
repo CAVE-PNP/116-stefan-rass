@@ -4,6 +4,8 @@ begin
 
 lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_def)
 
+lemma inv_into_onto: "inj_on f A \<Longrightarrow> inv_into A f ` f ` A = A" by simp
+
 (* Suppl_Set ? *)
 lemma image_Collect_compose: "f ` {g x | x. P x} = {f (g x) | x. P x}" by blast
 

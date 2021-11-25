@@ -658,8 +658,8 @@ text \<open>Every well-formed TM is equivalent to some (nat, nat) TM\<close>
 locale nat_TM = TM +
   fixes f :: "'a \<Rightarrow> nat" and f_inv
     and g :: "'b \<Rightarrow> nat" and g_inv
-  defines "f \<equiv> SOME f. inj_on f (states M)"  and "f_inv \<equiv> the_inv_into (states M) f"
-    and   "g \<equiv> SOME g. inj_on g (symbols M) \<and> g Bk = Bk" and "g_inv \<equiv> the_inv_into (symbols M) g"
+  defines "f \<equiv> SOME f. inj_on f (states M)"  and "f_inv \<equiv> inv_into (states M) f"
+    and   "g \<equiv> SOME g. inj_on g (symbols M) \<and> g Bk = Bk" and "g_inv \<equiv> inv_into (symbols M) g"
 begin
 
 lemma f_inj: "inj_on f (states M)" unfolding f_def
@@ -696,16 +696,14 @@ lemma g_inv_word_wf: "pre_natM.wf_word w \<Longrightarrow> wf_word (map g_inv w)
 proof simp
   assume "set w \<subseteq> g ` symbols M"
   then have "g_inv ` set w \<subseteq> g_inv ` g ` symbols M" by (fact image_mono)
-  also have "... = symbols M" using g_inj unfolding g_inv_def by (intro the_inv_into_onto)
+  also have "... = symbols M" using g_inj unfolding g_inv_def by (fact inv_into_onto)
   finally show "g_inv ` set w \<subseteq> symbols M" .
 qed
 
 lemma natM_wf_state_inv: "pre_natM.wf_state q w \<Longrightarrow> wf_state (f_inv q) (map g_inv w)" 
 proof (unfold pre_TM.wf_state_def, elim conjE, intro conjI)
-  assume "q \<in> states natM"
-  with f_inj show "f_inv q \<in> states M"
-    unfolding natM_simps f_inv_def by (rule the_inv_into_into) simp
-
+  assume "q \<in> states natM" thus "f_inv q \<in> states M"
+    unfolding natM_simps f_inv_def by (fact inv_into_into)
   assume "length w = tape_count natM" thus "length (map g_inv w) = tape_count M" by force
   assume "pre_natM.wf_word w" thus "wf_word (map g_inv w)" by (fact g_inv_word_wf)
 qed
@@ -728,18 +726,18 @@ sublocale natM: TM natM
 
   apply (unfold pre_TM.wf_state_def)[1] apply simp
   using symbol_action_app[of g, OF g_Bk]
-  apply (smt (verit, del_insts) TM.TM.select_convs(6) f_inj f_inv_def g_inv_word_wf image_iff image_mono length_map natM_def next_write_symbol pre_TM.wf_state_def subset_trans the_inv_into_f_f)
+  apply (smt (verit, del_insts) TM.TM.select_convs(6) f_inj f_inv_def g_inv_word_wf image_iff image_mono length_map natM_def next_write_symbol pre_TM.wf_state_def subset_trans inv_into_f_f)
 
   apply (fold natM_def)
 
   using final_state natM_wf_state_inv
-  apply (smt (z3) TM.TM.select_convs(4) TM.TM.select_convs(7) f_inj f_inv_def image_iff natM_def state_axioms(3) subsetD the_inv_into_f_f)
+  apply (smt (z3) TM.TM.select_convs(4) TM.TM.select_convs(7) f_inj f_inv_def image_iff natM_def state_axioms(3) subsetD inv_into_f_f)
 proof -
   fix q w
   assume wfn: "pre_TM.wf_state natM q w" and finn: "q \<in> final_states natM"
   from wfn have wf: "wf_state (f_inv q) (map g_inv w)" by (rule natM_wf_state_inv)
   from finn have fin: "f_inv q \<in> final_states M"
-    by (smt (verit, del_insts) TM.TM.select_convs(4) f_inj f_inv_def image_iff natM_def state_axioms(3) subsetD the_inv_into_f_f)
+    by (smt (verit, del_insts) TM.TM.select_convs(4) f_inj f_inv_def image_iff natM_def state_axioms(3) subsetD inv_into_f_f)
   from final_action[OF wf fin] action_app.simps(4)[of g]
   show "set (next_action M\<^sub>\<nat> q w) \<subseteq> {Nop}"
     unfolding natM_def by auto
