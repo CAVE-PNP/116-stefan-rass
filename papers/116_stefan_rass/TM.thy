@@ -672,8 +672,13 @@ proof -
   then have "inj_on g (symbols M) \<and> g Bk = Bk" unfolding g_def by (fact someI_ex)
   then show "inj_on g (symbols M)" and "g Bk = Bk" by auto
 qed
+lemma g_inv_g: "x \<in> symbols M \<Longrightarrow> g_inv (g x) = x"
+  unfolding g_inv_def using g_inj by (rule inv_into_f_f)
 
-
+lemma map_g_inj: "inj_on (map g) wf_words"
+  using g_inj list.inj_map_strong
+  by (smt (verit, best) inj_on_def mem_Collect_eq subsetD)
+  
 definition natM :: "(nat, nat) TM" ("M\<^sub>\<nat>")
   where [simp]: "natM \<equiv> \<lparr>
     tape_count = tape_count M,
@@ -691,7 +696,6 @@ sublocale pre_natM: pre_TM natM .
 
 lemmas natM_simps = natM_def TM.TM.simps
 
-
 lemma g_inv_word_wf: "pre_natM.wf_word w \<Longrightarrow> wf_word (map g_inv w)"
 proof simp
   assume "set w \<subseteq> g ` symbols M"
@@ -700,6 +704,9 @@ proof simp
   finally show "g_inv ` set w \<subseteq> symbols M" .
 qed
 
+lemma map_g_bij: "bij_betw (map g) wf_words pre_natM.wf_words"
+  sorry
+    
 lemma natM_wf_state_inv: "pre_natM.wf_state q w \<Longrightarrow> wf_state (f_inv q) (map g_inv w)" 
 proof (unfold pre_TM.wf_state_def, elim conjE, intro conjI)
   assume "q \<in> states natM" thus "f_inv q \<in> states M"
@@ -707,8 +714,7 @@ proof (unfold pre_TM.wf_state_def, elim conjE, intro conjI)
   assume "length w = tape_count natM" thus "length (map g_inv w) = tape_count M" by force
   assume "pre_natM.wf_word w" thus "wf_word (map g_inv w)" by (fact g_inv_word_wf)
 qed
-
-
+  
 (* using the same name ("natM") for both sublocale and definition works,
  * since the sublocale is only used as namespace *)
 sublocale natM: TM natM
@@ -725,8 +731,8 @@ sublocale natM: TM natM
   using next_action_length natM_wf_state_inv apply simp
 
   apply (unfold pre_TM.wf_state_def)[1] apply simp
-  using symbol_action_app[of g, OF g_Bk]
-  apply (smt (verit, del_insts) TM.TM.select_convs(6) f_inj f_inv_def g_inv_word_wf image_iff image_mono length_map natM_def next_write_symbol pre_TM.wf_state_def subset_trans inv_into_f_f)
+  using symbol_action_app[of g, OF g_Bk] next_write_symbol
+  apply (smt (verit, del_insts) TM.TM.select_convs(6) f_inj f_inv_def g_inv_word_wf image_iff image_mono length_map natM_def pre_TM.wf_state_def subset_trans inv_into_f_f)
 
   apply (fold natM_def)
 
@@ -743,9 +749,17 @@ proof -
     unfolding natM_def by auto
 qed
 
-lemma "\<And>w. halts w \<Longrightarrow> natM.halts (map g w)"
-  and "\<And>w. accepts w \<Longrightarrow> natM.accepts (map g w)"
-  and "\<And>w. rejects w \<Longrightarrow> natM.rejects (map g w)"
+lemma natM_halts: "\<And>w. halts w \<Longrightarrow> natM.halts (map g w)"
+  and natM_accepts: "\<And>w. accepts w \<Longrightarrow> natM.accepts (map g w)"
+  and natM_rejects: "\<And>w. rejects w \<Longrightarrow> natM.rejects (map g w)"
+  sorry
+
+lemma natM_halts_all:
+  assumes "\<forall>w\<in>wf_words. halts w"
+    shows "\<forall>w\<in>pre_natM.wf_words. natM.halts w"
+  sorry
+
+lemma "decides L \<Longrightarrow> natM.decides (map g ` L)"
   sorry
 
 end \<comment> \<open>\<^locale>\<open>nat_TM\<close>\<close>
