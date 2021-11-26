@@ -149,6 +149,16 @@ lemma wf_configD'[dest]:
   "wf_config c \<Longrightarrow> list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) (tapes c)"
   unfolding list_all_iff by blast
 
+lemma wf_config_simps: "wf_config \<lparr> state = q, tapes = tps \<rparr> = (
+        q \<in> states M
+      \<and> length tps = tape_count M
+      \<and> list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) tps)"
+  unfolding wf_config_def Let_def TM_config.simps ..
+
+mk_ide wf_config_simps[unfolded list_all_iff]
+  |intro wf_config_simpI| |elim wf_config_simpE| |dest wf_config_simpD|
+
+
 end \<comment> \<open>\<^locale>\<open>pre_TM\<close>\<close>
 
 locale TM = pre_TM +
@@ -678,8 +688,6 @@ proof -
   then have "inj_on g (symbols M) \<and> g Bk = Bk" unfolding g_def by (fact someI_ex)
   then show "inj_on g (symbols M)" and "g Bk = Bk" by auto
 qed
-lemma g_inv_g: "x \<in> symbols M \<Longrightarrow> g_inv (g x) = x"
-  unfolding g_inv_def using g_inj by (rule inv_into_f_f)
 
 lemma map_g_inj: "inj_on (map g) wf_words"
   using g_inj list.inj_map_strong
@@ -894,7 +902,63 @@ proof (induction c)
   qed
 qed
 
-lemma natM_step_eq: "wf_config c \<Longrightarrow> C\<inverse> (natM.step (C c)) = step c" sorry
+lemma natM_step_eq: "wf_config c \<Longrightarrow> C\<inverse> (natM.step (C c)) = step c"
+proof (induction c)
+  case (fields q tps)
+  let ?c = "\<lparr>state = q, tapes = tps\<rparr>" let ?c' = "C ?c"
+  let ?q = "f q" and ?tps = "map (tape_app g) tps"
+  let ?w = "map tp_read tps"
+
+  from \<open>wf_config ?c\<close> have "pre_natM.wf_config (C ?c)" by (fact wf_natM_config)
+  from \<open>wf_config ?c\<close> have "q \<in> states M" using wf_configD(1)[of ?c] by simp
+  with f_inv have ff_q: "f_inv (f q) = q" .
+  from \<open>wf_config ?c\<close> have wf_ns: "next_state M q ?w \<in> states M"
+    using wf_config_state[of ?c] by (intro next_state) simp
+  from \<open>wf_config ?c\<close> have wf_step: "wf_config (step ?c)" by (fact wf_config_step)
+
+  have tp_read_eq: "map (\<lambda>tp. g_inv (tp_read (tape_app g tp))) tps = map tp_read tps"
+  proof (intro list.map_cong0)
+    fix tp assume "tp \<in> set tps"
+    with \<open>wf_config ?c\<close> have "set_of_tape tp \<subseteq> symbols M" by (fast dest: wf_config_simpD(3))
+    then have "tp_read tp \<in> symbols M" by force
+    then show "g_inv (tp_read (tape_app g tp)) = tp_read tp"
+      by (induction tp) (simp add: g_inv)
+  qed
+
+  have "state (natM.step ?c') = next_state M\<^sub>\<nat> ?q (map tp_read ?tps)"
+    unfolding natM.step_def Let_def cc_simps TM_config.simps ..
+  also have "... = f (next_state M q ?w)"
+    unfolding natM_def TM.TM.simps map_map unfolding ff_q comp_def tp_read_eq ..
+  finally have state_step: "state (natM.step ?c') = f (next_state M q ?w)" .
+
+  have tp_upd: "tp_update (action_app g a) (tape_app g tp) = tape_app g (tp_update a tp)" for a tp
+  proof (induction tp)
+    case (fields ls m rs) thus ?case
+    proof (induction a)
+      case L thus ?case by (induction ls) auto next
+      case R thus ?case by (induction rs) auto
+    qed (* cases "(W \<sigma>)" and "Nop" by *) auto
+  qed
+
+  let ?na = "next_action M q ?w"
+  have "tapes (natM.step ?c') = map2 tp_update (next_action M\<^sub>\<nat> ?q (map tp_read ?tps)) ?tps"
+    unfolding natM.step_def Let_def cc_simps TM_config.simps ..
+  also have "... = map2 tp_update (map (action_app g) ?na) ?tps"
+    unfolding natM_def TM.TM.simps map_map comp_def tp_read_eq ff_q ..
+  also have "... = map (tape_app g) (map2 tp_update ?na tps)"
+    unfolding zip_map2 map_map zip_map1 unfolding comp_def case_prod_beta' fst_conv snd_conv
+    unfolding tp_upd ..
+  finally have "tapes (natM.step ?c') = map (tape_app g) (map2 tp_update ?na tps)" .
+
+  with state_step have natM_step: "natM.step ?c' = \<lparr>
+    state = f (next_state M q ?w),
+    tapes = map (tape_app g) (map2 tp_update ?na tps)
+  \<rparr>" using unit_eq by (intro TM_config.equality) (unfold TM_config.simps)
+
+  have "C\<inverse> (natM.step (C ?c)) = CC (step ?c)"  unfolding natM_step step_def Let_def TM_config.simps
+    unfolding config_conv.simps ..
+  then show "C\<inverse> (natM.step (C ?c)) = step ?c" unfolding config_conv_inv[OF wf_step] .
+qed
 
 lemma natM_steps_eq:
   "wf_config c \<Longrightarrow> C\<inverse> ((natM.step ^^ n) (C c)) = (step ^^ n) c"
