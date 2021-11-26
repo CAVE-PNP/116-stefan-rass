@@ -55,10 +55,15 @@ definition [simp]: "set_of_tape tp \<equiv> set (left tp) \<union> {middle tp} \
 
 lemma set_of_tape_helpers: "middle tp \<in> set_of_tape tp" "Bk \<in> set_of_tape tp" by auto
 
+lemma tape_set_app: "f Bk = Bk \<Longrightarrow> set_of_tape (tape_app f tp) = f ` set_of_tape tp"
+  by (induction tp) (simp add: image_Un)
+
 text\<open>TM execution begins with the head at the start of the input word.\<close>
 fun input_tape ("<_>\<^sub>t\<^sub>p") where
   "<[]>\<^sub>t\<^sub>p = empty_tape"
 | "<x # xs>\<^sub>t\<^sub>p = \<lparr> left=[], middle = x, right = xs \<rparr>"
+
+lemma input_tape_app: "f Bk = Bk \<Longrightarrow> tape_app f <w>\<^sub>t\<^sub>p = <map f w>\<^sub>t\<^sub>p" by (induction w) auto
 
 lemma input_tape_def:
   "<w>\<^sub>t\<^sub>p = (if w = [] then empty_tape else \<lparr> left=[], middle = hd w, right = tl w \<rparr>)"
@@ -396,12 +401,14 @@ definition halts :: "'b list \<Rightarrow> bool"
 lemma halts_I[intro]: "wf_word w \<Longrightarrow> \<exists>n. is_final (run n w) \<Longrightarrow> halts w"
   unfolding halts_def hoare_halt_def by simp
 
-lemma halts_E[elim]:
+lemma halts_D[dest]:
   assumes "halts w"
   shows "wf_word w"
     and "\<exists>n. is_final (run n w)"
   using assms hoare_halt_def wf_start_config
   unfolding halts_def by fastforce+
+
+lemma halts_altdef: "halts w \<longleftrightarrow> wf_word w \<and> (\<exists>n. is_final (run n w))" by blast
 
 lemma hoare_halt_neg:
   assumes "\<not> hoare_halt (init w) Q"
@@ -472,8 +479,7 @@ lemma rejectsI[intro]:
 lemma halts_iff: "halts w \<longleftrightarrow> accepts w \<or> rejects w"
 proof (intro iffI)
   assume "halts w"
-  then obtain n where fin: "is_final (run n w)" and wf: "wf_word w"
-    using halts_E by blast
+  then obtain n where fin: "is_final (run n w)" and wf: "wf_word w" by blast
   thus "accepts w \<or> rejects w"
   proof (cases "state (run n w) \<in> accepting_states M")
     case True hence "accepts w"
@@ -665,7 +671,7 @@ begin
 lemma f_inj: "inj_on f (states M)" unfolding f_def
   using countable_finite[OF state_axioms(1)] unfolding countable_def ..
 
-lemma g_inj: "inj_on g (symbols M)" and g_Bk: "g Bk = Bk"
+lemma g_inj: "inj_on g (symbols M)" and g_Bk[simp]: "g Bk = Bk"
 proof -
   from symbol_axioms(1) have "\<exists>g::'b \<Rightarrow> nat. inj_on g (symbols M) \<and> g Bk = Bk"
     by (fact finite_imp_inj_to_nat_fix_one)
@@ -678,9 +684,9 @@ lemma g_inv_g: "x \<in> symbols M \<Longrightarrow> g_inv (g x) = x"
 lemma map_g_inj: "inj_on (map g) wf_words"
   using g_inj list.inj_map_strong
   by (smt (verit, best) inj_on_def mem_Collect_eq subsetD)
-  
+
 definition natM :: "(nat, nat) TM" ("M\<^sub>\<nat>")
-  where [simp]: "natM \<equiv> \<lparr>
+  where "natM \<equiv> \<lparr>
     tape_count = tape_count M,
     states = f ` states M,
     start_state = f (start_state M),
@@ -691,9 +697,38 @@ definition natM :: "(nat, nat) TM" ("M\<^sub>\<nat>")
     next_action = \<lambda>q w. map (action_app g) (next_action M (f_inv q) (map g_inv w))
   \<rparr>"
 
-sublocale pre_natM: pre_TM natM .
+lemma natM_simps[simp]:
+  "tape_count natM = tape_count M"
+  "states natM = f ` states M"
+  "symbols natM = g ` symbols M"
+  unfolding natM_def by auto
 
-lemmas natM_simps = natM_def TM.TM.simps
+lemma f_bij: "bij_betw f (states M) (states natM)" unfolding natM_simps
+  using f_inj by (fact inj_on_imp_bij_betw)
+lemma f_inv_bij: "bij_betw f_inv (states natM) (states M)" unfolding f_inv_def
+  using f_bij by (fact bij_betw_inv_into)
+lemma f_inv: "q \<in> states M \<Longrightarrow> f_inv (f q) = q" unfolding f_inv_def
+  using f_inj by (rule inv_into_f_f)
+lemma f_inv_img: "f_inv ` states natM = states M"
+  using f_inj unfolding natM_simps f_inv_def by (fact inv_into_onto)
+lemma inv_f: "q \<in> states natM \<Longrightarrow> f (f_inv q) = q"
+  unfolding natM_simps f_inv_def by (fact f_inv_into_f)
+
+lemma g_bij: "bij_betw g (symbols M) (symbols natM)" unfolding natM_simps
+  using g_inj by (fact inj_on_imp_bij_betw)
+lemma g_inv_bij: "bij_betw g_inv (symbols natM) (symbols M)" unfolding g_inv_def
+  using g_bij by (fact bij_betw_inv_into)
+lemma g_inv: "\<sigma> \<in> symbols M \<Longrightarrow> g_inv (g \<sigma>) = \<sigma>" unfolding g_inv_def
+  using g_inj by (rule inv_into_f_f)
+lemma g_inv_img: "g_inv ` g ` symbols M = symbols M"
+  using g_inj unfolding g_inv_def by (fact inv_into_onto)
+lemma inv_g: "\<sigma> \<in> symbols natM \<Longrightarrow> g (g_inv \<sigma>) = \<sigma>"
+  unfolding natM_simps g_inv_def by (fact f_inv_into_f)
+lemma g_inv_mem_eq: "\<sigma> \<in> symbols natM \<Longrightarrow> g_inv \<sigma> \<in> symbols M"
+  unfolding g_inv_def natM_simps by (fact inv_into_into)
+
+
+sublocale pre_natM: pre_TM natM .
 
 lemma g_inv_word_wf: "pre_natM.wf_word w \<Longrightarrow> wf_word (map g_inv w)"
 proof simp
@@ -703,25 +738,25 @@ proof simp
   finally show "g_inv ` set w \<subseteq> symbols M" .
 qed
 
+lemma f_inv_states: "q \<in> states natM \<Longrightarrow> f_inv q \<in> states M"
+  unfolding natM_simps f_inv_def by (fact inv_into_into)
+
 lemma map_g_bij: "bij_betw (map g) wf_words pre_natM.wf_words"
-  proof (intro bij_betw_imageI)
-  show "inj_on (map g) wf_words"
-    using g_inj list.inj_map_strong
-    by (smt (verit, best) inj_on_def mem_Collect_eq subsetD)
-next
+proof (intro bij_betw_imageI)
   show "(map g) ` (wf_words) = pre_natM.wf_words"
-    unfolding natM_def using lists_image[of g]
-    by (fold lists_eq_set) simp
-qed
-    
-lemma natM_wf_state_inv: "pre_natM.wf_state q w \<Longrightarrow> wf_state (f_inv q) (map g_inv w)" 
+    unfolding natM_simps lists_eq_set[symmetric] lists_image ..
+qed (fact map_g_inj)
+
+lemma natM_wf_state_inv: "pre_natM.wf_state q w \<Longrightarrow> wf_state (f_inv q) (map g_inv w)"
 proof (unfold pre_TM.wf_state_def, elim conjE, intro conjI)
-  assume "q \<in> states natM" thus "f_inv q \<in> states M"
-    unfolding natM_simps f_inv_def by (fact inv_into_into)
+  assume "q \<in> states natM" thus "f_inv q \<in> states M" by (fact f_inv_states)
   assume "length w = tape_count natM" thus "length (map g_inv w) = tape_count M" by force
   assume "pre_natM.wf_word w" thus "wf_word (map g_inv w)" by (fact g_inv_word_wf)
 qed
-  
+
+lemma natM_wf_word: "wf_word w \<Longrightarrow> pre_natM.wf_word (map g w)" by auto
+
+
 (* using the same name ("natM") for both sublocale and definition works,
  * since the sublocale is only used as namespace *)
 sublocale natM: TM natM
@@ -735,7 +770,7 @@ sublocale natM: TM natM
   using symbol_axioms(1) apply auto[1]
   apply simp using g_Bk symbol_axioms(2) apply force
   using next_state natM_wf_state_inv using natM_def apply force
-  using next_action_length natM_wf_state_inv apply simp
+  using next_action_length natM_wf_state_inv apply (simp add: natM_def)
 
   apply (unfold pre_TM.wf_state_def)[1] apply simp
   using symbol_action_app[of g, OF g_Bk] next_write_symbol
@@ -756,9 +791,173 @@ proof -
     unfolding natM_def by auto
 qed
 
-lemma natM_halts: "\<And>w. halts w \<Longrightarrow> natM.halts (map g w)"
-  and natM_accepts: "\<And>w. accepts w \<Longrightarrow> natM.accepts (map g w)"
-  and natM_rejects: "\<And>w. rejects w \<Longrightarrow> natM.rejects (map g w)"
+fun config_conv :: "('a, 'b) TM_config \<Rightarrow> (nat, nat) TM_config" ("C") where
+  "config_conv \<lparr> state = q, tapes = tps \<rparr> =
+          \<lparr> state = f q, tapes = map (tape_app g) tps \<rparr>"
+
+fun config_conv_inv :: "(nat, nat) TM_config \<Rightarrow> ('a, 'b) TM_config" ("C\<inverse>") where
+  "config_conv_inv \<lparr> state = q, tapes = tps \<rparr> =
+          \<lparr> state = f_inv q, tapes = map (tape_app g_inv) tps \<rparr>"
+
+lemmas cc_simps = config_conv.simps config_conv_inv.simps
+
+abbreviation config_conv_inv_and_conv ("CC") where "CC c \<equiv> C\<inverse> (C c)"
+abbreviation config_conv_and_inv ("CC\<inverse>") where "CC\<inverse> c \<equiv> C (C\<inverse> c)"
+
+lemma config_conv_state_inv:
+  "q \<in> states M \<Longrightarrow> state (CC \<lparr> state = q, tapes = tps \<rparr>) = q"
+  unfolding cc_simps TM.TM_config.simps(1) by (fact f_inv)
+
+lemma tape_app_g_inv: "set_of_tape tp \<subseteq> symbols M \<Longrightarrow> (tape_app g_inv \<circ> tape_app g) tp = tp"
+proof (induction tp)
+  case (fields ls m rs)
+  then have l: "set ls \<subseteq> symbols M" and m: "m \<in> symbols M" and r: "set rs \<subseteq> symbols M" by auto
+  have *: "\<And>w. wf_word w \<Longrightarrow> map (\<lambda>x. g_inv (g x)) w = w" by (intro map_idI g_inv) blast
+  show ?case unfolding comp_def tape_app.simps map_map unfolding *[OF l] *[OF r] g_inv[OF m] ..
+qed
+
+lemma config_conv_inv: "wf_config c \<Longrightarrow> CC c = c"
+proof (induction c)
+  case (fields q tps)
+  let ?c = "\<lparr>state = q, tapes = tps\<rparr>"
+  from \<open>wf_config ?c\<close> have "q \<in> states M"
+    and tps_symbols: "list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) tps"
+    unfolding wf_config_def Let_def TM_config.simps by blast+
+
+  from \<open>q \<in> states M\<close> have "state (CC ?c) = state ?c" by (subst config_conv_state_inv) auto
+  moreover have "tapes (CC ?c) = tapes ?c"
+    unfolding cc_simps TM.TM_config.simps(2) map_map
+  proof (intro map_idI)
+    fix tp assume "tp \<in> set tps"
+    with tps_symbols have "set_of_tape tp \<subseteq> symbols M" by blast
+    then show "(tape_app g_inv \<circ> tape_app g) tp = tp" by (fact tape_app_g_inv)
+  qed
+  ultimately show ?case by (rule TM.TM_config.equality) simp
+qed
+
+lemma config_conv_state_inv':
+  "q \<in> states natM \<Longrightarrow> state (CC\<inverse> \<lparr> state = q, tapes = tps \<rparr>) = q"
+  unfolding cc_simps TM.TM_config.simps(1) f_inv_def
+  using f_bij by (rule bij_betw_inv_into_right)
+
+lemma config_conv_inv': "pre_natM.wf_config c \<Longrightarrow> CC\<inverse> c = c"
+proof (induction c)
+  case (fields q tps)
+  let ?c = "\<lparr>state = q, tapes = tps\<rparr>"
+  from \<open>pre_natM.wf_config ?c\<close> have "q \<in> states natM"
+    and tps_symbols: "list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols natM) tps"
+    unfolding pre_TM.wf_config_def Let_def TM_config.simps by blast+
+
+  from \<open>q \<in> states natM\<close> have "state (CC\<inverse> ?c) = state ?c" by (subst config_conv_state_inv') auto
+  moreover have "tapes (CC\<inverse> ?c) = tapes ?c"
+    unfolding cc_simps TM.TM_config.simps(2) map_map
+  proof (intro map_idI)
+    fix tp assume "tp \<in> set tps"
+    with tps_symbols have "set_of_tape tp \<subseteq> symbols natM" by blast
+    then show "(tape_app g \<circ> tape_app g_inv) tp = tp"
+    proof (induction tp)
+      case (fields ls m rs)
+      then have l: "set ls \<subseteq> symbols natM" and m: "m \<in> symbols natM" and r: "set rs \<subseteq> symbols natM" by auto
+      have *: "\<And>w. pre_natM.wf_word w \<Longrightarrow> map (\<lambda>x. g (g_inv x)) w = w" by (intro map_idI inv_g) blast
+      show ?case unfolding comp_def tape_app.simps map_map unfolding *[OF l] *[OF r] inv_g[OF m] ..
+    qed
+  qed
+  ultimately show ?case by (rule TM.TM_config.equality) simp
+qed
+
+lemma wf_natM_config: "wf_config c \<Longrightarrow> pre_natM.wf_config (C c)"
+proof (induction c)
+  case (fields q tps)
+  let ?c = "\<lparr>state = q, tapes = tps\<rparr>"
+  from \<open>wf_config ?c\<close> show "pre_natM.wf_config (C ?c)"
+  proof (elim wf_configE, intro pre_TM.wf_configI)
+    assume "state ?c \<in> states M" thus "state (C ?c) \<in> states natM"
+      unfolding cc_simps natM_simps TM_config.simps by (fact imageI)
+    assume "length (tapes ?c) = tape_count M" thus "length (tapes (C ?c)) = tape_count natM"
+      unfolding cc_simps natM_def TM.TM.simps TM_config.simps unfolding length_map .
+
+    assume "\<forall>tp\<in>set (tapes ?c). set_of_tape tp \<subseteq> symbols M"
+    then have wf_tp: "set_of_tape tp \<subseteq> symbols M" if "tp \<in> set tps" for tp
+      unfolding TM_config.simps using that by blast
+    show "\<forall>tp\<in>set (tapes (C ?c)). set_of_tape tp \<subseteq> symbols natM"
+    proof (intro ballI)
+      fix tp
+      assume "tp \<in> set (tapes (C ?c))"
+      then have "tp \<in> tape_app g ` set tps" unfolding cc_simps TM_config.simps set_map .
+      then obtain tp' where tp': "tp = tape_app g tp'" and "tp' \<in> set tps" by blast
+
+      have "set_of_tape tp = g ` set_of_tape tp'"
+        unfolding \<open>tp = tape_app g tp'\<close> tape_set_app[of g, OF g_Bk] ..
+      also have "... \<subseteq> g ` symbols M" using \<open>tp' \<in> set tps\<close> by (intro image_mono) (fact wf_tp)
+      finally show "set_of_tape tp \<subseteq> symbols natM" unfolding natM_simps .
+    qed
+  qed
+qed
+
+lemma natM_step_eq: "wf_config c \<Longrightarrow> C\<inverse> (natM.step (C c)) = step c" sorry
+
+lemma natM_steps_eq:
+  "wf_config c \<Longrightarrow> C\<inverse> ((natM.step ^^ n) (C c)) = (step ^^ n) c"
+proof (induction n)
+  case 0 thus ?case unfolding funpow_0 by (fact config_conv_inv)
+next
+  case (Suc n)
+  then have IH: "C\<inverse> ((natM.step ^^ n) (C c)) = (step ^^ n) c" .
+
+  from \<open>wf_config c\<close> have wf: "wf_config ((step ^^ n) c)" by (fact wf_config_steps)
+  from \<open>wf_config c\<close> have "pre_natM.wf_config (C c)" by (fact wf_natM_config)
+  then have wf': "pre_natM.wf_config ((natM.step ^^ n) (C c))" by (fact natM.wf_config_steps)
+
+  have "C\<inverse> ((natM.step ^^ Suc n) (C c)) = C\<inverse> (natM.step ((natM.step ^^ n) (C c)))"
+    unfolding funpow.simps comp_def ..
+  also have "... = C\<inverse> (natM.step (CC\<inverse> ((natM.step ^^ n) (C c))))"
+    unfolding config_conv_inv'[OF wf'] ..
+  also have "... = (step ^^ Suc n) c" unfolding IH natM_step_eq[OF wf] by simp
+  finally show ?case .
+qed
+
+lemma final_eq:
+  assumes "wf_word w"
+  shows "is_final (run n w) \<longleftrightarrow> natM.is_final (natM.run n (map g w))"
+proof -
+  let ?w = "map g w" and ?c0 = "start_config w"
+  from \<open>wf_word w\<close> have wf_c0: "wf_config ?c0" by (fact wf_start_config)
+  have c_inv_state: "state (C\<inverse> c) = f_inv (state c)" for c by (induction c) simp
+  have c0_eq: "C (start_config w) = natM.start_config (map g w)"
+    unfolding start_config_def natM.start_config_def cc_simps
+    unfolding list.map map_replicate tape_app.simps g_Bk
+    unfolding natM_def TM.TM.simps input_tape_app[of g, OF g_Bk] ..
+
+  have "state ((step ^^ n) ?c0) = state (C\<inverse> ((natM.step ^^ n) (C ?c0)))"
+    unfolding natM_steps_eq[OF \<open>wf_config ?c0\<close>] ..
+  also have "... = f_inv (state ((natM.step ^^ n) (C ?c0)))" unfolding c_inv_state ..
+  also have "... = f_inv (state (natM.run n ?w))" unfolding c0_eq ..
+  finally have run_eq: "state (run n w) = f_inv (state (natM.run n ?w))" .
+
+  have "pre_natM.wf_config (natM.start_config (map g w))"
+    using wf_natM_config[of ?c0] and wf_c0 unfolding c0_eq[symmetric] .
+  then have "pre_natM.wf_config (natM.run n ?w)" by (fact natM.wf_config_steps)
+  then have wf_run_state: "state (natM.run n ?w) \<in> states natM" by blast
+  then have wf_run_state': "f_inv (state (natM.run n ?w)) \<in> states M" by (fact f_inv_states)
+
+  let ?H = "final_states M"
+  have H: "final_states natM = f ` ?H" unfolding natM_def TM.TM.simps ..
+  have run_state_eq: "state (run n w) \<in> ?H \<longleftrightarrow> f_inv (state (natM.run n ?w)) \<in> ?H"
+    unfolding run_eq ..
+  also have "... \<longleftrightarrow> f (f_inv (state (natM.run n ?w))) \<in> f ` ?H"
+    using f_inj wf_run_state' state_axioms(3) by (fact inj_on_image_mem_iff[symmetric])
+  also have "... \<longleftrightarrow> state (natM.run n ?w) \<in> f ` ?H" unfolding inv_f[OF wf_run_state] ..
+  finally show "is_final (run n w) \<longleftrightarrow> natM.is_final (natM.run n ?w)" unfolding H .
+qed
+
+lemma natM_halts': "wf_word w \<Longrightarrow> halts w \<longleftrightarrow> natM.halts (map g w)"
+  unfolding halts_altdef natM.halts_altdef using final_eq natM_wf_word by presburger
+
+lemma natM_halts: "halts w \<Longrightarrow> natM.halts (map g w)"
+  unfolding halts_altdef using natM_halts' by blast
+
+lemma natM_accepts: "accepts w \<Longrightarrow> natM.accepts (map g w)"
+  and natM_rejects: "rejects w \<Longrightarrow> natM.rejects (map g w)"
   sorry
 
 lemma natM_halts_all:
@@ -774,7 +973,7 @@ proof
 qed
 
 lemma "decides L \<Longrightarrow> natM.decides (map g ` L)"
-  sorry 
+  sorry
 
 end \<comment> \<open>\<^locale>\<open>nat_TM\<close>\<close>
 

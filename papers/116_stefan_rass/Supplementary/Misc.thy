@@ -12,6 +12,8 @@ lemma bij_betw_obtain_preimage:
   using assms by (meson bij_betw_iff_bijections)
 
 (* Suppl_Set ? *)
+lemma singleton_image[simp]: "f ` {x} = {f x}" by blast
+
 lemma image_Collect_compose: "f ` {g x | x. P x} = {f (g x) | x. P x}" by blast
 
 lemma finite_imp_inj_to_nat_fix_one:
