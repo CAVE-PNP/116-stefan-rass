@@ -111,4 +111,20 @@ lemma ends_in_drop:
 declare list_all_iff[iff]
 lemma list_all_set_map[iff]: "set (map f xs) \<subseteq> A \<longleftrightarrow> list_all (\<lambda>x. f x \<in> A) xs" by auto
 
+lemma map_inv_into_map_id:
+  fixes f::"'a \<Rightarrow> 'b"
+  assumes "inj_on f A"
+      and "set as \<subseteq> A"
+    shows "map (inv_into A f) (map f as) = as"
+  using assms inv_into_f_f
+  by (metis (no_types, lifting) list.map_comp map_idI o_apply subset_iff)
+
+lemma map_map_inv_into_id:
+  fixes f::"'a \<Rightarrow> 'b"
+  assumes "inj_on f A"
+      and "set bs \<subseteq> f ` A"
+    shows "map f (map (inv_into A f) bs) = bs"
+  using assms f_inv_into_f
+  by (metis (no_types, lifting) list.map_comp map_idI o_apply subset_iff)
+
 end

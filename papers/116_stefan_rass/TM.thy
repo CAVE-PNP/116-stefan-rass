@@ -705,7 +705,15 @@ proof simp
 qed
 
 lemma map_g_bij: "bij_betw (map g) wf_words pre_natM.wf_words"
-  sorry
+  proof (intro bij_betw_imageI)
+  show "inj_on (map g) wf_words"
+    using g_inj list.inj_map_strong
+    by (smt (verit, best) inj_on_def mem_Collect_eq subsetD)
+next
+  show "(map g) ` (wf_words) = pre_natM.wf_words"
+    unfolding natM_def using lists_image[of g]
+    by (fold lists_eq_set) simp
+qed
     
 lemma natM_wf_state_inv: "pre_natM.wf_state q w \<Longrightarrow> wf_state (f_inv q) (map g_inv w)" 
 proof (unfold pre_TM.wf_state_def, elim conjE, intro conjI)
@@ -760,7 +768,7 @@ lemma natM_halts_all:
   sorry
 
 lemma "decides L \<Longrightarrow> natM.decides (map g ` L)"
-  sorry
+  sorry 
 
 end \<comment> \<open>\<^locale>\<open>nat_TM\<close>\<close>
 
