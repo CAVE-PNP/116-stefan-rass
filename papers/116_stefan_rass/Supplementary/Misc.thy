@@ -6,6 +6,11 @@ lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_
 
 lemma inv_into_onto: "inj_on f A \<Longrightarrow> inv_into A f ` f ` A = A" by simp
 
+lemma bij_betw_obtain_preimage:
+  assumes "bij_betw f A B" and "b \<in> B"
+  obtains a where "a\<in>A" and "f a = b"
+  using assms by (meson bij_betw_iff_bijections)
+
 (* Suppl_Set ? *)
 lemma image_Collect_compose: "f ` {g x | x. P x} = {f (g x) | x. P x}" by blast
 

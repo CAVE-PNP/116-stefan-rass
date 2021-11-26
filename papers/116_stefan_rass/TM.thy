@@ -691,7 +691,6 @@ definition natM :: "(nat, nat) TM" ("M\<^sub>\<nat>")
     next_action = \<lambda>q w. map (action_app g) (next_action M (f_inv q) (map g_inv w))
   \<rparr>"
 
-
 sublocale pre_natM: pre_TM natM .
 
 lemmas natM_simps = natM_def TM.TM.simps
@@ -764,8 +763,15 @@ lemma natM_halts: "\<And>w. halts w \<Longrightarrow> natM.halts (map g w)"
 
 lemma natM_halts_all:
   assumes "\<forall>w\<in>wf_words. halts w"
-    shows "\<forall>w\<in>pre_natM.wf_words. natM.halts w"
-  sorry
+    shows "\<forall>natw\<in>pre_natM.wf_words. natM.halts natw"
+proof
+  fix natw assume "natw \<in> pre_natM.wf_words"
+  with map_g_bij obtain w where natw: "(map g) w = natw" and wwf: "w \<in> wf_words"
+    using bij_betw_obtain_preimage by force
+  from assms wwf have "halts w" ..
+  with natM_halts have "natM.halts (map g w)" .
+  thus "natM.halts natw" unfolding natw .
+qed
 
 lemma "decides L \<Longrightarrow> natM.decides (map g ` L)"
   sorry 
