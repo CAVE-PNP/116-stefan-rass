@@ -120,6 +120,9 @@ abbreviation "wf_word w \<equiv> set w \<subseteq> symbols M"
 
 abbreviation "wf_words \<equiv> {w. wf_word w}"
 
+lemma wf_words_altdef: "wf_words = lists (symbols M)"
+  unfolding lists_eq_set ..
+
 abbreviation "wf_lang X \<equiv> X \<subseteq> wf_words"
 
 \<comment> \<open>A state \<open>q\<close> in combination with a vector \<open>w\<close> (\<^typ>\<open>'b list\<close>) of symbols currently under the TM-heads,
@@ -263,7 +266,6 @@ qed
 
 corollary wf_config_steps: "wf_config c \<Longrightarrow> wf_config ((step^^n) c)"
   using wf_config_step by (induction n) auto
-
 
 definition start_config :: "'b list \<Rightarrow> ('a, 'b) TM_config" where [simp]:
   "start_config w = \<lparr>
@@ -531,7 +533,7 @@ definition decides_word :: "'b lang \<Rightarrow> 'b list \<Rightarrow> bool"
   where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
 
 abbreviation decides :: "'b lang \<Rightarrow> bool"
-  where "decides L \<equiv> \<forall>w\<in>wf_words. decides_word L w"
+  where "decides L \<equiv> wf_lang L \<and> (\<forall>w\<in>wf_words. decides_word L w)"
 
 lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
   by (cases "w \<in> L") (simp add: halts_iff)+
@@ -570,26 +572,29 @@ definition TM_lang :: "('a, 'b::blank) TM \<Rightarrow> 'b lang" ("L'(_')")
 context TM begin
 
 lemma decides_TM_lang_accepts: "(\<And>w. wf_word w \<Longrightarrow> halts w) \<Longrightarrow> decides {w. accepts w}"
-  unfolding decides_def rejects_altdef mem_Collect_eq by blast
+  unfolding decides_def rejects_altdef accepts_def
+  by (simp add: Collect_mono)
 
 lemma decides_TM_lang: "(\<And>w. wf_word w \<Longrightarrow> halts w) \<Longrightarrow> decides L(M)"
-  unfolding TM_lang_def using decides_TM_lang_accepts by simp
+  unfolding TM_lang_def using decides_TM_lang_accepts by auto
 
-lemma decidesE: "wf_lang L \<Longrightarrow> decides L \<Longrightarrow> L(M) = L"
+lemma decidesE: "decides L \<Longrightarrow> L(M) = L"
 proof safe
-  assume wfl: \<open>wf_lang L\<close> and dec: \<open>decides L\<close>
-  from dec have "\<forall>w\<in>wf_words. halts w" by (rule decides_halts_all)
+  assume dec: "\<forall>w\<in>wf_words. decides_word L w"
+  assume wfl: \<open>wf_lang L\<close>
+  from dec have "\<forall>w\<in>wf_words. halts w"
+    using decides_halts by blast
   then have L_M: "L(M) = {w\<in>wf_words. accepts w}" unfolding TM_lang_def by presburger
 
   fix w
   show "w \<in> L(M)" if "w \<in> L" proof -
     from \<open>w\<in>L\<close> wfl have "wf_word w" by blast
-    moreover from \<open>w\<in>L\<close> \<open>wf_word w\<close> \<open>decides L\<close> have "accepts w" unfolding decides_def by blast
+    moreover from \<open>w\<in>L\<close> \<open>wf_word w\<close> dec have "accepts w" unfolding decides_def by blast
     ultimately show "w \<in> L(M)" unfolding L_M by fastforce
   qed
   show "w \<in> L" if "w \<in> L(M)" proof -
     from \<open>w \<in> L(M)\<close> have "accepts w" "wf_word w" unfolding L_M by blast+
-    with \<open>decides L\<close> show "w \<in> L" unfolding decides_def by blast
+    with dec show "w \<in> L" unfolding decides_def by blast
   qed
 qed
 
@@ -689,10 +694,6 @@ proof -
   then show "inj_on g (symbols M)" and "g Bk = Bk" by auto
 qed
 
-lemma map_g_inj: "inj_on (map g) wf_words"
-  using g_inj list.inj_map_strong
-  by (smt (verit, best) inj_on_def mem_Collect_eq subsetD)
-
 definition natM :: "(nat, nat) TM" ("M\<^sub>\<nat>")
   where "natM \<equiv> \<lparr>
     tape_count = tape_count M,
@@ -735,6 +736,9 @@ lemma inv_g: "\<sigma> \<in> symbols natM \<Longrightarrow> g (g_inv \<sigma>) =
 lemma g_inv_mem_eq: "\<sigma> \<in> symbols natM \<Longrightarrow> g_inv \<sigma> \<in> symbols M"
   unfolding g_inv_def natM_simps by (fact inv_into_into)
 
+lemma map_g_inj: "inj_on (map g) wf_words"
+  using g_inj list.inj_map_strong
+  by (smt (verit, best) inj_on_def mem_Collect_eq subsetD)
 
 sublocale pre_natM: pre_TM natM .
 
@@ -754,6 +758,11 @@ proof (intro bij_betw_imageI)
   show "(map g) ` (wf_words) = pre_natM.wf_words"
     unfolding natM_simps lists_eq_set[symmetric] lists_image ..
 qed (fact map_g_inj)
+
+lemma map_g_g_inv: "pre_natM.wf_word w \<Longrightarrow> map g (map g_inv w) = w"
+  by (smt (verit, del_insts) g_inj g_inv_def inv_g inv_into_image_cancel list.inj_map_strong list.set_map map_inv_into_map_id natM_simps(3) subset_code(1) subset_image_iff)
+lemma map_g_inv_g: "wf_word w' \<Longrightarrow> map g_inv (map g w') = w'"
+  using g_inj g_inv_def map_inv_into_map_id by blast
 
 lemma natM_wf_state_inv: "pre_natM.wf_state q w \<Longrightarrow> wf_state (f_inv q) (map g_inv w)"
 proof (unfold pre_TM.wf_state_def, elim conjE, intro conjI)
@@ -782,7 +791,7 @@ sublocale natM: TM natM
 
   apply (unfold pre_TM.wf_state_def)[1] apply simp
   using symbol_action_app[of g, OF g_Bk] next_write_symbol
-  apply (smt (verit, del_insts) TM.TM.select_convs(6) f_inj f_inv_def g_inv_word_wf image_iff image_mono length_map natM_def pre_TM.wf_state_def subset_trans inv_into_f_f)
+  apply (metis (no_types, lifting) f_inv_def g_inj g_inv_def inv_into_image_cancel inv_into_into length_map list.set_map pre_TM.wf_state_def subset_image_iff subset_trans)
 
   apply (fold natM_def)
 
@@ -1036,8 +1045,72 @@ proof
   thus "natM.halts natw" unfolding natw .
 qed
 
-lemma "decides L \<Longrightarrow> natM.decides (map g ` L)"
-  sorry
+lemma lemmy:
+  assumes "wf_lang L" and "w \<in> wf_words"
+      and "map g w \<in> map g ` L"
+  shows "w \<in> L"
+proof -
+  from assms(3) obtain w' where "w'\<in>L" and "map g w = map g w'" by blast
+  with assms(1-2) map_g_inj have "w = w'"
+    unfolding inj_on_def by blast
+  with \<open>w'\<in>L\<close> show "w \<in> L" by simp
+qed
+
+lemma rudy:
+  assumes "w \<in> wf_words" and "halts w"
+    and "natM.accepts (map g w)"
+  shows "accepts w"
+proof (rule ccontr)
+  assume "\<not> accepts w"
+  with \<open>halts w\<close> have "rejects w" by blast
+  hence "natM.rejects (map g w)" by (rule natM_rejects)
+  with natM.acc_not_rej assms(3) show "False" by blast
+qed
+
+lemma natM_decides:
+  assumes dec: "decides L"
+  shows "natM.decides (map g ` L)"
+  unfolding natM.decides_altdef
+proof
+  from dec have Lwf: "wf_lang L" ..
+  show "pre_natM.wf_lang (map g ` L)" proof
+    fix w assume "w \<in> map g ` L"
+    then obtain w' where "w'\<in>L" and "w = map g w'" by blast
+    with Lwf show "w \<in> pre_natM.wf_words" by auto
+  qed
+
+  {
+  fix w assume wwf: "w \<in> pre_natM.wf_words"
+  
+  let ?w' = "map g_inv w"
+  from wwf g_inv_word_wf have w'wf: "?w' \<in> wf_words" by blast
+  from wwf map_g_g_inv have w'inv: "map g ?w' = w" by blast
+  from wwf map_g_g_inv have winv: "map g (map g_inv w) = w" by blast
+  
+  from dec natM_halts_all have "\<forall>w\<in>pre_natM.wf_words. natM.halts w"
+    unfolding decides_altdef by simp
+  with wwf have C1: "natM.halts w" by simp
+
+  have C2: "(w \<in> map g ` L) \<longleftrightarrow> natM.accepts w" proof -
+  have "(w \<in> map g ` L) \<longleftrightarrow> ?w' \<in> L" proof
+      assume "w \<in> map g ` L"
+      with lemmy[OF Lwf, OF w'wf] w'inv show "?w' \<in> L" by blast
+    next
+      assume "map g_inv w \<in> L"
+      hence "map g (map g_inv w) \<in> map g ` L" by blast
+      then show "w \<in> map g ` L" unfolding winv .
+  qed 
+  also have "map g_inv w \<in> L \<longleftrightarrow> accepts ?w'"
+    using dec decides_altdef w'wf by simp
+  also have "accepts ?w' \<longleftrightarrow> natM.accepts w"
+    using natM_accepts rudy C1
+    by (metis dec decides_altdef w'wf winv)
+  finally show ?thesis .
+  qed
+  from C1 C2 have "natM.halts w \<and> (w \<in> map g ` L) = natM.accepts w" ..
+  }
+  thus "\<forall>w\<in>{w. set w \<subseteq> symbols M\<^sub>\<nat>}. natM.halts w \<and> (w \<in> map g ` L) = natM.accepts w" ..
+qed
 
 end \<comment> \<open>\<^locale>\<open>nat_TM\<close>\<close>
 
