@@ -107,6 +107,8 @@ record ('a, 'b) TM =
   next_state  :: "'a \<Rightarrow> 'b list \<Rightarrow> 'a"
   next_action :: "'a \<Rightarrow> 'b list \<Rightarrow> 'b action list"
 
+abbreviation "rejecting_states \<equiv> \<lambda>M. final_states M - accepting_states M"
+
 record ('a, 'b) TM_config =
   state :: 'a
   tapes :: "'b tape list"
@@ -483,12 +485,12 @@ lemma acceptsE[elim]:
 using accepts_def assms hoare_halt_def wf_start_config by fastforce
 
 definition rejects :: "'b list \<Rightarrow> bool"
-  where "rejects w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
+  where "rejects w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> rejecting_states M)"
 
 lemma rejectsI[intro]:
   assumes "wf_word w"
     and "is_final (run n w)"
-    and "state (run n w) \<notin> accepting_states M"
+    and "state (run n w) \<in> rejecting_states M"
   shows "rejects w"
   using assms unfolding rejects_def hoare_halt_def
   by meson
@@ -496,8 +498,8 @@ lemma rejectsI[intro]:
 lemma rejectsE[elim]:
   assumes "rejects w"
   obtains n where "is_final (run n w)"
-    and "state (run n w) \<notin> accepting_states M"
-  by (smt (verit, ccfv_SIG) assms hoare_halt_def rejects_def wf_start_config)
+    and "state (run n w) \<in> rejecting_states M"
+by (smt (verit, ccfv_SIG) assms hoare_halt_def rejects_def wf_start_config)
 
 lemma halts_iff: "halts w \<longleftrightarrow> accepts w \<or> rejects w"
 proof (intro iffI)
@@ -521,14 +523,15 @@ lemma acc_not_rej:
   shows "\<not> rejects w"
 proof (intro notI)
   assume "rejects w"
-  let ?acc = "accepting_states M"
 
-  have "hoare_halt (init w) (\<lambda>c. state c \<in> ?acc)"
+  have "hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
     using \<open>accepts w\<close> unfolding accepts_def by (rule conjunct2)
-  moreover have "hoare_halt (init w) (\<lambda>c. state c \<notin> ?acc)"
+  moreover have "hoare_halt (init w) (\<lambda>c. state c \<in> rejecting_states M)"
     using \<open>rejects w\<close> unfolding rejects_def by (rule conjunct2)
-  ultimately have "hoare_halt (init w) (\<lambda>c. state c \<in> ?acc \<and> state c \<notin> ?acc)" by (fact hoare_and)
-  then have "hoare_halt (init w) (\<lambda>c. False)" by presburger
+  ultimately have "hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M
+                                          \<and> state c \<in> rejecting_states M)"
+    by (fact hoare_and)
+  then have "hoare_halt (init w) (\<lambda>c. False)" by auto
 
   moreover from assms have "wf_config (start_config w)"
     unfolding accepts_def by (intro wf_start_config) blast
@@ -662,16 +665,16 @@ lemma rej_TM:
 proof
   show "wf_word w" using assms by auto
 next
-  let ?acc = "accepting_states Rejecting_TM"
-  show "hoare_halt (init w) (\<lambda>c. state c \<notin> ?acc)"
+  let ?rej = "rejecting_states Rejecting_TM"
+  have final_rej: "?rej = final_states Rejecting_TM" by simp
+  show "hoare_halt (init w) (\<lambda>c. state c \<in> ?rej)"
   proof
     fix c0
     assume "init w c0"
     then have "state c0 = start_state Rejecting_TM" by (fact init_state_start_state)
     then have "is_final ((step^^0) c0)" unfolding Rejecting_TM_def by simp
-    moreover have "?acc = {}" unfolding Rejecting_TM_def by simp
-    ultimately show "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<notin> ?acc"
-      using empty_iff by metis
+    then show "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<in> ?rej"
+      using final_rej by metis
   qed
 qed
 
@@ -721,8 +724,13 @@ lemma natM_simps[simp]:
   "tape_count natM = tape_count M"
   "states natM = f ` states M"
   "symbols natM = g ` symbols M"
-  "accepting_states natM = f ` (accepting_states M)"
+  "accepting_states natM = f ` accepting_states M"
   unfolding natM_def by auto
+
+lemma natM_rejecting_states[simp]:
+  "rejecting_states natM = f ` rejecting_states M"
+  unfolding natM_def apply simp
+  by (metis Diff_subset f_inj inj_on_image_set_diff state_axioms(3) state_axioms(4) subset_trans)
 
 lemma f_bij: "bij_betw f (states M) (states natM)" unfolding natM_simps
   using f_inj by (fact inj_on_imp_bij_betw)
@@ -1063,11 +1071,10 @@ proof -
   hence wwf: "wf_word w" unfolding rejects_def ..
   hence C1: "pre_natM.wf_word (map g w)" by auto
 
-  from rej obtain n where "is_final (run n w)" and "state (run n w) \<notin> accepting_states M" by blast
+  from rej obtain n where "is_final (run n w)" and "state (run n w) \<in> rejecting_states M" by blast
   with natM_state_eq[OF wwf, of n]
-  have C2: "\<exists>n. natM.is_final (natM.run n (map g w)) \<and> state (natM.run n (map g w)) \<notin> accepting_states natM"
-    using natM_simps(4)
-    by (smt (verit, ccfv_SIG) f_inv final_eq image_iff in_mono state_axioms(3) state_axioms(4) wwf)
+  have C2: "\<exists>n. state (natM.run n (map g w)) \<in> rejecting_states natM"
+    using natM_rejecting_states by force
   
   from C1 C2 show ?thesis using natM.rejectsI by auto
 qed

@@ -353,7 +353,7 @@ proof -
 
   from wf interpret TM M .
 
-  from decides have "alm_all (decides_word L)" by blast
+  from decides have "alm_all (decides_word L)" by fast
   moreover have "alm_all (time_bounded_word T)"
   proof (intro ae_word_lengthI exI allI impI, safe)
     fix w :: "'b list"
