@@ -477,6 +477,11 @@ lemma acceptsI[intro]:
   using assms unfolding accepts_def hoare_halt_def
   by (meson state_axioms(4) subsetD)
 
+lemma acceptsE[elim]:
+  assumes "accepts w"
+  obtains n where "state (run n w) \<in> accepting_states M"
+using accepts_def assms hoare_halt_def wf_start_config by fastforce
+
 definition rejects :: "'b list \<Rightarrow> bool"
   where "rejects w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<notin> accepting_states M)"
 
@@ -487,6 +492,12 @@ lemma rejectsI[intro]:
   shows "rejects w"
   using assms unfolding rejects_def hoare_halt_def
   by meson
+
+lemma rejectsE[elim]:
+  assumes "rejects w"
+  obtains n where "is_final (run n w)"
+    and "state (run n w) \<notin> accepting_states M"
+  by (smt (verit, ccfv_SIG) assms hoare_halt_def rejects_def wf_start_config)
 
 lemma halts_iff: "halts w \<longleftrightarrow> accepts w \<or> rejects w"
 proof (intro iffI)
@@ -710,6 +721,7 @@ lemma natM_simps[simp]:
   "tape_count natM = tape_count M"
   "states natM = f ` states M"
   "symbols natM = g ` symbols M"
+  "accepting_states natM = f ` (accepting_states M)"
   unfolding natM_def by auto
 
 lemma f_bij: "bij_betw f (states M) (states natM)" unfolding natM_simps
@@ -1029,9 +1041,36 @@ lemma natM_halts': "wf_word w \<Longrightarrow> halts w \<longleftrightarrow> na
 lemma natM_halts: "halts w \<Longrightarrow> natM.halts (map g w)"
   unfolding halts_altdef using natM_halts' by blast
 
-lemma natM_accepts: "accepts w \<Longrightarrow> natM.accepts (map g w)"
-  and natM_rejects: "rejects w \<Longrightarrow> natM.rejects (map g w)"
+lemma natM_state_eq: "wf_word w \<Longrightarrow> f (state (run n w)) = state (natM.run n (map g w))"
   sorry
+
+lemma natM_accepts: "accepts w \<Longrightarrow> natM.accepts (map g w)"
+proof -
+  assume acc: "accepts w"
+  hence wwf: "wf_word w" unfolding accepts_def ..
+  hence C1: "pre_natM.wf_word (map g w)" by auto
+
+  from acc obtain n where "state (run n w) \<in> accepting_states M" by blast
+  with natM_state_eq[OF wwf, of n] have C2: "\<exists>n. state (natM.run n (map g w)) \<in> accepting_states natM"
+    using natM_simps(4) by force
+  
+  from C1 C2 show ?thesis using natM.acceptsI by blast
+qed 
+
+lemma natM_rejects: "rejects w \<Longrightarrow> natM.rejects (map g w)"
+proof -
+  assume rej: "rejects w"
+  hence wwf: "wf_word w" unfolding rejects_def ..
+  hence C1: "pre_natM.wf_word (map g w)" by auto
+
+  from rej obtain n where "is_final (run n w)" and "state (run n w) \<notin> accepting_states M" by blast
+  with natM_state_eq[OF wwf, of n]
+  have C2: "\<exists>n. natM.is_final (natM.run n (map g w)) \<and> state (natM.run n (map g w)) \<notin> accepting_states natM"
+    using natM_simps(4)
+    by (smt (verit, ccfv_SIG) f_inv final_eq image_iff in_mono state_axioms(3) state_axioms(4) wwf)
+  
+  from C1 C2 show ?thesis using natM.rejectsI by auto
+qed
 
 lemma natM_halts_all:
   assumes "\<forall>w\<in>wf_words. halts w"

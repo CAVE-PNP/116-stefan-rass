@@ -149,3 +149,5 @@ See the section on [Imports](max_notes/isabelle.md#imports) in the notes on Isab
 record Pt = x::nat y::nat
 instance Pt :: countable
 ```
+
+#### What's up with "Result contains obtained parameters"?
