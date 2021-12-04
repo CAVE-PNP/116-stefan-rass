@@ -656,7 +656,7 @@ lemma wf_rej_TM: "TM Rejecting_TM"
   unfolding Rejecting_TM_def using finite_alphabet
   by unfold_locales simp_all
 
-sublocale TM "Rejecting_TM" by (fact wf_rej_TM)
+sublocale TM Rejecting_TM by (fact wf_rej_TM)
 
 lemma rej_TM:
   assumes "set w \<subseteq> \<Sigma>"
@@ -780,7 +780,7 @@ proof (intro bij_betw_imageI)
 qed (fact map_g_inj)
 
 lemma map_g_g_inv: "pre_natM.wf_word w \<Longrightarrow> map g (map g_inv w) = w"
-  by (smt (verit, del_insts) g_inj g_inv_def inv_g inv_into_image_cancel list.inj_map_strong list.set_map map_inv_into_map_id natM_simps(3) subset_code(1) subset_image_iff)
+  using g_inj g_inv_def map_map_inv_into_id by auto
 lemma map_g_inv_g: "wf_word w' \<Longrightarrow> map g_inv (map g w') = w'"
   using g_inj g_inv_def map_inv_into_map_id by blast
 
@@ -794,9 +794,7 @@ qed
 lemma natM_wf_word: "wf_word w \<Longrightarrow> pre_natM.wf_word (map g w)" by auto
 
 
-(* using the same name ("natM") for both sublocale and definition works,
- * since the sublocale is only used as namespace *)
-sublocale natM: TM natM
+lemma wf_natM: "TM natM"
   apply unfold_locales
   unfolding natM_def
   using at_least_one_tape apply force
@@ -827,6 +825,12 @@ proof -
   show "set (next_action M\<^sub>\<nat> q w) \<subseteq> {Nop}"
     unfolding natM_def by auto
 qed
+
+(* using the same name ("natM") for both sublocale and definition works,
+ * since the sublocale is only used as namespace *)
+sublocale natM: TM natM
+  by (fact wf_natM)
+
 
 fun config_conv :: "('a, 'b) TM_config \<Rightarrow> (nat, nat) TM_config" ("C") where
   "config_conv \<lparr> state = q, tapes = tps \<rparr> =
@@ -1127,12 +1131,12 @@ proof
 
   {
   fix w assume wwf: "w \<in> pre_natM.wf_words"
-  
+
   let ?w' = "map g_inv w"
   from wwf g_inv_word_wf have w'wf: "?w' \<in> wf_words" by blast
   from wwf map_g_g_inv have w'inv: "map g ?w' = w" by blast
   from wwf map_g_g_inv have winv: "map g (map g_inv w) = w" by blast
-  
+
   from dec natM_halts_all have "\<forall>w\<in>pre_natM.wf_words. natM.halts w"
     unfolding decides_altdef by simp
   with wwf have C1: "natM.halts w" by simp
@@ -1145,7 +1149,7 @@ proof
       assume "map g_inv w \<in> L"
       hence "map g (map g_inv w) \<in> map g ` L" by blast
       then show "w \<in> map g ` L" unfolding winv .
-  qed 
+  qed
   also have "map g_inv w \<in> L \<longleftrightarrow> accepts ?w'"
     using dec decides_altdef w'wf by simp
   also have "accepts ?w' \<longleftrightarrow> natM.accepts w"
