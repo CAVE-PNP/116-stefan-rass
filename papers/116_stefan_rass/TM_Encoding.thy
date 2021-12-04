@@ -22,22 +22,18 @@ subsection\<open>Code Description\<close>
 
 type_synonym bin_symbol = "bool option"
 
-type_synonym binTM = "(nat, bin_symbol) TM"
+type_synonym binTM = "(nat, bin_symbol) wf_TM"
 
+consts bin_TM_enc :: "binTM \<Rightarrow> bin"
 
-definition bin_TM_enc :: "binTM \<Rightarrow> bin"
-  where "bin_TM_enc \<equiv> SOME f. inj_on f {M. TM M}"
+specification (bin_TM_enc)
+  bin_TM_enc_inj: "inj bin_TM_enc" sorry
 
-definition bin_TM_dec :: "bin \<Rightarrow> binTM"
-  where "bin_TM_dec \<equiv> inv_into {M. TM M} bin_TM_enc"
+definition bin_TM_dec :: "bin \<Rightarrow> binTM" where
+  "bin_TM_dec \<equiv> inv bin_TM_enc"
 
-
-lemma ex_enc: "\<exists>f::binTM \<Rightarrow> bin. inj_on f {M. TM M}" sorry
-
-lemma bin_TM_enc_inj: "inj_on bin_TM_enc {M. TM M}" unfolding bin_TM_enc_def using ex_enc ..
-
-lemma bin_TM_enc_inv: "TM M \<Longrightarrow> bin_TM_dec (bin_TM_enc M) = M" unfolding bin_TM_dec_def
-  using bin_TM_enc_inj by simp
+lemma bin_TM_enc_inv: "bin_TM_dec (bin_TM_enc M) = M"
+  unfolding bin_TM_dec_def using bin_TM_enc_inj by simp
 
 
 text\<open>Instantiate the \<^const>\<open>Rej_TM.Rejecting_TM\<close> for \<^typ>\<open>binTM\<close> for the requirement of
@@ -67,12 +63,8 @@ abbreviation "TM_encode \<equiv> bin_TM_enc"
 definition is_encoded_TM :: "word \<Rightarrow> bool"
   where "is_encoded_TM w = (\<exists>M. w = TM_encode M)"
 
-definition filter_wf_TMs :: "binTM \<Rightarrow> binTM" \<comment> \<open>only allow well-formed TMs\<close>
-  where "filter_wf_TMs M = (if TM M then M else bin_rejM)"
-
 definition TM_decode :: "word \<Rightarrow> binTM"
-  where "TM_decode w =
-    (if is_encoded_TM w then filter_wf_TMs (bin_TM_dec w) else bin_rejM)"
+  where "TM_decode w = (if is_encoded_TM w then bin_TM_dec w else bin_rejM)"
 
 
 lemma codec_TM: "TM M \<Longrightarrow> TM_decode (TM_encode M) = M"

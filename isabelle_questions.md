@@ -151,3 +151,7 @@ instance Pt :: countable
 ```
 
 #### What's up with "Result contains obtained parameters"?
+
+
+#### What's up with "Specification: No suitable instances of constant ... found"?
+Maybe you used an undefined constant in the specification proposition.
