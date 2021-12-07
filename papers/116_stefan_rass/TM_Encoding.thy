@@ -43,9 +43,10 @@ text\<open>Instantiate the \<^const>\<open>Rej_TM.Rejecting_TM\<close> for \<^ty
 interpretation bin_Rej_TM: Rej_TM "{}::bin_symbol set" "0::nat"
   by (rule Rej_TM.intro) (fact finite.emptyI)
 
-abbreviation "bin_rejM \<equiv> bin_Rej_TM.Rejecting_TM"
+abbreviation bin_rejM :: binTM
+  where "bin_rejM \<equiv> Abs_wf_TM bin_Rej_TM.Rejecting_TM"
 
-lemma bin_rejM_simps: "bin_rejM = \<lparr>
+lemma bin_rejM_simps: "Rep_wf_TM bin_rejM = \<lparr>
     tape_count = 1,
     states = {0},
     start_state = 0,
@@ -54,11 +55,17 @@ lemma bin_rejM_simps: "bin_rejM = \<lparr>
     symbols = {blank_class.Bk},
     next_state = \<lambda>q w. 0,
     next_action = \<lambda>q w. [TM.action.Nop]
-  \<rparr>" by simp
+  \<rparr>"
+  using bin_Rej_TM.TM_axioms bin_Rej_TM.Rejecting_TM_def
+  by (subst Abs_wf_TM_inverse) auto
+
+lemma wf_bin_rejM: "TM (Rep_wf_TM bin_rejM)"
+  using Rep_wf_TM by blast
 
 text\<open>The function that assigns a word to every TM, represented as \<open>\<rho>(M)\<close> in the paper.\<close>
 
-abbreviation "TM_encode \<equiv> bin_TM_enc"
+abbreviation TM_encode :: "binTM \<Rightarrow> bin"
+  where "TM_encode \<equiv> bin_TM_enc"
 
 definition is_encoded_TM :: "word \<Rightarrow> bool"
   where "is_encoded_TM w = (\<exists>M. w = TM_encode M)"
@@ -67,18 +74,11 @@ definition TM_decode :: "word \<Rightarrow> binTM"
   where "TM_decode w = (if is_encoded_TM w then bin_TM_dec w else bin_rejM)"
 
 
-lemma codec_TM: "TM M \<Longrightarrow> TM_decode (TM_encode M) = M"
-proof -
-  assume "TM M"
-  have "is_encoded_TM (TM_encode M)" unfolding is_encoded_TM_def by fast
-  then have "TM_decode (TM_encode M) = filter_wf_TMs M"
-    unfolding TM_decode_def bin_TM_enc_inv[OF \<open>TM M\<close>] by (fact if_P)
-  also have "... = M" unfolding filter_wf_TMs_def using \<open>TM M\<close> by (fact if_P)
-  finally show ?thesis .
-qed
+lemma TM_codec: "TM_decode (TM_encode M) = M"
+  unfolding TM_decode_def is_encoded_TM_def bin_TM_enc_inv by force
 
-lemma decode_TM_wf: "TM (TM_decode w)" unfolding TM_decode_def filter_wf_TMs_def
-  using bin_Rej_TM.TM_axioms by presburger
+lemma decode_TM_wf: "TM (Rep_wf_TM (TM_decode w))"
+  using Rep_wf_TM by blast
 
 
 subsubsection\<open>Exponential Padding\<close>
@@ -223,12 +223,12 @@ definition TM_encode_pad :: "binTM \<Rightarrow> word"
 definition TM_decode_pad :: "word \<Rightarrow> binTM"
   where "TM_decode_pad w = TM_decode (strip_al_prefix (strip_exp_pad w))"
 
-lemma TM_codec: "TM M \<Longrightarrow> TM_decode_pad (TM_encode_pad M) = M"
-  unfolding TM_decode_pad_def TM_encode_pad_def using add_alp_min
-  by (subst exp_pad_correct, unfold alp_correct codec_TM, blast+)
+lemma TM_codec_pad: "TM_decode_pad (TM_encode_pad M) = M"
+  unfolding TM_decode_pad_def TM_encode_pad_def
+  unfolding exp_pad_correct[OF add_alp_min] alp_correct TM_codec ..
 
-lemma wf_TM_has_enc: "TM M \<Longrightarrow> \<exists>w. TM_decode_pad w = M"
-  using TM_codec by blast
+lemma wf_TM_has_enc: "\<exists>w. TM_decode_pad w = M"
+  using TM_codec_pad by blast
 
 
 subsubsection\<open>Proving required properties\<close>
@@ -238,17 +238,16 @@ text\<open>from ch. 3.1:
 
   1. every string over \<open>{0, 1}\<^sup>*\<close> represents some TM [...],\<close>
 
-theorem TM_decode_pad_wf: "TM (TM_decode_pad w)"
-  unfolding TM_decode_pad_def by (rule decode_TM_wf)
+theorem TM_decode_pad_wf: "TM (Rep_wf_TM (TM_decode_pad w))"
+  unfolding TM_decode_pad_def by (fact decode_TM_wf)
 
 
 text\<open>2. every TM is represented by infinitely many strings. [...]"\<close>
 
-theorem TM_inf_encs: "TM M \<Longrightarrow> infinite {w. TM_decode_pad w = M}"
+theorem TM_inf_encs: "infinite {w. TM_decode_pad w = M}"
 proof (intro infinite_lists allI bexI CollectI)
   \<comment> \<open>Proof follows the structure of @{thm infinite_lists}:
     For every \<open>l \<in> \<nat>\<close> there exists a word \<open>w\<close> with \<open>length w \<ge> l\<close> that is also in the set.\<close>
-  assume "TM M"
   fix l
   define w' where w': "w' = (TM_encode M) @ False # True \<up> l"
   define w where w: "w = add_exp_pad w'"
@@ -258,7 +257,7 @@ proof (intro infinite_lists allI bexI CollectI)
   have "TM_decode_pad w = TM_decode (strip_al_prefix w')" unfolding w w' TM_decode_pad_def
     by (subst exp_pad_correct) blast+
   also have "... = TM_decode (TM_encode M)" unfolding w' strip_alp_altdef ..
-  also have "... = M" using \<open>TM M\<close> by (rule codec_TM)
+  also have "... = M" by (fact TM_codec)
   finally show "TM_decode_pad w = M" .
 qed
 
@@ -319,8 +318,7 @@ text\<open>2. The retraction of preceding 1-bits creates the needed infinitude o
 
 theorem embed_TM_in_len:
   fixes M l
-  assumes "TM M"
-    and min_word_len: "clog l \<ge> length (TM_encode M) + 2"
+  assumes min_word_len: "clog l \<ge> length (TM_encode M) + 2"
     \<comment> \<open>The \<open>+2\<close> bits are required for the \<open>1\<^sup>+0\<close>-prefix.
         Note: this theorem technically also holds when the assumption @{thm min_word_len} reads
         \<^term>\<open>clog l > length (TM_encode M) \<longleftrightarrow> clog l \<ge> length (TM_encode M) + 1\<close>,
@@ -362,7 +360,7 @@ proof
     unfolding w_def drop_append dexp exp_len by simp
 
   show "TM_decode_pad w = M" unfolding TM_decode_pad_def w_correct w'_correct
-    using \<open>TM M\<close> by (rule codec_TM)
+    by (fact TM_codec)
 qed
 
 
