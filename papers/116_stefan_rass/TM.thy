@@ -322,13 +322,13 @@ subsection \<open>Composition of Turing Machines\<close>
     When M1 finishes, M2 operates on the tapes 0,k1,k1+1,...,k1+k2-2.
     Therefore, M1 is expected to write its output (M2's input) on the zeroth tape.\<close>
 
-fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a1+'a2, 'b) TM" ("_ |+| _" [0, 0] 100)
+definition tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a1+'a2, 'b) TM" ("_ |+| _" [0, 0] 100)
   where "tm_comp M1 M2 = (let k = tape_count M1 + tape_count M2 - 1 in \<lparr>
     tape_count = k,
     states = states M1 <+> states M2,
     start_state = Inl (start_state M1),
-    final_states = Inr`final_states M2,
-    accepting_states = Inr`accepting_states M2,
+    final_states = Inr ` final_states M2,
+    accepting_states = Inr ` accepting_states M2,
     symbols = symbols M1 \<union> symbols M2,
     next_state = (\<lambda>q w. case q of
                         Inl q1 \<Rightarrow> let w1 = nths w {0..<tape_count M1} in
@@ -348,8 +348,96 @@ fun tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a
                         )
   \<rparr>)"
 
-lemma wf_tm_comp: "TM M1 \<Longrightarrow> TM M2 \<Longrightarrow> TM (M1 |+| M2)"
-  sorry
+lemma tm_comp_simps[simp]:
+  fixes M1 M2
+  defines "M \<equiv> M1 |+| M2"
+    and "k \<equiv> tape_count M1 + tape_count M2 - 1"
+  shows "tape_count M = k"
+            "states M = states M1 <+> states M2"
+       "start_state M = Inl (start_state M1)"
+      "final_states M = Inr ` final_states M2"
+  "accepting_states M = Inr ` accepting_states M2"
+           "symbols M = symbols M1 \<union> symbols M2"
+        "next_state M = (\<lambda>q w. case q of
+                              Inl q1 \<Rightarrow> let w1 = nths w {0..<tape_count M1};
+                                            q' = next_state M1 q1 w1 in
+                                          if q' \<in> final_states M1
+                                            then Inr (start_state M2)
+                                            else Inl q'
+                            | Inr q2 \<Rightarrow> let w2 = nths w (insert 0 {tape_count M1..<k}) in
+                                          Inr (next_state M2 q2 w2) )"
+       "next_action M = (\<lambda>q w. case q of
+                          Inl q1 \<Rightarrow> let w1 = nths w {0..<tape_count M1} in
+                                      pad k Nop (next_action M1 q1 w1)
+                        | Inr q2 \<Rightarrow> let w2 = nths w (insert 0 {tape_count M1..<k});
+                                        a2 = next_action M2 q2 w2 in
+                                      hd a2 # Nop \<up> (tape_count M1 - 1) @ tl a2 )"
+  unfolding M_def k_def tm_comp_def[unfolded Let_def] Let_def TM.TM.simps by (fact refl)+
+
+
+lemma wf_tm_comp:
+  assumes wf: "TM M1" "TM M2"
+  shows "TM (M1 |+| M2)" (is "TM ?M")
+proof
+  let ?k = "tape_count M1 + tape_count M2 - 1"
+
+  interpret M1: TM M1 by fact
+  interpret M2: TM M2 by fact
+
+  from M2.at_least_one_tape have "tape_count ?M \<ge> tape_count M1"
+    unfolding tm_comp_simps using le_add1 by (subst diff_add_assoc)
+  with M1.at_least_one_tape show "tape_count ?M \<ge> 1" by (fact le_trans)
+  from M1.state_axioms(1) M2.state_axioms(1) show "finite (states ?M)"
+    unfolding tm_comp_simps by simp
+  from M1.state_axioms(2) show "start_state ?M \<in> states ?M"
+    unfolding tm_comp_simps by blast
+  from M2.state_axioms(3) show "final_states ?M \<subseteq> states ?M"
+    unfolding tm_comp_simps by blast
+  from M2.state_axioms(4) show "accepting_states ?M \<subseteq> final_states ?M"
+    unfolding tm_comp_simps by blast
+  from M1.symbol_axioms(1) M2.symbol_axioms(1) show "finite (symbols ?M)"
+    unfolding tm_comp_simps by blast
+  from M1.symbol_axioms(2) show "Bk \<in> symbols ?M"
+    unfolding tm_comp_simps by blast
+
+  fix q w
+  assume "pre_TM.wf_state ?M q w" (* now we are stuck,
+   * since it does not follow that the state corresponds to a well-formed state w.r.t. M1 or M2.
+   * but without this, none of the relevant TM-axioms apply.
+   * possible solution: prove this lemma for TMs with equal alphabets and and define another
+   * tm_comp that lifts the alphabets before composition *)
+  then have wfs: "case q of Inl q1 \<Rightarrow> pre_TM.wf_state M1 q1 (nths w {0..<tape_count M1})
+                     | Inr q2 \<Rightarrow> pre_TM.wf_state M2 q2 (nths w (insert 0 {tape_count M1..<?k}))"
+  proof (induction q, unfold sum.case)
+    case (Inl q1)
+    then show "pre_TM.wf_state M1 q1 (nths w {0..<tape_count M1})"
+      unfolding pre_TM.wf_state_def tm_comp_simps
+    proof (elim conjE, intro conjI)
+      assume "Inl q1 \<in> states M1 <+> states M2"
+      then show "q1 \<in> states M1" by blast
+
+      assume "length w = ?k"
+      have "length (nths w {0..<tape_count M1}) = card {i. i < ?k \<and> i < tape_count M1}"
+        unfolding length_nths \<open>length w = ?k\<close> atLeastLessThan_iff using le0 by presburger
+      also have "... = tape_count M1" using \<open>tape_count ?M \<ge> tape_count M1\<close>
+        unfolding tm_comp_simps min_less_iff_conj[symmetric] card_Collect_less_nat
+        by (fact min_absorb2)
+      finally show "length (nths w {0..<tape_count M1}) = tape_count M1" .
+
+      assume "set w \<subseteq> symbols M1 \<union> symbols M2"
+      then show "set (nths w {0..<tape_count M1}) \<subseteq> symbols M1" sorry (* inconsistent *)
+    qed
+  next
+    case (Inr q2)
+    then show "pre_TM.wf_state M2 q2 (nths w (insert 0 {tape_count M1..<?k}))" sorry (* analogous to first case*)
+  qed
+
+  show "next_state ?M q w \<in> states ?M" sorry
+  show "length (next_action ?M q w) = tape_count ?M" sorry
+  show "symbol_of_write ` set (next_action ?M q w) \<subseteq> symbols ?M" sorry
+  show "q \<in> final_states ?M \<Longrightarrow> next_state ?M q w = q" sorry
+  show "set (next_action ?M q w) \<subseteq> {Nop}" sorry
+qed
 
 hide_const (open) "TM.action.L" "TM.action.R" "TM.action.W"
 
