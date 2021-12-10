@@ -336,13 +336,13 @@ definition tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarr
                                   if q' \<in> final_states M1
                                     then Inr (start_state M2)
                                     else Inl q'
-                      | Inr q2 \<Rightarrow> let w2 = nths w (insert 0 {tape_count M1..<k}) in
+                      | Inr q2 \<Rightarrow> let w2 = nths w ({0} \<union> {tape_count M1..<k}) in
                                   Inr (next_state M2 q2 w2)
                  ),
     next_action = (\<lambda>q w. case q of
                          Inl q1 \<Rightarrow> let w1 = nths w {0..<tape_count M1} in
                                    pad k Nop (next_action M1 q1 w1)
-                       | Inr q2 \<Rightarrow> let w2 = nths w (insert 0 {tape_count M1..<k}) in
+                       | Inr q2 \<Rightarrow> let w2 = nths w ({0} \<union> {tape_count M1..<k}) in
                                    let a2 = next_action M2 q2 w2 in
                                    hd a2 # Nop \<up> (tape_count M1 - 1) @ tl a2
                         )
@@ -351,92 +351,250 @@ definition tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarr
 lemma tm_comp_simps[simp]:
   fixes M1 M2
   defines "M \<equiv> M1 |+| M2"
+    and "k1 \<equiv> tape_count M1" and "k2 \<equiv> tape_count M2"
+  defines "k \<equiv> k1 + k2 - 1"
+  shows     "tape_count M = k"
+                "states M = states M1 <+> states M2"
+           "start_state M = Inl (start_state M1)"
+          "final_states M = Inr ` final_states M2"
+      "accepting_states M = Inr ` accepting_states M2"
+               "symbols M = symbols M1 \<union> symbols M2"
+   "next_state M (Inl q1) = (\<lambda>w. let q' = next_state M1 q1 (nths w {0..<k1}) in
+                                   if q' \<in> final_states M1 then Inr (start_state M2) else Inl q')"
+   "next_state M (Inr q2) = (\<lambda>w. Inr (next_state M2 q2 (nths w ({0} \<union> {k1..<k}))))"
+  "next_action M (Inl q1) = (\<lambda>w. pad k Nop (next_action M1 q1 (nths w {0..<k1})))"
+  "next_action M (Inr q2) = (\<lambda>w. let a2 = next_action M2 q2 (nths w ({0} \<union> {k1..<k})) in
+                                   hd a2 # Nop \<up> (k1 - 1) @ tl a2)"
+  unfolding M_def k_def k1_def k2_def
+  unfolding tm_comp_def[unfolded Let_def] Let_def sum.case TM.TM.simps by (fact refl)+
+
+lemma tm_comp_simps':
+  fixes M1 M2
+  defines "M \<equiv> M1 |+| M2"
     and "k \<equiv> tape_count M1 + tape_count M2 - 1"
-  shows "tape_count M = k"
-            "states M = states M1 <+> states M2"
-       "start_state M = Inl (start_state M1)"
-      "final_states M = Inr ` final_states M2"
-  "accepting_states M = Inr ` accepting_states M2"
-           "symbols M = symbols M1 \<union> symbols M2"
-        "next_state M = (\<lambda>q w. case q of
+  shows "next_state M = (\<lambda>q w. case q of
                               Inl q1 \<Rightarrow> let w1 = nths w {0..<tape_count M1};
                                             q' = next_state M1 q1 w1 in
                                           if q' \<in> final_states M1
                                             then Inr (start_state M2)
                                             else Inl q'
-                            | Inr q2 \<Rightarrow> let w2 = nths w (insert 0 {tape_count M1..<k}) in
+                            | Inr q2 \<Rightarrow> let w2 = nths w ({0} \<union> {tape_count M1..<k}) in
                                           Inr (next_state M2 q2 w2) )"
        "next_action M = (\<lambda>q w. case q of
                           Inl q1 \<Rightarrow> let w1 = nths w {0..<tape_count M1} in
                                       pad k Nop (next_action M1 q1 w1)
-                        | Inr q2 \<Rightarrow> let w2 = nths w (insert 0 {tape_count M1..<k});
+                        | Inr q2 \<Rightarrow> let w2 = nths w ({0} \<union> {tape_count M1..<k});
                                         a2 = next_action M2 q2 w2 in
                                       hd a2 # Nop \<up> (tape_count M1 - 1) @ tl a2 )"
   unfolding M_def k_def tm_comp_def[unfolded Let_def] Let_def TM.TM.simps by (fact refl)+
 
 
-lemma wf_tm_comp:
+lemma tm_comp_tape_count:
+  fixes M1 M2
+  defines "M \<equiv> M1 |+| M2"
+  shows "TM M2 \<Longrightarrow> tape_count M1 \<le> tape_count M"
+    and "TM M1 \<Longrightarrow> tape_count M2 \<le> tape_count M"
+proof -
+  assume "TM M2"
+  from \<open>TM M2\<close>[THEN TM.at_least_one_tape] show "tape_count M1 \<le> tape_count M"
+    unfolding M_def tm_comp_simps using le_add1 by (subst diff_add_assoc)
+next
+  assume "TM M1"
+  from \<open>TM M1\<close>[THEN TM.at_least_one_tape] show "tape_count M2 \<le> tape_count M"
+    unfolding M_def tm_comp_simps using le_add1 by (subst add.commute) (subst diff_add_assoc)
+qed
+
+lemma length_nths_interval: "length (nths xs {n..<m}) = min (length xs) m - n"
+proof -
+  have "length (nths xs {n..<m}) = card {i. n \<le> i \<and> i < length xs \<and> i < m}"
+    unfolding length_nths atLeastLessThan_iff by meson
+  also have "... = card {n..<min (length xs) m}"
+    unfolding min_less_iff_conj[symmetric] by (intro arg_cong[where f=card] set_eqI) simp
+  also have "... = min (length xs) m - n" by (fact card_atLeastLessThan)
+  finally show ?thesis .
+qed
+
+lemma nths_insert_interval_less:
+  assumes "length w \<ge> 1"
+    and "k1 \<ge> 1"
+  shows "nths w ({0} \<union> {k1..<k}) = hd w # nths w {k1..<k}" using assms
+proof (induction w)
+  case (Cons a w)
+  from \<open>k1 \<ge> 1\<close> show ?case unfolding nths_Cons by force
+qed (* case "w = []" by *) simp
+
+lemma tm_comp_cases [consumes 4, case_names wfs1 wfs2]:
+  fixes M1 M2 P
+  defines "k1 \<equiv> tape_count M1" and "k2 \<equiv> tape_count M2"
+  defines "k \<equiv> tape_count M1 + tape_count M2 - 1"
+  defines "M \<equiv> M1 |+| M2"
   assumes wf: "TM M1" "TM M2"
+    and symbols_eq: "symbols M1 = symbols M2"
+  assumes wfs: "pre_TM.wf_state M q w"
+  assumes q1: "\<And>q1 w. q = (Inl q1) \<Longrightarrow> pre_TM.wf_state M1 q1 (nths w {0..<k1}) \<Longrightarrow> P (Inl q1) w"
+  assumes q2: "\<And>q2 w. q = (Inr q2) \<Longrightarrow> pre_TM.wf_state M2 q2 (nths w ({0} \<union> {k1..<k})) \<Longrightarrow> P (Inr q2) w"
+  shows "P q w"
+  using wfs
+proof (cases q)
+  case (Inl q1)
+  from wfs show "P q w" unfolding \<open>q = Inl q1\<close>
+  proof (intro q1[OF \<open>q = Inl q1\<close>], unfold pre_TM.wf_state_def, elim conjE, intro conjI)
+    assume "Inl q1 \<in> states M"
+    then show "q1 \<in> states M1" unfolding M_def tm_comp_simps by blast
+
+    assume len_w: "length w = tape_count M"
+    from tm_comp_tape_count(1)[OF wf(2)] show "length (nths w {0..<k1}) = tape_count M1"
+      unfolding M_def length_nths_interval len_w k1_def by (subst min_absorb2) auto
+
+    have "set (nths w {0..<k1}) \<subseteq> set w" by (fact set_nths_subset)
+    also assume "... \<subseteq> symbols M"
+    also have "... \<subseteq> symbols M1" unfolding M_def tm_comp_simps symbols_eq by blast
+    finally show "set (nths w {0..<k1}) \<subseteq> symbols M1" .
+  qed
+next
+  case (Inr q2)
+  from wfs show "P q w" unfolding \<open>q = Inr q2\<close>
+  proof (intro q2[OF \<open>q = Inr q2\<close>], unfold pre_TM.wf_state_def, elim conjE, intro conjI)
+    assume "Inr q2 \<in> states M"
+    then show "q2 \<in> states M2" unfolding M_def tm_comp_simps by blast
+
+    assume len_w: "length w = tape_count M"
+
+    have "1 \<le> length w" unfolding len_w M_def tm_comp_simps
+      using wf[THEN TM.at_least_one_tape] by linarith
+    have "1 \<le> k1" unfolding k1_def by (fact wf(1)[THEN TM.at_least_one_tape])
+    have "1 \<le> k2" unfolding k2_def by (fact wf(2)[THEN TM.at_least_one_tape])
+
+    have "length (nths w ({0} \<union> {k1..<k})) = min (length w) k - k1 + 1"
+      unfolding nths_insert_interval_less[OF \<open>1 \<le> length w\<close> \<open>1 \<le> k1\<close>]
+      unfolding length_Cons length_nths_interval by simp
+    also have "... = k1 + k2 - 1 - k1 + 1"
+      unfolding len_w M_def tm_comp_simps
+      unfolding k_def k1_def k2_def min.idem ..
+    also have "... = k2" using TM.at_least_one_tape[OF wf(2), folded k2_def] by simp
+    finally show "length (nths w ({0} \<union> {k1..<k})) = tape_count M2" unfolding k2_def .
+
+     have "set (nths w ({0} \<union> {k1..<k})) \<subseteq> set w" by (fact set_nths_subset)
+    also assume "... \<subseteq> symbols M"
+    also have "... \<subseteq> symbols M2" unfolding M_def tm_comp_simps symbols_eq by blast
+    finally show "set (nths w ({0} \<union> {k1..<k})) \<subseteq> symbols M2" .
+  qed
+qed
+
+lemma if_cases: "P a \<Longrightarrow> P b \<Longrightarrow> P (If c a b)" by presburger
+
+lemma set_replicate_subset: "set (x \<up> n) \<subseteq> {x}" by auto
+
+lemma wf_tm_comp:
+  fixes M1 :: "('a1, 'b::blank) TM" and M2 :: "('a2, 'b) TM"
+  assumes wf: "TM M1" "TM M2"
+    and symbols_eq[simp]: "symbols M1 = symbols M2"
   shows "TM (M1 |+| M2)" (is "TM ?M")
-proof
-  let ?k = "tape_count M1 + tape_count M2 - 1"
+proof (intro TM.intro; (elim tm_comp_cases[OF assms])?)
+  let ?k1 = "tape_count M1" and ?k2 = "tape_count M2"
+  let ?k = "?k1 + ?k2 - 1"
 
   interpret M1: TM M1 by fact
   interpret M2: TM M2 by fact
 
-  from M2.at_least_one_tape have "tape_count ?M \<ge> tape_count M1"
+  from M2.at_least_one_tape have "tape_count ?M \<ge> ?k1"
     unfolding tm_comp_simps using le_add1 by (subst diff_add_assoc)
   with M1.at_least_one_tape show "tape_count ?M \<ge> 1" by (fact le_trans)
-  from M1.state_axioms(1) M2.state_axioms(1) show "finite (states ?M)"
-    unfolding tm_comp_simps by simp
-  from M1.state_axioms(2) show "start_state ?M \<in> states ?M"
-    unfolding tm_comp_simps by blast
-  from M2.state_axioms(3) show "final_states ?M \<subseteq> states ?M"
-    unfolding tm_comp_simps by blast
-  from M2.state_axioms(4) show "accepting_states ?M \<subseteq> final_states ?M"
-    unfolding tm_comp_simps by blast
-  from M1.symbol_axioms(1) M2.symbol_axioms(1) show "finite (symbols ?M)"
-    unfolding tm_comp_simps by blast
-  from M1.symbol_axioms(2) show "Bk \<in> symbols ?M"
-    unfolding tm_comp_simps by blast
+  from M1.state_axioms(1) M2.state_axioms(1) show "finite (states ?M)" by simp
+  from M1.state_axioms(2) show "start_state ?M \<in> states ?M" by auto
+  from M2.state_axioms(3) show "final_states ?M \<subseteq> states ?M" by auto
+  from M2.state_axioms(4) show "accepting_states ?M \<subseteq> final_states ?M" by auto
+  from M1.symbol_axioms(1) show "finite (symbols ?M)" by simp
+  from M1.symbol_axioms(2) show "Bk \<in> symbols ?M" by simp
 
-  fix q w
-  assume "pre_TM.wf_state ?M q w" (* now we are stuck,
-   * since it does not follow that the state corresponds to a well-formed state w.r.t. M1 or M2.
-   * but without this, none of the relevant TM-axioms apply.
-   * possible solution: prove this lemma for TMs with equal alphabets and and define another
-   * tm_comp that lifts the alphabets before composition *)
-  then have wfs: "case q of Inl q1 \<Rightarrow> pre_TM.wf_state M1 q1 (nths w {0..<tape_count M1})
-                     | Inr q2 \<Rightarrow> pre_TM.wf_state M2 q2 (nths w (insert 0 {tape_count M1..<?k}))"
-  proof (induction q, unfold sum.case)
-    case (Inl q1)
-    then show "pre_TM.wf_state M1 q1 (nths w {0..<tape_count M1})"
-      unfolding pre_TM.wf_state_def tm_comp_simps
-    proof (elim conjE, intro conjI)
-      assume "Inl q1 \<in> states M1 <+> states M2"
-      then show "q1 \<in> states M1" by blast
+  (* case distinction on q *)
+  fix w :: "'b list" and q :: "'a1 + 'a2"
+  {
+    fix q1 (* case M1: "q = Inl q1" *)
+    assume "q = Inl q1" and wfs1: "M1.wf_state q1 (nths w {0..<?k1})"
 
-      assume "length w = ?k"
-      have "length (nths w {0..<tape_count M1}) = card {i. i < ?k \<and> i < tape_count M1}"
-        unfolding length_nths \<open>length w = ?k\<close> atLeastLessThan_iff using le0 by presburger
-      also have "... = tape_count M1" using \<open>tape_count ?M \<ge> tape_count M1\<close>
-        unfolding tm_comp_simps min_less_iff_conj[symmetric] card_Collect_less_nat
-        by (fact min_absorb2)
-      finally show "length (nths w {0..<tape_count M1}) = tape_count M1" .
-
-      assume "set w \<subseteq> symbols M1 \<union> symbols M2"
-      then show "set (nths w {0..<tape_count M1}) \<subseteq> symbols M1" sorry (* inconsistent *)
+    show "next_state ?M (Inl q1) w \<in> states ?M" unfolding tm_comp_simps Let_def
+    proof (rule if_cases)
+      show "Inr (start_state M2) \<in> states M1 <+> states M2"
+        using TM.state_axioms(2)[OF wf(2)] by blast
+      show "Inl (next_state M1 q1 (nths w {0..<?k1})) \<in> states M1 <+> states M2"
+        using TM.next_state[OF wf(1) wfs1] by blast
     qed
-  next
-    case (Inr q2)
-    then show "pre_TM.wf_state M2 q2 (nths w (insert 0 {tape_count M1..<?k}))" sorry (* analogous to first case*)
-  qed
 
-  show "next_state ?M q w \<in> states ?M" sorry
-  show "length (next_action ?M q w) = tape_count ?M" sorry
-  show "symbol_of_write ` set (next_action ?M q w) \<subseteq> symbols ?M" sorry
-  show "q \<in> final_states ?M \<Longrightarrow> next_state ?M q w = q" sorry
-  show "set (next_action ?M q w) \<subseteq> {Nop}" sorry
+    show "length (next_action ?M (Inl q1) w) = tape_count ?M"
+      using tm_comp_tape_count(1)[OF wf(2), of M1]
+      unfolding tm_comp_simps pad_length
+      unfolding M1.next_action_length[OF wfs1] by (fact max_absorb1)
+
+    show "symbol_of_write ` set (next_action ?M (Inl q1) w) \<subseteq> symbols ?M"
+      unfolding tm_comp_simps set_append image_Un
+    proof (intro Un_mono)
+      show "symbol_of_write ` set (next_action M1 q1 (nths w {0..<?k1})) \<subseteq> symbols M1"
+        by (fact M1.next_write_symbol[OF wfs1])
+      show "symbol_of_write ` set (Nop \<up> n) \<subseteq> symbols M2" for n
+        using set_replicate_subset M2.symbol_axioms(2) by force
+    qed
+
+    assume "q \<in> final_states ?M"
+
+    show "next_state ?M (Inl q1) w = Inl q1" sorry
+    show "set (next_action ?M (Inl q1) w) \<subseteq> {Nop}" sorry
+  }
+
+  {
+    fix q2 (* case M2: "q = Inr q2" *)
+    assume "q = Inr q2" and wfs2: "M2.wf_state q2 (nths w ({0} \<union> {?k1..<?k}))"
+
+    show "next_state ?M (Inr q2) w \<in> states ?M" unfolding tm_comp_simps
+      using TM.next_state[OF wf(2) wfs2] by blast
+
+    have "length (next_action ?M (Inr q2) w) = ?k1 - 1 + (?k2 - 1) + 1"
+      unfolding tm_comp_simps Let_def
+      unfolding list.size length_append length_replicate length_tl
+      unfolding M2.next_action_length[OF wfs2]
+      by presburger
+    also have "... = ?k - 1 + 1"
+      unfolding add_diff_assoc2[OF M1.at_least_one_tape] add_diff_assoc[OF M2.at_least_one_tape] ..
+    also have "... = tape_count ?M"
+      using \<open>tape_count ?M \<ge> 1\<close> unfolding tm_comp_simps by (fact diff_add)
+    finally show "length (next_action ?M (Inr q2) w) = tape_count ?M" .
+
+
+    define xs where xs: "xs \<equiv> next_action M2 q2 (nths w ({0} \<union> {?k1..<?k}))"
+    define ys :: "'b action list" where ys: "ys \<equiv> Nop \<up> (?k1 - 1)"
+    have "symbol_of_write ` set (next_action ?M (Inr q2) w) = symbol_of_write ` (set xs \<union> set ys)"
+    proof (rule arg_cong[where f="image symbol_of_write"])
+      have "length xs \<ge> 1" unfolding xs M2.next_action_length[OF wfs2]
+        by (fact M2.at_least_one_tape)
+      then have "xs \<noteq> []" by auto
+
+      have "set (next_action ?M (Inr q2) w) = set (hd xs # ys @ tl xs)"
+        unfolding tm_comp_simps Let_def set_append
+        unfolding xs[symmetric] ys[symmetric] ..
+      also have "... = insert (hd xs) (set (ys @ tl xs))" by simp
+      also have "... = insert (hd xs) (set (tl xs @ ys))" by force
+      also have "... = set ((hd xs # tl xs) @ ys)" by force
+      also have "... = set (hd xs # tl xs) \<union> set ys" by simp
+      also have "... = set xs \<union> set ys" using \<open>xs \<noteq> []\<close> by force
+      finally show "set (next_action ?M (Inr q2) w) = set xs \<union> set ys" .
+    qed
+    also have "... = symbol_of_write ` set xs \<union> symbol_of_write ` set ys" by (fact image_Un)
+    also have "... \<subseteq> symbols ?M" unfolding tm_comp_simps symbols_eq
+    proof (intro Un_mono)
+      from wfs2 show "symbol_of_write ` set xs \<subseteq> symbols M2"
+        unfolding xs by (fact M2.next_write_symbol)
+      have "symbol_of_write ` set ys \<subseteq> {Bk}" unfolding ys by force
+      also have "... \<subseteq> symbols M2" using M2.symbol_axioms(2) by blast
+      finally show "symbol_of_write ` set ys \<subseteq> symbols M2" .
+    qed
+    finally show "symbol_of_write ` set (next_action ?M (Inr q2) w) \<subseteq> symbols ?M" .
+
+
+    assume "q \<in> final_states ?M"
+
+    show "next_state ?M (Inr q2) w = Inr q2" sorry
+    show "set (next_action ?M (Inr q2) w) \<subseteq> {Nop}" sorry
+  }
 qed
 
 hide_const (open) "TM.action.L" "TM.action.R" "TM.action.W"
@@ -1153,9 +1311,9 @@ proof -
   from acc obtain n where "state (run n w) \<in> accepting_states M" by blast
   with natM_state_eq[OF wwf, of n] have C2: "\<exists>n. state (natM.run n (map g w)) \<in> accepting_states natM"
     using natM_simps(4) by force
-  
+
   from C1 C2 show ?thesis using natM.acceptsI by blast
-qed 
+qed
 
 lemma natM_rejects: "rejects w \<Longrightarrow> natM.rejects (map g w)"
 proof -
@@ -1167,7 +1325,7 @@ proof -
   with natM_state_eq[OF wwf, of n]
   have C2: "\<exists>n. state (natM.run n (map g w)) \<in> rejecting_states natM"
     using natM_rejecting_states by force
-  
+
   from C1 C2 show ?thesis using natM.rejectsI by auto
 qed
 
