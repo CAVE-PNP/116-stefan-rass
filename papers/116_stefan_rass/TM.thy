@@ -43,17 +43,17 @@ qed
 
 record 'b tape =
   left :: "'b list"
-  middle :: 'b
+  head :: 'b
   right :: "'b list"
 
 fun tape_app :: "('b1 \<Rightarrow> 'b2) \<Rightarrow> 'b1 tape \<Rightarrow> 'b2 tape" where
-  "tape_app f \<lparr> left = l, middle = m, right = r \<rparr> = \<lparr> left = map f l, middle = f m, right = map f r \<rparr>"
+  "tape_app f \<lparr> left = l, head = h, right = r \<rparr> = \<lparr> left = map f l, head = f h, right = map f r \<rparr>"
 
-abbreviation "empty_tape \<equiv> \<lparr> left=[], middle = Bk, right=[] \<rparr>"
+abbreviation "empty_tape \<equiv> \<lparr> left=[], head = Bk, right=[] \<rparr>"
 
-definition [simp]: "set_of_tape tp \<equiv> set (left tp) \<union> {middle tp} \<union> set (right tp) \<union> {Bk}"
+definition [simp]: "set_of_tape tp \<equiv> set (left tp) \<union> {head tp} \<union> set (right tp) \<union> {Bk}"
 
-lemma set_of_tape_helpers: "middle tp \<in> set_of_tape tp" "Bk \<in> set_of_tape tp" by auto
+lemma set_of_tape_helpers: "head tp \<in> set_of_tape tp" "Bk \<in> set_of_tape tp" by auto
 
 lemma tape_set_app: "f Bk = Bk \<Longrightarrow> set_of_tape (tape_app f tp) = f ` set_of_tape tp"
   by (induction tp) (simp add: image_Un)
@@ -61,28 +61,28 @@ lemma tape_set_app: "f Bk = Bk \<Longrightarrow> set_of_tape (tape_app f tp) = f
 text\<open>TM execution begins with the head at the start of the input word.\<close>
 fun input_tape ("<_>\<^sub>t\<^sub>p") where
   "<[]>\<^sub>t\<^sub>p = empty_tape"
-| "<x # xs>\<^sub>t\<^sub>p = \<lparr> left=[], middle = x, right = xs \<rparr>"
+| "<x # xs>\<^sub>t\<^sub>p = \<lparr> left=[], head = x, right = xs \<rparr>"
 
 lemma input_tape_app: "f Bk = Bk \<Longrightarrow> tape_app f <w>\<^sub>t\<^sub>p = <map f w>\<^sub>t\<^sub>p" by (induction w) auto
 
 lemma input_tape_def:
-  "<w>\<^sub>t\<^sub>p = (if w = [] then empty_tape else \<lparr> left=[], middle = hd w, right = tl w \<rparr>)"
+  "<w>\<^sub>t\<^sub>p = (if w = [] then empty_tape else \<lparr> left=[], head = hd w, right = tl w \<rparr>)"
   by (induction w) auto
 
 abbreviation tp_size :: "'b tape \<Rightarrow> nat" where
   "tp_size tp \<equiv> length (left tp) + length (right tp) + 1"
 
 fun tp_update :: "('b::blank) action \<Rightarrow> 'b tape \<Rightarrow> 'b tape" where
-  "tp_update L \<lparr>left=[],   middle = m, right=rs  \<rparr> = \<lparr>left=[],   middle = Bk, right=m#rs \<rparr>"
-| "tp_update L \<lparr>left=l#ls, middle = m, right=rs  \<rparr> = \<lparr>left=ls,   middle = l,  right=m#rs \<rparr>"
-| "tp_update R \<lparr>left=ls,   middle = m, right=[]  \<rparr> = \<lparr>left=m#ls, middle = Bk, right=[]   \<rparr>"
-| "tp_update R \<lparr>left=ls,   middle = m, right=r#rs\<rparr> = \<lparr>left=m#ls, middle = r,  right=rs   \<rparr>"
-| "tp_update (W w) tp = tp\<lparr> middle := w \<rparr>"
+  "tp_update L \<lparr>left=[],   head = h, right=rs  \<rparr> = \<lparr>left=[],   head = Bk, right=h#rs \<rparr>"
+| "tp_update L \<lparr>left=l#ls, head = h, right=rs  \<rparr> = \<lparr>left=ls,   head = l,  right=h#rs \<rparr>"
+| "tp_update R \<lparr>left=ls,   head = h, right=[]  \<rparr> = \<lparr>left=h#ls, head = Bk, right=[]   \<rparr>"
+| "tp_update R \<lparr>left=ls,   head = h, right=r#rs\<rparr> = \<lparr>left=h#ls, head = r,  right=rs   \<rparr>"
+| "tp_update (W h) tp = tp\<lparr> head := h \<rparr>"
 | "tp_update Nop tp = tp"
 
 lemma tp_update_set: "set_of_tape (tp_update a tp) \<subseteq> set_of_tape tp \<union> {symbol_of_write a}"
 proof -
-  obtain l m r where expand_tp: "tp = \<lparr>left=l, middle=m, right=r\<rparr>" by (rule tape.cases)
+  obtain l h r where expand_tp: "tp = \<lparr>left=l, head=h, right=r\<rparr>" by (rule tape.cases)
   show ?thesis unfolding expand_tp
   proof (induction a)
     case L show ?case by (induction l) auto next
@@ -90,9 +90,6 @@ proof -
     case (W x) show ?case by (induction r) auto
   qed simp
 qed
-
-abbreviation "tp_read \<equiv> middle"
-
 
 record ('a, 'b) TM =
   tape_count :: nat
@@ -183,7 +180,7 @@ locale TM = pre_TM +
 begin
 
 abbreviation wf_state_of_config ("wf'_state\<^sub>c")
-  where "wf_state\<^sub>c c \<equiv> wf_state (state c) (map tp_read (tapes c))"
+  where "wf_state\<^sub>c c \<equiv> wf_state (state c) (map head (tapes c))"
 
 lemma wf_config_state: "wf_config c \<Longrightarrow> wf_state\<^sub>c c"
   by (intro wf_stateI) (blast, force, use set_of_tape_helpers in fast)
@@ -195,7 +192,7 @@ abbreviation is_final :: "('a, 'b) TM_config \<Rightarrow> bool" where
   "is_final c \<equiv> state c \<in> final_states M"
 
 definition step :: "('a, 'b) TM_config \<Rightarrow> ('a, 'b) TM_config" where
-  "step c = (let q=state c; w=map tp_read (tapes c) in \<lparr>
+  "step c = (let q=state c; w=map head (tapes c) in \<lparr>
       state=next_state M q w,
       tapes=map2 tp_update (next_action M q w) (tapes c)
    \<rparr>)"
@@ -214,7 +211,7 @@ lemma final_step_fixpoint:
   assumes wf: "wf_state\<^sub>c c" and fc: "is_final c"
   shows "step c = c"
 proof -
-  let ?q = "state c" and ?w = "map tp_read (tapes c)" and ?ts = "tapes c"
+  let ?q = "state c" and ?w = "map head (tapes c)" and ?ts = "tapes c"
 
   have ns: "next_state M ?q ?w = ?q" using wf fc by (rule final_state)
   have na: "next_action M ?q ?w = Nop\<^sub>k" using wf fc by (rule final_action_explicit)
@@ -228,7 +225,7 @@ lemma final_steps: "wf_state\<^sub>c c \<Longrightarrow> is_final c \<Longrighta
 
 lemma wf_config_step: "wf_config c \<Longrightarrow> wf_config (step c)"
 proof
-  let ?q = "state c" and ?w = "map tp_read (tapes c)" and ?ts = "tapes c"
+  let ?q = "state c" and ?w = "map head (tapes c)" and ?ts = "tapes c"
   let ?q' = "state (step c)" and ?ts' = "tapes (step c)"
   let ?na = "next_action M ?q ?w"
   assume "wf_config c"
@@ -404,25 +401,6 @@ next
     unfolding M_def tm_comp_simps using le_add1 by (subst add.commute) (subst diff_add_assoc)
 qed
 
-lemma length_nths_interval: "length (nths xs {n..<m}) = min (length xs) m - n"
-proof -
-  have "length (nths xs {n..<m}) = card {i. n \<le> i \<and> i < length xs \<and> i < m}"
-    unfolding length_nths atLeastLessThan_iff by meson
-  also have "... = card {n..<min (length xs) m}"
-    unfolding min_less_iff_conj[symmetric] by (intro arg_cong[where f=card] set_eqI) simp
-  also have "... = min (length xs) m - n" by (fact card_atLeastLessThan)
-  finally show ?thesis .
-qed
-
-lemma nths_insert_interval_less:
-  assumes "length w \<ge> 1"
-    and "k1 \<ge> 1"
-  shows "nths w ({0} \<union> {k1..<k}) = hd w # nths w {k1..<k}" using assms
-proof (induction w)
-  case (Cons a w)
-  from \<open>k1 \<ge> 1\<close> show ?case unfolding nths_Cons by force
-qed (* case "w = []" by *) simp
-
 lemma tm_comp_cases [consumes 4, case_names wfs1 wfs2]:
   fixes M1 M2 P
   defines "k1 \<equiv> tape_count M1" and "k2 \<equiv> tape_count M2"
@@ -480,10 +458,6 @@ next
     finally show "set (nths w ({0} \<union> {k1..<k})) \<subseteq> symbols M2" .
   qed
 qed
-
-lemma if_cases: "P a \<Longrightarrow> P b \<Longrightarrow> P (If c a b)" by presburger
-
-lemma set_replicate_subset: "set (x \<up> n) \<subseteq> {x}" by auto
 
 lemma wf_tm_comp:
   fixes M1 :: "('a1, 'b::blank) TM" and M2 :: "('a2, 'b) TM"
@@ -1192,7 +1166,7 @@ proof (induction c)
   case (fields q tps)
   let ?c = "\<lparr>state = q, tapes = tps\<rparr>" let ?c' = "C ?c"
   let ?q = "f q" and ?tps = "map (tape_app g) tps"
-  let ?w = "map tp_read tps"
+  let ?w = "map head tps"
 
   from \<open>wf_config ?c\<close> have "pre_natM.wf_config (C ?c)" by (fact wf_natM_config)
   from \<open>wf_config ?c\<close> have "q \<in> states M" using wf_configD(1)[of ?c] by simp
@@ -1201,16 +1175,16 @@ proof (induction c)
     using wf_config_state[of ?c] by (intro next_state) simp
   from \<open>wf_config ?c\<close> have wf_step: "wf_config (step ?c)" by (fact wf_config_step)
 
-  have tp_read_eq: "map (\<lambda>tp. g_inv (tp_read (tape_app g tp))) tps = map tp_read tps"
+  have tp_read_eq: "map (\<lambda>tp. g_inv (head (tape_app g tp))) tps = map head tps"
   proof (intro list.map_cong0)
     fix tp assume "tp \<in> set tps"
     with \<open>wf_config ?c\<close> have "set_of_tape tp \<subseteq> symbols M" by (fast dest: wf_config_simpD(3))
-    then have "tp_read tp \<in> symbols M" by force
-    then show "g_inv (tp_read (tape_app g tp)) = tp_read tp"
+    then have "head tp \<in> symbols M" by force
+    then show "g_inv (head (tape_app g tp)) = head tp"
       by (induction tp) (simp add: g_inv)
   qed
 
-  have "state (natM.step ?c') = next_state M\<^sub>\<nat> ?q (map tp_read ?tps)"
+  have "state (natM.step ?c') = next_state M\<^sub>\<nat> ?q (map head ?tps)"
     unfolding natM.step_def Let_def cc_simps TM_config.simps ..
   also have "... = f (next_state M q ?w)"
     unfolding natM_def TM.TM.simps map_map unfolding ff_q comp_def tp_read_eq ..
@@ -1226,7 +1200,7 @@ proof (induction c)
   qed
 
   let ?na = "next_action M q ?w"
-  have "tapes (natM.step ?c') = map2 tp_update (next_action M\<^sub>\<nat> ?q (map tp_read ?tps)) ?tps"
+  have "tapes (natM.step ?c') = map2 tp_update (next_action M\<^sub>\<nat> ?q (map head ?tps)) ?tps"
     unfolding natM.step_def Let_def cc_simps TM_config.simps ..
   also have "... = map2 tp_update (map (action_app g) ?na) ?tps"
     unfolding natM_def TM.TM.simps map_map comp_def tp_read_eq ff_q ..
@@ -1415,7 +1389,6 @@ proof
 qed
 
 end \<comment> \<open>\<^locale>\<open>nat_TM\<close>\<close>
-
 
 typedef (overloaded) ('a, 'b::blank) wf_TM = "{M::('a, 'b) TM. TM M}"
   using exists_wf_TM by blast

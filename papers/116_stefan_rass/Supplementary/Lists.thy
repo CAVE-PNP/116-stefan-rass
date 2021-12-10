@@ -6,6 +6,8 @@ begin
 abbreviation replicate_exponent :: "'a \<Rightarrow> nat \<Rightarrow> 'a list" ("_ \<up> _" [100, 99] 100)
   where "x \<up> n \<equiv> replicate n x"
 
+lemma set_replicate_subset: "set (x \<up> n) \<subseteq> {x}" by auto
+
 lemma map2_replicate: "map2 f (x \<up> n) ys = map (f x) (take n ys)"
   unfolding zip_replicate1 map_map by simp
 
@@ -126,5 +128,24 @@ lemma map_map_inv_into_id:
     shows "map f (map (inv_into A f) bs) = bs"
   using assms f_inv_into_f
   by (metis (no_types, lifting) list.map_comp map_idI o_apply subset_iff)
+
+lemma nths_insert_interval_less:
+  assumes "length w \<ge> 1"
+    and "k1 \<ge> 1"
+  shows "nths w ({0} \<union> {k1..<k}) = hd w # nths w {k1..<k}" using assms
+proof (induction w)
+  case (Cons a w)
+  from \<open>k1 \<ge> 1\<close> show ?case unfolding nths_Cons by force
+qed (* case "w = []" by *) simp
+
+lemma length_nths_interval: "length (nths xs {n..<m}) = min (length xs) m - n"
+proof -
+  have "length (nths xs {n..<m}) = card {i. n \<le> i \<and> i < length xs \<and> i < m}"
+    unfolding length_nths atLeastLessThan_iff by meson
+  also have "... = card {n..<min (length xs) m}"
+    unfolding min_less_iff_conj[symmetric] by (intro arg_cong[where f=card] set_eqI) simp
+  also have "... = min (length xs) m - n" by (fact card_atLeastLessThan)
+  finally show ?thesis .
+qed
 
 end
