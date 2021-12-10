@@ -535,10 +535,10 @@ proof (intro TM.intro; (elim tm_comp_cases[OF assms])?)
         using set_replicate_subset M2.symbol_axioms(2) by force
     qed
 
-    assume "q \<in> final_states ?M"
-
-    show "next_state ?M (Inl q1) w = Inl q1" sorry
-    show "set (next_action ?M (Inl q1) w) \<subseteq> {Nop}" sorry
+    assume "q \<in> final_states ?M" (* this is only ever true if q represents a state of M2 *)
+    then have False unfolding \<open>q = Inl q1\<close> tm_comp_simps by blast
+    then show "next_state ?M (Inl q1) w = Inl q1"
+      and "set (next_action ?M (Inl q1) w) \<subseteq> {Nop}" by blast+
   }
 
   {
@@ -559,11 +559,10 @@ proof (intro TM.intro; (elim tm_comp_cases[OF assms])?)
       using \<open>tape_count ?M \<ge> 1\<close> unfolding tm_comp_simps by (fact diff_add)
     finally show "length (next_action ?M (Inr q2) w) = tape_count ?M" .
 
-
     define xs where xs: "xs \<equiv> next_action M2 q2 (nths w ({0} \<union> {?k1..<?k}))"
     define ys :: "'b action list" where ys: "ys \<equiv> Nop \<up> (?k1 - 1)"
-    have "symbol_of_write ` set (next_action ?M (Inr q2) w) = symbol_of_write ` (set xs \<union> set ys)"
-    proof (rule arg_cong[where f="image symbol_of_write"])
+    have sna: "set (next_action ?M (Inr q2) w) = set xs \<union> set ys"
+    proof -
       have "length xs \<ge> 1" unfolding xs M2.next_action_length[OF wfs2]
         by (fact M2.at_least_one_tape)
       then have "xs \<noteq> []" by auto
@@ -571,13 +570,15 @@ proof (intro TM.intro; (elim tm_comp_cases[OF assms])?)
       have "set (next_action ?M (Inr q2) w) = set (hd xs # ys @ tl xs)"
         unfolding tm_comp_simps Let_def set_append
         unfolding xs[symmetric] ys[symmetric] ..
-      also have "... = insert (hd xs) (set (ys @ tl xs))" by simp
+      also have "set (hd xs # ys @ tl xs) = insert (hd xs) (set (ys @ tl xs))" by simp
       also have "... = insert (hd xs) (set (tl xs @ ys))" by force
       also have "... = set ((hd xs # tl xs) @ ys)" by force
       also have "... = set (hd xs # tl xs) \<union> set ys" by simp
       also have "... = set xs \<union> set ys" using \<open>xs \<noteq> []\<close> by force
       finally show "set (next_action ?M (Inr q2) w) = set xs \<union> set ys" .
     qed
+    then have "symbol_of_write ` set (next_action ?M (Inr q2) w) = symbol_of_write ` (set xs \<union> set ys)"
+      by (rule arg_cong)
     also have "... = symbol_of_write ` set xs \<union> symbol_of_write ` set ys" by (fact image_Un)
     also have "... \<subseteq> symbols ?M" unfolding tm_comp_simps symbols_eq
     proof (intro Un_mono)
@@ -591,9 +592,14 @@ proof (intro TM.intro; (elim tm_comp_cases[OF assms])?)
 
 
     assume "q \<in> final_states ?M"
+    then have qf: "q2 \<in> final_states M2" unfolding \<open>q = Inr q2\<close> tm_comp_simps by blast
 
-    show "next_state ?M (Inr q2) w = Inr q2" sorry
-    show "set (next_action ?M (Inr q2) w) \<subseteq> {Nop}" sorry
+    show "next_state ?M (Inr q2) w = Inr q2" unfolding tm_comp_simps M2.final_state[OF wfs2 qf] ..
+    show "set (next_action ?M (Inr q2) w) \<subseteq> {Nop}" unfolding sna
+    proof (intro Un_least)
+      from wfs2 qf show "set xs \<subseteq> {Nop}" unfolding xs by (fact M2.final_action)
+      show "set ys \<subseteq> {Nop}" unfolding ys by (fact set_replicate_subset)
+    qed
   }
 qed
 
