@@ -124,13 +124,13 @@ lemma wf_words_altdef: "wf_words = lists (symbols M)"
 
 abbreviation "wf_lang X \<equiv> X \<subseteq> wf_words"
 
-\<comment> \<open>A state \<open>q\<close> in combination with a vector \<open>w\<close> (\<^typ>\<open>'b list\<close>) of symbols currently under the TM-heads,
+\<comment> \<open>A state \<open>q\<close> in combination with a vector \<open>hds\<close> (\<^typ>\<open>'b list\<close>) of symbols currently under the TM-heads,
   is considered a well-formed state w.r.t. a \<^typ>\<open>('a, 'b) TM\<close> \<open>M\<close>, iff
   \<open>q\<close> is a valid state for \<open>M\<close>,
-  the number of elements of \<open>w\<close> matches the number of tapes of \<open>M\<close>, and
-  all elements of \<open>w\<close> are valid symbols for \<open>M\<close> (members of \<open>M\<close>'s tape alphabet).\<close>
+  the number of elements of \<open>hds\<close> matches the number of tapes of \<open>M\<close>, and
+  all elements of \<open>hds\<close> are valid symbols for \<open>M\<close> (members of \<open>M\<close>'s tape alphabet).\<close>
 definition wf_state :: "'a \<Rightarrow> 'b list \<Rightarrow> bool" where
-  "wf_state q w \<equiv> q \<in> states M \<and> length w = tape_count M \<and> wf_word w"
+  "wf_state q hds \<equiv> q \<in> states M \<and> length hds = tape_count M \<and> wf_word hds"
 
 mk_ide wf_state_def |intro wf_stateI[intro]| |elim wf_stateE[elim]| |dest wf_stateD[dest]|
 
@@ -168,15 +168,15 @@ locale TM = pre_TM +
   and state_axioms: "finite (states M)" "start_state M \<in> states M"
                     "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
   and symbol_axioms: "finite (symbols M)" "Bk \<in> (symbols M)"
-  and next_state: "\<And>q w. wf_state q w \<Longrightarrow> next_state M q w \<in> states M"
-  and next_action_length: "\<And>q w. wf_state q w \<Longrightarrow>
-                                 length (next_action M q w) = tape_count M"
-  and next_write_symbol: "\<And>q w. wf_state q w \<Longrightarrow>
-                                 symbol_of_write ` set (next_action M q w) \<subseteq> symbols M"
-  and final_state: "\<And>q w. wf_state q w \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
-                          next_state M q w = q"
-  and final_action: "\<And>q w. wf_state q w \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
-                           set (next_action M q w) \<subseteq> {Nop}"
+  and next_state: "\<And>q hds. wf_state q hds \<Longrightarrow> next_state M q hds \<in> states M"
+  and next_action_length: "\<And>q hds. wf_state q hds \<Longrightarrow>
+                                 length (next_action M q hds) = tape_count M"
+  and next_write_symbol: "\<And>q hds. wf_state q hds \<Longrightarrow>
+                                 symbol_of_write ` set (next_action M q hds) \<subseteq> symbols M"
+  and final_state: "\<And>q hds. wf_state q hds \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
+                          next_state M q hds = q"
+  and final_action: "\<And>q hds. wf_state q hds \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
+                           set (next_action M q hds) \<subseteq> {Nop}"
 begin
 
 abbreviation wf_state_of_config ("wf'_state\<^sub>c")
