@@ -737,7 +737,7 @@ proof
   thus "\<exists>n. let cn = (step ^^ n) c in is_final cn \<and> Q1 cn \<and> Q2 cn" ..
 qed
 
-abbreviation init where "init w \<equiv> (\<lambda>c. c = start_config w)"
+abbreviation (input) init where "init w \<equiv> (\<lambda>c. c = start_config w)"
 
 definition halts :: "'b list \<Rightarrow> bool"
   where "halts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>_. True)"
@@ -1343,26 +1343,41 @@ next
   finally show ?case .
 qed
 
-lemma final_eq:
-  assumes "wf_word w"
-  shows "is_final (run n w) \<longleftrightarrow> natM.is_final (natM.run n (map g w))"
-proof -
-  let ?w = "map g w" and ?c0 = "start_config w"
-  from \<open>wf_word w\<close> have wf_c0: "wf_config ?c0" by (fact wf_start_config)
-  have c_inv_state: "state (C\<inverse> c) = f_inv (state c)" for c by (induction c) simp
-  have c0_eq: "C (start_config w) = natM.start_config (map g w)"
-    unfolding start_config_def natM.start_config_def cc_simps
+lemma natM_start_config:
+  shows "C (start_config w) = natM.start_config (map g w)"
+unfolding start_config_def natM.start_config_def cc_simps
     unfolding list.map map_replicate tape_app.simps g_Bk
     unfolding natM_def TM.TM.simps input_tape_app[of g, OF g_Bk] ..
 
+lemma c_inv_state: "state (C\<inverse> c) = f_inv (state c)" for c
+  by (induction c) simp
+
+lemma natM_state_eq:
+  assumes "wf_word w"
+  shows "state (natM.run n (map g w)) = f (state (run n w))"
+proof -
+  from assms have wfc: "wf_config (start_config w)" by (rule wf_start_config)
+  hence "C\<inverse> (natM.run n (map g w)) = run n w"
+    using natM_start_config natM_steps_eq by metis
+  thus ?thesis using c_inv_state
+    by (metis assms inv_f natM.wf_config_run natM_wf_word pre_natM.wf_configD(1))
+qed
+
+lemma final_eq:
+  assumes "wf_word w"
+  shows "is_final (run n w) \<longleftrightarrow> natM.is_final (natM.run n (map g w))"
+proof - (* using natM_state_eq[OF assms] try *)
+  let ?w = "map g w" and ?c0 = "start_config w"
+  from \<open>wf_word w\<close> have wf_c0: "wf_config ?c0" by (fact wf_start_config)
+    
   have "state ((step ^^ n) ?c0) = state (C\<inverse> ((natM.step ^^ n) (C ?c0)))"
-    unfolding natM_steps_eq[OF \<open>wf_config ?c0\<close>] ..
+    unfolding natM_steps_eq[OF wf_c0] ..
   also have "... = f_inv (state ((natM.step ^^ n) (C ?c0)))" unfolding c_inv_state ..
-  also have "... = f_inv (state (natM.run n ?w))" unfolding c0_eq ..
+  also have "... = f_inv (state (natM.run n ?w))" unfolding natM_start_config ..
   finally have run_eq: "state (run n w) = f_inv (state (natM.run n ?w))" .
 
   have "pre_natM.wf_config (natM.start_config (map g w))"
-    using wf_natM_config[of ?c0] and wf_c0 unfolding c0_eq[symmetric] .
+    using wf_natM_config[of ?c0] and wf_c0 unfolding natM_start_config[symmetric] .
   then have "pre_natM.wf_config (natM.run n ?w)" by (fact natM.wf_config_steps)
   then have wf_run_state: "state (natM.run n ?w) \<in> states natM" by blast
   then have wf_run_state': "f_inv (state (natM.run n ?w)) \<in> states M" by (fact f_inv_states)
@@ -1382,9 +1397,6 @@ lemma natM_halts': "wf_word w \<Longrightarrow> halts w \<longleftrightarrow> na
 
 lemma natM_halts: "halts w \<Longrightarrow> natM.halts (map g w)"
   unfolding halts_altdef using natM_halts' by blast
-
-lemma natM_state_eq: "wf_word w \<Longrightarrow> f (state (run n w)) = state (natM.run n (map g w))"
-  sorry
 
 lemma natM_accepts: "accepts w \<Longrightarrow> natM.accepts (map g w)"
 proof -
