@@ -459,6 +459,9 @@ next
   qed
 qed
 
+lemma (in TM) sw_Nop_k: "symbol_of_write ` set (Nop \<up> n) \<subseteq> symbols M"
+  using symbol_axioms(2) set_replicate_subset by force
+
 lemma wf_tm_comp:
   fixes M1 :: "('a1, 'b::blank) TM" and M2 :: "('a2, 'b) TM"
   assumes wf: "TM M1" "TM M2"
@@ -505,8 +508,7 @@ proof (intro TM.intro; (elim tm_comp_cases[OF assms])?)
     proof (intro Un_mono)
       show "symbol_of_write ` set (next_action M1 q1 (nths w {0..<?k1})) \<subseteq> symbols M1"
         by (fact M1.next_write_symbol[OF wfs1])
-      show "symbol_of_write ` set (Nop \<up> n) \<subseteq> symbols M2" for n
-        using set_replicate_subset M2.symbol_axioms(2) by force
+      show "symbol_of_write ` set (Nop \<up> n) \<subseteq> symbols M2" for n by (fact M2.sw_Nop_k)
     qed
 
     assume "q \<in> final_states ?M" (* this is only ever true if q represents a state of M2 *)
@@ -577,7 +579,109 @@ proof (intro TM.intro; (elim tm_comp_cases[OF assms])?)
   }
 qed
 
+
+definition simple_alphabet_lift where
+  "simple_alphabet_lift M \<Sigma> \<equiv>
+    M\<lparr>
+          symbols := symbols M \<union> \<Sigma>,
+       next_state := (\<lambda>q w. if set w \<subseteq> symbols M
+                              then next_state M q w
+                              else q),
+      next_action := (\<lambda>q w. if set w \<subseteq> symbols M
+                              then next_action M q w
+                              else Nop \<up> tape_count M)
+    \<rparr>"
+
+lemma (in TM) wf_alphabet_lift:
+  assumes "finite \<Sigma>'"
+  shows "TM (simple_alphabet_lift M \<Sigma>')"
+  unfolding simple_alphabet_lift_def using TM_axioms
+proof (induction M)
+  case (fields k Z q0 F Fa \<Sigma> \<delta>s \<delta>a)
+  let ?M = "\<lparr>tape_count = k, states = Z, start_state = q0, final_states = F,
+    accepting_states = Fa, symbols = \<Sigma>, next_state = \<delta>s, next_action = \<delta>a\<rparr>"
+  interpret M: TM ?M by fact
+
+  let ?M' = "\<lparr>tape_count = k, states = Z, start_state = q0, final_states = F,
+    accepting_states = Fa, symbols = \<Sigma> \<union> \<Sigma>',
+    next_state = \<lambda>q w. if set w \<subseteq> \<Sigma> then \<delta>s q w else q,
+    next_action = \<lambda>q w. if set w \<subseteq> \<Sigma> then \<delta>a q w else Nop \<up> k\<rparr>"
+
+  show ?case proof (intro TM.intro, unfold TM.TM.simps)
+    show "1 \<le> k" using M.at_least_one_tape unfolding TM.TM.simps .
+    show "finite Z" "q0 \<in> Z" "F \<subseteq> Z" "Fa \<subseteq> F" using M.state_axioms unfolding TM.TM.simps .
+    show "finite (\<Sigma> \<union> \<Sigma>')" using M.symbol_axioms(1) assms unfolding TM.TM.simps by (fact finite_UnI)
+    show "Bk \<in> \<Sigma> \<union> \<Sigma>'" using M.symbol_axioms(2) unfolding TM.TM.simps ..
+
+    fix q w
+    assume wfs: "pre_TM.wf_state ?M' q w"
+    then have "q \<in> Z" "length w = k" "set w \<subseteq> \<Sigma> \<union> \<Sigma>'"
+      unfolding pre_TM.wf_state_def TM.TM.simps by blast+
+    then have wfI: "set w \<subseteq> \<Sigma> \<Longrightarrow> M.wf_state q w" unfolding M.wf_state_def TM.TM.simps by blast
+
+    show "(if set w \<subseteq> \<Sigma> then \<delta>s q w else q) \<in> Z"
+    proof (rule ifI)
+      show "set w \<subseteq> \<Sigma> \<Longrightarrow> \<delta>s q w \<in> Z" by (intro M.next_state[unfolded TM.TM.simps] wfI)
+      show "q \<in> Z" by fact
+    qed
+
+    show "length (if set w \<subseteq> \<Sigma> then \<delta>a q w else Nop \<up> k) = k"
+    proof (rule ifI)
+      show "set w \<subseteq> \<Sigma> \<Longrightarrow> length (\<delta>a q w) = k"
+        by (intro M.next_action_length[unfolded TM.TM.simps] wfI)
+      show "length (Nop \<up> k) = k" by (fact length_replicate)
+    qed
+
+    show "symbol_of_write ` set (if set w \<subseteq> \<Sigma> then \<delta>a q w else Nop \<up> k) \<subseteq> \<Sigma> \<union> \<Sigma>'"
+    proof (rule ifI)
+      show "set w \<subseteq> \<Sigma> \<Longrightarrow> symbol_of_write ` set (\<delta>a q w) \<subseteq> \<Sigma> \<union> \<Sigma>'"
+        using M.next_write_symbol[OF wfI] unfolding TM.TM.simps by blast
+      show "symbol_of_write ` set (Nop \<up> k) \<subseteq> \<Sigma> \<union> \<Sigma>'"
+        using M.sw_Nop_k unfolding TM.TM.simps by fast
+    qed
+
+    assume "q \<in> F"
+
+    show "(if set w \<subseteq> \<Sigma> then \<delta>s q w else q) = q"
+    proof (rule ifI)
+      show "set w \<subseteq> \<Sigma> \<Longrightarrow> \<delta>s q w = q"
+        using M.final_state[OF wfI] \<open>q \<in> F\<close> unfolding TM.TM.simps by blast
+      show "q = q" ..
+    qed
+    show "set (if set w \<subseteq> \<Sigma> then \<delta>a q w else Nop \<up> k) \<subseteq> {Nop}"
+    proof (rule ifI)
+      show "set w \<subseteq> \<Sigma> \<Longrightarrow> set (\<delta>a q w) \<subseteq> {Nop}"
+        using M.final_action[OF wfI] \<open>q \<in> F\<close> unfolding TM.TM.simps by blast
+      show "set (Nop \<up> k) \<subseteq> {Nop}" by (fact set_replicate_subset)
+    qed
+  qed
+qed
+
+definition lift_tm_comp where
+  "lift_tm_comp M1 M2 \<equiv> tm_comp (simple_alphabet_lift M1 (symbols M2))
+                                (simple_alphabet_lift M2 (symbols M1))"
+
+lemma wf_lift_tm_comp:
+  assumes wf: "TM M1" "TM M2"
+  shows "TM (lift_tm_comp M1 M2)"
+  unfolding lift_tm_comp_def
+proof (rule wf_tm_comp)
+  let ?M1 = "simple_alphabet_lift M1 (symbols M2)"
+  let ?M2 = "simple_alphabet_lift M2 (symbols M1)"
+
+  interpret M1: TM M1 by fact
+  interpret M2: TM M2 by fact
+
+  show "TM (simple_alphabet_lift M1 (symbols M2))"
+    using wf(1) M2.symbol_axioms(1) by (fact TM.wf_alphabet_lift)
+  show "TM (simple_alphabet_lift M2 (symbols M1))"
+    using wf(2) M1.symbol_axioms(1) by (fact TM.wf_alphabet_lift)
+
+  show "symbols ?M1 = symbols ?M2" unfolding simple_alphabet_lift_def TM.TM.simps by auto
+qed
+
 hide_const (open) "TM.action.L" "TM.action.R" "TM.action.W"
+
 
 subsection \<open>Hoare Rules\<close>
 
