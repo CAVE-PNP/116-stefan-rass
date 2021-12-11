@@ -4,6 +4,12 @@ begin
 
 lemma if_cases: "P a \<Longrightarrow> P b \<Longrightarrow> P (If c a b)" by presburger
 
+lemma ifI:
+  assumes "c \<Longrightarrow> P a"
+    and "\<not>c \<Longrightarrow> P b"
+  shows "P (If c a b)"
+  using assms by force
+
 lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_def)
 
 lemma inv_into_onto: "inj_on f A \<Longrightarrow> inv_into A f ` f ` A = A" by simp
