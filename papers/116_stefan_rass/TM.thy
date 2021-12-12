@@ -72,6 +72,8 @@ lemma input_tape_def:
 abbreviation tp_size :: "'b tape \<Rightarrow> nat" where
   "tp_size tp \<equiv> length (left tp) + length (right tp) + 1"
 
+lemma input_tape_size: "w \<noteq> [] \<Longrightarrow> tp_size <w>\<^sub>t\<^sub>p = length w" by (induction w) force+
+
 fun tp_update :: "('b::blank) action \<Rightarrow> 'b tape \<Rightarrow> 'b tape" where
   "tp_update L \<lparr>left=[],   head = h, right=rs  \<rparr> = \<lparr>left=[],   head = Bk, right=h#rs \<rparr>"
 | "tp_update L \<lparr>left=l#ls, head = h, right=rs  \<rparr> = \<lparr>left=ls,   head = l,  right=h#rs \<rparr>"
@@ -280,7 +282,7 @@ lemma words_length_finite[simp]: "finite {w\<in>wf_words. length w \<le> n}"
 lemma set_of_wf_word: "wf_word w \<Longrightarrow> set_of_tape <w>\<^sub>t\<^sub>p \<subseteq> symbols M"
   using symbol_axioms(2) by (induction w) auto
 
-lemma wf_start_config: "wf_word w \<Longrightarrow> wf_config (start_config w)"
+lemma wf_start_config[intro]: "wf_word w \<Longrightarrow> wf_config (start_config w)"
 proof
   let ?ts = "tapes (start_config w)"
   show "state (start_config w) \<in> states M" using state_axioms(2) by simp
@@ -1383,7 +1385,7 @@ lemma final_eq:
 proof - (* using natM_state_eq[OF assms] try *)
   let ?w = "map g w" and ?c0 = "start_config w"
   from \<open>wf_word w\<close> have wf_c0: "wf_config ?c0" by (fact wf_start_config)
-    
+
   have "state ((step ^^ n) ?c0) = state (C\<inverse> ((natM.step ^^ n) (C ?c0)))"
     unfolding natM_steps_eq[OF wf_c0] ..
   also have "... = f_inv (state ((natM.step ^^ n) (C ?c0)))" unfolding c_inv_state ..

@@ -20,45 +20,70 @@ text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_hal
     \<dagger> Note, however, that there are TM's that accept or reject without reading all their input.
       We choose to eliminate them from consideration."\<close>
 
-(* TODO consider turning \<open>tcomp\<close> into a definition to avoid large proof terms *)
-abbreviation tcomp :: "(nat \<Rightarrow> 'c::floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
-  where "tcomp T n \<equiv> max (n + 1) (nat \<lceil>T n\<rceil>)"
+definition tcomp :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
+  where [simp]: "tcomp T n \<equiv> max (n + 1) (nat \<lceil>T (of_nat n)\<rceil>)"
 
-abbreviation (input) tcomp\<^sub>w :: "(nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> 'b::blank list \<Rightarrow> nat"
-  where "tcomp\<^sub>w T w \<equiv> tcomp T (tp_size <w>\<^sub>t\<^sub>p)"
+abbreviation (input) tcomp\<^sub>w :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> 'b::blank list \<Rightarrow> nat"
+  where "tcomp\<^sub>w T w \<equiv> tcomp T (length w)"
 
-lemma tcomp_mono: "(\<And>n. T n \<ge> t n) \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def
-  by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono) rule
 
-context TM begin
+lemma tcomp_min: "tcomp f n \<ge> n + 1" by simp
 
-definition time_bounded_word :: "(nat \<Rightarrow> 'c::floor_ceiling) \<Rightarrow> 'b list \<Rightarrow> bool"
-  where time_bounded_def[simp]: "time_bounded_word T w \<equiv> \<exists>n.
-            n \<le> tcomp\<^sub>w T w \<and> is_final (run n w)"
+lemma tcomp_nat_simp[simp]:
+  fixes f :: "nat \<Rightarrow> nat"
+  shows "tcomp f n = max (n + 1) (f n)" by simp
 
-abbreviation time_bounded :: "(nat \<Rightarrow> 'c::floor_ceiling) \<Rightarrow> bool"
-  where "time_bounded T \<equiv> \<forall>w. time_bounded_word T w"
+lemma tcomp_nat_id:
+  fixes f :: "nat \<Rightarrow> nat"
+  shows "(\<And>n. f n \<ge> n + 1) \<Longrightarrow> tcomp f = f"
+  by (intro ext) (unfold tcomp_nat_simp, rule max_absorb2)
 
-(* TODO (?) notation: \<open>p terminates_in_time T\<close> *)
+lemma tcomp_nat_mono: "T n \<ge> t n \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def of_nat_id tcomp_def
+  by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono le_refl)
+
+lemma tcomp_mono:
+  assumes Tt: "T (of_nat n) \<ge> t (of_nat n)"
+  shows "tcomp T n \<ge> tcomp t n"
+proof -
+  have "tcomp (\<lambda>n. T (of_nat n)) n \<ge> tcomp (\<lambda>n. t (of_nat n)) n"
+    by (rule tcomp_nat_mono) (rule Tt)
+  then show "tcomp T n \<ge> tcomp t n" unfolding tcomp_def of_nat_id .
+qed
+
+lemma tcomp_mono':
+  assumes Tt: "\<And>x. T x \<ge> t x"
+  shows "tcomp T n \<ge> tcomp t n"
+proof -
+  have "tcomp (\<lambda>n. T (of_nat n)) n \<ge> tcomp (\<lambda>n. t (of_nat n)) n"
+    by (rule tcomp_nat_mono) (rule Tt)
+  then show "tcomp T n \<ge> tcomp t n" unfolding tcomp_def of_nat_id .
+qed
 
 lemma
-  shows tcomp_altdef1: "nat (max ((int n) + 1) \<lceil>T(n)\<rceil>) = tcomp T n" (is "?def1 = tcomp T n")
-    and tcomp_altdef2: "nat (max (int (n + 1)) \<lceil>T(n)\<rceil>) = tcomp T n" (is "?def2 = tcomp T n")
+  shows tcomp_altdef1: "nat (max (\<lceil>n\<rceil> + 1) \<lceil>T (of_nat n)\<rceil>) = tcomp T n" (is "?def1 = tcomp T n")
+    and tcomp_altdef2: "nat (max \<lceil> n + 1 \<rceil> \<lceil>T (of_nat n)\<rceil>) = tcomp T n" (is "?def2 = tcomp T n")
 proof -
-  have h1: "int (n + 1) = int n + 1" by simp
-  have h2: "nat (int n + 1) = n + 1" by (fold h1) (fact nat_int)
-  have h3: "nat (int n + 1) \<le> nat \<lceil>T n\<rceil> \<longleftrightarrow> int n + 1 \<le> \<lceil>T n\<rceil>" by (rule nat_le_eq_zle) simp
+  let ?n = "of_nat n"
+  have h1: "\<lceil> n + 1 \<rceil> = \<lceil>n\<rceil> + 1" unfolding ceiling_of_nat by force
+  have h2: "nat (\<lceil>n\<rceil> + 1) = n + 1" by (fold h1, unfold ceiling_of_nat) (fact nat_int)
+  have h3: "nat (\<lceil>n\<rceil> + 1) \<le> nat \<lceil>T ?n\<rceil> \<longleftrightarrow> \<lceil>n\<rceil> + 1 \<le> \<lceil>T ?n\<rceil>" by (rule nat_le_eq_zle) simp
 
-  have "tcomp T n = max (nat (int n + 1)) (nat \<lceil>T(n)\<rceil>)" unfolding h2 ..
+  have "tcomp T n = max (nat (\<lceil>n\<rceil> + 1)) (nat \<lceil>T ?n\<rceil>)" unfolding h2 of_nat_id tcomp_def ..
   also have "... = ?def1" unfolding max_def if_distrib[of nat] h3 ..
   finally show "?def1 = tcomp T n" ..
   then show "?def2 = tcomp T n" unfolding h1 .
 qed
 
-lemma tcomp_min: "tcomp f n \<ge> n + 1" by simp
 
-lemma tcomp_eq: "f n \<ge> n + 1 \<Longrightarrow> tcomp f n = f n"
-  unfolding max_def if_distrib[of nat] by (subst if_P) auto
+context TM begin
+
+definition time_bounded_word :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> 'b list \<Rightarrow> bool"
+  where time_bounded_def[simp]: "time_bounded_word T w \<equiv> \<exists>n.
+            n \<le> tcomp\<^sub>w T w \<and> is_final (run n w)"
+
+abbreviation time_bounded :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> bool"
+  where "time_bounded T \<equiv> \<forall>w. time_bounded_word T w"
+
 
 lemma time_boundedI: "is_final (run (tcomp\<^sub>w T w) w) \<Longrightarrow> time_bounded_word T w"
   unfolding time_bounded_def by blast
@@ -67,20 +92,14 @@ lemma time_bounded_altdef:
   assumes "wf_word w"
   shows "time_bounded_word T w \<longleftrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
 proof
-  from \<open>wf_word w\<close> have wfc: "wf_config (start_config w)" by (fact wf_start_config)
-
+  from \<open>wf_word w\<close> have wfc: "wf_config (start_config w)" ..
   assume "time_bounded_word T w"
-  then obtain n where "n \<le> tcomp\<^sub>w T w" and "is_final (run n w)"
-    unfolding time_bounded_def by blast
-  then show "is_final (run (tcomp\<^sub>w T w) w)" by (fact final_mono[OF wfc])
-qed (fact time_boundedI)
+  then obtain n where "n \<le> tcomp\<^sub>w T w" "is_final (run n w)" unfolding time_bounded_def by blast
+  with wfc show "is_final (run (tcomp\<^sub>w T w) w)" by (fact final_mono)
+qed (* direction "\<Longleftarrow>" by *) (fact time_boundedI)
 
-lemma time_boundedE:
-  "wf_word w \<Longrightarrow> time_bounded T \<Longrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
+lemma time_boundedE: "wf_word w \<Longrightarrow> time_bounded_word T w \<Longrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
   using time_bounded_altdef by blast
-
-lemma tcomp_mono: "T n \<ge> t n \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def
-  by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono) (rule le_refl)
 
 lemma time_bounded_word_mono':
   fixes T t w
@@ -91,35 +110,30 @@ lemma time_bounded_word_mono':
 proof -
   from tr obtain n where n_tcomp: "n \<le> tcomp\<^sub>w t w"
                      and final_n: "is_final (run n w)"
-    unfolding time_bounded_def by blast
+    unfolding time_bounded_def of_nat_id by blast
  from n_tcomp Tt have "n \<le> tcomp\<^sub>w T w" by (fact le_trans)
   with final_n show "\<exists>n\<le>tcomp\<^sub>w T w. is_final (run n w)" by blast
 qed
 
 lemma time_bounded_word_mono:
-  fixes T t w
-  defines l: "l \<equiv> tp_size <w>\<^sub>t\<^sub>p"
-  assumes Tt: "T l \<ge> t l"
-    and tr: "time_bounded_word t w"
+  assumes "tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w"
+    and "time_bounded_word t w"
   shows "time_bounded_word T w"
-  using tr Tt unfolding l by (intro time_bounded_word_mono'[of w t T] tcomp_mono)
+  using assms by (fact time_bounded_word_mono')
 
 lemma time_bounded_mono':
   fixes T t
-  assumes Tt: "\<And>w::'b list. tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w"
-    and tr: "time_bounded t"
+  assumes "\<And>w::'b list. tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w"
+    and "time_bounded t"
   shows "time_bounded T"
-proof
-  fix w show "time_bounded_word T w"
-    using Tt[of w] tr time_bounded_word_mono'[of w t T] by fast
-qed
+  using assms time_bounded_word_mono' by blast
 
 lemma time_bounded_mono:
-  fixes T t
-  assumes Tt: "\<And>n. T n \<ge> t n"
-    and tr: "time_bounded t"
+  fixes T t :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling)"
+  assumes Tt: "\<And>x. T x \<ge> t x"
+    and "time_bounded t"
   shows "time_bounded T"
-using assms by (intro time_bounded_mono'[of t T] tcomp_mono)
+  by (rule time_bounded_mono', rule tcomp_mono) fact+
 
 
 text\<open>\<open>time\<^sub>M(w)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>w\<close>,
@@ -215,7 +229,7 @@ proof (elim allE exE conjE)
   from n_le show "the (time w) \<le> tcomp\<^sub>w T w" unfolding some_n option.sel .
 qed
 
-definition computable_in_time :: "'a itself \<Rightarrow> (nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> ('b::blank list \<Rightarrow> 'b list) \<Rightarrow> bool"
+definition computable_in_time :: "'a itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> ('b::blank list \<Rightarrow> 'b list) \<Rightarrow> bool"
   where "computable_in_time TYPE('a) T f \<equiv> \<exists>M::('a, 'b) TM. TM M \<and> TM.computes M f \<and> TM.time_bounded M T"
 
 lemma computableE[elim]:
@@ -226,8 +240,8 @@ using assms that unfolding computable_in_time_def by blast
 subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
-definition typed_DTIME :: "'a itself \<Rightarrow> (nat \<Rightarrow> 'c :: floor_ceiling) \<Rightarrow> ('b::blank) lang set" where
-  "typed_DTIME TYPE('a) T \<equiv> {L. \<exists>M::('a, 'b) TM. TM M \<and> TM.decides M L \<and> TM.time_bounded M T}"
+definition typed_DTIME :: "'a itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> ('b::blank) lang set"
+  where "typed_DTIME TYPE('a) T \<equiv> {L. \<exists>M::('a, 'b) TM. TM M \<and> TM.decides M L \<and> TM.time_bounded M T}"
 
 abbreviation DTIME where
   "DTIME \<equiv> typed_DTIME TYPE(nat)"
@@ -369,9 +383,7 @@ proof -
   proof (intro ae_word_lengthI exI allI impI, safe)
     fix w :: "'b list"
     assume "length w \<ge> Suc N"
-    then have "w \<noteq> []" by force
-    then have tp_len: "tp_size <w>\<^sub>t\<^sub>p = length w" unfolding input_tape_def by force
-    from \<open>length w \<ge> Suc N\<close> have "tp_size <w>\<^sub>t\<^sub>p \<ge> N" unfolding tp_len by (fact Suc_leD)
+    then have "length w \<ge> N" by (fact Suc_leD)
     then have "tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w" by (fact Tt)
     moreover from \<open>time_bounded t\<close> have "time_bounded_word t w" ..
     ultimately show "time_bounded_word T w" by (fact time_bounded_word_mono')
@@ -380,10 +392,16 @@ proof -
 qed
 
 lemma DTIME_mono_ae:
-  assumes Tt: "\<And>n. n \<ge> N \<Longrightarrow> T n \<ge> t n"
+  assumes Tt: "\<And>n. n \<ge> N \<Longrightarrow> T (of_nat n) \<ge> t (of_nat n)"
     and "L \<in> typed_DTIME TYPE('a) t"
   shows "L \<in> typed_DTIME TYPE('a) T"
-  using assms by (intro DTIME_mono_ae'[of N t T]) (rule tcomp_mono)
+proof (rule DTIME_mono_ae')
+  fix n :: nat
+  assume "n \<ge> N"
+  then have "T (of_nat n) \<ge> t (of_nat n)" by (fact Tt)
+  then show "tcomp t n \<le> tcomp T n" by (fact tcomp_mono)
+qed (fact \<open>L \<in> typed_DTIME TYPE('a) t\<close>)
+
 
 subsubsection\<open>Linear Speed-Up\<close>
 
@@ -395,10 +413,43 @@ text\<open>Hopcroft:
 
 definition "unbounded f \<equiv> \<forall>S. \<exists>n0. \<forall>n\<ge>n0. S \<le> f n"
 
+lemma unboundedD[dest]:
+  assumes "unbounded f"
+  obtains n0 where "\<And>n. n \<ge> n0 \<Longrightarrow> S \<le> f n"
+  using assms unfolding unbounded_def by presburger
+
+
+abbreviation "superlinear f \<equiv> unbounded (\<lambda>n. f (of_nat n) / (of_nat n))"
+
+lemma superlinearE:
+  fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and c :: 'd
+  assumes "superlinear T"
+  obtains n0 where "\<And>n. n0 \<le> n \<Longrightarrow> T(of_nat n) \<ge> c*(of_nat n)"
+proof -
+  obtain n0 :: nat where n0: "T(of_nat n)/(of_nat n) \<ge> c" if "n \<ge> n0" for n
+    by (fact unboundedD[OF assms])
+
+  then have "T(of_nat n) \<ge> c*(of_nat n)" if "n \<ge> n0 + 1" for n
+  proof -
+    from \<open>n \<ge> n0 + 1\<close> have "n \<ge> n0" by (fact add_leD1)
+    with n0 have "T(of_nat n)/(of_nat n) \<ge> c" .
+    moreover from \<open>n \<ge> n0 + 1\<close> have "(of_nat n :: 'd) > 0" by force
+    ultimately show "T(of_nat n) \<ge> c*(of_nat n)" by (subst (asm) pos_le_divide_eq)
+  qed
+  thus ?thesis ..
+qed
+
+lemma superlinearE':
+  fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and c :: 'd
+  assumes "superlinear T"
+  shows "\<exists>n0. \<forall>n\<ge>n0. T(of_nat n) \<ge> c*(of_nat n)"
+  using assms by (elim superlinearE) blast
+
+
 lemma linear_time_speed_up:
   assumes "c > 0"
   \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close> required by Hopcroft, but simpler to define in Isabelle.\<close>
-    and "unbounded (\<lambda>n. T(n)/n)"
+    and "superlinear T"
     and "TM M1"
     and "TM.decides M1 L"
     and "TM.time_bounded M1 T"
@@ -406,34 +457,11 @@ lemma linear_time_speed_up:
   sorry
 
 
-lemma dominatesE:
-  fixes T :: "nat \<Rightarrow> real" and c :: real
-  assumes "unbounded (\<lambda>n. T(n)/n)"
-  obtains n0 where "\<And>n. n0 \<le> n \<Longrightarrow> T(n) \<ge> c*n"
-proof -
-  from assms obtain N where N: "T(n)/n \<ge> c" if "n \<ge> N" for n
-    unfolding unbounded_def by blast
-
-  then have "T(n) \<ge> c*n" if "n \<ge> Suc N" (is "n \<ge> ?n") for n
-  proof -
-    from \<open>n \<ge> Suc N\<close> have "n \<ge> N" by (fact Suc_leD)
-    with N have "T(n)/n \<ge> c" .
-    moreover from \<open>n \<ge> Suc N\<close> have "real n > 0" by simp
-    ultimately show "T(n) \<ge> c*n" by (subst (asm) pos_le_divide_eq)
-  qed
-  then show ?thesis by (rule that)
-qed
-
-lemma dominatesE':
-  fixes T :: "nat \<Rightarrow> real" and c :: real
-  assumes "unbounded (\<lambda>n. T(n)/n)"
-  shows "\<exists>n0. \<forall>n\<ge>n0. T(n) \<ge> c*n"
-  using assms by (elim dominatesE) blast
-
 corollary DTIME_speed_up:
-  fixes L::"'b::blank lang"
+  fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and c :: 'd
+    and L::"'b::blank lang"
   assumes "c > 0"
-    and "unbounded (\<lambda>n. T(n)/n)"
+    and "superlinear T"
     and "L \<in> typed_DTIME TYPE('a1) T"
   shows "L \<in> typed_DTIME TYPE('a2) (\<lambda>n. c * T n)"
 proof -
@@ -446,10 +474,10 @@ proof -
 qed
 
 lemma DTIME_speed_up_rev:
-  fixes T c
+  fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and c :: 'd
   defines "T' \<equiv> \<lambda>n. c * T n"
   assumes "c > 0"
-    and "unbounded (\<lambda>n. T(n)/n)"
+    and "superlinear T"
     and "L \<in> typed_DTIME TYPE('a1) T'"
   shows "L \<in> typed_DTIME TYPE('a2) T"
 proof -
@@ -457,28 +485,38 @@ proof -
   have T: "T = (\<lambda>n. c' * T' n)" unfolding T'_def c'_def using \<open>c > 0\<close> by force
 
   from \<open>c > 0\<close> have "c' > 0" unfolding c'_def by simp
-  moreover have "unbounded (\<lambda>n. T'(n)/n)" unfolding T'_def unbounded_def
-  proof
+  moreover have "superlinear T'" unfolding T'_def unbounded_def
+  proof (rule allI)
     fix N
     define N' where "N' \<equiv> N / c"
-    have *: "T(n)/n \<ge> N/c \<longleftrightarrow> c*T(n)/n \<ge> N" for n using \<open>c > 0\<close> by (subst pos_divide_le_eq) argo+
-
-    from assms(3) have "\<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N'" unfolding unbounded_def ..
-    then show "\<exists>n'. \<forall>n\<ge>n'. c*T(n)/n \<ge> N" unfolding N'_def * .
+    {
+      fix n :: nat
+      let ?n = "of_nat n"
+      have "T(?n)/?n \<ge> N/c \<longleftrightarrow> c*T(?n)/?n \<ge> N" unfolding pos_divide_le_eq[OF \<open>c > 0\<close>]
+      proof -
+        let ?lhs = "(T ?n) / ?n * c" and ?rhs = "(c * T ?n) / ?n"
+        have "?lhs = ?rhs" by force
+        then show "(N \<le> ?lhs) = (N \<le> ?rhs)" by (fact arg_cong)
+      qed
+    } note * = this
+    from assms(3) have "\<exists>n'. \<forall>n\<ge>n'. T(of_nat n)/(of_nat n) \<ge> N'" unfolding unbounded_def ..
+    then show "\<exists>n'. \<forall>n\<ge>n'. c * T(of_nat n)/(of_nat n) \<ge> N" unfolding N'_def * .
   qed
-  moreover note \<open>L \<in> typed_DTIME TYPE('a1) T'\<close>
-  ultimately show "L \<in> typed_DTIME TYPE('a2) T" unfolding T by (rule DTIME_speed_up)
+  from \<open>c' > 0\<close> this assms(4) show "L \<in> typed_DTIME TYPE('a2) T"
+    unfolding T by (fact DTIME_speed_up)
 qed
 
 corollary DTIME_speed_up_eq:
+  fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and c :: 'd
   assumes "c > 0"
-    and "unbounded (\<lambda>n. T(n)/n)"
+    and "superlinear T"
   shows "typed_DTIME TYPE('a1) (\<lambda>n. c * T n) = typed_DTIME TYPE('a2) T"
   using assms by (intro set_eqI iffI) (fact DTIME_speed_up_rev, fact DTIME_speed_up)
 
 corollary DTIME_speed_up_div:
+  fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and d :: 'd
   assumes "d > 0"
-    and "unbounded (\<lambda>n. T(n)/n)"
+    and "superlinear T"
     and "L \<in> typed_DTIME TYPE('a) T"
   shows "L \<in> typed_DTIME TYPE('a) (\<lambda>n. T n / d)"
 proof -
@@ -505,7 +543,7 @@ lemma reduce_decides:
   sorry (* likely inconsistent: see hoare_comp *)
 
 lemma reduce_time_bounded:
-  fixes T\<^sub>B T\<^sub>R :: "nat \<Rightarrow> 'c :: floor_ceiling"
+  fixes T\<^sub>B T\<^sub>R :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling"
     and M\<^sub>R :: "('a1, 'b::blank) TM" and  M\<^sub>B :: "('a2, 'b) TM"
     and f\<^sub>R :: "'b list \<Rightarrow> 'b list" and w :: "'b list"
   assumes "TM.time_bounded_word M\<^sub>B T\<^sub>B (f\<^sub>R w)"
@@ -513,9 +551,11 @@ lemma reduce_time_bounded:
     and M\<^sub>R_f\<^sub>R: "TM.computes_word M\<^sub>R f\<^sub>R w"
     and f\<^sub>R_len: "length (f\<^sub>R w) \<le> length w"
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
-  shows "TM.time_bounded_word M (\<lambda>n. tcomp T\<^sub>R n + tcomp T\<^sub>B n) w" (is "TM.time_bounded_word M ?T w")
+  defines "T :: nat \<Rightarrow> 'd \<equiv> \<lambda>n. of_nat (tcomp T\<^sub>R n + tcomp T\<^sub>B n)"
+  shows "TM.time_bounded_word M T w"
 proof -
-  define l where "l \<equiv> tp_size <w>\<^sub>t\<^sub>p"
+  define l :: nat where "l  \<equiv> length w"
+  define l' :: 'c where "l' \<equiv> of_nat l"
 
     \<comment> \<open>Idea: We already know that the first machine \<^term>\<open>M\<^sub>R\<close> is time bounded
     (@{thm \<open>TM.time_bounded_word M\<^sub>R T\<^sub>R w\<close>}).
@@ -526,12 +566,13 @@ proof -
     than the length of the original input word \<^term>\<open>w\<close> (@{thm \<open>length (f\<^sub>R w) \<le> length w\<close>}),
     and the second machine \<^term>\<open>M\<^sub>B\<close> is time bounded (@{thm \<open>TM.time_bounded_word M\<^sub>B T\<^sub>B (f\<^sub>R w)\<close>}),
     we may conclude that the run-time of \<^term>\<open>M \<equiv> M\<^sub>R |+| M\<^sub>B\<close> on the input \<^term>\<open><w>\<^sub>t\<^sub>p\<close>
-    is no longer than \<open>?T l = T\<^sub>R l + T\<^sub>B l\<close>.
+    is no longer than \<^term>\<open>T l = T\<^sub>R l' + T\<^sub>B l'\<close>.
 
     \<^const>\<open>TM.time_bounded\<close> is defined in terms of \<^const>\<open>tcomp\<close>, however,
-    which means that the resulting total run time \<^term>\<open>?T l\<close> may be as large as
-    \<^term>\<open>tcomp T\<^sub>R l + tcomp T\<^sub>B l \<equiv> nat (max (l + 1) \<lceil>T\<^sub>R l\<rceil>) + nat (max (l + 1) \<lceil>T\<^sub>B l\<rceil>)\<close>.
-    If \<^term>\<open>\<lceil>T\<^sub>R l\<rceil> < l + 1\<close> or \<^term>\<open>\<lceil>T\<^sub>B l\<rceil> < l + 1\<close> then \<^term>\<open>tcomp ?T l < tcomp T\<^sub>R l + tcomp T\<^sub>B l\<close>.\<close>
+    which means that the resulting total run time \<^term>\<open>T l\<close> may be as large as
+    \<^term>\<open>tcomp T\<^sub>R l + tcomp T\<^sub>B l \<equiv> nat (max (l + 1) \<lceil>T\<^sub>R l'\<rceil>) + nat (max (l + 1) \<lceil>T\<^sub>B l'\<rceil>)\<close>.
+    If \<^term>\<open>\<lceil>T\<^sub>R l'\<rceil> < l + 1\<close> or \<^term>\<open>\<lceil>T\<^sub>B l'\<rceil> < l + 1\<close>
+    then \<^term>\<open>tcomp T l < tcomp T\<^sub>R l + tcomp T\<^sub>B l\<close>.\<close>
 
   show ?thesis sorry
 qed
@@ -556,24 +597,27 @@ lemma ball_eq_simp: "(\<forall>n\<ge>x. \<forall>m. f m = n \<longrightarrow> P 
 
 
 lemma reduce_DTIME: (* TODO clean up and tidy assumptions *)
-  fixes f\<^sub>R :: "('b::blank) list \<Rightarrow> 'b list"
+  fixes T\<^sub>B T\<^sub>R T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling"
+    and f\<^sub>R :: "('b::blank) list \<Rightarrow> 'b list"
     and L1 L2 :: "'b list set"
   assumes f\<^sub>R_ae: "\<forall>\<^sub>\<infinity>n. \<forall>w. length w = n \<longrightarrow> (f\<^sub>R w \<in> L1) = (w \<in> L2) \<and> length (f\<^sub>R w) \<le> length w"
     and "computable_in_time TYPE('a0) T f\<^sub>R"
-    and T_superlinear: "unbounded (\<lambda>n::nat. T(n)/n)"
+    and "superlinear T"
     and "L1 \<in> typed_DTIME TYPE('a1) T"
   shows "L2 \<in> typed_DTIME TYPE('a0 + 'a1) T"
 proof -
-  from \<open>computable_in_time TYPE('a0) T f\<^sub>R\<close> obtain M\<^sub>R::"('a0, 'b) TM"
-    where "TM.computes M\<^sub>R f\<^sub>R" "TM.time_bounded  M\<^sub>R T" "TM M\<^sub>R"
+  from \<open>computable_in_time TYPE('a0) T f\<^sub>R\<close> obtain M\<^sub>R :: "('a0, 'b) TM"
+    where "TM.computes M\<^sub>R f\<^sub>R" "TM.time_bounded M\<^sub>R T" "TM M\<^sub>R"
     unfolding computable_in_time_def by auto
-  from \<open>L1 \<in> typed_DTIME TYPE('a1) T\<close>
-  obtain M1::"('a1, 'b) TM" where "TM M1" "TM.decides M1 L1" "TM.time_bounded M1 T" ..
+  from \<open>L1 \<in> typed_DTIME TYPE('a1) T\<close> obtain M1 :: "('a1, 'b) TM"
+    where "TM M1" "TM.decides M1 L1" "TM.time_bounded M1 T" ..
+
   define M where "M \<equiv> M\<^sub>R |+| M1"
   have "symbols M\<^sub>R = symbols M1" sorry
   with \<open>TM M\<^sub>R\<close> \<open>TM M1\<close> have "TM M" unfolding M_def by (fact wf_tm_comp)
 
-  let ?T' = "\<lambda>n. tcomp T n + tcomp T n"
+  let ?T  = "\<lambda>n. T (of_nat n)"
+  let ?T' = "\<lambda>n. of_nat (tcomp T n + tcomp T n) :: 'd"
 
   from f\<^sub>R_ae obtain n
     where f\<^sub>R_correct: "f\<^sub>R w \<in> L1 \<longleftrightarrow> w \<in> L2"
@@ -611,30 +655,45 @@ proof -
   (* TODO (?) split proof here *)
 
   \<comment> \<open>Part 2: bound the run-time of M (\<^term>\<open>?T'\<close>) by a multiple of the desired time-bound \<^term>\<open>T\<close>.\<close>
-  from T_superlinear have "\<exists>n. \<forall>m\<ge>n. T m \<ge> 2 * m \<and> m \<ge> 1"
-    unfolding of_nat_mult by (intro exists_ge) (fact dominatesE')
-  then obtain m where m: "T n \<ge> 2*n" "n \<ge> 1" if "n \<ge> m" for n by blast
+  have "\<exists>n0. \<forall>n\<ge>n0. \<lceil>?T n\<rceil> \<ge> (2 * n) \<and> n \<ge> 1"
+  proof (rule exists_ge, rule ex_reg, intro allI impI)
+    from \<open>superlinear T\<close> show "\<exists>n0. \<forall>n\<ge>n0. of_nat 2 * of_nat n \<le> ?T n"
+      by (rule superlinearE')
 
-  have "?T' n \<le> 4 * T n" if "n \<ge> m" for n
+    fix n0 n
+    assume "n0 \<le> n" and "\<forall>n\<ge>n0. of_nat 2 * of_nat n \<le> ?T n"
+    then have h1: "of_nat (2 * n) \<le> ?T n" unfolding of_nat_mult by blast
+
+    have "int (2 * n) = \<lceil>of_nat (2 * n) :: 'd\<rceil>" unfolding ceiling_of_nat ..
+    also from h1 have "... \<le> \<lceil>?T n\<rceil>" by (fact ceiling_mono)
+    finally show "\<lceil>?T n\<rceil> \<ge> int (2 * n)" .
+  qed
+  then obtain n0 where n0: "\<lceil>?T n\<rceil> \<ge> 2*n" "n \<ge> 1" if "n \<ge> n0" for n by blast
+
+  have "?T' n \<le> 4 * ?T n" if "n \<ge> n0" for n
   proof -
-    from \<open>n \<ge> m\<close> have "n \<ge> 1" and "T n \<ge> 2*n" by (fact m)+
+    from \<open>n \<ge> n0\<close> have "n \<ge> 1" and "\<lceil>?T n\<rceil> \<ge> 2*n" by (fact n0)+
     then have "n + 1 \<le> 2 * n" by simp
     also have "2 * n = nat \<lceil>2 * n\<rceil>" unfolding ceiling_of_nat nat_int ..
-    also from \<open>T n \<ge> 2*n\<close> have "nat \<lceil>2 * n\<rceil> \<le> nat \<lceil>T n\<rceil>" by (intro nat_mono ceiling_mono)
-    finally have *: "tcomp T n = nat \<lceil>T n\<rceil>" unfolding max_def by (subst if_P) auto
 
-    from \<open>T n \<ge> 2*n\<close> \<open>n \<ge> 1\<close> have "T n \<ge> 1" by simp
-    have "nat \<lceil>T n\<rceil> = real_of_int \<lceil>T n\<rceil>" using \<open>T n \<ge> 1\<close> by (intro of_nat_nat) simp
-    also have "\<lceil>T n\<rceil> \<le> T n + 1" by (fact of_int_ceiling_le_add_one)
-    also have "... \<le> 2 * T n" unfolding mult_2 using \<open>T n \<ge> 1\<close> by (fact add_left_mono)
-    finally have "?T' n \<le> 2 * (2 * T n)" unfolding * of_nat_add mult_2 by (intro add_mono)
-    also have "... = 4 * T n" by simp
+    also from \<open>\<lceil>?T n\<rceil> \<ge> 2*n\<close> have "nat \<lceil>2 * n\<rceil> \<le> nat \<lceil>\<lceil>?T n\<rceil>\<rceil>" by (intro nat_mono ceiling_mono) force
+    also have "... = nat \<lceil>?T n\<rceil>" unfolding ceiling_of_int ..
+    finally have *: "tcomp T n = nat \<lceil>?T n\<rceil>" unfolding tcomp_def max_def by (subst if_P) auto
+
+    from \<open>\<lceil>?T n\<rceil> \<ge> 2*n\<close> \<open>n \<ge> 1\<close> have "\<lceil>?T n\<rceil> \<ge> 2" by linarith
+    then have "\<lceil>?T n\<rceil> \<ge> 1" "?T n \<ge> 1" by simp+
+    have "(of_nat (nat \<lceil>?T n\<rceil>) :: 'd) = of_int \<lceil>?T n\<rceil>" using \<open>\<lceil>?T n\<rceil> \<ge> 1\<close> by (intro of_nat_nat) simp
+    also have "... \<le> ?T n + 1" by (fact of_int_ceiling_le_add_one)
+    also have "... \<le> 2 * ?T n" unfolding mult_2 using \<open>?T n \<ge> 1\<close> by (fact add_left_mono)
+    finally have "?T' n \<le> 2 * (2 * ?T n)" unfolding * of_nat_add mult_2 by (intro add_mono)
+    also have "... = 4 * ?T n" by simp
     finally show ?thesis .
   qed
+  then have "\<And>n. n \<ge> n0 \<Longrightarrow> ?T' (of_nat n) \<le> 4 * ?T n" unfolding of_nat_id .
 
   from this and \<open>L2 \<in> typed_DTIME TYPE('a0+'a1) ?T'\<close>
   have "L2 \<in> typed_DTIME TYPE('a0+'a1) (\<lambda>n. 4 * T n)" by (fact DTIME_mono_ae)
-  with T_superlinear show "L2 \<in> typed_DTIME TYPE('a0+'a1) T"
+  with \<open>superlinear T\<close> show "L2 \<in> typed_DTIME TYPE('a0+'a1) T"
     by (intro DTIME_speed_up_rev[where T=T]) auto
 qed
 
