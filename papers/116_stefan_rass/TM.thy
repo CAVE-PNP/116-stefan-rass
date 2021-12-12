@@ -914,11 +914,12 @@ next
   then show "decides_word L w" by (simp add: rejects_altdef)
 qed
 
-lemma decides_altdef3: "decides_word L w \<longleftrightarrow> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M \<longleftrightarrow> w\<in>L)"
-  sorry
-
 lemma decides_altdef4: "decides_word L w \<longleftrightarrow> (if w \<in> L then accepts w else rejects w)"
   unfolding decides_def using acc_not_rej by (cases "w \<in> L") auto
+
+lemma decides_altdef3: "decides_word L w \<longleftrightarrow> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M \<longleftrightarrow> w\<in>L)"
+  unfolding decides_altdef4 accepts_def rejects_def
+  by (cases "w\<in>L") (simp add: hoare_halt_def del: start_config_def)+
 
 end
 
