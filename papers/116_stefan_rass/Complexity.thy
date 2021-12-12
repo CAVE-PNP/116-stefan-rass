@@ -60,13 +60,24 @@ lemma tcomp_min: "tcomp f n \<ge> n + 1" by simp
 lemma tcomp_eq: "f n \<ge> n + 1 \<Longrightarrow> tcomp f n = f n"
   unfolding max_def if_distrib[of nat] by (subst if_P) auto
 
+lemma time_boundedI: "is_final (run (tcomp\<^sub>w T w) w) \<Longrightarrow> time_bounded_word T w"
+  unfolding time_bounded_def by blast
+
 lemma time_bounded_altdef:
-  "time_bounded_word T w \<longleftrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
-  sorry
+  assumes "wf_word w"
+  shows "time_bounded_word T w \<longleftrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
+proof
+  from \<open>wf_word w\<close> have wfc: "wf_config (start_config w)" by (fact wf_start_config)
+
+  assume "time_bounded_word T w"
+  then obtain n where "n \<le> tcomp\<^sub>w T w" and "is_final (run n w)"
+    unfolding time_bounded_def by blast
+  then show "is_final (run (tcomp\<^sub>w T w) w)" by (fact final_mono[OF wfc])
+qed (fact time_boundedI)
 
 lemma time_boundedE:
-  "time_bounded T \<Longrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
-  unfolding time_bounded_altdef by blast
+  "wf_word w \<Longrightarrow> time_bounded T \<Longrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
+  using time_bounded_altdef by blast
 
 lemma tcomp_mono: "T n \<ge> t n \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def
   by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono) (rule le_refl)
@@ -219,7 +230,7 @@ definition typed_DTIME :: "'a itself \<Rightarrow> (nat \<Rightarrow> 'c :: floo
   "typed_DTIME TYPE('a) T \<equiv> {L. \<exists>M::('a, 'b) TM. TM M \<and> TM.decides M L \<and> TM.time_bounded M T}"
 
 abbreviation DTIME where
-  "DTIME T \<equiv> typed_DTIME TYPE(nat) T"
+  "DTIME \<equiv> typed_DTIME TYPE(nat)"
 
 
 lemma (in TM) in_dtimeI[intro]:
@@ -337,7 +348,7 @@ sorry
 
 lemma (in TM) DTIME_aeI:
   assumes "\<And>w. wf_word w \<Longrightarrow> n \<le> length w \<Longrightarrow> decides_word L w"
-    and "\<And>w. wf_word w \<Longrightarrow> length w \<ge> n \<Longrightarrow> time_bounded_word T w"
+    and "\<And>w. wf_word w \<Longrightarrow> n \<le> length w \<Longrightarrow> time_bounded_word T w"
   shows "L \<in> typed_DTIME TYPE('a) T"
   using assms by (intro DTIME_ae) blast
 
@@ -493,7 +504,6 @@ lemma reduce_decides:
   shows "TM.decides_word M A w"
   sorry (* likely inconsistent: see hoare_comp *)
 
-
 lemma reduce_time_bounded:
   fixes T\<^sub>B T\<^sub>R :: "nat \<Rightarrow> 'c :: floor_ceiling"
     and M\<^sub>R :: "('a1, 'b::blank) TM" and  M\<^sub>B :: "('a2, 'b) TM"
@@ -504,7 +514,6 @@ lemma reduce_time_bounded:
     and f\<^sub>R_len: "length (f\<^sub>R w) \<le> length w"
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
   shows "TM.time_bounded_word M (\<lambda>n. tcomp T\<^sub>R n + tcomp T\<^sub>B n) w" (is "TM.time_bounded_word M ?T w")
-
 proof -
   define l where "l \<equiv> tp_size <w>\<^sub>t\<^sub>p"
 
@@ -543,12 +552,17 @@ lemma exists_ge_eq:
   shows "(\<exists>n. \<forall>m\<ge>n. P m) \<longleftrightarrow> (\<exists>n. \<forall>m\<ge>n. P m \<and> m \<ge> N)"
   by (intro iffI) (fact exists_ge, blast)
 
+lemma ball_eq_simp: "(\<forall>n\<ge>x. \<forall>m. f m = n \<longrightarrow> P m) = (\<forall>m. f m \<ge> x \<longrightarrow> P m)" by blast
+
+
 lemma reduce_DTIME: (* TODO clean up and tidy assumptions *)
-  assumes f\<^sub>R_ae: "Alm_all (\<lambda>w. (f\<^sub>R w \<in> L1 \<longleftrightarrow> w \<in> L2) \<and> (length (f\<^sub>R w) \<le> length w))"
-    and "computable_in_time TYPE('a0) T (f\<^sub>R :: 'b::blank list \<Rightarrow> 'b list)"
+  fixes f\<^sub>R :: "('b::blank) list \<Rightarrow> 'b list"
+    and L1 L2 :: "'b list set"
+  assumes f\<^sub>R_ae: "\<forall>\<^sub>\<infinity>n. \<forall>w. length w = n \<longrightarrow> (f\<^sub>R w \<in> L1) = (w \<in> L2) \<and> length (f\<^sub>R w) \<le> length w"
+    and "computable_in_time TYPE('a0) T f\<^sub>R"
     and T_superlinear: "unbounded (\<lambda>n::nat. T(n)/n)"
-    and "(L1::'b list set) \<in> typed_DTIME TYPE('a1) T"
-  shows "(L2::'b list set) \<in> typed_DTIME TYPE('a0 + 'a1) T"
+    and "L1 \<in> typed_DTIME TYPE('a1) T"
+  shows "L2 \<in> typed_DTIME TYPE('a0 + 'a1) T"
 proof -
   from \<open>computable_in_time TYPE('a0) T f\<^sub>R\<close> obtain M\<^sub>R::"('a0, 'b) TM"
     where "TM.computes M\<^sub>R f\<^sub>R" "TM.time_bounded  M\<^sub>R T" "TM M\<^sub>R"
@@ -556,8 +570,8 @@ proof -
   from \<open>L1 \<in> typed_DTIME TYPE('a1) T\<close>
   obtain M1::"('a1, 'b) TM" where "TM M1" "TM.decides M1 L1" "TM.time_bounded M1 T" ..
   define M where "M \<equiv> M\<^sub>R |+| M1"
-  from \<open>TM M\<^sub>R\<close> \<open>TM M1\<close> have "TM M"
-    unfolding M_def by (rule wf_tm_comp)
+  have "symbols M\<^sub>R = symbols M1" sorry
+  with \<open>TM M\<^sub>R\<close> \<open>TM M1\<close> have "TM M" unfolding M_def by (fact wf_tm_comp)
 
   let ?T' = "\<lambda>n. tcomp T n + tcomp T n"
 
@@ -565,7 +579,7 @@ proof -
     where f\<^sub>R_correct: "f\<^sub>R w \<in> L1 \<longleftrightarrow> w \<in> L2"
       and f\<^sub>R_len: "length (f\<^sub>R w) \<le> length w"
     if "length w \<ge> n" for w
-      sorry (* inconsistent since 'b is not finite *)
+    unfolding MOST_nat_le ball_eq_simp by blast
 
   \<comment> \<open>Prove \<^term>\<open>M\<close> to be \<^term>\<open>T\<close>-time-bounded.
     Part 1: show a time-bound for \<^term>\<open>M\<close>.\<close>
@@ -575,6 +589,7 @@ proof -
 
     fix w :: "'b list"
     assume min_len: "n \<le> length w"
+       and "set w \<subseteq> symbols M"
 
     show "TM.decides_word M L2 w" unfolding M_def using \<open>TM M\<^sub>R\<close>
     proof (intro reduce_decides)

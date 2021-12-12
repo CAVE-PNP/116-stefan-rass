@@ -298,17 +298,30 @@ corollary wf_config_run: "wf_word w \<Longrightarrow> wf_config (run n w)"
 
 lemma final_le_steps:
   assumes "wf_config c"
-      and "is_final ((step^^n) c)"
       and "n \<le> m"
+      and "is_final ((step^^n) c)"
     shows "(step^^m) c = (step^^n) c"
 proof -
   from \<open>n\<le>m\<close> obtain n' where "m = n' + n" by (metis add.commute less_eqE)
   have wf: "wf_state\<^sub>c ((step^^n) c)" using wf_config_state wf_config_steps \<open>wf_config c\<close> .
   have "(step^^m) c = (step^^n') ((step^^n) c)"
     unfolding \<open>m = n' + n\<close> funpow_add by (rule comp_apply)
-  also have "... = (step^^n) c" using wf assms(2) by (rule final_steps)
+  also have "... = (step^^n) c" using wf \<open>is_final ((step^^n) c)\<close> by (rule final_steps)
   finally show "(step^^m) c = (step^^n) c" .
 qed
+
+corollary final_mono:
+  assumes "wf_config c"
+    and "n \<le> m"
+    and "is_final ((step^^n) c)"
+  shows "is_final ((step^^m) c)"
+  unfolding final_le_steps[OF assms] by fact
+
+corollary final_mono':
+  assumes "wf_config c"
+  shows "mono (\<lambda>n. is_final ((step^^n) c))"
+  using final_mono[OF assms] by (intro monoI le_boolI)
+
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
@@ -680,6 +693,7 @@ proof (rule wf_tm_comp)
   show "symbols ?M1 = symbols ?M2" unfolding simple_alphabet_lift_def TM.TM.simps by auto
 qed
 
+
 hide_const (open) "TM.action.L" "TM.action.R" "TM.action.W"
 
 
@@ -730,8 +744,8 @@ proof
   define n::nat where "n \<equiv> max n1 n2"
   hence "n1 \<le> n" "n2 \<le> n" by simp+
 
-  from wf fn1 \<open>n1 \<le> n\<close> have steps1: "((step^^n) c) = ((step^^n1) c)" by (rule final_le_steps)
-  from wf fn2 \<open>n2 \<le> n\<close> have steps2: "((step^^n) c) = ((step^^n2) c)" by (rule final_le_steps)
+  from wf \<open>n1 \<le> n\<close> fn1 have steps1: "((step^^n) c) = ((step^^n1) c)" by (fact final_le_steps)
+  from wf \<open>n2 \<le> n\<close> fn2 have steps2: "((step^^n) c) = ((step^^n2) c)" by (fact final_le_steps)
   from fn1 q1 q2 have "let qn=(step^^n) c in is_final qn \<and> Q1 qn \<and> Q2 qn"
     by (fold steps1 steps2) simp
   thus "\<exists>n. let cn = (step ^^ n) c in is_final cn \<and> Q1 cn \<and> Q2 cn" ..
