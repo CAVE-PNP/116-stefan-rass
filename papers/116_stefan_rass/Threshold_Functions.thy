@@ -126,7 +126,7 @@ proof - (* Beweisidee: Josef Greilhuber *)
     by (smt (verit, ccfv_SIG) card_eq_0_iff id_apply mem_Collect_eq nat.simps(3) sum.cong)
 
   also have "\<dots> = (Suc k) * (\<Sum>B\<in>(?P (Suc k)).  of_bool (Q B))"
-    by (simp add: sum_distrib_left)
+    unfolding sum_distrib_left by simp
   also from count_with_prop[of "?P (Suc k)"] finP[of "Suc k"]
   have "\<dots> = (Suc k) * card (?M (Suc k))" by fastforce
   finally have *: "card (?M k) * (n-k) \<le> card (?M (Suc k)) * (Suc k)" by (subst (1 2) mult.commute)
