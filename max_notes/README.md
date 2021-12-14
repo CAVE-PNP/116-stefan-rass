@@ -7,19 +7,23 @@ They seem similar in many respects, both having a refined set of features
 and both having been in development for more than 30 years,
 with an active community and steady support.
 
-As outlined in the [Comparison](#Comparison), Coq is easier to use
+As outlined in the [Comparison](isa-isa-vs-coq.md), Coq is easier to use
 for small scale precise manipulation (for example, rewriting the current
 proof goals) and Isabelle provides powerful automatic solvers that
 help prevent small scale manipulations from being necessary.
 
 ## Contents
 
-- [Isabelle](isabelle.md)
-- [Coq](coq.md)
-- [Comparison of Isabelle and Coq](isa-vs-coq.md)
-- [Meta Results on Proofs Surrounding $`P`$ vs $`NP`$](meta-results.md)
+- Proof Assistants
+  - [Isabelle Overview](isabelle.md)
+    - [Simpl](simpl-notes.md)
+      (imperative program verification framework for Isabelle)
+  - [Coq Overview](coq.md)
+  - [Comparison of Isabelle and Coq](isa-vs-coq.md)
+- P vs NP
+  - [Claimed Solutions of $`P`$ vs $`NP`$](papers.md)
+  - [Meta Results on Proofs Surrounding $`P`$ vs $`NP`$](meta-results.md)
 - [Sources, Resources, Literature and Further Reading](sources.md)
-- [Claimed Solutions of $`P`$ vs $`NP`$](papers.md)
 
 ## Meta
 
