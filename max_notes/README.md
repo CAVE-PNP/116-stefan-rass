@@ -16,6 +16,7 @@ help prevent small scale manipulations from being necessary.
 
 - Proof Assistants
   - [Isabelle Overview](isabelle.md)
+    - [Useful Settings](isabelle-useful-settings.md)
     - [Simpl](simpl-notes.md)
       (imperative program verification framework for Isabelle)
   - [Coq Overview](coq.md)
