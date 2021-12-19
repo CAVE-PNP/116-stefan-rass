@@ -12,13 +12,15 @@
 
 ## Getting Started
 
-The best option to start working with Isabelle seems to be reading `prog-prove.pdf`
-(pdf in seafile [desktop](seafile://openfile?repo_id=d3f2bfd0-b877-47a7-a7ca-4af40c3d18d4&path=/Isabelle/manuals/prog-prove.pdf)/[web](https://seafile.aau.at/smart-link/eb40beb8-30e4-4485-bc89-2636ec1e8349/),
-online lecture available from the [TU München's course page](https://www21.in.tum.de/teaching/semantik/WS20/#material))
+The best option to start working with Isabelle seems to be reading
+[`prog-prove.pdf`](https://isabelle.in.tum.de/dist/doc/prog-prove.pdf)
+(online lecture available from the [TU München's course page](https://www21.in.tum.de/teaching/semantik/WS20/#material))
 and trying to solve as many of the exercises as possible.
 
-Even through working with Isar (the proof abstraction language of Isabelle) feels mostly imperative, most mathematical definitions resemble a _functional_ style.
-Therefore for those not already familiar with functional programming, a short introduction of its main concepts (like currying) and way of thinking may be beneficial.
+Even though working with Isar (the proof abstraction language of Isabelle) feels mostly declarative,
+most mathematical definitions resemble a _functional_ style.
+Therefore for those not already familiar with functional programming,
+a short introduction of its main concepts (like currying) and way of thinking may be beneficial.
 
 ### Imports
 
@@ -32,9 +34,9 @@ begin
 end
 ```
 
-Note that files missing an `end` will execute without warnings but cannot be imported, as Isabelle will complain about a `Bad theory import`.
+Note that files missing an `end` will execute without warnings but cannot be imported, as Isabelle will complain about a `Malformed theory`.
 
-Importing `Main` (a part of `HOL`) gives access to many classical mathematical definitions and results, including the natural numbers, sets, and lists.
+Importing `Main` (a part of `HOL`) gives access to many classical mathematical definitions and results, including a.o. the natural numbers, sets, and lists.
 `Complex_Main` is an extension including the real numbers and beyond.
 In the absense of reasons against it, importing one of these is highly recommended as a baseline (see `prog-prove.pdf`).
 
@@ -263,7 +265,6 @@ The available options include:
 
 - _Isabelle/jEdit_, the modified and preconfigured distribution of _jEdit_
   bundled with Isabelle installers
-- _emacs_ with the _Proof General_ plugin
 - _Visual Studio Code_ with the _Isabelle_ plugin
 
 Deprecated or not supported:
@@ -271,6 +272,8 @@ Deprecated or not supported:
 - [Isabelle/Eclipse](http://andriusvelykis.github.io/isabelle-eclipse/)
   - latest commit from 2013
   - states that support for Isabelle2013-1 is planned
+- _emacs_ with the [Proof General](https://github.com/ProofGeneral/PG) plugin
+  - official support for Isabelle has ended
 
 #### Isabelle/jEdit
 
@@ -396,32 +399,3 @@ The best way to cope with this seems to be setting the defaults
 for _Prettify Symbols Mode_ as stated in the setup instructions.
 It does not seem to be possible to set these as _Isabelle specific_,
 since the Isabelle extension manages those.
-
-#### Proof General (work in progress)
-
-Based on emacs. Seems to be the primarily recommended editor for Isabelle
-(and other proof assistant software, hence the name).
-
-I did not manage to start proof general in windows.
-the normal way of opening proof general is calling `isabelle emacs`
-(see [this](https://proofgeneral.github.io/doc/master/userman/Isabelle-Proof-General/))
-however, the `isabelle` binary is not usable in windows.
-`Isabelle2020.exe emacs` opens a new file called `emacs` in the Isabelle/jEdit IDE.
-
-TODO
-
-- try through the bundled, integrated cygwin console
-  - `Cygwin-Setup.bat`, then in `Cygwin-Terminal.bat` launch `isabelle`
-- try the binaries in WSL
-
-##### Support
-
-From the [Proof General GitHub repo](https://github.com/ProofGeneral/PG/#more-info) (accessed 2020-11-30):
-
-> Proof General used to support other proof assistants, but those
-> instances are no longer maintained nor available in the MELPA package:
->
-> - Legacy support of [Isabelle](https://www.cl.cam.ac.uk/research/hvg/Isabelle/)
-
-Latest changes in [`/isar/` directory](https://github.com/ProofGeneral/PG/tree/master/isar)
-are two years old, explicitly states support for _Isabelle2011_.
