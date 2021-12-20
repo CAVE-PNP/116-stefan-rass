@@ -4,10 +4,10 @@ theory DEV
   imports
     (* 049 Clique *)
     "Graph_Theory.Graph_Theory"
-    "HOL-Imperative_HOL.Imperative_HOL"
+    "Simpl.Simpl"
     (* 116 OWF *)
-    "Universal_Turing_Machine.UTM"
-    "HOL-Computational_Algebra.Primes"
     "HOL-Library.Sublist"
+    "HOL-Library.Countable_Set"
+    "Intro_Dest_Elim.IHOL_IDE"
 begin
 end

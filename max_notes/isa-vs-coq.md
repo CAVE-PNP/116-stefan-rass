@@ -136,7 +136,7 @@ in Coq, tactics can be prepended by `info_` (like `info_auto`)
 and the command `Show Proof.` can be used inside proofs
 to show the associated proof program.
 
-! [`trace_1_isa.png`: Isabelle shows the detailed steps taken to prove $`m+0=m`$ by induction on m](https://seafile.aau.at/lib/d3f2bfd0-b877-47a7-a7ca-4af40c3d18d4/file/examples/img/trace_1_isa.png?raw=1)
+![`trace_1_isa.png`: Isabelle shows the detailed steps taken to prove $`m+0=m`$ by induction on m](img/trace_1_isa.png)
 
 ### Manual search for relevant lemmas
 
@@ -145,21 +145,21 @@ Finding lemmas that can assist in finding the proof for a posed theorem can be t
 For this task, the Coq command `Search` and its Isabelle counterpart `find_theorems` can be used.
 Both allow using wildcards and search for patterns in theorems.
 
-! [`search_1_coq.png`: Searching a lemma for cancelling terms in integer multiplication/division in Coq](https://seafile.aau.at/lib/d3f2bfd0-b877-47a7-a7ca-4af40c3d18d4/file/examples/img/search_1_coq.png?raw=1)
+![`search_1_coq.png`: Searching a lemma for cancelling terms in integer multiplication/division in Coq](img/search_1_coq.png)
 
-! [`search_1_isa.png`: Searching a lemma for cancelling terms in integer multiplication/division in Isabelle](https://seafile.aau.at/lib/d3f2bfd0-b877-47a7-a7ca-4af40c3d18d4/file/examples/img/search_1_isa.png?raw=1)
+![`search_1_isa.png`: Searching a lemma for cancelling terms in integer multiplication/division in Isabelle](img/search_1_isa.png)
 
 Note that this function is not smart in the sense of being able
 to compensate for typos and incompleteness,
 and even slight mistakes can lead to wrong results or none at all.
 
-! [`search_2a_coq.png`: Searching a lemma for cancelling terms in integer addition in Coq](https://seafile.aau.at/lib/d3f2bfd0-b877-47a7-a7ca-4af40c3d18d4/file/examples/img/search_2a_coq.png?raw=1)
+![`search_2a_coq.png`: Searching a lemma for cancelling terms in integer addition in Coq](img/search_2a_coq.png)
 
-! [`search_2b_coq.png`: Rewriting the search term (without changing its meaning) results in another found lemma (for more complicated items, users may not be this lucky)](https://seafile.aau.at/lib/d3f2bfd0-b877-47a7-a7ca-4af40c3d18d4/file/examples/img/search_2b_coq.png?raw=1)
+![`search_2b_coq.png`: Rewriting the search term (without changing its meaning) results in another found lemma (for more complicated items, users may not be this lucky)](img/search_2b_coq.png)
 
-! [`search_2a_isa.png`: Searching a lemma for cancelling terms in integer addition in Isabelle](https://seafile.aau.at/lib/d3f2bfd0-b877-47a7-a7ca-4af40c3d18d4/file/examples/img/search_2a_isa.png?raw=1)
+![`search_2a_isa.png`: Searching a lemma for cancelling terms in integer addition in Isabelle](img/search_2a_isa.png)
 
-! [`search_2b_isa.png`: Rewriting the search term (without changing its meaning) results in not finding any lemma](https://seafile.aau.at/lib/d3f2bfd0-b877-47a7-a7ca-4af40c3d18d4/file/examples/img/search_2b_isa.png?raw=1)
+![`search_2b_isa.png`: Rewriting the search term (without changing its meaning) results in not finding any lemma](img/search_2b_isa.png)
 
 (Isabelle) See `tutorial.pdf` section 3.1.11 for more filters.
 
@@ -209,11 +209,11 @@ Sledgehammer is however not a complete substitute for
 someone who knows what they are doing and will often fail
 when confronted with seemingly simple problems.
 
-! [`isa_sledge_1.png`: sledgehammer bounces right off the famous integer sum formula](https://seafile.aau.at/lib/d3f2bfd0-b877-47a7-a7ca-4af40c3d18d4/file/examples/img/isa_sledge_1.png?raw=1)
+![`isa_sledge_1.png`: sledgehammer bounces right off the famous integer sum formula](img/isa_sledge_1.png)
 
 This however can quickly change when the right approach is chosen.
 
-! [`isa_sledge_2.png`: applying the tactic `induction` provides clear goals for sledgehammer to smash](https://seafile.aau.at/lib/d3f2bfd0-b877-47a7-a7ca-4af40c3d18d4/file/examples/img/isa_sledge_2.png?raw=1)
+![`isa_sledge_2.png`: applying the tactic `induction` provides clear goals for sledgehammer to smash](img/isa_sledge_2.png)
 
 ### More
 
@@ -226,4 +226,4 @@ is executed automatically when a theorem is posed:
 
 TODO find out in which way auto quickcheck is restricted. possible: number of variables to instantiate
 
-! [`isa_counter_example.png`: Isabelle automatically determines that the theorem is false and provides a counterexample](https://seafile.aau.at/lib/d3f2bfd0-b877-47a7-a7ca-4af40c3d18d4/file/examples/img/isa_counter_example.png?raw=1)
+![`isa_counter_example.png`: Isabelle automatically determines that the theorem is false and provides a counterexample](img/isa_counter_example.png)

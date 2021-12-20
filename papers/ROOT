@@ -5,21 +5,18 @@
   Note: \<^session>\<open>Universal_Turing_Machine\<close> is chosen as base session
   because it is the biggest and slowest to check.\<close>
 
-session "DEV_CAVE-PNP" = "Universal_Turing_Machine" + 
+session "DEV_CAVE-PNP" = "HOL-Library" + 
   sessions
-    "HOL-Library"
-
     \<comment> \<open>for paper #49 (Zohreh Akbari)\<close>
     "Graph_Theory"
-    "HOL-Imperative_HOL"
+    "Simpl"
 
     \<comment> \<open>for paper #116 (Stefan Rass)\<close>
-    (* "Universal_Turing_Machine" already included as base session *)
-    "HOL-Computational_Algebra"
+    "Intro_Dest_Elim"
   theories DEV
 
 session "Clique" in "049_zohreh_akbari" = "DEV_CAVE-PNP" +
   (* no finalized theories yet *)
 
 session "OWF" in "116_stefan_rass" = "DEV_CAVE-PNP" +
-  theories dens (* not fully finalized but close enough *)
+  theories SQ
