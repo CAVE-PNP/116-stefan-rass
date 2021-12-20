@@ -159,12 +159,12 @@ lemma input_tape_def:
   "<w>\<^sub>t\<^sub>p = (if w = [] then empty_tape else \<lparr> left=[], head = hd w, right = tl w \<rparr>)"
   by (induction w) auto
 
-abbreviation tp_size :: "'b tape \<Rightarrow> nat" where
+abbreviation tp_size :: "'s tape \<Rightarrow> nat" where
   "tp_size tp \<equiv> length (left tp) + length (right tp) + 1"
 
 lemma input_tape_size: "w \<noteq> [] \<Longrightarrow> tp_size <w>\<^sub>t\<^sub>p = length w" by (induction w) force+
 
-fun tp_update :: "('b::blank) action \<Rightarrow> 'b tape \<Rightarrow> 'b tape" where
+fun tp_update :: "'s action \<Rightarrow> 's tape \<Rightarrow> 's tape" where
   "tp_update L \<lparr>left=[],   head = h, right=rs  \<rparr> = \<lparr>left=[],   head = Bk, right=h#rs \<rparr>"
 | "tp_update L \<lparr>left=l#ls, head = h, right=rs  \<rparr> = \<lparr>left=ls,   head = l,  right=h#rs \<rparr>"
 | "tp_update R \<lparr>left=ls,   head = h, right=[]  \<rparr> = \<lparr>left=h#ls, head = Bk, right=[]   \<rparr>"
@@ -183,28 +183,28 @@ proof -
   qed simp
 qed
 
-record ('a, 'b) TM =
+record ('q, 's) TM =
   tape_count :: nat
 
-  states       :: "'a set"
-  start_state  :: 'a
-  final_states :: "'a set"
-  accepting_states :: "'a set"
+  states       :: "'q set"
+  start_state  :: 'q
+  final_states :: "'q set"
+  accepting_states :: "'q set"
 
-  symbols :: "'b set"
+  symbols :: "'s set"
 
-  next_state  :: "'a \<Rightarrow> 'b list \<Rightarrow> 'a"
-  next_action :: "'a \<Rightarrow> 'b list \<Rightarrow> 'b action list"
+  next_state  :: "'q \<Rightarrow> 's word \<Rightarrow> 'q"
+  next_action :: "'q \<Rightarrow> 's word \<Rightarrow> 's action list"
 
 abbreviation "rejecting_states \<equiv> \<lambda>M. final_states M - accepting_states M"
 
-record ('a, 'b) TM_config =
-  state :: 'a
-  tapes :: "'b tape list"
+record ('q, 's) TM_config =
+  state :: 'q
+  tapes :: "'s tape list"
 
 
 locale pre_TM =
-  fixes M :: "('a, 'b::blank) TM" (structure)
+  fixes M :: "('q, 's) TM" (structure)
 begin
 
 abbreviation "wf_word w \<equiv> set w \<subseteq> symbols M"
@@ -216,21 +216,21 @@ lemma wf_words_altdef: "wf_words = lists (symbols M)"
 
 abbreviation "wf_lang X \<equiv> X \<subseteq> wf_words"
 
-\<comment> \<open>A state \<open>q\<close> in combination with a vector \<open>hds\<close> (\<^typ>\<open>'b list\<close>) of symbols currently under the TM-heads,
-  is considered a well-formed state w.r.t. a \<^typ>\<open>('a, 'b) TM\<close> \<open>M\<close>, iff
+\<comment> \<open>A state \<open>q\<close> in combination with a vector \<open>hds\<close> (\<^typ>\<open>'s list\<close>) of symbols currently under the TM-heads,
+  is considered a well-formed state w.r.t. a \<^typ>\<open>('q, 's) TM\<close> \<open>M\<close>, iff
   \<open>q\<close> is a valid state for \<open>M\<close>,
   the number of elements of \<open>hds\<close> matches the number of tapes of \<open>M\<close>, and
   all elements of \<open>hds\<close> are valid symbols for \<open>M\<close> (members of \<open>M\<close>'s tape alphabet).\<close>
-definition wf_state :: "'a \<Rightarrow> 'b list \<Rightarrow> bool" where
+definition wf_state :: "'q \<Rightarrow> 's list \<Rightarrow> bool" where
   "wf_state q hds \<equiv> q \<in> states M \<and> length hds = tape_count M \<and> wf_word hds"
 
 mk_ide wf_state_def |intro wf_stateI[intro]| |elim wf_stateE[elim]| |dest wf_stateD[dest]|
 
-\<comment> \<open>A \<^typ>\<open>('a, 'b) TM_config\<close> \<open>c\<close> is considered well-formed w.r.t. a \<^typ>\<open>('a, 'b) TM\<close> \<open>M\<close>, iff
+\<comment> \<open>A \<^typ>\<open>('q, 's) TM_config\<close> \<open>c\<close> is considered well-formed w.r.t. a \<^typ>\<open>('q, 's) TM\<close> \<open>M\<close>, iff
   the \<^const>\<open>state\<close> of \<open>c\<close> is valid for \<open>M\<close>,
   the number of \<^const>\<open>tapes\<close> of \<open>c\<close> matches the number of tapes of \<open>M\<close>, and
   all symbols on all \<^const>\<open>tapes\<close> of \<open>c\<close> are valid symbols for \<open>M\<close>.\<close>
-definition wf_config :: "('a, 'b) TM_config \<Rightarrow> bool" where
+definition wf_config :: "('q, 's) TM_config \<Rightarrow> bool" where
   "wf_config c \<equiv> let q = state c; tps = tapes c in
         q \<in> states M
       \<and> length tps = tape_count M
@@ -260,13 +260,13 @@ locale TM = pre_TM +
   and state_axioms: "finite (states M)" "start_state M \<in> states M"
                     "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
   and symbol_axioms: "finite (symbols M)" "Bk \<in> (symbols M)"
-  and next_state: "\<And>q hds. wf_state q hds \<Longrightarrow> next_state M q hds \<in> states M"
-  and next_action_length: "\<And>q hds. wf_state q hds \<Longrightarrow>
+  and next_state: "\<And>q hds. wf_state hds \<Longrightarrow> next_state M q hds \<in> states M"
+  and next_action_length: "\<And>q hds. wf_state hds \<Longrightarrow>
                                  length (next_action M q hds) = tape_count M"
-  and next_write_symbol: "\<And>q hds. wf_state q hds \<Longrightarrow>
+  and next_write_symbol: "\<And>q hds. wf_state hds \<Longrightarrow>
                                  symbol_of_write ` set (next_action M q hds) \<subseteq> symbols M"
-  and final_state: "\<And>q hds. wf_state q hds \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
-                          next_state M q hds = q"
+  and final_state: "\<And>q hds. wf_state hds \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
+                          next_state M hds = q"
   and final_action: "\<And>q hds. wf_state q hds \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
                            set (next_action M q hds) \<subseteq> {Nop}"
 begin
@@ -280,10 +280,10 @@ lemma wf_config_state: "wf_config c \<Longrightarrow> wf_state\<^sub>c c"
 corollary wf_state_tape_count: "wf_state\<^sub>c c \<Longrightarrow> length (tapes c) = tape_count M"
   unfolding wf_state_def by simp
 
-abbreviation is_final :: "('a, 'b) TM_config \<Rightarrow> bool" where
+abbreviation is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
   "is_final c \<equiv> state c \<in> final_states M"
 
-definition step :: "('a, 'b) TM_config \<Rightarrow> ('a, 'b) TM_config" where
+definition step :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config" where
   "step c = (let q=state c; w=map head (tapes c) in \<lparr>
       state=next_state M q w,
       tapes=map2 tp_update (next_action M q w) (tapes c)
@@ -357,7 +357,7 @@ qed
 corollary wf_config_steps: "wf_config c \<Longrightarrow> wf_config ((step^^n) c)"
   using wf_config_step by (induction n) auto
 
-definition start_config :: "'b list \<Rightarrow> ('a, 'b) TM_config" where [simp]:
+definition start_config :: "'s list \<Rightarrow> ('q, 's) TM_config" where [simp]:
   "start_config w = \<lparr>
     state = start_state M,
     tapes = <w>\<^sub>t\<^sub>p # empty_tape \<up> (tape_count M - 1)
@@ -423,7 +423,7 @@ subsection \<open>Composition of Turing Machines\<close>
     When M1 finishes, M2 operates on the tapes 0,k1,k1+1,...,k1+k2-2.
     Therefore, M1 is expected to write its output (M2's input) on the zeroth tape.\<close>
 
-definition tm_comp :: "('a1, 'b::blank) TM \<Rightarrow> ('a2, 'b) TM \<Rightarrow> ('a1+'a2, 'b) TM" ("_ |+| _" [0, 0] 100)
+definition tm_comp :: "('q1, 's) TM \<Rightarrow> ('q2, 's) TM \<Rightarrow> ('q1+'q2, 's) TM" ("_ |+| _" [0, 0] 100)
   where "tm_comp M1 M2 = (let k = tape_count M1 + tape_count M2 - 1 in \<lparr>
     tape_count = k,
     states = states M1 <+> states M2,
@@ -567,7 +567,7 @@ lemma (in TM) sw_Nop_k: "symbol_of_write ` set (Nop \<up> n) \<subseteq> symbols
   using symbol_axioms(2) set_replicate_subset by force
 
 lemma wf_tm_comp:
-  fixes M1 :: "('a1, 'b::blank) TM" and M2 :: "('a2, 'b) TM"
+  fixes M1 :: "('q1, 's) TM" and M2 :: "('q2, 's) TM"
   assumes wf: "TM M1" "TM M2"
     and symbols_eq[simp]: "symbols M1 = symbols M2"
   shows "TM (M1 |+| M2)" (is "TM ?M")
@@ -589,7 +589,7 @@ proof (intro TM.intro; (elim tm_comp_cases[OF assms])?)
   from M1.symbol_axioms(2) show "Bk \<in> symbols ?M" by simp
 
   (* case distinction on q *)
-  fix w :: "'b list" and q :: "'a1 + 'a2"
+  fix w :: "'s list" and q :: "'q1 + 'q2"
   {
     fix q1 (* case M1: "q = Inl q1" *)
     assume "q = Inl q1" and wfs1: "M1.wf_state q1 (nths w {0..<?k1})"
@@ -640,7 +640,7 @@ proof (intro TM.intro; (elim tm_comp_cases[OF assms])?)
     finally show "length (next_action ?M (Inr q2) w) = tape_count ?M" .
 
     define xs where xs: "xs \<equiv> next_action M2 q2 (nths w ({0} \<union> {?k1..<?k}))"
-    define ys :: "'b action list" where ys: "ys \<equiv> Nop \<up> (?k1 - 1)"
+    define ys :: "'s action list" where ys: "ys \<equiv> Nop \<up> (?k1 - 1)"
     have sna: "set (next_action ?M (Inr q2) w) = set xs \<union> set ys"
     proof -
       have "length xs \<ge> 1" unfolding xs M2.next_action_length[OF wfs2]
@@ -790,9 +790,9 @@ hide_const (open) "TM.action.L" "TM.action.R" "TM.action.W"
 
 subsection \<open>Hoare Rules\<close>
 
-type_synonym ('a, 'b) assert = "('a, 'b) TM_config \<Rightarrow> bool"
+type_synonym ('q, 's) assert = "('q, 's) TM_config \<Rightarrow> bool"
 
-definition (in TM) hoare_halt :: "('a, 'b) assert \<Rightarrow> ('a, 'b) assert \<Rightarrow> bool" where
+definition (in TM) hoare_halt :: "('q, 's) assert \<Rightarrow> ('q, 's) assert \<Rightarrow> bool" where
   "hoare_halt P Q \<longleftrightarrow> (\<forall>c. wf_config c \<longrightarrow> P c \<longrightarrow>
     (\<exists>n. let cn = (step^^n) c in is_final cn \<and> Q cn))"
 
@@ -844,7 +844,7 @@ qed
 
 abbreviation (input) init where "init w \<equiv> (\<lambda>c. c = start_config w)"
 
-definition halts :: "'b list \<Rightarrow> bool"
+definition halts :: "'s list \<Rightarrow> bool"
   where "halts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>_. True)"
 
 lemma halts_I[intro]: "wf_word w \<Longrightarrow> \<exists>n. is_final (run n w) \<Longrightarrow> halts w"
@@ -881,12 +881,12 @@ qed
 
 end
 
-definition "input_assert (P::'b list \<Rightarrow> bool) \<equiv> \<lambda>c::('a, 'b::blank) TM_config.
+definition "input_assert (P::'s list \<Rightarrow> bool) \<equiv> \<lambda>c::('q, 's::finite) TM_config.
               let tp = hd (tapes c) in P (head tp # right tp) \<and> left tp = []"
 
 lemma hoare_comp:
-  fixes M1 :: "('a1, 'b::blank) TM" and M2 :: "('a2, 'b) TM"
-    and Q :: "'b list \<Rightarrow> bool"
+  fixes M1 :: "('q1, 's) TM" and M2 :: "('q2, 's) TM"
+    and Q :: "'s list \<Rightarrow> bool"
   assumes "TM.hoare_halt M1 (input_assert P) (input_assert Q)"
       and "TM.hoare_halt M2 (input_assert Q) (input_assert S)"
     shows "TM.hoare_halt (M1 |+| M2) (input_assert P) (input_assert S)"
@@ -928,7 +928,7 @@ lemma init_input: "init w c \<Longrightarrow> input w c"
 lemma init_state_start_state: "init w c \<Longrightarrow> state c = start_state M"
   unfolding start_config_def by simp
 
-definition accepts :: "'b list \<Rightarrow> bool"
+definition accepts :: "'s list \<Rightarrow> bool"
   where "accepts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
 
 lemma acceptsI[intro]:
@@ -943,7 +943,7 @@ lemma acceptsE[elim]:
   obtains n where "state (run n w) \<in> accepting_states M"
 using accepts_def assms hoare_halt_def wf_start_config by fastforce
 
-definition rejects :: "'b list \<Rightarrow> bool"
+definition rejects :: "'s list \<Rightarrow> bool"
   where "rejects w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> rejecting_states M)"
 
 lemma rejectsI[intro]:
@@ -1002,10 +1002,10 @@ lemma rejects_altdef:
   "rejects w = (halts w \<and> \<not> accepts w)"
   using acc_not_rej halts_iff by blast
 
-definition decides_word :: "'b lang \<Rightarrow> 'b list \<Rightarrow> bool"
+definition decides_word :: "'s lang \<Rightarrow> 's list \<Rightarrow> bool"
   where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
 
-abbreviation decides :: "'b lang \<Rightarrow> bool"
+abbreviation decides :: "'s lang \<Rightarrow> bool"
   where "decides L \<equiv> wf_lang L \<and> (\<forall>w\<in>wf_words. decides_word L w)"
 
 lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
@@ -1039,7 +1039,7 @@ end
 
 subsection\<open>TM Languages\<close>
 
-definition TM_lang :: "('a, 'b::blank) TM \<Rightarrow> 'b lang" ("L'(_')")
+definition TM_lang :: "('q, 's) TM \<Rightarrow> 's lang" ("L'(_')")
   where "L(M) \<equiv> if (\<forall>w\<in>pre_TM.wf_words M. TM.halts M w)
                 then {w\<in>pre_TM.wf_words M. TM.accepts M w}
                 else undefined"
@@ -1083,10 +1083,10 @@ subsection\<open>Computation of Functions\<close>
 
 context TM begin
 
-definition computes_word :: "('b list \<Rightarrow> 'b list) \<Rightarrow> 'b list \<Rightarrow> bool"
+definition computes_word :: "('s list \<Rightarrow> 's list) \<Rightarrow> 's list \<Rightarrow> bool"
   where computes_def[simp]: "computes_word f w \<equiv> hoare_halt (input w) (input (f w))"
 
-abbreviation computes :: "('b list \<Rightarrow> 'b list) \<Rightarrow> bool"
+abbreviation computes :: "('s list \<Rightarrow> 's list) \<Rightarrow> bool"
   where "computes f \<equiv> \<forall>w. computes_word f w"
 
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
@@ -1096,12 +1096,12 @@ subsection\<open>The Rejecting TM\<close>
 
 
 locale Rej_TM =
-  fixes \<Sigma> :: "'b::blank set"
-    and \<alpha> :: 'a
+  fixes \<Sigma> :: "'s set"
+    and \<alpha> :: 'q
   assumes finite_alphabet: "finite \<Sigma>"
 begin
 
-definition Rejecting_TM :: "('a, 'b) TM"
+definition Rejecting_TM :: "('q, 's) TM"
   where [simp]: "Rejecting_TM \<equiv> \<lparr>
     tape_count = 1,
     states = {\<alpha>},
@@ -1141,9 +1141,9 @@ qed
 
 end \<comment> \<open>\<^locale>\<open>Rej_TM\<close>\<close>
 
-lemma exists_wf_TM: "\<exists>M::('a, 'b::blank) TM. TM M"
+lemma exists_wf_TM: "\<exists>M::('q, 's) TM. TM M"
 proof
-  fix \<alpha> :: 'a
+  fix \<alpha> :: 'q
   show "TM (Rej_TM.Rejecting_TM {} \<alpha>)" by (intro Rej_TM.wf_rej_TM) (unfold_locales, blast)
 qed
 
@@ -1152,8 +1152,8 @@ subsection\<open>(nat, nat) TM\<close>
 text \<open>Every well-formed TM is equivalent to some (nat, nat) TM\<close>
 
 locale nat_TM = TM +
-  fixes f :: "'a \<Rightarrow> nat" and f_inv
-    and g :: "'b \<Rightarrow> nat" and g_inv
+  fixes f :: "'q \<Rightarrow> nat" and f_inv
+    and g :: "'s \<Rightarrow> nat" and g_inv
   defines "f \<equiv> SOME f. inj_on f (states M)"  and "f_inv \<equiv> inv_into (states M) f"
     and   "g \<equiv> SOME g. inj_on g (symbols M) \<and> g Bk = Bk" and "g_inv \<equiv> inv_into (symbols M) g"
 begin
@@ -1163,7 +1163,7 @@ lemma f_inj: "inj_on f (states M)" unfolding f_def
 
 lemma g_inj: "inj_on g (symbols M)" and g_Bk[simp]: "g Bk = Bk"
 proof -
-  from symbol_axioms(1) have "\<exists>g::'b \<Rightarrow> nat. inj_on g (symbols M) \<and> g Bk = Bk"
+  from symbol_axioms(1) have "\<exists>g::'s \<Rightarrow> nat. inj_on g (symbols M) \<and> g Bk = Bk"
     by (fact finite_imp_inj_to_nat_fix_one)
   then have "inj_on g (symbols M) \<and> g Bk = Bk" unfolding g_def by (fact someI_ex)
   then show "inj_on g (symbols M)" and "g Bk = Bk" by auto
@@ -1293,11 +1293,11 @@ sublocale natM: TM natM
   by (fact wf_natM)
 
 
-fun config_conv :: "('a, 'b) TM_config \<Rightarrow> (nat, nat) TM_config" ("C") where
+fun config_conv :: "('q, 's) TM_config \<Rightarrow> (nat, nat) TM_config" ("C") where
   "config_conv \<lparr> state = q, tapes = tps \<rparr> =
           \<lparr> state = f q, tapes = map (tape_app g) tps \<rparr>"
 
-fun config_conv_inv :: "(nat, nat) TM_config \<Rightarrow> ('a, 'b) TM_config" ("C\<inverse>") where
+fun config_conv_inv :: "(nat, nat) TM_config \<Rightarrow> ('q, 's) TM_config" ("C\<inverse>") where
   "config_conv_inv \<lparr> state = q, tapes = tps \<rparr> =
           \<lparr> state = f_inv q, tapes = map (tape_app g_inv) tps \<rparr>"
 
@@ -1637,7 +1637,7 @@ qed
 
 end \<comment> \<open>\<^locale>\<open>nat_TM\<close>\<close>
 
-typedef (overloaded) ('a, 'b::blank) wf_TM = "{M::('a, 'b) TM. TM M}"
+typedef (overloaded) ('q, 's) wf_TM = "{M::('q, 's) TM. TM M}"
   using exists_wf_TM by blast
 
 end
