@@ -186,15 +186,12 @@ qed
 record ('q, 's) TM =
   tape_count :: nat
 
-  states       :: "'q set"
   start_state  :: 'q
   final_states :: "'q set"
   accepting_states :: "'q set"
 
-  symbols :: "'s set"
-
-  next_state  :: "'q \<Rightarrow> 's word \<Rightarrow> 'q"
-  next_action :: "'q \<Rightarrow> 's word \<Rightarrow> 's action list"
+  next_state  :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> 'q"
+  next_action :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> 's action list"
 
 abbreviation "rejecting_states \<equiv> \<lambda>M. final_states M - accepting_states M"
 
@@ -204,81 +201,35 @@ record ('q, 's) TM_config =
 
 
 locale pre_TM =
-  fixes M :: "('q, 's) TM" (structure)
+  fixes M :: "('q::finite, 's::finite) TM" (structure)
 begin
 
-abbreviation "wf_word w \<equiv> set w \<subseteq> symbols M"
+\<comment> \<open>A vector \<open>hds\<close> (\<^typ>\<open>'s list\<close>) of symbols currently under the TM-heads,
+  is considered a well-formed state w.r.t. a \<^typ>\<open>('q, 's) TM\<close> \<open>M\<close>,
+  iff the number of elements of \<open>hds\<close> matches the number of tapes of \<open>M\<close>.\<close>
+definition wf_state :: "'s tp_symbol list \<Rightarrow> bool"
+  where [simp]: "wf_state hds \<equiv> length hds = tape_count M"
 
-abbreviation "wf_words \<equiv> {w. wf_word w}"
-
-lemma wf_words_altdef: "wf_words = lists (symbols M)"
-  unfolding lists_eq_set ..
-
-abbreviation "wf_lang X \<equiv> X \<subseteq> wf_words"
-
-\<comment> \<open>A state \<open>q\<close> in combination with a vector \<open>hds\<close> (\<^typ>\<open>'s list\<close>) of symbols currently under the TM-heads,
-  is considered a well-formed state w.r.t. a \<^typ>\<open>('q, 's) TM\<close> \<open>M\<close>, iff
-  \<open>q\<close> is a valid state for \<open>M\<close>,
-  the number of elements of \<open>hds\<close> matches the number of tapes of \<open>M\<close>, and
-  all elements of \<open>hds\<close> are valid symbols for \<open>M\<close> (members of \<open>M\<close>'s tape alphabet).\<close>
-definition wf_state :: "'q \<Rightarrow> 's list \<Rightarrow> bool" where
-  "wf_state q hds \<equiv> q \<in> states M \<and> length hds = tape_count M \<and> wf_word hds"
-
-mk_ide wf_state_def |intro wf_stateI[intro]| |elim wf_stateE[elim]| |dest wf_stateD[dest]|
-
-\<comment> \<open>A \<^typ>\<open>('q, 's) TM_config\<close> \<open>c\<close> is considered well-formed w.r.t. a \<^typ>\<open>('q, 's) TM\<close> \<open>M\<close>, iff
-  the \<^const>\<open>state\<close> of \<open>c\<close> is valid for \<open>M\<close>,
-  the number of \<^const>\<open>tapes\<close> of \<open>c\<close> matches the number of tapes of \<open>M\<close>, and
-  all symbols on all \<^const>\<open>tapes\<close> of \<open>c\<close> are valid symbols for \<open>M\<close>.\<close>
-definition wf_config :: "('q, 's) TM_config \<Rightarrow> bool" where
-  "wf_config c \<equiv> let q = state c; tps = tapes c in
-        q \<in> states M
-      \<and> length tps = tape_count M
-      \<and> list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) tps"
-
-mk_ide wf_config_def[unfolded list_all_iff Let_def]
-  |intro wf_configI[intro]| |elim wf_configE[elim]| |dest wf_configD[dest]|
-
-lemma wf_configD'[dest]:
-  "wf_config c \<Longrightarrow> list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) (tapes c)"
-  unfolding list_all_iff by blast
-
-lemma wf_config_simps: "wf_config \<lparr> state = q, tapes = tps \<rparr> = (
-        q \<in> states M
-      \<and> length tps = tape_count M
-      \<and> list_all (\<lambda>tp. set_of_tape tp \<subseteq> symbols M) tps)"
-  unfolding wf_config_def Let_def TM_config.simps ..
-
-mk_ide wf_config_simps[unfolded list_all_iff]
-  |intro wf_config_simpI| |elim wf_config_simpE| |dest wf_config_simpD|
-
+\<comment> \<open>A \<^typ>\<open>('q, 's) TM_config\<close> \<open>c\<close> is considered well-formed w.r.t. a \<^typ>\<open>('q, 's) TM\<close> \<open>M\<close>,
+  iff the number of \<^const>\<open>tapes\<close> of \<open>c\<close> matches the number of tapes of \<open>M\<close>.\<close>
+definition wf_config :: "('q, 's) TM_config \<Rightarrow> bool"
+  where [simp]: "wf_config c \<equiv> length (tapes c) = tape_count M"
 
 end \<comment> \<open>\<^locale>\<open>pre_TM\<close>\<close>
 
+
 locale TM = pre_TM +
   assumes at_least_one_tape: "1 \<le> tape_count M"
-  and state_axioms: "finite (states M)" "start_state M \<in> states M"
-                    "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
-  and symbol_axioms: "finite (symbols M)" "Bk \<in> (symbols M)"
-  and next_state: "\<And>q hds. wf_state hds \<Longrightarrow> next_state M q hds \<in> states M"
-  and next_action_length: "\<And>q hds. wf_state hds \<Longrightarrow>
-                                 length (next_action M q hds) = tape_count M"
-  and next_write_symbol: "\<And>q hds. wf_state hds \<Longrightarrow>
-                                 symbol_of_write ` set (next_action M q hds) \<subseteq> symbols M"
-  and final_state: "\<And>q hds. wf_state hds \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
-                          next_state M hds = q"
-  and final_action: "\<And>q hds. wf_state q hds \<Longrightarrow> q \<in> final_states M \<Longrightarrow>
-                           set (next_action M q hds) \<subseteq> {Nop}"
+  and accepting_final: "accepting_states M \<subseteq> final_states M"
+  and next_action_length: "\<And>q hds. wf_state hds \<Longrightarrow> length (next_action M q hds) = tape_count M"
+  and final_state: "\<And>q hds. wf_state hds \<Longrightarrow> q \<in> final_states M \<Longrightarrow> next_state M q hds = q"
+  and final_action: "\<And>q hds. wf_state hds \<Longrightarrow> q \<in> final_states M \<Longrightarrow> set (next_action M q hds) \<subseteq> {Nop}"
 begin
 
 abbreviation wf_state_of_config ("wf'_state\<^sub>c")
-  where "wf_state\<^sub>c c \<equiv> wf_state (state c) (map head (tapes c))"
+  where "wf_state\<^sub>c c \<equiv> wf_state (map head (tapes c))"
 
-lemma wf_config_state: "wf_config c \<Longrightarrow> wf_state\<^sub>c c"
-  by (intro wf_stateI) (blast, force, use set_of_tape_helpers in fast)
-
-corollary wf_state_tape_count: "wf_state\<^sub>c c \<Longrightarrow> length (tapes c) = tape_count M"
-  unfolding wf_state_def by simp
+lemma wf_config_state: "wf_state\<^sub>c c \<longleftrightarrow> wf_config c" by force
 
 abbreviation is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
   "is_final c \<equiv> state c \<in> final_states M"
@@ -306,7 +257,7 @@ proof -
 
   have ns: "next_state M ?q ?w = ?q" using wf fc by (rule final_state)
   have na: "next_action M ?q ?w = Nop\<^sub>k" using wf fc by (rule final_action_explicit)
-  have tu: "map2 tp_update Nop\<^sub>k ?ts = ?ts" using all_Nop_update wf_state_tape_count wf .
+  have tu: "map2 tp_update Nop\<^sub>k ?ts = ?ts" using all_Nop_update wf_config_state wf .
 
   show "step c = c" unfolding step_def Let_def unfolding ns na tu by simp
 qed
