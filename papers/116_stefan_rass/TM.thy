@@ -1,64 +1,145 @@
 section\<open>Turing Machines\<close>
 
 theory TM
-  imports Main "Supplementary/Misc" "Supplementary/Lists"
+  imports Main "Supplementary/Misc" "Supplementary/Lists" "Supplementary/Option_S"
     "Intro_Dest_Elim.IHOL_IDE" "HOL-Library.Countable_Set"
 begin
 
-class blank =
-  fixes Bk :: 'a
+section\<open>Turing Machines\<close>
 
-instantiation nat :: blank begin
-definition Bk_nat :: nat where "Bk_nat = 0"
-instance ..
-end
+subsection\<open>Prerequisites\<close>
 
-instantiation option :: (type) blank begin
-definition "Bk_option \<equiv> None"
-instance ..
-end
+type_synonym ('symbol) word = "'symbol list"
+type_synonym ('symbol) lang = "'symbol word set"
 
-type_synonym 'b lang = "'b list set"
+text\<open>Symbols on the tape are represented by \<^typ>\<open>'symbol option\<close>,
+  where \<^const>\<open>None\<close> represents a "blank" tape-cell.
 
-datatype 'b action = L | R | W 'b | Nop
+  This enables clear distinction between the symbols used by TM computations
+  and those for TM inputs. Allowing TM input terms to contain "blanks"
+  makes reasoning about TM computations harder, since TMs could not reasonably
+  differentiate between the end of the input and a sequence of blanks as part of the input.\<close>
+type_synonym ('symbol) tp_symbol = "'symbol option"
+abbreviation "Bk \<equiv> None"
 
-fun symbol_of_write :: "'b action \<Rightarrow> 'b::blank" where
-  "symbol_of_write (W w) = w" | "symbol_of_write _ = Bk"
 
-lemma symbol_of_write_def: "symbol_of_write a = (case a of W w \<Rightarrow> w | _ \<Rightarrow> Bk)"
+subsection\<open>Actions\<close>
+
+text\<open>We define TM actions (per tape) as either
+  moving the TM head one cell (left \<open>L\<close>, right \<open>R\<close>),
+  writing a symbol (\<open>W \<sigma>\<close>) to the cell currently under the TM head ("current cell"),
+  or doing nothing (\<open>Nop\<close>).
+
+  \<open>Nop\<close> is somewhat redundant, since it can be simulated by moving the head back-and-forth
+  and for single-tape TMs, any step that performs \<open>Nop\<close> can just be left out.
+  However, this\<close>
+datatype ('symbol) action = L | R | W "'symbol tp_symbol" | Nop
+
+fun symbol_of_write :: "'symbol action \<Rightarrow> 'symbol tp_symbol" where
+  "symbol_of_write (W w) = w" | "symbol_of_write _ = None"
+
+lemma symbol_of_write_def: "symbol_of_write a = (case a of W w \<Rightarrow> w | _ \<Rightarrow> None)"
   by (induction a) auto
 
-fun action_app :: "('b1 \<Rightarrow> 'b2) \<Rightarrow> 'b1 action \<Rightarrow> 'b2 action" where
+
+fun action_app :: "('s1 tp_symbol \<Rightarrow> 's2 tp_symbol) \<Rightarrow> 's1 action \<Rightarrow> 's2 action" where
   "action_app _ L = L"
 | "action_app _ R = R"
 | "action_app f (W x) = W (f x)"
 | "action_app _ Nop = Nop"
 
+abbreviation action_map_app :: "('s1 \<Rightarrow> 's2) \<Rightarrow> 's1 action \<Rightarrow> 's2 action" where
+  "action_map_app f \<equiv> action_app (map_option f)"
+
+lemma action_map_app_same[simp]:
+  fixes f :: "'s \<Rightarrow> 's"
+  shows "action_map_app f a = (case a of W w \<Rightarrow> W (map_option f w) | _ \<Rightarrow> a)"
+  by (induction a) auto
+
 lemma symbol_action_app[simp]:
+  fixes g :: "('s1 tp_symbol \<Rightarrow> 's2 tp_symbol)" and A :: "'s1 action set"
   assumes "g Bk = Bk"
-  shows "symbol_of_write ` action_app g ` A \<subseteq> g ` symbol_of_write ` A"
+  shows "symbol_of_write ` (action_app g ` A) = g ` symbol_of_write ` A"
 proof -
-  from assms have "symbol_of_write (action_app g a) = g (symbol_of_write a)" for a::"'b action"
-    by (cases a) simp_all
-  then show ?thesis by auto
+  from assms have "symbol_of_write (action_app g a) = g (symbol_of_write a)" for a :: "'s1 action"
+    by (induction a) simp_all
+  then show ?thesis unfolding image_image by simp
 qed
 
-record 'b tape =
-  left :: "'b list"
-  head :: 'b
-  right :: "'b list"
+lemma symbol_action_map_app[simp]:
+  fixes g :: "('s1 \<Rightarrow> 's2)" and A :: "'s1 action set"
+  shows "symbol_of_write ` (action_map_app g ` A) = map_option g ` symbol_of_write ` A"
+  by (intro symbol_action_app) simp
 
-fun tape_app :: "('b1 \<Rightarrow> 'b2) \<Rightarrow> 'b1 tape \<Rightarrow> 'b2 tape" where
+
+subsection\<open>Tapes\<close>
+
+text\<open>We describe a TM tape as a record containing:
+    \<open>head\<close>, the symbol currently under the TM head, and
+    \<open>left\<close>/\<open>right\<close>, the lists of symbols currently left/right of the TM head.
+  For both \<open>left\<close> and \<open>right\<close>, the \<open>n\<close>-th element represents the symbol reached
+  by \<open>n\<close> consecutive moves left (\<^const>\<open>L\<close>) or right (\<^const>\<open>R\<close>) resp.
+  The tape is assumed to be infinite in both directions (containing blanks),
+  so blanks will be inserted into the record if the TM crosses the "ends".
+
+  We chose this approach as compared to letting the symbol under the head
+  be the first element of \<open>right\<close> (see Xu et al.), as it enables symmetry for move-actions.\<close>
+record 's tape =
+  left :: "'s tp_symbol list"
+  head :: "'s tp_symbol"
+  right :: "'s tp_symbol list"
+
+fun tape_app :: "('s1 option \<Rightarrow> 's2 option) \<Rightarrow> 's1 tape \<Rightarrow> 's2 tape" where
   "tape_app f \<lparr> left = l, head = h, right = r \<rparr> = \<lparr> left = map f l, head = f h, right = map f r \<rparr>"
 
+abbreviation tape_map_app :: "('s1 \<Rightarrow> 's2) \<Rightarrow> 's1 tape \<Rightarrow> 's2 tape" where
+  "tape_map_app f \<equiv> tape_app (map_option f)"
+
+lemma tape_app_def:
+  "tape_app f tp = \<lparr> left = map f (left tp), head = f (head tp), right = map f (right tp) \<rparr>"
+  by (induction tp) simp
+
+
+text\<open>Our definition of tapes allows no completely empty tape (containing zero symbols),
+  as the \<^const>\<open>head\<close> symbol is always set.
+  However, this makes sense concerning space-complexity,
+  as a TM (depending on the exact definition) always reads at least one cell
+  (and thus matches Hopcroft's requirement for space-complexity-functions to be at least \<open>1\<close>).\<close>
 abbreviation "empty_tape \<equiv> \<lparr> left=[], head = Bk, right=[] \<rparr>"
 
-definition [simp]: "set_of_tape tp \<equiv> set (left tp) \<union> {head tp} \<union> set (right tp) \<union> {Bk}"
 
-lemma set_of_tape_helpers: "head tp \<in> set_of_tape tp" "Bk \<in> set_of_tape tp" by auto
+text\<open>The set of symbols that appear on a tape.
+  \<^const>\<open>Bk\<close> (technically) appears (infinitely often) on any given tape
+  and is therefore included by default.\<close>
+definition set_of_tape :: "'s tape \<Rightarrow> 's tp_symbol set"
+  where [simp]: "set_of_tape tp \<equiv> set (left tp) \<union> {head tp} \<union> set (right tp) \<union> {Bk}"
 
-lemma tape_set_app: "f Bk = Bk \<Longrightarrow> set_of_tape (tape_app f tp) = f ` set_of_tape tp"
-  by (induction tp) (simp add: image_Un)
+abbreviation the_set_of_tape :: "'s tape \<Rightarrow> 's set"
+  where "the_set_of_tape tp \<equiv> Option.these (set_of_tape tp)"
+
+
+lemma the_set_of_tape_def[simp]:
+  "the_set_of_tape tp \<equiv> Option.these (set (left tp) \<union> {head tp} \<union> set (right tp))" by force
+
+lemma set_of_tape_simps[simp]:
+  "set_of_tape \<lparr> left = l, head = h, right = r \<rparr> \<equiv> (set l \<union> {h} \<union> set r \<union> {Bk})" by force
+
+lemma set_of_tape_head: "head tp \<in> set_of_tape tp"
+  and set_of_tape_Bk:        "Bk \<in> set_of_tape tp" by auto
+
+lemma the_set_of_tape_head: "head tp \<noteq> Bk \<Longrightarrow> the (head tp) \<in> the_set_of_tape tp" by force
+
+
+lemma tape_set_app: "set_of_tape (tape_app f tp) = f ` set_of_tape tp" if "f Bk = Bk"
+proof (induction tp)
+  case (fields l h r) show ?case
+    unfolding tape_app.simps set_of_tape_simps tape.simps
+    unfolding image_Un singleton_image set_map \<open>f Bk = Bk\<close> by simp
+qed
+
+lemma the_tape_set_app: "the_set_of_tape (tape_map_app f tp) = f ` the_set_of_tape tp"
+  by (subst tape_set_app, unfold these_image) blast+
+
 
 text\<open>TM execution begins with the head at the start of the input word.\<close>
 fun input_tape ("<_>\<^sub>t\<^sub>p") where
