@@ -1,0 +1,12 @@
+session "116_stefan_rass" = "HOL-Library" +
+  options [document = pdf, document_output = "output"]
+  sessions
+    Universal_Turing_Machine
+    "HOL-Computational_Algebra"
+    Intro_Dest_Elim
+  directories
+    Supplementary
+  theories [quick_and_dirty] (* allow `sorry` *)
+    LD_Issues
+  document_files
+    "root.tex"

@@ -12,6 +12,9 @@
 # ignore markers (created when marking lines with right click)
 *.thy.marks
 
+# isabelle builds
+output
+
 ## other
 
 # VSCode workspace settings

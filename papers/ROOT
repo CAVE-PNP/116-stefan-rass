@@ -14,9 +14,3 @@ session "DEV_CAVE-PNP" = "HOL-Library" +
     \<comment> \<open>for paper #116 (Stefan Rass)\<close>
     "Intro_Dest_Elim"
   theories DEV
-
-session "Clique" in "049_zohreh_akbari" = "DEV_CAVE-PNP" +
-  (* no finalized theories yet *)
-
-session "OWF" in "116_stefan_rass" = "DEV_CAVE-PNP" +
-  theories SQ
