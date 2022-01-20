@@ -92,11 +92,11 @@ text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_hal
 
    "[...] it is reasonable to assume that any time complexity function \<open>T(n)\<close> is
     at least \<open>n + 1\<close>, for this is the time needed just to read the input and verify that the
-    end has been reached by reading the first blank.\<dagger> We thus make the convention
+    end has been reached by reading the first blank.* We thus make the convention
     that "time complexity \<open>T(n)\<close>" means \<open>max (n + 1, \<lceil>T(n)\<rceil>])\<close>. For example, the value of
     time complexity \<open>n log\<^sub>2n\<close> at \<open>m = 1\<close> is \<open>2\<close>, not \<open>0\<close>, and at \<open>n = 2\<close>, its value is \<open>3\<close>.
 
-    \<dagger> Note, however, that there are TM's that accept or reject without reading all their input.
+    * Note, however, that there are TM's that accept or reject without reading all their input.
       We choose to eliminate them from consideration."\<close>
 
 (* TODO consider turning \<open>tcomp\<close> into a definition to avoid large proof terms *)
@@ -480,7 +480,7 @@ proof - \<comment> \<open>This one is tricky since the automatic solvers do not 
   ultimately show "(\<lambda>_. False) (l, r)" (* \<equiv> False *) by simp
 qed
 
-lemma input_encoding: \<comment> \<open>Each word has an input encoding. Useful with @{thm hoare_contr}}\<close>
+lemma input_encoding: \<comment> \<open>Each word has an input encoding. Useful with @{thm hoare_contr}\<close>
   fixes w
   shows "input w ([], encode_word (decode_word (encode_word w)))" unfolding encode_decode_word ..
 
@@ -1105,7 +1105,7 @@ proof -
     \<comment> \<open>Idea: We already know that the first machine \<^term>\<open>M\<^sub>R\<close> is time bounded
     (@{thm \<open>time_bounded_word T\<^sub>R M\<^sub>R w\<close>}),
     such that its run-time is bounded by \<^term>\<open>T\<^sub>R l = T\<^sub>R (2 * length w)\<close>
-    (@{thm tape_size_input}}).
+    (@{thm tape_size_input}).
 
     We also know that its execution will result in the encoded corresponding input word \<open>f\<^sub>R w\<close>
     (@{thm \<open>computes_word M\<^sub>R f\<^sub>R w\<close>}).

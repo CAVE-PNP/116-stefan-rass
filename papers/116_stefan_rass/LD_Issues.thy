@@ -192,7 +192,7 @@ proof (rule ccontr, unfold not_not)
 
     show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" sorry
     \<comment> \<open>With the current assumptions, \<open>t\<close> is not necessarily super-linear.
-      A similar problem exists in the proof of @{thm L0_t} (and `L0''_t`, see below),
+      A similar problem exists in the proof of @{thm L0_t} (and \<open>L0''_t\<close>, see below),
       that requires \<open>t\<close> to be at least cubic.\<close>
 
     show "computable_in_time t reduce_LD_LD''" sorry
