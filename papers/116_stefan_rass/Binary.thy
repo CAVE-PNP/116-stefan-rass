@@ -289,6 +289,23 @@ proof (intro bij_betw_imageI)
   qed
 qed
 
+lemma bin_nat_bin_drop_zs: "bin_of_nat (nat_of_bin w) = rev (dropWhile (\<lambda>b. b = False) (rev w))"
+proof (induction w rule: rev_induct)
+  case (snoc x xs) thus ?case
+  proof (induction x)
+    case True  thus ?case by (subst bin_nat_bin) fastforce+
+  next
+    case False thus ?case unfolding nat_of_bin_app0 by force
+  qed
+qed (* case "w = []" by *) simp
+
+lemma len_bin_nat_bin: "length (bin_of_nat (nat_of_bin w)) \<le> length w"
+proof -
+  have "bit_length (w)\<^sub>2 = length (dropWhile (\<lambda>b. b = False) (rev w))" unfolding bin_nat_bin_drop_zs by force
+  also have "... \<le> length (rev w)" by (rule length_dropWhile_le)
+  finally show "bit_length (w)\<^sub>2 \<le> length w" unfolding length_rev .
+qed
+
 
 subsection\<open>Advanced Properties\<close>
 
@@ -378,10 +395,43 @@ proof (intro iffI)
 qed
 
 
+lemma take_mod: "((w)\<^sub>2 mod 2^k) = (take k w)\<^sub>2"
+proof (induction w arbitrary: k)
+  case (Cons a w)
+  show ?case proof (cases "k > 0")
+    case True
+    then have "k = k - 1 + 1" by force
+
+    have "(2 * (w)\<^sub>2) mod 2 ^ k = (2 * (w)\<^sub>2) mod 2 ^ (k - 1 + 1)" by (subst \<open>k = k - 1 + 1\<close>) rule
+    also have "... = (2 * (w)\<^sub>2) mod (2 * 2^(k-1))" by force
+    also have "... = 2 * ((w)\<^sub>2 mod 2 ^ (k-1))" by (rule mult_mod_right[symmetric])
+    also have "... = 2 * (take (k - 1) w)\<^sub>2" unfolding \<open>(w)\<^sub>2 mod 2 ^ (k-1) = (take (k-1) w)\<^sub>2\<close> ..
+    finally have *: "(2 * (w)\<^sub>2) mod 2 ^ k = 2 * (take (k - 1) w)\<^sub>2" .
+
+    show ?thesis proof (induction a)
+      case True
+      have "(True # w)\<^sub>2 mod 2 ^ k = (2 * (w)\<^sub>2 + 1) mod 2 ^ k" by simp
+      also have "... = (1 + 2 * (w)\<^sub>2) mod 2 ^ k" by presburger
+      also have "... = 1 + (2 * (w)\<^sub>2) mod (2 ^ k)" using \<open>k > 0\<close> by (subst even_succ_mod_exp) force+
+      also have "... = 1 + 2 * (take (k - 1) w)\<^sub>2" unfolding * ..
+      also have "... = (True # take (k - 1) w)\<^sub>2" by force
+      also have "... = (take k (True # w))\<^sub>2" by (subst (2) \<open>k = k - 1 + 1\<close>) force
+      finally show ?case .
+    next
+      case False
+      have "(False # w)\<^sub>2 mod 2 ^ k = (2 * (w)\<^sub>2) mod 2 ^ k" by simp
+      also have "... = 2 * (take (k - 1) w)\<^sub>2" unfolding * ..
+      also have "... = (False # take (k - 1) w)\<^sub>2" by fastforce
+      also have "... = (take k (False # w))\<^sub>2" by (subst (2) \<open>k = k - 1 + 1\<close>) force
+      finally show ?case .
+    qed
+  qed (* case "k = 0" by *) simp
+qed (* case "w = []" by *) simp
+
+
 subsection\<open>Log and Bit-Length\<close>
 
-lemma bit_len_eq_dlog:
-  "n > 0 \<Longrightarrow> bit_length n = dlog n + 1" (is "n > 0 \<Longrightarrow> ?len n = ?log n + 1")
+lemma bit_len_eq_dlog: "n > 0 \<Longrightarrow> bit_length n = dlog n + 1"
 proof (induction n rule: log_induct)
   case (double n)
   have "bit_length n = bit_length (2 * (n div 2))" using \<open>n \<ge> 2\<close>
@@ -396,6 +446,85 @@ lemma bit_length_eq_log:
   assumes "n > 0"
   shows "bit_length n = \<lfloor>log 2 n\<rfloor> + 1"
   using assms log_altdef bit_len_eq_dlog by auto
+
+
+subsection\<open>Order\<close>
+
+text\<open>From ch. 4.4, p14: "we will order two words \<open>u, v \<in> \<Sigma>\<^sup>*\<close> as \<open>u \<le> v \<Longleftrightarrow> (u)\<^sub>2 \<le> (v)\<^sub>2\<close>."
+  Note: defining the \<^const>\<open>less\<close> relation is necessary for \<^class>\<open>ord\<close>
+  (of which \<^class>\<open>preorder\<close> is a subclass).
+  As anti-symmetry is not given, no partial order (\<^class>\<open>order\<close>) can be established.\<close>
+
+\<comment> \<open>The following approach (locale interpretation instead of class instantiation)
+  is necessary as \<^typ>\<open>bin\<close> is defined as a type-synonym and not as independent type.\<close>
+interpretation bin_preorder:
+  preorder "\<lambda>a b. (a)\<^sub>2 \<le> (b)\<^sub>2" "\<lambda>a b. (a)\<^sub>2 < (b)\<^sub>2"
+  using less_le_not_le le_refl le_trans by (intro class.preorder.intro)
+
+
+subsection\<open>Number of Binary Strings of Given Length\<close>
+
+lemma card_bin_len_eq: "card {w::bin. length w = l} = 2 ^ l"
+proof -
+  let ?bools = "UNIV :: bool set"
+  have "card {w::bin. length w = l} = card {w. set w \<subseteq> ?bools \<and> length w = l}" by simp
+  also have "... = card ?bools ^ l" by (intro card_lists_length_eq) (rule finite)
+  also have "... = 2 ^ l" unfolding card_UNIV_bool ..
+  finally show ?thesis .
+qed
+
+corollary finite_bin_len_eq: "finite {w::bin. length w = l}"
+  using card_bin_len_eq by (intro card_ge_0_finite) presburger
+
+corollary finite_bin_len_less: "finite {w::bin. length w < l}"
+proof -
+  let ?W = "\<lambda>l. {w::bin. length w = l}"
+  let ?W\<^sub>L = "{?W l' | l'. l' < l}"
+
+  have *: "{w::bin. length w < l} = \<Union> ?W\<^sub>L" by blast
+  show "finite {w::bin. length w < l}" unfolding *
+    using finite_bin_len_eq by (intro finite_Union) force+
+qed
+
+lemma card_bin_len_less: "card {w::bin. length w < l} = 2 ^ l - 1"
+proof -
+  let ?W = "\<lambda>l. {w::bin. length w = l}"
+  let ?W\<^sub>L = "{?W l' | l'. l' < l}"
+
+  have "card {w::bin. length w < l} = card (\<Union> ?W\<^sub>L)" by (intro arg_cong[where f=card]) blast
+  also have "card (\<Union> ?W\<^sub>L) = sum card ?W\<^sub>L"
+  proof (intro card_Union_disjoint)
+    show "pairwise disjnt ?W\<^sub>L"
+    proof (intro pairwiseI)
+      fix x y
+      assume "x \<in> ?W\<^sub>L" then obtain l\<^sub>x where l\<^sub>x: "x = ?W l\<^sub>x" by blast
+      assume "y \<in> ?W\<^sub>L" then obtain l\<^sub>y where l\<^sub>y: "y = ?W l\<^sub>y" by blast
+
+      assume "x \<noteq> y"
+      then have "l\<^sub>x \<noteq> l\<^sub>y" unfolding l\<^sub>x l\<^sub>y by force
+      then show "disjnt x y" unfolding l\<^sub>x l\<^sub>y disjnt_def by blast
+    qed
+
+    fix W
+    assume "W \<in> ?W\<^sub>L" then obtain l\<^sub>W where "W = ?W l\<^sub>W" by blast
+    show "finite W" unfolding \<open>W = ?W l\<^sub>W\<close> by (rule finite_bin_len_eq)
+  qed
+  also have "sum card ?W\<^sub>L = sum card (?W ` {..<l})"
+    by (intro arg_cong[where f="sum card"]) (unfold lessThan_def, rule image_Collect[symmetric])
+  also have "sum card (?W ` {..<l}) = sum (card \<circ> ?W) {..<l}"
+  proof (intro sum.reindex inj_onI)
+    fix x y
+    obtain w :: bin where "length w = x" using Ex_list_of_length ..
+
+    assume "?W x = ?W y"
+    then have "w \<in> ?W x \<longleftrightarrow> w \<in> ?W y" for w by (rule arg_cong)
+    then have "length w = x \<Longrightarrow> length w = y" by blast
+    then show "x = y" unfolding \<open>length w = x\<close> by force
+  qed
+  also have "sum (card \<circ> ?W) {..<l} = (\<Sum>n<l. 2^n)" unfolding comp_def card_bin_len_eq ..
+  also have "... = 2^l - 1" unfolding lessThan_atLeast0 by (rule sum_power2)
+  finally show ?thesis .
+qed
 
 
 end

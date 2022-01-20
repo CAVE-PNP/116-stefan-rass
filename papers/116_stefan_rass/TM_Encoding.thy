@@ -181,7 +181,7 @@ text\<open>For this part, only a short description is given in ch. 3.1.
 definition Rejecting_TM :: TM
   where "Rejecting_TM = [(W0, 0), (W0, 0)]"
 
-\<comment> \<open>The proof of correctness for the \<^const>\<open>Rejecting_TM\<close> is found in \<^file>\<open>complexity.thy\<close>.\<close>
+\<comment> \<open>The proof of correctness for the \<^const>\<open>Rejecting_TM\<close> is found in \<^file>\<open>Complexity.thy\<close>.\<close>
 
 lemma rej_TM_wf: "tm_wf0 Rejecting_TM" unfolding Rejecting_TM_def tm_wf.simps by force
 
@@ -195,7 +195,7 @@ lemma rej_TM_wf: "tm_wf0 Rejecting_TM" unfolding Rejecting_TM_def tm_wf.simps by
 text\<open>The function that assigns a word to every TM, represented as \<open>\<rho>(M)\<close> in the paper.\<close>
 
 definition encode_TM :: "TM \<Rightarrow> word"
-  where "encode_TM M = gn_inv (code M)"
+  where "encode_TM M = gn_inv (code M)" (* is gn_inv correct here or should it be replaced? *)
 
 \<comment> \<open>The following definitions are placeholders,
   since apparently there is no defined inverse of \<^term>\<open>code\<close>.\<close>
@@ -210,15 +210,13 @@ definition decode_TM :: "word \<Rightarrow> TM"
   where "decode_TM w =
     (if is_encoded_TM w then filter_wf_TMs (THE M. w = encode_TM M) else Rejecting_TM)"
 
-lemma encode_TM_inj: "inj encode_TM"
-  unfolding encode_TM_def
+
+lemma encode_TM_inj: "inj encode_TM" unfolding encode_TM_def
 proof (intro injI)
   fix x y
-  assume assm: "gn_inv (code x) = gn_inv (code y)"
-  have "code x = gn (gn_inv (code x))" using inv_gn_id[symmetric] code_gt_0 .
-  also have "... = gn (gn_inv (code y))" unfolding assm ..
-  also have "... = code y" using inv_gn_id code_gt_0 .
-  finally have "code x = code y" .
+  assume "gn_inv (code x) = gn_inv (code y)"
+  then have "code x = code y" using gn_inv_inj code_gt_0
+    by (subst (asm) inj_on_eq_iff[where f=gn_inv]) fast+
   with code_inj show "x = y" by (rule injD)
 qed
 
@@ -345,19 +343,6 @@ text\<open>from ch. 4.2:
      Thus, if a TM \<open>M\<close> is encoded within \<open>ℓ\<close> bits, then (7) counts
      how many equivalent codes for \<open>M\<close> are found at least in \<open>{0, 1}\<^sup>ℓ\<close>.\<close>
 
-lemma card_bin_len_eq: "card {w::bin. length w = l} = 2 ^ l"
-proof -
-  let ?bools = "UNIV :: bool set"
-  have "card {w::bin. length w = l} = card {w. set w \<subseteq> ?bools \<and> length w = l}" by simp
-  also have "... = card ?bools ^ l" by (intro card_lists_length_eq) (rule finite)
-  also have "... = 2 ^ l" unfolding card_UNIV_bool ..
-  finally show ?thesis .
-qed
-
-corollary finite_words_len_eq: "finite {w::bin. length w = l}"
-  using card_bin_len_eq by (intro card_ge_0_finite) presburger
-
-
 theorem num_equivalent_encodings:
   fixes M w
   assumes "TM_decode_pad w = M"
@@ -378,7 +363,7 @@ proof (cases "l > 0")
     by (intro arg_cong[where f=card]) (rule image_Collect)
   also have "... \<le> card {w. length w = l \<and> TM_decode_pad w = M}"
   proof (intro card_mono)
-    show "finite {w. length w = l \<and> TM_decode_pad w = M}" using finite_words_len_eq by simp
+    show "finite {w. length w = l \<and> TM_decode_pad w = M}" using finite_bin_len_eq by simp
     show "{pad @ w' | pad. length pad = l - clog l} \<subseteq> {w. length w = l \<and> TM_decode_pad w = M}"
     proof safe
       fix pad::bin
@@ -405,7 +390,7 @@ next
   also have "1 = card {[]::bin}" by simp
   also have "... \<le> card {w. length w = l \<and> TM_decode_pad w = M}" unfolding \<open>l = 0\<close> \<open>M = Rejecting_TM\<close>
   proof (intro card_mono)
-    show "finite {w. length w = 0 \<and> TM_decode_pad w = Rejecting_TM}" using finite_words_len_eq by simp
+    show "finite {w. length w = 0 \<and> TM_decode_pad w = Rejecting_TM}" using finite_bin_len_eq by simp
     show "{[]} \<subseteq> {w. length w = 0 \<and> TM_decode_pad w = Rejecting_TM}" using TM_decode_Nil by simp
   qed
   finally show ?thesis .
@@ -414,7 +399,8 @@ qed
 
 text\<open>2. The retraction of preceding 1-bits creates the needed infinitude of
         equivalent encodings of every possible TM \<open>M\<close>, as \<^emph>\<open>we can embed any code \<open>\<rho>(M)\<close>
-        in a word of length \<open>ℓ\<close> for which \<open>log(ℓ) > len (\<rho>(M))\<close>.\<close> [...]\<close>
+        in a word of length \<open>ℓ\<close> for which \<open>log(ℓ) > len (\<rho>(M))\<close>.\<close>
+        We will need this to prove the hierarchy theorem in Section 4.3.\<close>
 
 theorem embed_TM_in_len:
   fixes M l

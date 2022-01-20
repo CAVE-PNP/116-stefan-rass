@@ -10,8 +10,8 @@ abbreviation dlog :: "nat \<Rightarrow> nat"
   where "dlog \<equiv> Discrete.log"
 
 \<comment> \<open>\<open>clog\<close> defines \<open>\<lceil>log\<^sub>2 n\<rceil>\<close> over the natural numbers. Note that this is not correct over the reals.\<close>
-abbreviation clog :: "nat \<Rightarrow> nat"
-  where "clog n \<equiv> dlog (n-1) + 1"
+definition clog :: "nat \<Rightarrow> nat"
+  where clog_def[simp]: "clog n \<equiv> dlog (n-1) + 1"
 
 
 lemma log_less: "n > 0 \<Longrightarrow> dlog n < n"
@@ -110,16 +110,38 @@ qed (* case "n = 0" by *) simp
 
 subsubsection\<open>Discrete Ceiling Log\<close>
 
-lemma clog_exp: "0 < n \<Longrightarrow> clog (2^n) = n" unfolding log_exp_m1 by fastforce
+lemma clog_exp[simp]: "0 < n \<Longrightarrow> clog (2^n) = n" unfolding clog_def log_exp_m1 by fastforce
+
+lemma clog_gt_0[simp]: "clog n > 0" by simp
 
 lemma clog_le: "0 < n \<Longrightarrow> clog n \<le> n"
 proof -
   assume "n > 0"
   have "dlog (n-1) \<le> n-1" by (rule log_le)
-  then have "clog n \<le> n-1 + 1" by (unfold add_le_cancel_right)
+  then have "clog n \<le> n-1 + 1" by (unfold clog_def add_le_cancel_right)
   also have "... = n" using \<open>n > 0\<close> by simp
   finally show "clog n \<le> n" .
 qed
+
+lemma dlog_le_clog[simp]: "dlog n \<le> clog n"
+proof (cases "n > 0")
+  assume "n > 0"
+  then have n_split: "n - 1 + 1 = n" by simp
+  have "dlog n = dlog (n - 1 + 1)" unfolding n_split ..
+  also have "... \<le> dlog (n - 1) + 1" by (rule dlog_add1_le)
+  finally show "dlog n \<le> clog n" unfolding clog_def .
+qed (* case "n = 0" by *) simp
+
+lemma clog_le_dlog_p1: "clog n \<le> dlog n + 1"
+proof -
+  have "clog n = dlog (n - 1) + 1" by simp
+  also have "... \<le> dlog n + 1" unfolding add_le_cancel_right using log_le_iff by simp
+  finally show "clog n \<le> dlog n + 1" .
+qed
+
+lemma clog_mono: "mono clog"
+  unfolding clog_def by (intro monoI) (rule add_le_mono1, rule log_le_iff, rule diff_le_mono)
+
 
 lemma power_two_decompose:
   fixes n::nat
@@ -164,13 +186,15 @@ proof -
 qed
 
 lemma log_altdef_ceil:
-  assumes "2 \<le> (n::nat)"
+  fixes n :: nat
+  assumes "2 \<le> n"
   shows "clog n = nat \<lceil>log 2 n\<rceil>"
 proof -
   from assms have "1 \<le> n" by simp
   with power_two_decompose obtain k m where km_def: "n = 2^k + m" "m < 2^k" .
 
-  show "dlog (n-1) + 1 = nat \<lceil>log 2 n\<rceil>" proof (cases "m = 0")
+  show "clog n = nat \<lceil>log 2 n\<rceil>" unfolding clog_def
+  proof (cases "m = 0")
     case True
     then have k_def: "n = 2^k" using \<open>n = 2^k + m\<close> by simp
 
@@ -183,7 +207,7 @@ proof -
     also have "... = dlog (2^k)" using log_exp ..
     also have "... = nat \<lceil>log 2 ((2::nat)^k)\<rceil>" by (subst dlog_altdef) simp_all
     also have "... = nat \<lceil>log 2 n\<rceil>" unfolding k_def ..
-    finally show ?thesis .
+    finally show "dlog (n-1) + 1 = nat \<lceil>log 2 n\<rceil>" .
   next
     case False
     then have \<open>1 \<le> m\<close> \<open>0 \<le> m-1\<close> by simp_all
@@ -195,7 +219,7 @@ proof -
     finally have "dlog (n-1) + 1 = k + 1" unfolding add_right_cancel .
     also have "... = nat \<lceil>log 2 n\<rceil>" unfolding km_def
       using \<open>1 \<le> m\<close> \<open>m < 2^k\<close> by (subst log_eq2) simp_all
-    finally show ?thesis .
+    finally show "dlog (n-1) + 1 = nat \<lceil>log 2 n\<rceil>" .
   qed
 qed
 
