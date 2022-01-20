@@ -1,0 +1,13 @@
+session "116_stefan_rass" = "HOL-Library" +
+  options [document = pdf, document_output = "output"]
+  sessions
+    Intro_Dest_Elim
+  directories
+    Supplementary
+ (* theories [document = false]
+    A
+    B *)
+  theories [quick_and_dirty]
+    Complexity
+  document_files
+    "root.tex"

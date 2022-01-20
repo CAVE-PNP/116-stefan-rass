@@ -13,11 +13,11 @@ text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_hal
 
    "[...] it is reasonable to assume that any time complexity function \<open>T(n)\<close> is
     at least \<open>n + 1\<close>, for this is the time needed just to read the input and verify that the
-    end has been reached by reading the first blank.\<dagger> We thus make the convention
+    end has been reached by reading the first blank*. We thus make the convention
     that "time complexity \<open>T(n)\<close>" means \<open>max (n + 1, \<lceil>T(n)\<rceil>])\<close>. For example, the value of
     time complexity \<open>n log\<^sub>2n\<close> at \<open>m = 1\<close> is \<open>2\<close>, not \<open>0\<close>, and at \<open>n = 2\<close>, its value is \<open>3\<close>.
 
-    \<dagger> Note, however, that there are TM's that accept or reject without reading all their input.
+    * Note, however, that there are TM's that accept or reject without reading all their input.
       We choose to eliminate them from consideration."\<close>
 
 definition tcomp :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
