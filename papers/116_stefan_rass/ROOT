@@ -15,6 +15,7 @@ session "116_stefan_rass" = "HOL-Library" +
     Binary
     Goedel_Numbering
     Language_Density
+    TM
     (* A Hard Language with a Known Density Bound *)
     SQ
     TM_Encoding

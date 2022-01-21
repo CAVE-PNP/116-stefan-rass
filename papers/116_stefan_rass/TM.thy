@@ -1,3 +1,5 @@
+section\<open>Turing Machines\<close>
+
 theory TM
   imports Main "Supplementary/Misc" "Supplementary/Lists"
     "Intro_Dest_Elim.IHOL_IDE" "HOL-Library.Countable_Set"
@@ -923,7 +925,8 @@ lemma decides_altdef3: "decides_word L w \<longleftrightarrow> wf_word w \<and> 
 
 end
 
-subsubsection\<open>TM Languages\<close>
+
+subsection\<open>TM Languages\<close>
 
 definition TM_lang :: "('a, 'b::blank) TM \<Rightarrow> 'b lang" ("L'(_')")
   where "L(M) \<equiv> if (\<forall>w\<in>pre_TM.wf_words M. TM.halts M w)
@@ -978,7 +981,7 @@ abbreviation computes :: "('b list \<Rightarrow> 'b list) \<Rightarrow> bool"
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
 
 
-subsection\<open>Rejecting TM\<close>
+subsection\<open>The Rejecting TM\<close>
 
 
 locale Rej_TM =
