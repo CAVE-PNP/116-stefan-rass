@@ -1,0 +1,16 @@
+\<comment> \<open>A development session containing imports for all CAVE-PNP branches,
+  enabling seamlessly switching environments without rechecking dependencies.
+  May contain sessions currently not in use.\<close>
+
+session "DEV_CAVE-PNP_ALL" = "HOL-Library" + 
+  sessions
+    \<comment> \<open>for paper #49 (Zohreh Akbari)\<close>
+    "Graph_Theory"
+    "Simpl"
+    "HOL-Imperative_HOL"
+    "HOL-Computational_Algebra"
+
+    \<comment> \<open>for paper #116 (Stefan Rass)\<close>
+    "Universal_Turing_Machine"
+    "Intro_Dest_Elim"
+  theories DEV_ALL
