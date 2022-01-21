@@ -1,9 +1,9 @@
+section\<open>Alternative \<open>L\<^sub>D\<close> (Bridge to Lemma 4.6)\<close>
+
 theory LD_Issues
   imports L0
 begin
 
-
-section\<open>Alternative \<open>L\<^sub>D\<close> (Bridge to Lemma 4.6)\<close>
 
 subsection\<open>Encoding\<close>
 
@@ -141,7 +141,7 @@ lemma L\<^sub>D''_L\<^sub>0''_adj_sq_iff:
 
 subsection\<open>\<open>L\<^sub>D'' \<notin> DTIME(t)\<close> via Reduction from \<open>L\<^sub>D\<close> to \<open>L\<^sub>D''\<close>\<close>
 
-text\<open>Reduce \<open>L\<^sub>D''\<close> to \<open>L\<^sub>D\<close>:
+text\<open>Reduce \<open>L\<^sub>D\<close> to \<open>L\<^sub>D''\<close>:
     Given a word \<open>w\<close>, construct its counterpart \<open>w' := 1\<^sup>l0x0\<^sup>l\<^sup>+\<^sup>9\<close>, where \<open>l = length w\<close>.
     Decoding \<open>w'\<close> then yields \<open>(l, w)\<close> which results in the intermediate value \<open>v\<close>
     being equal to \<open>w\<close> in the definition of \<^const>\<open>L\<^sub>D''\<close>.\<close>
@@ -206,7 +206,7 @@ proof (rule ccontr, unfold not_not)
 qed
 
 
-subsection\<open>\<open>L\<^sub>D'' \<in> DTIME(T)\<close> via Reduction from \<open>L\<^sub>D\<close>\<close>
+subsection\<open>\<open>L\<^sub>D'' \<in> DTIME(T)\<close> via Reduction from \<open>L\<^sub>D''\<close> to \<open>L\<^sub>D\<close>\<close>
 
 lemma L\<^sub>D''_T: "L\<^sub>D'' \<in> DTIME(T)"
 proof (rule reduce_DTIME)
@@ -227,7 +227,7 @@ proof (rule reduce_DTIME)
            in rejects M\<^sub>v v \<and> is_final (steps0 (1, <v>\<^sub>t\<^sub>p) M\<^sub>v (tcomp\<^sub>w T v)))"
       unfolding time_bounded_altdef ..
     also have "... \<longleftrightarrow> (let (l, x) = decode_pair w; v = drop (length x - l) x; M\<^sub>v = TM_decode_pad v
-           in rejects M\<^sub>v v \<and> is_final (steps0 (1, <v>\<^sub>t\<^sub>p) M\<^sub>v (tcomp\<^sub>w T x)))" sorry (* nope *)
+           in rejects M\<^sub>v v \<and> is_final (steps0 (1, <v>\<^sub>t\<^sub>p) M\<^sub>v (tcomp\<^sub>w T x)))" sorry \<comment> \<open>not possible\<close>
     also have "... \<longleftrightarrow> w \<in> L\<^sub>D''"
       unfolding L\<^sub>D''_def mem_Collect_eq time_bounded_def ..
     finally show ?thesis .
@@ -245,7 +245,7 @@ proof (rule reduce_DTIME)
 
   show "computable_in_time T f\<^sub>R" sorry
 
-  show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> T m / m" sorry (* not correct with current assumptions *)
+  show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> T m / m" sorry \<comment> \<open>not correct with current assumptions\<close>
 qed
 
 

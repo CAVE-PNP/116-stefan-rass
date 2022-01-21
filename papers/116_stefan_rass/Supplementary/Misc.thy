@@ -1,6 +1,15 @@
+chapter\<open>Supplementary Material\<close>
+
+text\<open>Extends existing sessions with helpful lemmas and definitions.\<close>
+
+section\<open>Misc\<close>
+
 theory Misc
   imports Main
 begin
+
+
+text\<open>Extends \<^theory>\<open>HOL.Fun\<close>, \<^theory>\<open>HOL.Set\<close>, and \<^theory>\<open>HOL.Orderings\<close>.\<close>
 
 lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_def)
 

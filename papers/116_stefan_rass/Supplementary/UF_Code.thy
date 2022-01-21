@@ -1,6 +1,11 @@
+section\<open>Injective UTM Encoding\<close>
+
 theory UF_Code
   imports Universal_Turing_Machine.UF "HOL-Computational_Algebra.Primes"
 begin
+
+text\<open>Extends \<^session>\<open>Universal_Turing_Machine\<close> with lemmas
+  centered around the injectivity of \<^const>\<open>code\<close> (encoding of TMs as strings).\<close>
 
 lemma code_Nil: "code [] = 1" unfolding code.simps Let_def godel_code_eq_1 modify_tprog.simps ..
 lemma code_gt_0: "code M > 0" unfolding code.simps Let_def using godel_code_great .

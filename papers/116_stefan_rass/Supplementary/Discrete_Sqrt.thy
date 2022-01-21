@@ -1,9 +1,11 @@
+subsection\<open>Discrete Square Root\<close>
+
 theory Discrete_Sqrt
   imports "HOL-Library.Discrete"
 begin
 
 
-subsection\<open>Discrete Square Root\<close>
+text\<open>Helpful lemmas centered around \<^const>\<open>Discrete.sqrt\<close>.\<close>
 
 abbreviation (input) is_square :: "nat \<Rightarrow> bool" where
   "is_square n \<equiv> (\<exists>m. n = m\<^sup>2)"

@@ -1,5 +1,7 @@
+section \<open>Encoding TMs as (Binary) Strings\<close>
+
 theory TM_Encoding
-  imports Goedel_Numbering SQ "Supplementary/Misc" "Supplementary/UF_Code"
+  imports Goedel_Numbering "Supplementary/Misc" "Supplementary/UF_Code"
     "Universal_Turing_Machine.UTM" "HOL-Library.Sublist"
 begin
 
@@ -19,8 +21,6 @@ text\<open>A Turing Machine (TM) as defined by Xu et al. [2013] is a list of sta
 type_synonym TM = "tprog0"
 
 
-subsection\<open>Encoding TMs\<close>
-
 text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
   the decoding of a TM \<open>M\<close> from a binary word \<open>w\<close> includes:
 
@@ -33,7 +33,7 @@ text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
   which is the \<^emph>\<open>rightmost\<close> one when explicitly referring to lists in Isabelle.\<close>
 
 
-subsubsection\<open>Exponential Padding\<close>
+subsection\<open>Exponential Padding\<close>
 
 definition add_exp_pad :: "word \<Rightarrow> word"
   where "add_exp_pad w = (let l = length w in False \<up> (2^l - l) @ w)"
@@ -85,7 +85,7 @@ proof -
 qed
 
 
-subsubsection\<open>Arbitrary-length \<open>1\<^sup>+0\<close> prefix\<close>
+subsection\<open>Arbitrary-length \<open>1\<^sup>+0\<close> prefix\<close>
 
 definition add_al_prefix :: "word \<Rightarrow> word" where
   "add_al_prefix w = w @ [False, True]"
@@ -168,7 +168,7 @@ proof -
 qed
 
 
-subsubsection\<open>Code Description\<close>
+subsection\<open>Code Description\<close>
 
 text\<open>For this part, only a short description is given in ch. 3.1.
   The somewhat obvious choice is to utilize \<^term>\<open>code\<close>, since it is already defined
@@ -283,7 +283,7 @@ proof -
 qed
 
 
-subsubsection\<open>Assembling components\<close>
+subsection\<open>Assembling Components\<close>
 
 (* TODO These names are already confusing. Find less ambiguous ones *)
 
@@ -304,7 +304,7 @@ lemma TM_decode_Nil: "TM_decode_pad [] = Rejecting_TM"
   unfolding TM_decode_pad_def exp_pad_Nil alp_Nil decode_TM_Nil ..
 
 
-subsubsection\<open>Proving required properties\<close>
+subsection\<open>Properties of the Encoding\<close>
 
 text\<open>from ch. 3.1:
   "The encoding that we will use [...] will have the following properties:

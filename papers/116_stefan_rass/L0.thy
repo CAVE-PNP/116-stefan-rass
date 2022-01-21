@@ -1,7 +1,11 @@
+section\<open>The Time Hierarchy Theorem and the Language \<open>L\<^sub>0\<close>\<close>
+
 theory L0
-  imports Complexity
+  imports SQ Complexity
 begin
 
+
+subsection\<open>Preliminaries\<close>
 
 lemma SQ_DTIME: "SQ \<in> DTIME(\<lambda>n. n^3)" sorry
 
@@ -42,7 +46,7 @@ next
 qed
 
 
-section\<open>Time Hierarchy Theorem and the Diagonal Language\<close>
+subsection\<open>The Time Hierarchy Theorem\<close>
 
 locale tht_assms =
   fixes T t :: "nat \<Rightarrow> nat"
@@ -222,7 +226,7 @@ qed
 end \<comment> \<open>\<^locale>\<open>tht_assms\<close>\<close>
 
 
-section\<open>\<open>L\<^sub>0\<close>\<close>
+subsection\<open>The Hard Language \<open>L\<^sub>0\<close>\<close>
 
 text\<open>From the proof of Lemma 4.6, p14:
 

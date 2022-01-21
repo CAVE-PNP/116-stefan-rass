@@ -7,6 +7,22 @@ session "116_stefan_rass" = "HOL-Library" +
   directories
     Supplementary
   theories [quick_and_dirty] (* allow `sorry` *)
+    (* Supplementary theories *)
+    Misc
+    Lists
+    Sublists
+    Discrete_Log
+    Discrete_Sqrt
+    UF_Code
+    (* Definitions and Preliminaries *)
+    Binary
+    Goedel_Numbering
+    Language_Density
+    (* A Hard Language with a Known Density Bound *)
+    SQ
+    TM_Encoding
+    Complexity
+    L0
     LD_Issues
   document_files
     "root.tex"
