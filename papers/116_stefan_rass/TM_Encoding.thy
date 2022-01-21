@@ -1,10 +1,12 @@
+section \<open>Encoding TMs as (Binary) Strings\<close>
+
 theory TM_Encoding
-  imports Goedel_Numbering TM SQ
+  imports Goedel_Numbering TM
     "Supplementary/Misc" "HOL-Library.Sublist"
 begin
 
 
-section\<open>Encoding TMs\<close>
+subsection\<open>Encoding TMs\<close>
 
 text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
   the decoding of a TM \<open>M\<close> from a binary word \<open>w\<close> includes:
@@ -132,7 +134,7 @@ proof -
 qed
 
 
-subsubsection\<open>Arbitrary-length \<open>1\<^sup>+0\<close> prefix\<close>
+subsection\<open>Arbitrary-length \<open>1\<^sup>+0\<close> prefix\<close>
 
 definition add_al_prefix :: "word \<Rightarrow> word" where
   "add_al_prefix w = w @ [False, True]"

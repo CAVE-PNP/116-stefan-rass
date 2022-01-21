@@ -1,3 +1,5 @@
+section\<open>Language Density\<close>
+
 theory Language_Density
   imports Goedel_Numbering
 begin
@@ -7,8 +9,6 @@ type_synonym lang = "word set"
 \<comment> \<open>The empty word.\<close>
 abbreviation (input) \<epsilon> :: word where "\<epsilon> \<equiv> []"
 
-
-section\<open>Language Density\<close>
 
 text\<open>Definition of language density functions in ch. 3.2:
 

@@ -1,6 +1,11 @@
+section\<open>Lists\<close>
+
 theory Lists
   imports Main
 begin
+
+
+text\<open>Extends \<^theory>\<open>HOL.List\<close>.\<close>
 
 \<comment> \<open>From \<^session>\<open>Universal_Turing_Machine\<close>.\<close>
 abbreviation replicate_exponent :: "'a \<Rightarrow> nat \<Rightarrow> 'a list" ("_ \<up> _" [100, 99] 100)
@@ -75,8 +80,8 @@ lemma pad_length: "length (pad n x xs) = max n (length xs)"
 lemma pad_le_length[simp]: "length xs \<le> n \<Longrightarrow> length (pad n x xs) = n"
   by simp
 
-subsection\<open>\<open>ends_in\<close> - An Alternative to \<^const>\<open>last\<close>\<close>
 
+\<comment> \<open>\<open>ends_in\<close> - an alternative to \<^const>\<open>last\<close>.\<close>
 abbreviation (input) ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" where
   "ends_in x xs \<equiv> (\<exists>ys. xs = ys @ [x])"
 

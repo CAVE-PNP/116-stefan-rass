@@ -1,11 +1,11 @@
+section\<open>Gödel Numbering\<close>
+
 theory Goedel_Numbering
   imports Binary
 begin
 
 type_synonym word = "bin"
 
-
-section\<open>Gödel Numbering\<close>
 
 text\<open>Definition of Gödel numbers, given in ch. 3.1:
 

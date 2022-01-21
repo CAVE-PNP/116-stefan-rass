@@ -1,9 +1,14 @@
+section\<open>Discrete Functions\<close>
+
+subsection\<open>Discrete Logarithm\<close>
+
 theory Discrete_Log
   imports "./Misc" "HOL-Library.Discrete"
 begin
 
 
-subsection\<open>Discrete Logarithm\<close>
+text\<open>Extends \<^theory>\<open>HOL-Library.Discrete\<close> with various helpful lemmas
+  centered around \<^const>\<open>Discrete.log\<close>.\<close>
 
 \<comment> \<open>\<open>dlog\<close> defines \<open>\<lfloor>log\<^sub>2 n\<rfloor>\<close> over the natural numbers.\<close>
 abbreviation dlog :: "nat \<Rightarrow> nat"

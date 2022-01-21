@@ -1,0 +1,6 @@
+# add paths to sessions
+# - each session has to be specified in a ROOT file
+# - to access the sessions in Isabelle, add this directory to ~/.isabelle/Isabelle<version>/ROOTS
+_dev
+049_zohreh_akbari
+116_stefan_rass

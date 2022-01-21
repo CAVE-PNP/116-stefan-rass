@@ -1,9 +1,11 @@
+chapter\<open>Definitions and Preliminaries\<close>
+
+section\<open>Binary String Representation\<close>
+
 theory Binary
   imports Main "Supplementary/Lists" "Supplementary/Discrete_Log" "HOL-Library.Sublist"
 begin
 
-
-section\<open>Binary String Representation\<close>
 
 text\<open>In the paper "On the Existence of Weak One-Way Functions",
   a binary alphabet \<open>\<Sigma> := {0, 1}\<close> is used for virtually all TM related definitions.

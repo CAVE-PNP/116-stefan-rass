@@ -1,0 +1,5 @@
+*      text=auto
+ROOTS  text       eol=lf
+
+[core]
+    eol=lf

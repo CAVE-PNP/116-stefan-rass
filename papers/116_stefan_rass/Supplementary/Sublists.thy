@@ -1,6 +1,11 @@
+subsection\<open>Sublists\<close>
+
 theory Sublists
   imports "HOL-Library.Sublist"
 begin
+
+
+text\<open>Extends \<^theory>\<open>HOL-Library.Sublist\<close>.\<close>
 
 lemma suffix_drop_le:
   assumes "a \<ge> b"

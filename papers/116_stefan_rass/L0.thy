@@ -1,9 +1,13 @@
+section\<open>The Time Hierarchy Theorem and the Language \<open>L\<^sub>0\<close>\<close>
+
 theory L0
-  imports Complexity
+  imports SQ Complexity
 begin
 
 
-lemma SQ_DTIME: "SQ \<in> DTIME TYPE(nat) (\<lambda>n. n^3)" sorry
+subsection\<open>Preliminaries\<close>
+
+lemma SQ_DTIME: "SQ \<in> DTIME(\<lambda>n. n^3)" sorry
 
 lemma dominates_altdef:
   fixes c :: real
@@ -42,7 +46,7 @@ next
 qed
 
 
-section\<open>Time Hierarchy Theorem and the Diagonal Language\<close>
+subsection\<open>The Time Hierarchy Theorem\<close>
 
 locale tht_assms =
   fixes T t :: "nat \<Rightarrow> nat"
@@ -225,7 +229,7 @@ qed
 end \<comment> \<open>\<^locale>\<open>tht_assms\<close>\<close>
 
 
-section\<open>\<open>L\<^sub>0\<close>\<close>
+subsection\<open>The Hard Language \<open>L\<^sub>0\<close>\<close>
 
 text\<open>From the proof of Lemma 4.6, p14:
 
@@ -349,7 +353,7 @@ proof (rule ccontr, unfold not_not)
       then show "length (adj_sq\<^sub>w w) \<le> length w"
         by (intro eq_imp_le sh_msbD) (fact adj_sq_sh_pfx_half)
     qed
-    
+
     show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" sorry
     \<comment> \<open>This is not correct, since \<^term>\<open>t\<close> could be arbitrarily small.
       Let \<open>t(n) = n\<close> and \<open>T(n) = n\<^sup>3\<close>. Then \<open>DTIME(t)\<close> is limited by \<open>tcomp t n = n + 1\<close>

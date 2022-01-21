@@ -1,3 +1,7 @@
+section\<open>Complexity\<close>
+
+text\<open>Definitions and lemmas from computational complexity theory.\<close>
+
 theory Complexity
   imports TM Goedel_Numbering
 begin
@@ -13,7 +17,7 @@ text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_hal
 
    "[...] it is reasonable to assume that any time complexity function \<open>T(n)\<close> is
     at least \<open>n + 1\<close>, for this is the time needed just to read the input and verify that the
-    end has been reached by reading the first blank*. We thus make the convention
+    end has been reached by reading the first blank.* We thus make the convention
     that "time complexity \<open>T(n)\<close>" means \<open>max (n + 1, \<lceil>T(n)\<rceil>])\<close>. For example, the value of
     time complexity \<open>n log\<^sub>2n\<close> at \<open>m = 1\<close> is \<open>2\<close>, not \<open>0\<close>, and at \<open>n = 2\<close>, its value is \<open>3\<close>.
 

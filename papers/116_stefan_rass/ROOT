@@ -4,10 +4,24 @@ session "116_stefan_rass" = "HOL-Library" +
     Intro_Dest_Elim
   directories
     Supplementary
- (* theories [document = false]
-    A
-    B *)
-  theories [quick_and_dirty]
+  theories [quick_and_dirty] (* allow `sorry` *)
+    (* Supplementary theories *)
+    Misc
+    Lists
+    Sublists
+    Discrete_Log
+    Discrete_Sqrt
+    (* Definitions and Preliminaries *)
+    Binary
+    Goedel_Numbering
+    Language_Density
+    (* A Hard Language with a Known Density Bound *)
+    SQ
+    TM_Encoding
     Complexity
+    (* broken:
+    L0
+    LD_Issues
+    *)
   document_files
     "root.tex"

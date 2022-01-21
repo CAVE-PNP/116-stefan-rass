@@ -1,0 +1,16 @@
+\<comment> \<open>A development session containing imports for all CAVE-PNP branches,
+  enabling seamlessly switching environments without rechecking dependencies.
+  Use by adding this directory to the Isabelle ROOTS.
+  See section Imports in \<^file>\<open>../max_notes/isabelle.md\<close> and \<^url>\<open>https://www.isa-afp.org/using.html\<close>.
+  Note: \<^session>\<open>Universal_Turing_Machine\<close> is chosen as base session
+  because it is the biggest and slowest to check.\<close>
+
+session "DEV_CAVE-PNP" = "HOL-Library" + 
+  sessions
+    \<comment> \<open>for paper #49 (Zohreh Akbari)\<close>
+    "Graph_Theory"
+    "Simpl"
+
+    \<comment> \<open>for paper #116 (Stefan Rass)\<close>
+    "Intro_Dest_Elim"
+  theories DEV
