@@ -1,5 +1,5 @@
 theory TM_Encoding
-  imports Goedel_Numbering SQ "Supplementary/Misc" "Supplementary/UF_Code"
+  imports Goedel_Numbering "Supplementary/Misc" "Supplementary/UF_Code"
     "Universal_Turing_Machine.UTM" "HOL-Library.Sublist"
 begin
 

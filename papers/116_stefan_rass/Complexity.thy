@@ -1,5 +1,5 @@
 theory Complexity
-  imports Goedel_Numbering TM_Encoding
+  imports Goedel_Numbering Language_Density TM_Encoding
     "Universal_Turing_Machine.UTM"
 begin
 
