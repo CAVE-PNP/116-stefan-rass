@@ -1,6 +1,11 @@
+section\<open>Lists\<close>
+
 theory Lists
   imports HOL.List
 begin
+
+
+text\<open>Extends \<^theory>\<open>HOL.List\<close>.\<close>
 
 lemma len_tl_Cons: "xs \<noteq> [] \<Longrightarrow> length (x # tl xs) = length xs" by simp
 
@@ -32,8 +37,7 @@ proof -
 qed
 
 
-subsection\<open>\<open>ends_in\<close> - An Alternative to \<^const>\<open>last\<close>\<close>
-
+\<comment> \<open>\<open>ends_in\<close> - an alternative to \<^const>\<open>last\<close>.\<close>
 abbreviation (input) ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" where
   "ends_in x xs \<equiv> (\<exists>ys. xs = ys @ [x])"
 

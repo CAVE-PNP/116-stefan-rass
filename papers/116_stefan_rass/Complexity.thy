@@ -1,3 +1,7 @@
+section\<open>Complexity\<close>
+
+text\<open>Definitions and lemmas from computational complexity theory.\<close>
+
 theory Complexity
   imports Goedel_Numbering Language_Density TM_Encoding
     "Universal_Turing_Machine.UTM"

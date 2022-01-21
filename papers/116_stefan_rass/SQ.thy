@@ -1,16 +1,21 @@
+chapter\<open>A Hard Language with a Known Density Bound\<close>
+
+section\<open>The Language of Integer Squares\<close>
+
 theory SQ
   imports Language_Density
     "Supplementary/Discrete_Log" "Supplementary/Discrete_Sqrt" "Supplementary/Sublists"
     "Intro_Dest_Elim.IHOL_IDE"
 begin
 
-subsection\<open>Language of Integer Squares\<close>
 
-(* SQ is an overloaded identifier in the paper *)
-definition SQ :: lang \<comment> \<open>the language of non-zero square numbers, represented by binary strings without leading ones.\<close>
+text\<open>SQ is an overloaded identifier in the paper.
+  However, the more common notion is the language as opposed to the set of natural numbers.\<close>
+
+definition SQ :: lang \<comment> \<open>The language of non-zero square numbers, represented by binary strings without leading ones.\<close>
   where [simp]: "SQ \<equiv> {w. \<exists>x. gn w = x\<^sup>2}"
 
-definition SQ_nat :: "nat set" \<comment> \<open>the analogous set \<open>SQ \<subseteq> \<nat>\<close>, as defined in ch 4.1\<close>
+definition SQ_nat :: "nat set" \<comment> \<open>The analogous set \<open>SQ \<subseteq> \<nat>\<close>, as defined in ch 4.1\<close>
   where "SQ_nat \<equiv> {y. y \<noteq> 0 \<and> (\<exists>x. y = x\<^sup>2)}"
 
 lemma SQ_nat_zero:
@@ -18,7 +23,7 @@ lemma SQ_nat_zero:
 	"SQ_nat = {y. \<exists>x. y = x ^ 2} - {0}"
 	by (auto simp add: SQ_nat_def)
 
-(* relating SQ and SQ_nat *)
+\<comment> \<open>relating \<^const>\<open>SQ\<close> and \<^const>\<open>SQ_nat\<close>\<close>
 lemma SQ_SQ_nat:
   shows SQ_nat_vim: "SQ = gn -` SQ_nat"
     and SQ_nat_eq: "SQ = {w. gn w \<in> SQ_nat}"
@@ -169,6 +174,7 @@ subsection\<open>Length of prefix\<close>
 
 \<comment> \<open>\<open>w'\<close> (next_square n) will eventually have an identical lot of \<open>\<lceil>log l\<rceil>\<close> most significant bits\<close>
 
+(* TODO format the following note as text *)
 (*
  * but what about when the carry "wraps over", for instance n := 31
  *
@@ -304,28 +310,6 @@ proof -
   then show ?thesis unfolding * .
 qed
 
-
-(* comparison to old definition:
-lemma sh_pfx_altdef: "drop (length b - l) b = drop (length a - l) a \<and> l \<le> length a
-                        \<longleftrightarrow> (\<exists>ps. length ps = l \<and> suffix ps a \<and> suffix ps b)"
-proof (unfold sh_sfx_def, intro iffI exI conjI; elim exE conjE)
-  assume "l \<le> length a" and drop_eq: "drop (length a - l) a = drop (length b - l) b"
-  let ?ps = "drop (length a - l) a"
-
-  show "length ?ps = l" using \<open>l \<le> length a\<close> unfolding length_drop by (subst diff_diff_cancel) blast+
-  show "suffix ?ps a" by (rule suffix_drop)
-  show "suffix ?ps b" unfolding drop_eq by (rule suffix_drop)
-next
-  fix ps
-  assume l: "length ps = l" and sa: "suffix ps a" and sb: "suffix ps b"
-
-  from sa have "drop (length a - l) a = ps" unfolding suffix_drop_iff l .
-  also from sb have "ps = drop (length b - l) b" unfolding suffix_drop_iff l ..
-  finally show "drop (length a - l) a = drop (length b - l) b" .
-  from sa show "l \<le> length a" by (fold l) (rule suffix_length_le)
-qed
-*)
-
 lemma sh_msb_le:
   assumes "L \<ge> l"
     and shL: "shared_MSBs L a b"
@@ -384,7 +368,7 @@ qed (* cases "up = 0" and "lo = 0" by *) (simp_all add: nat_of_bin_app_0s)
 
 corollary add_suffix_bin':
   fixes up lo k :: nat
-  assumes "up > 0" (* required to prevent leading zeroes *)
+  assumes "up > 0" \<comment> \<open>required to prevent leading zeroes\<close>
     and "lo < 2^k"
   shows "bin_of_nat (up * 2^k + lo) = (bin_of_nat lo) @ (replicate (k - (length (bin_of_nat lo))) False) @ (bin_of_nat up)"
     (is "?lhs = ?lo @ ?zs @ ?up")
@@ -467,7 +451,7 @@ qed (* case "lo = 0" by *) (simp add: assms)
 
 
 lemma adj_sq_sh_pfx_half:
-  assumes len: "length w \<ge> 9" (* lower bound for "4 + l div 2 < l" *)
+  assumes len: "length w \<ge> 9" \<comment> \<open>lower bound for \<open>4 + l div 2 < l\<close>\<close>
   defines k: "k \<equiv> suffix_len w"
   defines w': "w' \<equiv> adj_sq\<^sub>w w"
   shows "shared_MSBs (length w - k) w w'"
@@ -593,7 +577,7 @@ theorem adj_sq_sh_pfx_log:
   defines "l \<equiv> length w"
   defines "k \<equiv> clog l"
   defines "w' \<equiv> adj_sq\<^sub>w w"
-  assumes "l \<ge> 20" (* lower bound for "clog l \<le> l div 2 - 5" *)
+  assumes "l \<ge> 20" \<comment> \<open>lower bound for \<open>clog l \<le> l div 2 - 5\<close>\<close>
   shows "shared_MSBs k w w'"
     and "w' \<in> SQ"
 proof -
