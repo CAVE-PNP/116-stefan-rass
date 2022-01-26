@@ -136,23 +136,23 @@ Notable components:
 
 ### Versions
 
-There are multiple options for using Isabelle. One can download and build
-the sources (see [Mercurial repo](https://isabelle.sketis.net/repos/isabelle)
-or [this view](https://isabelle-dev.sketis.net/source/isabelle/)
-with a more modern UI), download a
-["nightly" repository snapshot](https://isabelle.sketis.net/devel/release_snapshot/),
-or download a release version
-(see [Installation guide](https://isabelle.in.tum.de/installation.html)).
+The simplest option for using Isabelle is to download a [release version](https://isabelle.in.tum.de/installation.html)
+(see also [past releases](https://isabelle.in.tum.de/download_past.html)).
+Developers and early adopters can opt for
+[nightly builds](https://isabelle.sketis.net/devel/release_snapshot/),
+or download and build the sources
+(see the official [Mercurial repo](https://isabelle.sketis.net/repos/isabelle)
+or [this more modern view](https://isabelle-dev.sketis.net/source/isabelle/)).
 
 Release versions do not receive patches, but are community tested with
 release candidates before going live (this then is the last chance to request
 features for a release). Release versions are scheduled to release every
-8-10 months
+8-10 months.
 
-Note that for most of this section is mentioned nowhere on the official sites.
-Instead this information is scraped together from multiple sources,
-mainly [`talk:isa-news` (at ~1min)](https://youtu.be/MpJZI1M_uVs?t=67).
-See also the section on [Isabelle resources](#Isabelle-resources).
+See also [Isabelle NEWS and trends in 2020](https://files.sketis.net/Isabelle_Workshop_2020/Isabelle_2020_slides_7.pdf#page=3)
+(explained in [`talk:isa-news` at ~1min](https://youtu.be/MpJZI1M_uVs?t=67)),
+[this comment on the Isabelle2021-1 release](https://isabelle-dev.sketis.net/phame/post/view/49/plan_for_isabelle2021-1_release/),
+and the section on [Isabelle resources](#Isabelle-resources).
 
 ### IDEs
 
