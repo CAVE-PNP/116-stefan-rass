@@ -96,11 +96,10 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
   - requires an understanding of functional programming
 - `concrete_semantics.pdf`: Tobias Nipkow and Gerwin Klein: [Concrete Semantics](http://www.concrete-semantics.org/)
   - full book as PDF available on the [homepage](http://www.concrete-semantics.org/concrete-semantics.pdf)
-  - full lecture (from Tobias Nipkow, follows the book) available from the
-    [course page](https://www21.in.tum.de/teaching/semantik/WS20/)
   - `prog-prove.pdf` is _Part I_ of this book
-    - Tobias Nipkow: [Programming and Proving in Isabelle/HOL](https://isabelle.in.tum.de/doc/prog-prove.pdf). 2020.
+    - Tobias Nipkow: [Programming and Proving in Isabelle/HOL](https://isabelle.in.tum.de/doc/prog-prove.pdf).
     - this is the top entry in the [list of documentation items](https://isabelle.in.tum.de/documentation.html) on the isabelle homepage
+    - is updated (along with other official documentation) with every release
     - gives a solid introduction into the basics of using Isabelle/Isar
 - `tutorial.pdf`: Tobias Nipkow and Lawrence C. Paulson and Markus Wenzel: [Isabelle/Hol: A Proof Assistant for Higher-Order Logic](https://isabelle.in.tum.de/doc/tutorial.pdf). Springer 2020.
   - this is an updated version of the [book of the same name](https://permalink.obvsg.at/UKL/AC03403462)

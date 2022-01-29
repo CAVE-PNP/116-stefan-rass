@@ -14,8 +14,7 @@
 ## Getting Started
 
 The best option to start working with Isabelle seems to be reading
-[`prog-prove.pdf`](https://isabelle.in.tum.de/dist/doc/prog-prove.pdf)
-(online lecture available from the [TU München's course page](https://www21.in.tum.de/teaching/semantik/WS20/#material))
+[`prog-prove.pdf`](https://isabelle.in.tum.de/dist/doc/prog-prove.pdf))
 and trying to solve as many of the exercises as possible.
 
 Even though working with Isar (the proof abstraction language of Isabelle) feels mostly declarative,
@@ -39,7 +38,7 @@ Note that files missing an `end` will execute without warnings but cannot be imp
 
 Importing `Main` (a part of `HOL`) gives access to many classical mathematical definitions and results, including a.o. the natural numbers, sets, and lists.
 `Complex_Main` is an extension including the real numbers and beyond.
-In the absense of reasons against it, importing one of these is highly recommended as a baseline (see `prog-prove.pdf`).
+In the absence of reasons against it, importing one of these is highly recommended as a baseline (see `prog-prove.pdf`).
 
 For more information and advanced concepts see [Sessions](#sessions).
 
@@ -126,11 +125,11 @@ Notable components:
   - written in [Standard ML](https://standardml.org)
     (SML '97, Isabelle uses the [PolyML](https://www.polyml.org/) implementation)
 - [Isabelle/HOL](https://isabelle.in.tum.de/doc/logics.pdf):
-  formalization of higher order logic
+  formalization of classical higher order logic; used as default session
 - [Isabelle/Isar](https://isabelle.in.tum.de/library/Doc/Implementation/implementation.pdf)
-  abstracts ML commands in an effort to create more readable proofs
+  abstracts proof commands in an effort to create more readable proofs
   - proof commands are reminiscent of natural language proofs,
-    e.g. `from A have B using C`
+    e.g. `from <premises> have <proposition> by <method>`
 - Isabelle/PIDE is a protocol for communication between a language kernel and an IDE
   - this is used with Isabelle/jEdit and, through an abstraction layer, with Isabelle/VSCode
 
@@ -331,10 +330,11 @@ It is not included with Isabelle distributions per default, so using the librari
 Download the version of the AFP that corresponds to the version of Isabelle from the [downloads section](https://www.isa-afp.org/download.html).
 Note that downloading the wrong version may result in errors and warnings in the underlying proofs.
 
-Follow the instructions at [Referring to AFP Entries](https://www.isa-afp.org/using.html).
+Follow the instructions at [Referring to AFP Entries](https://www.isa-afp.org/using.html)
+([download](https://www.isa-afp.org/download.html) and unpack AFP release, run `isabelle components -u path/to/afp/thys`).
 Note that for Windows, the command has to be entered in the cygwin terminal (`<isa install dir>/Cygwin-Terminal.bat`),
 and the path to the AFP installation has to be adapted to fit the cygwin scheme `/cygdrive/<drive letter>/path/to/afp/thys`.
-This is equivalent to adding the path manually to `$ISABELLE_HOME_USER/ROOTS`.
+The command `isabelle components -u ...` is equivalent to adding the path manually to `$ISABELLE_HOME_USER/ROOTS`.
 
 After setup, AFP entries can be accessed like standard libraries.
 
