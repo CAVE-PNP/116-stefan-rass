@@ -24,6 +24,9 @@ a short introduction of its main concepts (like currying) and way of thinking ma
 
 ### Theories and Imports
 
+Isabelle proof source files are called _Theories_.
+Theories can be grouped into _Sessions_.
+
 A sort of minimal working example of a theory file is the following. Note that the file name needs to match the theory name or Isabelle will not run any code, so this example file must be named `Example.thy`.
 
 ```isabelle
@@ -296,7 +299,12 @@ since the Isabelle extension manages those.
 
 ### Sessions
 
+Isabelle proof source files are called _Theories_.
+Sessions are Isabelle's concept of grouping theories into coherent packages
+(cf. "component"/"module", "(software-)library").
+
 For basic information on imports see [Theories and Imports](#theories-and-imports).
+See also `system.pdf` _ch. 2 Isabelle sessions and build management_.
 
 #### Standard Libraries
 
@@ -311,7 +319,6 @@ Standard libraries (those `.thy` files bundled with Isabelle releases in the `sr
 
 Imports containing special characters, like dashes `-`, must be surrounded by double quotes.
 
-Note that collections of theories are referred to as _sessions_ (~projects) in the context of Isabelle (see `system.pdf` _ch. 2 Isabelle sessions and build management_).
 The session `HOL` is active per default (see [Mechanics](#mechanics-and-session-images) below), such that the theory `src/HOL/Main.thy` can be imported using just `Main`.
 
 #### Local Files
@@ -348,39 +355,78 @@ Additionally, all loaded sessions will be displayed there.
 Members of the sessions `HOL` (like `Main`) are exceptions to this as they are part of the pre-compiled _session image_ `HOL` which is loaded per default at startup (the same applies to the session `Pure`).
 The loaded session image can be changed in the _Theories_ panel in Isabelle/jEdit (changes will take effect after a restart of Isabelle/jEdit).
 If a session image is not yet compiled or out of date (newer sources available), it will be rebuilt on startup.
-Session images that are included with the distribution are stored in `<isa install dir>/heaps/` and user compiled ones in `~/.isabelle/Isabelle20xx/heaps/`.
+Session images that are included with the distribution are stored in `$ISABELLE_HOME/heaps/` and user compiled ones in `~/.isabelle/Isabelle<version>/heaps/`.
 
-Note that while changing the session image may result in faster startup times, it prevents the semantic highlighting in Isabelle/jEdit to work properly for any theories of the loaded session
+Note that while changing the session image may result in faster startup times,
+it prevents the semantic highlighting in Isabelle/jEdit to work properly for any theories _of the loaded session_
 (indicated by the warning `Cannot update finished theory ...`).
 To work around this, change the session image to one that does not include the relevant theories and restart Isabelle/jEdit.
 Normally, the default `HOL` is sufficient; for inspecting parts of `HOL`, one may use `Pure`.
+Alternatively, import the theory in question as a file,
+by specifying its path either absolute or relative to the current file
+(it may be necessary to restart the IDE or purge loaded theories).
 
 The session `HOL-Proofs` is special in that the image includes the full proof terms of the entire `HOL-Library`.
 
-#### Sessions Definitions
+#### Defining Sessions
 
-In order for Isabelle to recognize a session, it has to be defined in a `ROOT` file (defines sessions), that in turn has to be referred to in a `ROOTS` file (points to `ROOT` files or further `ROOTS`).
-There are two main `ROOTS` for each Isabelle installation: one in the installation directory (`ISABELLE_HOME`), and one in `~/.isabelle/Isabelle20xx/` (`ISABELLE_HOME_USER`).
-Isabelle/jEdit provides semantic highlighting and checking for `ROOT` files.
+In order for Isabelle to recognize a session, it has to be defined in a `ROOT` file.
+
+```isabelle-root
+(* ROOT (example) *)
+session Example_Session = HOL +
+  sessions
+    "HOL-Library"
+  theories
+    Example_Theory
+```
+
+Any sessions from which theories are imported must be listed here.
+While it is not necessary to extend some parent session (here `HOL`), it is highly recommended.
+If `Example_Theory` imports some `Other_Theory` from the same directory, it will automatically be included.
+
+Isabelle/jEdit provides semantic highlighting and checking for `ROOT` files.  
 See `system.pdf` _ch. 2.1 Session ROOT specifications_ for `ROOT` file structure and syntax.
-In addition, the Isabelle CLI provides a command for adding paths to the main `ROOTS`: `isabelle components -u /path/to/thys`.
 
-During development of a session, it is advisable to only include _finalized_ theories when loading the session image at startup,
-as any files included in the image cannot be live-checked in Isabelle/jEdit
-(they can however, be imported as [local files](#local-files)).
+The built-in command `isabelle mkroot` (see `system.pdf` _ch. 3.2_) generates a stub `ROOT` file.
+
+##### Register Sessions
+
+In order to use a session in Isabelle, its `ROOT` has to be referred to in a `ROOTS` file
+(points to directories with `ROOT` files or further `ROOTS`).
+
+```isabelle-roots
+(* ROOTS (example) *)
+some/path
+/some/absolute/path
+```
+
+There are two main `ROOTS` for each Isabelle installation:
+one in the installation directory (`$ISABELLE_HOME`) that should not be edited,
+and one in `~/.isabelle/Isabelle<version>/` (`$ISABELLE_HOME_USER`).
+
+In addition, <!-- since Isabelle2021-1 --> the Isabelle CLI provides a shortcut
+for adding paths to the main user-`ROOTS`: `isabelle components -u path/to/thys`.
+
+See also `system.pdf` _ch 2.3_.
+
+##### Conventions
+
+It is recommended to include a `ROOT` file in the session's base directory.
+See for instance the [AFP `Example-Submission`](https://foss.heptapod.net/isa-afp/afp-devel/-/tree/branch/default/thys/Example-Submission)
+(contains rules and recommendations for AFP Submissions).
 
 ##### Dummy Development Sessions
 
-For developing libraries that depend on multiple sessions, such as `HOL-Analysis` and `Graph_Theory`,
-can normally only use one compiled session image, forcing jEdit to check at least one session at each startup.
-To avoid this, developers can create a dummy session containing only these dependencies.
+Since only a single compiled session image can be loaded at startup,
+working on theories that depend on multiple large sessions, such as `HOL-Analysis` and `Graph_Theory`,
+can be tedious, Isabelle/jEdit still needs to check at least one session at each startup.
+To avoid this, developers can create a dummy session containing all dependencies (but no actual code).
 
-A simple setup for this looks as follows (with `project-root` included in a `ROOTS` file):
+A simple setup for this looks as follows (with `dev-session` included in a `ROOTS` file):
 
 ```file-structure
-project-root/
-  thys/
-    My_Library.thy
+dev-session/
   ROOT
   DEV.thy
 ```
@@ -389,7 +435,7 @@ File contents:
 
 ```isabelle-root
 (* ROOT *)
-session "DEV_My_Library" = "<session1>" +
+session "DEV_Something" = "<session1>" +
   sessions "<session2>" "<session3>"
   theories "DEV"
 ```
@@ -401,6 +447,10 @@ theory DEV
 begin
 end
 ```
+
+It is advisable to be generous at importing theories in such a session,
+as each addition or change will require rebuilding the session.
+Similarly, when checking such a session into VCS, it should be consistent across branches.
 
 An important choice is which session to choose as the "parent" session (`<session1>` in this example),
 as this session can be compiled independently of the `DEV` session.
