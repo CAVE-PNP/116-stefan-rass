@@ -473,8 +473,12 @@ either (or both) can be used to showcase results.
 - HTML
   - close resemblance to viewing sources in Isabelle/jEdit
   - links facts to their definition
-    - for now only works within a single theory
+    - if the definition is included in the build
   - theories presented as separate pages
+
+| ![HTML page](img/isa_doc_html.png) | ![Isabelle/jEdit](img/isa_doc_source.png) | ![PDF document](img/isa_doc_pdf.png) |
+| :--------------------------------: | :---------------------------------------: | :----------------------------------: |
+|        Generated HTML page         |   Theory source file in Isabelle/jEdit    |        Generated PDF document        |
 
 For either option, [defining](#defining-sessions) and building a session is required.
 Running `isabelle mkroot` to create a stub `ROOT` is especially helpful,
@@ -494,7 +498,34 @@ so that only the required theories need to be built each time.
 
 #### HTML
 
-TODO
+To generate HTML files build the session with the `browser_info` system option:
+`isabelle build -o browser_info -B Session_Name`.  
+The generated files will be in `$ISABELLE_HOME_USER/browser_info/Session_Group/Session_Name`
+unless an output path is provided with `-P path/to/output`.  
+`$ISABELLE_HOME_USER` is typically `~/.isabelle/Isabelle<version>`
+and the `Session_Group` is `Unsorted` unless specified in the session `ROOT`.
+
+Uses of Isabelle entities (lemmas, definitions) will link to their declaration,
+but only, if their declaration is also included in the build.
+Include other sessions manually by adding `-B Other_Session`.
+Note that this may significantly increase build time,
+since it will build the entire referenced session.
+
+`isabelle build` provides the option `-R` to build _only the dependencies_
+of a given session and only builds theories that are actually imported
+(compared to `-B Other_Session` which builds the whole session).
+This alone does not allow efficiently generating fully linked HTML for sessions,
+since HTML will be generated for all dependencies, but not for the session itself
+(and generating HTML for the session itself after that will not create links).
+However, the approach lends itself to a workaround:
+create and build a minimal dummy session with the original session as parent:
+
+```isabelle-root
+(* ROOT (in some other directory than the original ROOT) *)
+session Dummy_Session_Name = Session_Name +
+```
+
+Then run `isabelle build -o browser_info -B Dummy_Session_Name -R`.
 
 #### PDF/LaTeX
 
@@ -551,4 +582,4 @@ by listing them in separate `theories [document = false]` entries.
 This may be useful for tests and examples, but is discouraged
 for theories containing definitions or proofs, as it could confuse readers.
 Note that this does not work for the HTML presentation,
-as pages will be generated for all dependencies.
+as pages will be generated for all files that are checked during the build.

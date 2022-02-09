@@ -62,6 +62,7 @@ This section lists results and resources relevant or close to the topic of this 
 
 ### Quick Reference
 
+- [isabelle.systems](https://isabelle.systems/) - Isabelle Quick Access Links
 - Isabelle [Search](https://search.isabelle.in.tum.de/)
   - filter by type
   - allows following _uses_ and _used by_ relations of definitions
@@ -179,6 +180,12 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
         than one where the intermediate steps are enumerated
         - i.e. only using the `..` ("default") and `.` ("immediate") tactics
         - these tactics and the concept are not mentioned in `prog-prove.pdf`
+- [Isabelle Community Conventions](https://isabelle.systems/conventions/)
+  - Conventions for various aspects of the Isabelle ecosystem
+- Gerwin Klein's Style Guide for Isabelle/HOL
+  ([Part 1: Good Proofs](https://proofcraft.org/blog/isabelle-style.html),
+  [Part 2: Good Style](https://proofcraft.org/blog/isabelle-style-part2.html))
+  - Tips/~Conventions for Isabelle/HOL
 
 ## Coq
 
