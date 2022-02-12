@@ -172,7 +172,7 @@ qed (* case "x \<le> 0" by *) simp
 
 subsection\<open>Length of Prefix\<close>
 
-text\<open>\<open>w'\<close> (next_square n) will eventually have an identical lot of \<open>\<lceil>log l\<rceil>\<close> most significant bits.\<close>
+text\<open>\<open>w'\<close> (\<^term>\<open>next_square n\<close>) will eventually have an identical lot of \<open>\<lceil>log l\<rceil>\<close> most significant bits.\<close>
 
 (* TODO format the following note as text *)
 (*
