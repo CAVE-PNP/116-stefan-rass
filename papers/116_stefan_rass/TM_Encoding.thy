@@ -6,29 +6,29 @@ theory TM_Encoding
 begin
 
 
-text\<open>A Turing Machine (TM) as defined by Xu et al. [2013] is a list of states.
+text\<open>A Turing Machine (TM) as defined by @{cite xuIsabelleTM2013} is a list of states.
   Each state is a pair of instructions (\<^typ>\<open>instr\<close>),
   the first one executed when a blank cell (\<^term>\<open>Bk\<close>) is read,
   the second one in case of an occupied cell (\<^term>\<open>Oc\<close>).
   A TM is thus a list of instructions, as the pairs are flattened out
-  into a list with an even number of elements (see ibid. ch. 2 and eqn. (1)).
+  into a list with an even number of elements (see @{cite \<open>ch.~2 and eqn.~1\<close> xuIsabelleTM2013}).
   An instruction is an \<^typ>\<open>action\<close>
   (write symbol (\<^term>\<open>W0\<close>, \<^term>\<open>W1\<close>), move head (\<^term>\<open>L\<close>, \<^term>\<open>R\<close>) or stall (\<^term>\<open>Nop\<close>))
-  and a reference to the "next state" (a natural number indicated the position in the list).
+  and a reference to the \<^emph>\<open>next state\<close> (a natural number indicated the position in the list).
   The state with number \<open>0\<close> is reserved as the halting state
   (the first state in the list has the number \<open>1\<close>).\<close>
 
 type_synonym TM = "tprog0"
 
 
-text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
+text\<open>As defined in @{cite \<open>ch.~4.2\<close> rassOwf2017} (outlined in @{cite \<open>ch.~3.1\<close> rassOwf2017})
   the decoding of a TM \<open>M\<close> from a binary word \<open>w\<close> includes:
 
-  1. Exponential padding. "all but the most significant \<open>\<lceil>log(len(w))\<rceil>\<close> bits are ignored"
-  2. Arbitrary-length \<open>1\<^sup>+0\<close> prefix. "from [the result] we drop all preceding 1-bits and the first 0-bit"
-  3. Code description. "let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form".
+    \<^item> Exponential padding. ``all but the most significant \<open>\<lceil>log(len(w))\<rceil>\<close> bits are ignored''
+    \<^item> Arbitrary-length \<open>1\<^sup>+0\<close> prefix. ``from [the result] we drop all preceding 1-bits and the first 0-bit''
+    \<^item> Code description. ``let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form''.
 
-  Recall the definition of \<^typ>\<open>bin\<close> (see \<^file>\<open>Binary.thy\<close>),
+  Recall the definition of \<^typ>\<open>bin\<close> (see \<^theory>\<open>116_stefan_rass.Binary\<close>),
   which causes the MSB to be the \<^const>\<open>last\<close> element of the list,
   which is the \<^emph>\<open>rightmost\<close> one when explicitly referring to lists in Isabelle.\<close>
 
@@ -170,13 +170,13 @@ qed
 
 subsection\<open>Code Description\<close>
 
-text\<open>For this part, only a short description is given in ch. 3.1.
-  The somewhat obvious choice is to utilize \<^term>\<open>code\<close>, since it is already defined
-  and used as encoding by the universal TM \<^term>\<open>UTM\<close> (see @{thm UTM_halt_lemma2}).
+text\<open>For this part, only a short description is given in @{cite \<open>ch.~3.1\<close> rassOwf2017}.
+  The somewhat obvious choice is to utilize \<^const>\<open>code\<close>, since it is already defined
+  and used as encoding by the universal TM \<^const>\<open>UTM\<close> (see @{thm UTM_halt_lemma2}).
 
   This step is also used to implement the following requirement:
-  "every string over \<open>{0, 1}\<^sup>*\<close> represents some TM (easy to assure by executing
-  an invalid code as a canonic TM that instantly halts and rejects its input)"\<close>
+  ``every string over \<open>{0, 1}\<^sup>*\<close> represents some TM (easy to assure by executing
+  an invalid code as a canonic TM that instantly halts and rejects its input)''\<close>
 
 definition Rejecting_TM :: TM
   where "Rejecting_TM = [(W0, 0), (W0, 0)]"
@@ -187,10 +187,10 @@ lemma rej_TM_wf: "tm_wf0 Rejecting_TM" unfolding Rejecting_TM_def tm_wf.simps by
 
 
 
-\<comment> \<open>An issue of the following definitions is that the existing definition \<^term>\<open>code\<close>
+text\<open>An issue of the following definitions is that the existing definition \<^term>\<open>code\<close>
   uses a naive Gödel numbering scheme that includes encoding list items as prime powers,
-  where each "next prime" \<^term>\<open>Np n\<close> is searched naively starting from \<^term>\<open>Pi n\<close>
-  (see \<^term>\<open>godel_code'\<close>, \<^term>\<open>Pi\<close>, and \<^term>\<open>Np\<close>).\<close>
+  where each \<^emph>\<open>next prime\<close> (\<^term>\<open>Np n\<close>) is searched naively starting from \<^term>\<open>Pi n\<close>
+  (see \<^const>\<open>godel_code'\<close>, \<^const>\<open>Pi\<close>, and \<^const>\<open>Np\<close>).\<close>
 
 text\<open>The function that assigns a word to every TM, represented as \<open>\<rho>(M)\<close> in the paper.\<close>
 
@@ -198,7 +198,7 @@ definition encode_TM :: "TM \<Rightarrow> word"
   where "encode_TM M = gn_inv (code M)" (* is gn_inv correct here or should it be replaced? *)
 
 \<comment> \<open>The following definitions are placeholders,
-  since apparently there is no defined inverse of \<^term>\<open>code\<close>.\<close>
+  since apparently there is no defined inverse of \<^const>\<open>code\<close>.\<close>
 
 definition is_encoded_TM :: "word \<Rightarrow> bool"
   where "is_encoded_TM w = (\<exists>M. w = encode_TM M)"
@@ -239,12 +239,13 @@ qed
 lemma decode_TM_wf: "tm_wf0 (decode_TM w)" unfolding decode_TM_def filter_wf_TMs_def
   using rej_TM_wf by (cases "is_encoded_TM w", presburger+)
 
+
+text\<open>There is (exactly) one TM whose encoding is the empty word (\<open>[]::bin\<close>);
+  and that is the machine without instructions (\<open>[]::TM\<close>).
+  However, since this machine is not well-formed (see \<^const>\<open>tm_wf0\<close>), the following lemma holds.\<close>
+
 lemma decode_TM_Nil: "decode_TM [] = Rejecting_TM"
 proof -
-  \<comment> \<open>There is (exactly) one TM whose encoding is \<^term>\<open>[]::bin\<close>;
-    and that is \<^term>\<open>[]::TM\<close>, the machine without instructions.
-    However, since this machine is not well-formed (see \<^term>\<open>tm_wf0\<close>), this lemma holds.\<close>
-
   (* this should probably be known to simp *)
   have le1_split: "n \<le> 1 \<Longrightarrow> n = 0 \<or> n = 1" for n::nat by auto
 
@@ -306,16 +307,17 @@ lemma TM_decode_Nil: "TM_decode_pad [] = Rejecting_TM"
 
 subsection\<open>Properties of the Encoding\<close>
 
-text\<open>from ch. 3.1:
-  "The encoding that we will use [...] will have the following properties:
+text\<open>From @{cite \<open>ch.~3.1\<close> rassOwf2017}:
 
-  1. every string over \<open>{0, 1}\<^sup>*\<close> represents some TM [...],\<close>
+  ``The encoding that we will use [...] will have the following properties:
+
+  1. every string over \<open>{0, 1}\<^sup>*\<close> represents some TM [...],''\<close>
 
 theorem TM_decode_pad_wf: "tm_wf0 (TM_decode_pad w)"
   unfolding TM_decode_pad_def by (rule decode_TM_wf)
 
 
-text\<open>2. every TM is represented by infinitely many strings. [...]"\<close>
+text\<open>``2. every TM is represented by infinitely many strings. [...]''\<close>
 
 theorem TM_inf_encs: "tm_wf0 M \<Longrightarrow> infinite {w. TM_decode_pad w = M}"
 proof (intro infinite_lists allI bexI CollectI)
@@ -334,14 +336,15 @@ proof (intro infinite_lists allI bexI CollectI)
 qed
 
 
-text\<open>from ch. 4.2:
-  "[The encoding] assures several properties [...]:
+text\<open>From @{cite \<open>ch.~4.2\<close> rassOwf2017}:
+
+  ``[The encoding] assures several properties [...]:
 
   1. [...] an arbitrary word \<open>w'\<close> encoding a TM has at least
-             \<open>2^(ℓ - \<lceil>log ℓ\<rceil>) \<ge> 2^(ℓ - (log ℓ) - 1)\<close>      (7)
+             \<open>2\<^bsup>ℓ - \<lceil>log ℓ\<rceil>\<^esup> \<ge> 2\<^bsup>ℓ - log ℓ - 1\<^esup>\<close>
      equivalents \<open>w\<close> in the set \<open>{0, 1}\<^sup>ℓ\<close> that map to \<open>w'\<close>.
-     Thus, if a TM \<open>M\<close> is encoded within \<open>ℓ\<close> bits, then (7) counts
-     how many equivalent codes for \<open>M\<close> are found at least in \<open>{0, 1}\<^sup>ℓ\<close>.\<close>
+     Thus, if a TM \<open>M\<close> is encoded within \<open>ℓ\<close> bits, then [the above equation] counts
+     how many equivalent codes for \<open>M\<close> are found at least in \<open>{0, 1}\<^sup>ℓ\<close>.''\<close>
 
 theorem num_equivalent_encodings:
   fixes M w
@@ -397,16 +400,16 @@ next
 qed
 
 
-text\<open>2. The retraction of preceding 1-bits creates the needed infinitude of
+text\<open>``2. The retraction of preceding 1-bits creates the needed infinitude of
         equivalent encodings of every possible TM \<open>M\<close>, as \<^emph>\<open>we can embed any code \<open>\<rho>(M)\<close>
-        in a word of length \<open>ℓ\<close> for which \<open>log(ℓ) > len (\<rho>(M))\<close>.\<close>
-        We will need this to prove the hierarchy theorem in Section 4.3.\<close>
+        in a word of length \<open>ℓ\<close> for which \<open>log ℓ > len (\<rho>(M))\<close>.\<close>
+        We will need this to prove the hierarchy theorem in Section 4.3.''\<close>
 
 theorem embed_TM_in_len:
   fixes M l
   assumes "tm_wf0 M"
-    and min_word_len: "clog l \<ge> length (encode_TM M) + 2"
-    \<comment> \<open>The \<open>+2\<close> bits are required for the \<open>1\<^sup>+0\<close>-prefix.
+    and min_word_len: "clog l \<ge> length (encode_TM M) + 2" \<comment> \<open>The \<open>+2\<close> bits are required for the \<open>1\<^sup>+0\<close>-prefix.
+
         Note: this theorem technically also holds when the assumption @{thm min_word_len} reads
         \<^term>\<open>clog l > length (encode_TM M) \<longleftrightarrow> clog l \<ge> length (encode_TM M) + 1\<close>,
         but only due to \<^const>\<open>strip_al_prefix\<close> allowing the absence of preceding ones.

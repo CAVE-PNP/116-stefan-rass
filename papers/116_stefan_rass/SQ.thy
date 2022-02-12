@@ -9,13 +9,13 @@ theory SQ
 begin
 
 
-text\<open>SQ is an overloaded identifier in the paper.
+text\<open>SQ is an overloaded identifier in @{cite rassOwf2017}.
   However, the more common notion is the language as opposed to the set of natural numbers.\<close>
 
 definition SQ :: lang \<comment> \<open>The language of non-zero square numbers, represented by binary strings without leading ones.\<close>
   where [simp]: "SQ \<equiv> {w. \<exists>x. gn w = x\<^sup>2}"
 
-definition SQ_nat :: "nat set" \<comment> \<open>The analogous set \<open>SQ \<subseteq> \<nat>\<close>, as defined in ch 4.1\<close>
+definition SQ_nat :: "nat set" \<comment> \<open>The analogous set \<open>SQ \<subseteq> \<nat>\<close>, as defined in @{cite \<open>ch.~4.1\<close> rassOwf2017}.\<close>
   where "SQ_nat \<equiv> {y. y \<noteq> 0 \<and> (\<exists>x. y = x\<^sup>2)}"
 
 lemma SQ_nat_zero:
@@ -23,7 +23,7 @@ lemma SQ_nat_zero:
 	"SQ_nat = {y. \<exists>x. y = x ^ 2} - {0}"
 	by (auto simp add: SQ_nat_def)
 
-\<comment> \<open>relating \<^const>\<open>SQ\<close> and \<^const>\<open>SQ_nat\<close>\<close>
+text\<open>Relating \<^const>\<open>SQ\<close> and \<^const>\<open>SQ_nat\<close>:\<close>
 lemma SQ_SQ_nat:
   shows SQ_nat_vim: "SQ = gn -` SQ_nat"
     and SQ_nat_eq: "SQ = {w. gn w \<in> SQ_nat}"
@@ -50,8 +50,8 @@ next
 qed
 
 
-text\<open>"Lemma 4.2. The language of squares \<open>SQ = {y. y = x\<^sup>2 \<and> x \<in> \<nat>}\<close>
-  has a density function \<open>dens\<^sub>S\<^sub>Q(x) \<in> \<Theta>(\<surd>x)\<close>."\<close>
+text\<open>``Lemma 4.2 @{cite rassOwf2017}. The language of squares \<open>SQ = {y. y = x\<^sup>2 \<and> x \<in> \<nat>}\<close>
+  has a density function \<open>dens\<^sub>S\<^sub>Q(x) \<in> \<Theta>(\<surd>x)\<close>.''\<close>
 
 theorem dens_SQ: "dens SQ x = dsqrt x"
 proof -
@@ -92,7 +92,7 @@ proof -
 qed
 
 
-subsection\<open>Log inequality\<close>
+subsection\<open>Log Inequality\<close>
 
 lemma nat_pow_nat:
   fixes b :: nat and x :: int
@@ -170,9 +170,9 @@ proof (cases "x > 0")
 qed (* case "x \<le> 0" by *) simp
 
 
-subsection\<open>Length of prefix\<close>
+subsection\<open>Length of Prefix\<close>
 
-\<comment> \<open>\<open>w'\<close> (next_square n) will eventually have an identical lot of \<open>\<lceil>log l\<rceil>\<close> most significant bits\<close>
+text\<open>\<open>w'\<close> (next_square n) will eventually have an identical lot of \<open>\<lceil>log l\<rceil>\<close> most significant bits.\<close>
 
 (* TODO format the following note as text *)
 (*

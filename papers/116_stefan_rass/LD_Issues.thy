@@ -7,7 +7,7 @@ begin
 
 subsection\<open>Encoding\<close>
 
-\<comment> \<open>Decode a pair of \<open>(l, x) \<in> \<nat> \<times> {0,1}*\<close> from its encoded form \<open>w \<in> {0,1}*\<close>.
+text\<open>Decode a pair of \<open>(l, x) \<in> \<nat> \<times> {0,1}*\<close> from its encoded form \<open>w \<in> {0,1}*\<close>.
 
   The encoding defined by this should have \<open>l\<close> encoded in the upper (more significant) bits of \<open>l\<parallel>x\<close>.
 
@@ -16,8 +16,8 @@ subsection\<open>Encoding\<close>
   If \<open>w\<close> does not match the expression, default values \<open>l = 0, x = []\<close> are assigned.
 
   Construction:
-  To ensure the required property for Lemma 4.6, the lower ~half of \<open>w\<close>
-  (the \<^term>\<open>suffix_len w\<close> least-significant-bits) is dropped.
+  To ensure the required property for Lemma 4.6@{cite rassOwf2017}, the lower half of \<open>w\<close>
+  (the \<open>k\<close> least-significant-bits) is dropped.
   Then, \<open>l\<close> is the number of leading \<open>1\<close>s.
   Remove all leading \<open>1\<close>s and one \<open>0\<close> to retain \<open>x\<close>.\<close>
 
@@ -96,9 +96,7 @@ subsection\<open>Definition\<close>
 context tht_assms
 begin
 
-\<comment> \<open>Alternative \<open>L\<^sub>D\<close>.
-
-  Note: this is not intended to replace \<^const>\<open>L\<^sub>D\<close>.
+text\<open>Note: this is not intended to replace \<^const>\<open>L\<^sub>D\<close>.
   Instead, the further proof uses the similarity of \<open>L\<^sub>D\<close> and \<open>L\<^sub>D''\<close>
   to prove properties of \<open>L\<^sub>D''\<close> via reduction to \<open>L\<^sub>D\<close>.
 
@@ -169,9 +167,7 @@ qed
 end \<comment> \<open>context \<^locale>\<open>tht_assms\<close>\<close>
 context tht_sq_assms begin
 
-
-\<comment> \<open>The following proof is similar to that of @{thm tht_sq_assms.L0_t}.\<close>
-lemma L\<^sub>D''_t: "L\<^sub>D'' \<notin> DTIME(t)"
+lemma L\<^sub>D''_t: "L\<^sub>D'' \<notin> DTIME(t)" \<comment> \<open>The proof is similar to that of @{thm tht_sq_assms.L0_t}.\<close>
 proof (rule ccontr, unfold not_not)
   assume assm: "L\<^sub>D'' \<in> DTIME(t)"
 
@@ -249,8 +245,8 @@ proof (rule reduce_DTIME)
 qed
 
 
-text\<open>Lemma 4.6. Let \<open>t\<close>, \<open>T\<close> be as in Assumption 4.4 and assume \<open>T(n) \<ge> n\<^sup>3\<close>.
-  Then, there exists a language \<open>L\<^sub>0 \<in> DTIME(T) - DTIME(t)\<close> for which \<open>dens\<^sub>L\<^sub>0(x) \<le> \<surd>x\<close>.\<close>
+text\<open>``\<^bold>\<open>Lemma 4.6.\<close> Let \<open>t\<close>, \<open>T\<close> be as in Assumption 4.4 and assume \<open>T(n) \<ge> n\<^sup>3\<close>.
+  Then, there exists a language \<open>L\<^sub>0 \<in> DTIME(T) - DTIME(t)\<close> for which \<open>dens\<^sub>L\<^sub>0(x) \<le> \<surd>x\<close>.''\<close>
 
 lemma L0''_t: "L\<^sub>0'' \<notin> DTIME(t)"
 proof (rule ccontr, unfold not_not)
