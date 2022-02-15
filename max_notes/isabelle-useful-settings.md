@@ -24,6 +24,10 @@ Access options in `Utilities > Global Options`
 
 - reduce Tooltip Delay (snappier `Ctrl+Mouseover` popup)
   - `Plugin Options > Isabelle > Tooltip Delay`
+  - interferes with `Ctrl+C` when too low
+    - when pressing while mouse is over some entity with a tooltip,
+      the tooltip will open (because `Ctrl` is held) and the marked text will be out-of-focus
+  - alternatively, use the [Shortcut](#shortcuts) to manually open tooltips
 - configure Code Completion
   - in `Plugin Options > Isabelle > Completion`
   - adjust delay, choose selection key (`Tab` and/or `Enter`)
@@ -31,7 +35,7 @@ Access options in `Utilities > Global Options`
   - `Plugin Options > Isabelle > General > Automatically tried tools`
   - recommended (quick and useful)
     - `quickcheck` (and/or `nitpick`) automatically check for counterexamples
-    - `solve_direct`
+    - `solve_direct` check if the current goal has already been proven somewhere else
   - not recommended (slow, may impact performance); use manually instead
     - `methods` is similar to `try0`
     - `sledgehammer`
@@ -60,6 +64,8 @@ Some particularly useful actions with suggested shortcuts:
       - _Complete Word_ (Built-in Commands) is not context aware, and will suggest any word found in the current document
       - _Complete word_ (Plugin: Isabelle) and _Show Completion Popup_ (Plugin: SideKick)
         have no observable effect -->
+- Utility
+  - Show tooltip `Ctrl+Q` <!-- (by default assigned to _Exit_) -->
 
 ## Abbreviations
 
@@ -71,7 +77,7 @@ however those are independent of the standard Isabelle symbol abbreviations
 Some useful additions are presented here:
 
 ```isabelle-symbols
-# all additional modifies may be dropped, but `code: 0x...` should remain
+# all additional modifiers may be dropped, but `code: 0x...` should remain
 # (for single character entries) as otherwise symbol replacement will be broken
 
 # quick access to (single-character) sub-script and super-script

@@ -6,24 +6,23 @@ begin
 
 type_synonym lang = "word set"
 
-\<comment> \<open>The empty word.\<close>
-abbreviation (input) \<epsilon> :: word where "\<epsilon> \<equiv> []"
+abbreviation (input) \<epsilon> :: word where "\<epsilon> \<equiv> []" \<comment> \<open>The empty word.\<close>
 
 
-text\<open>Definition of language density functions in ch. 3.2:
+text\<open>Definition of language density functions in @{cite \<open>ch.~3.1\<close> rassOwf2017}:
 
-  For a language \<open>L\<close>, we define its \<^emph>\<open>density function\<close>, w.r.t. a Gödel numbering \<^const>\<open>gn\<close>,
+ ``For a language \<open>L\<close>, we define its \<^emph>\<open>density function\<close>, w.r.t. a Gödel numbering \<^const>\<open>gn\<close>,
   as the mapping
                   \<open>dens\<^sub>L : \<nat> \<rightarrow> \<nat>, x \<mapsto> |{w \<in> L : gn(w) \<le> x}|\<close>,
-  i.e., \<open>dens\<^sub>L(x)\<close> is the number of words whose Gödel number as defined by (2)
-  is bounded by \<open>x\<close>.\<close>
+  i.e., \<open>dens\<^sub>L(x)\<close> is the number of words whose Gödel number as defined by [\<^const>\<open>gn\<close>]
+  is bounded by \<open>x\<close>.''\<close>
 
 definition dens :: "lang \<Rightarrow> nat \<Rightarrow> nat"
   where dens_def[simp]: "dens L x = card {w \<in> L. gn w \<le> x}"
 
-text\<open>"Occasionally, it will be convenient to let \<open>dens\<^sub>L\<close> send a word \<open>v \<in> \<Sigma>\<close> to an
+text\<open>``Occasionally, it will be convenient to let \<open>dens\<^sub>L\<close> send a word \<open>v \<in> \<Sigma>\<close> to an
   integer \<open>\<nat>\<close>, in which case we put \<open>x := (v)\<^sub>2\<close> in the definition of \<open>dens\<^sub>L\<close> upon an
-  input word \<open>v\<close>."\<close>
+  input word \<open>v\<close>.''\<close>
 
 abbreviation (input) dens\<^sub>w :: "lang \<Rightarrow> word \<Rightarrow> nat" where
   "dens\<^sub>w L v \<equiv> dens L (gn v)"
@@ -33,7 +32,7 @@ subsection\<open>Properties\<close>
 
 lemma inj_spec: "inj f \<Longrightarrow> inj_on f A" by (rule inj_on_subset[where A=UNIV]) blast+
 
-text\<open>"For every language \<open>L\<close>, the density function satisfies \<open>dens\<^sub>L(x) \<le> x\<close> for all \<open>x \<in> \<nat>\<close>."\<close>
+text\<open>``For every language \<open>L\<close>, the density function satisfies \<open>dens\<^sub>L(x) \<le> x\<close> for all \<open>x \<in> \<nat>\<close>.''\<close>
 
 theorem dens_le: "dens L x \<le> x"
 proof - (* shorter proof by Moritz Hiebler *)
@@ -72,10 +71,10 @@ proof -
   with card_mono bounded_lang_finite show ?thesis unfolding dens_def .
 qed
 
-text\<open>"The definition of density functions immediately delivers a useful inequality
+text\<open>``The definition of density functions immediately delivers a useful inequality
   for such intersection sets: for every two languages \<open>L\<^sub>1\<close>, \<open>L\<^sub>2\<close>, we have
-                           \<open>dens\<^sub>L\<^sub>1 \<inter> dens\<^sub>L\<^sub>2 \<le> dens\<^sub>L\<^sub>1\<close>,                   (6)
-  since there cannot be more words in \<open>L\<^sub>1 \<inter> L\<^sub>2\<close> than words in \<open>L\<^sub>1\<close> (or \<open>L\<^sub>2\<close>, respectively)."\<close>
+                           \<open>dens\<^sub>L\<^sub>1 \<inter> dens\<^sub>L\<^sub>2 \<le> dens\<^sub>L\<^sub>1\<close>,
+  since there cannot be more words in \<open>L\<^sub>1 \<inter> L\<^sub>2\<close> than words in \<open>L\<^sub>1\<close> (or \<open>L\<^sub>2\<close>, respectively).''\<close>
 
 theorem dens_intersect_le: "dens (L\<^sub>1 \<inter> L\<^sub>2) x \<le> dens L\<^sub>1 x"
   by (intro dens_mono) (rule Int_lower1)

@@ -7,14 +7,13 @@ begin
 type_synonym word = "bin"
 
 
-text\<open>Definition of Gödel numbers, given in ch. 3.1:
+text\<open>Definition of Gödel numbers, given in @{cite \<open>ch.~3.1\<close> rassOwf2017}:
 
-  "[A Gödel numbering] is a mapping \<open>gn : \<Sigma>\<^sup>* \<rightarrow> \<nat>\<close> that is computable, injective,
-  and such that \<open>gn(\<Sigma>\<^sup>*)\<close> is decidable and \<open>gn\<^sup>-\<^sup>1(n)\<close> is computable for all \<open>n \<in> \<nat>\<close> [10].
+ ``[A Gödel numbering] is a mapping \<open>gn : \<Sigma>\<^sup>* \<rightarrow> \<nat>\<close> that is computable, injective,
+  and such that \<open>gn(\<Sigma>\<^sup>*)\<close> is decidable and \<open>gn\<^sup>-\<^sup>1(n)\<close> is computable for all \<open>n \<in> \<nat>\<close> [...].
   The simple choice of \<open>gn(w) = (w)\<^sub>2\<close> is obviously not injective
   (since \<open>(0\<^sup>nw)\<^sub>2 = (w)\<^sub>2\<close> for all \<open>n \<in> \<nat>\<close> and all \<open>w \<in> \<Sigma>\<^sup>*\<close>), but this can be fixed
-  conditional on \<open>0 \<notin> \<nat>\<close> by setting
-                                \<open>gn(w) := (1w)\<^sub>2\<close>.                           (2)"\<close>
+  conditional on \<open>0 \<notin> \<nat>\<close> by setting \<open>gn(w) := (1w)\<^sub>2\<close>.''\<close>
 
 definition gn :: "word \<Rightarrow> nat" where "gn w = nat_of_bin (w @ [True])"
 
@@ -62,7 +61,7 @@ next
   then show "n \<in> range gn" by (intro image_eqI) blast+
 qed
 
-text\<open>[\<^const>\<open>gn\<close>] is a computable bijection between \<open>\<nat>\<close> and \<open>\<Sigma>\<^sup>*\<close>."\<close>
+text\<open>``[\<^const>\<open>gn\<close>] is a computable bijection between \<open>\<nat>\<close> and \<open>\<Sigma>\<^sup>*\<close>.''\<close>
 
 corollary gn_bij: "bij_betw gn UNIV {0<..}" using inj_gn range_gn by (intro bij_betw_imageI) blast+
 

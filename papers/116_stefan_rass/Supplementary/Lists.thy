@@ -37,9 +37,8 @@ proof -
 qed
 
 
-\<comment> \<open>\<open>ends_in\<close> - an alternative to \<^const>\<open>last\<close>.\<close>
-abbreviation (input) ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" where
-  "ends_in x xs \<equiv> (\<exists>ys. xs = ys @ [x])"
+abbreviation (input) ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" \<comment> \<open>an alternative to \<^const>\<open>last\<close>.\<close>
+  where "ends_in x xs \<equiv> (\<exists>ys. xs = ys @ [x])"
 
 
 lemma ends_inI[intro]: "ends_in x (xs @ [x])" by blast

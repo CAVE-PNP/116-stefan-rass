@@ -81,7 +81,7 @@ fun unroll :: "('a \<Rightarrow> 'c) \<Rightarrow> ('b \<Rightarrow> 'c) \<Right
   "unroll _ _ [] = []"
 | "unroll f g ((a,b)#t) = f a#g b#unroll f g t"
 
-\<comment> \<open>The following lemmas take the place of \<open><fun>.simps(2)\<close>.
+text\<open>The following lemmas take the place of \<open><fun>.simps(2)\<close>.
   These are defined over \<^term>\<open>Pair\<close>s, which the simplifier is not able to automatically expand.
   A similar issue has been noted at \<open>lemma hoare_contr\<close> in \<^file>\<open>../Complexity.thy\<close>\<close>
 lemma unroll_altdef: "unroll f g (st#t) = f (fst st) # g (snd st) # unroll f g t"

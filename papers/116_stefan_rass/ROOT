@@ -26,3 +26,4 @@ session "116_stefan_rass" = "HOL-Library" +
     LD_Issues
   document_files
     "root.tex"
+    "root.bib"

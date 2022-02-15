@@ -2,19 +2,20 @@
 
 - [Isabelle](#isabelle)
   - [Getting Started](#getting-started)
-    - [Imports](#imports)
+    - [Theories and Imports](#theories-and-imports)
   - [Proof methods (work in progress)](#proof-methods-work-in-progress)
   - [General](#general)
   - [Technical Overview](#technical-overview)
     - [Structure](#structure)
     - [Versions](#versions)
     - [IDEs](#ides)
+    - [Sessions](#sessions)
+    - [Theory Presentation](#theory-presentation)
 
 ## Getting Started
 
 The best option to start working with Isabelle seems to be reading
-[`prog-prove.pdf`](https://isabelle.in.tum.de/dist/doc/prog-prove.pdf)
-(online lecture available from the [TU München's course page](https://www21.in.tum.de/teaching/semantik/WS20/#material))
+[`prog-prove.pdf`](https://isabelle.in.tum.de/dist/doc/prog-prove.pdf))
 and trying to solve as many of the exercises as possible.
 
 Even though working with Isar (the proof abstraction language of Isabelle) feels mostly declarative,
@@ -22,7 +23,10 @@ most mathematical definitions resemble a _functional_ style.
 Therefore for those not already familiar with functional programming,
 a short introduction of its main concepts (like currying) and way of thinking may be beneficial.
 
-### Imports
+### Theories and Imports
+
+Isabelle proof source files are called _Theories_.
+Theories can be grouped into _Sessions_.
 
 A sort of minimal working example of a theory file is the following. Note that the file name needs to match the theory name or Isabelle will not run any code, so this example file must be named `Example.thy`.
 
@@ -38,115 +42,9 @@ Note that files missing an `end` will execute without warnings but cannot be imp
 
 Importing `Main` (a part of `HOL`) gives access to many classical mathematical definitions and results, including a.o. the natural numbers, sets, and lists.
 `Complex_Main` is an extension including the real numbers and beyond.
-In the absense of reasons against it, importing one of these is highly recommended as a baseline (see `prog-prove.pdf`).
+In the absence of reasons against it, importing one of these is highly recommended as a baseline (see `prog-prove.pdf`).
 
-#### Standard Libraries
-
-Standard libraries (those `.thy` files bundled with Isabelle releases in the `src/` directory) can be imported using a package-like syntax:
-
-| Theory file path                    | Import name                   |
-| ----------------------------------- | ----------------------------- |
-| `src/HOL/List.thy`                  | `HOL.List`                    |
-| `src/ZF/ZFC.thy`                    | `ZF.ZFC`                      |
-| `src/HOL/Library/BigO.thy`          | `"HOL-Library.BigO"`          |
-| `src/HOL/Data_Structures/Heaps.thy` | `"HOL-Data_Structures.Heaps"` |
-
-Imports containing special characters, like dashes `-`, must be surrounded by double quotes.
-
-Note that collections of theories are referred to as _sessions_ (~projects) in the context of Isabelle (see `system.pdf` _ch. 2 Isabelle sessions and build management_).
-The session `HOL` is active per default (see [Mechanics](#mechanics-and-session-images) below), such that the theory `src/HOL/Main.thy` can be imported using just `Main`.
-
-#### Local Files
-
-Files in the same directory as the importing file can be accessed by just the theory name.
-So for instance a session called `OtherExample.thy` can be imported as `OtherExample`, or (in case of name conflicts) through its qualified name in the virtual package `Draft` as `Draft.OtherExample`.
-Files in other directories can be imported using their relative paths, for example `"Dir1/Thy1"` (the quotes are required, as the slash `/` is a special character).
-
-See also [Creating Sessions](#creating-sessions) below for a way to make theories available for import in other sessions.
-
-#### AFP
-
-The Archive of Formal Proofs is a growing collection of sessions.
-It is not included with Isabelle distributions per default, so using the libraries requires prior setup:
-
-Download the version of the AFP that corresponds to the version of Isabelle from the [downloads section](https://www.isa-afp.org/download.html).
-Note that downloading the wrong version may result in errors and warnings in the underlying proofs.
-
-Follow the instructions at [Referring to AFP Entries](https://www.isa-afp.org/using.html).
-Note that for Windows, the command has to be entered in the cygwin terminal (`<isa install dir>/Cygwin-Terminal.bat`),
-and the path to the AFP installation has to be adapted to fit the cygwin scheme `/cygdrive/<drive letter>/path/to/afp/thys`.
-This is equivalent to adding the path manually to `$ISABELLE_HOME_USER/ROOTS`.
-
-After setup, AFP entries can be accessed like standard libraries.
-
-#### Mechanics and Session Images
-
-When importing sessions, all stated results and proofs will be checked in the same way that code is executed live in the Isabelle/jEdit.
-This may take some time depending on the size of the sessions.
-The import progress can be tracked in the _Theories_ panel in Isabelle/jEdit, docked on the right by default, otherwise accessible via `Plugins > Isabelle > Theories panel` (see also `jedit.pdf` _ch. 3.1.2 Theories_).
-Additionally, all loaded sessions will be displayed there.
-
-Members of the sessions `HOL` (like `Main`) are exceptions to this as they are part of the pre-compiled _session image_ `HOL` which is loaded per default at startup (the same applies to the session `Pure`).
-The loaded session image can be changed in the _Theories_ panel in Isabelle/jEdit (changes will take effect after a restart of Isabelle/jEdit).
-If a session image is not yet compiled or out of date (newer sources available), it will be rebuilt on startup.
-Session images that are included with the distribution are stored in `<isa install dir>/heaps/` and user compiled ones in `~/.isabelle/Isabelle20xx/heaps/`.
-
-Note that while changing the session image may result in faster startup times, it prevents the semantic highlighting in Isabelle/jEdit to work properly for any theories of the loaded session
-(indicated by the warning `Cannot update finished theory ...`).
-To work around this, change the session image to one that does not include the relevant theories and restart Isabelle/jEdit.
-Normally, the default `HOL` is sufficient; for inspecting parts of `HOL`, one may use `Pure`.
-
-The session `HOL-Proofs` is special in that the image includes the full proof terms of the entire `HOL-Library`.
-
-#### Sessions Definitions
-
-In order for Isabelle to recognize a session, it has to be defined in a `ROOT` file (defines sessions), that in turn has to be referred to in a `ROOTS` file (points to `ROOT` files or further `ROOTS`).
-There are two main `ROOTS` for each Isabelle installation: one in the installation directory (`ISABELLE_HOME`), and one in `~/.isabelle/Isabelle20xx/` (`ISABELLE_HOME_USER`).
-Isabelle/jEdit provides semantic highlighting and checking for `ROOT` files.
-See `system.pdf` _ch. 2.1 Session ROOT specifications_ for `ROOT` file structure and syntax.
-In addition, the Isabelle CLI provides a command for adding paths to the main `ROOTS`: `isabelle components -u /path/to/thys`.
-
-During development of a session, it is advisable to only include _finalized_ theories when loading the session image at startup,
-as any files included in the image cannot be live-checked in Isabelle/jEdit
-(they can however, be imported as [local files](#local-files)).
-
-##### Dummy Development Sessions
-
-For developing libraries that depend on multiple sessions, such as `HOL-Analysis` and `Graph_Theory`,
-can normally only use one compiled session image, forcing jEdit to check at least one session at each startup.
-To avoid this, developers can create a dummy session containing only these dependencies.
-
-A simple setup for this looks as follows (with `project-root` included in a `ROOTS` file):
-
-```file-structure
-project-root/
-  thys/
-    My_Library.thy
-  ROOT
-  DEV.thy
-```
-
-File contents:
-
-```isabelle-root
-(* ROOT *)
-session "DEV_My_Library" = "<session1>" +
-  sessions "<session2>" "<session3>"
-  theories "DEV"
-```
-
-```isabelle
-(* DEV.thy *)
-theory DEV
-  imports "<session1>.<theory1>" "<session2>.<theory2>" "<session3>.<theory3>"
-begin
-end
-```
-
-An important choice is which session to choose as the "parent" session (`<session1>` in this example),
-as this session can be compiled independently of the `DEV` session.
-This should be the "largest" session, the one which takes the longest to compile, and, ideally already is compiled.
-For most purposes, this can be `HOL-Library` (because of its wide range) or a session that includes it.
+For more information and advanced concepts see [Sessions](#sessions).
 
 ## Proof methods (work in progress)
 
@@ -231,33 +129,33 @@ Notable components:
   - written in [Standard ML](https://standardml.org)
     (SML '97, Isabelle uses the [PolyML](https://www.polyml.org/) implementation)
 - [Isabelle/HOL](https://isabelle.in.tum.de/doc/logics.pdf):
-  formalization of higher order logic
+  formalization of classical higher order logic; used as default session
 - [Isabelle/Isar](https://isabelle.in.tum.de/library/Doc/Implementation/implementation.pdf)
-  abstracts ML commands in an effort to create more readable proofs
+  abstracts proof commands in an effort to create more readable proofs
   - proof commands are reminiscent of natural language proofs,
-    e.g. `from A have B using C`
+    e.g. `from <premises> have <proposition> by <method>`
 - Isabelle/PIDE is a protocol for communication between a language kernel and an IDE
   - this is used with Isabelle/jEdit and, through an abstraction layer, with Isabelle/VSCode
 
 ### Versions
 
-There are multiple options for using Isabelle. One can download and build
-the sources (see [Mercurial repo](https://isabelle.sketis.net/repos/isabelle)
-or [this view](https://isabelle-dev.sketis.net/source/isabelle/)
-with a more modern UI), download a
-["nightly" repository snapshot](https://isabelle.sketis.net/devel/release_snapshot/),
-or download a release version
-(see [Installation guide](https://isabelle.in.tum.de/installation.html)).
+The simplest option for using Isabelle is to download a [release version](https://isabelle.in.tum.de/installation.html)
+(see also [past releases](https://isabelle.in.tum.de/download_past.html)).
+Developers and early adopters can opt for
+[nightly builds](https://isabelle.sketis.net/devel/release_snapshot/),
+or download and build the sources
+(see the official [Mercurial repo](https://isabelle.sketis.net/repos/isabelle)
+or [this more modern view](https://isabelle-dev.sketis.net/source/isabelle/)).
 
 Release versions do not receive patches, but are community tested with
 release candidates before going live (this then is the last chance to request
 features for a release). Release versions are scheduled to release every
-8-10 months
+8-10 months.
 
-Note that for most of this section is mentioned nowhere on the official sites.
-Instead this information is scraped together from multiple sources,
-mainly [`talk:isa-news` (at ~1min)](https://youtu.be/MpJZI1M_uVs?t=67).
-See also the section on [Isabelle resources](#Isabelle-resources).
+See also [Isabelle NEWS and trends in 2020](https://files.sketis.net/Isabelle_Workshop_2020/Isabelle_2020_slides_7.pdf#page=3)
+(explained in [`talk:isa-news` at ~1min](https://youtu.be/MpJZI1M_uVs?t=67)),
+[this comment on the Isabelle2021-1 release](https://isabelle-dev.sketis.net/phame/post/view/49/plan_for_isabelle2021-1_release/),
+and the section on [Isabelle resources](#Isabelle-resources).
 
 ### IDEs
 
@@ -399,3 +297,289 @@ The best way to cope with this seems to be setting the defaults
 for _Prettify Symbols Mode_ as stated in the setup instructions.
 It does not seem to be possible to set these as _Isabelle specific_,
 since the Isabelle extension manages those.
+
+### Sessions
+
+Isabelle proof source files are called _Theories_.
+Sessions are Isabelle's concept of grouping theories into coherent packages
+(cf. "component"/"module", "(software-)library").
+
+For basic information on imports see [Theories and Imports](#theories-and-imports).
+See also `system.pdf` _ch. 2 Isabelle sessions and build management_.
+
+#### Standard Libraries
+
+Standard libraries (those `.thy` files bundled with Isabelle releases in the `src/` directory) can be imported using a package-like syntax:
+
+| Theory file path                    | Import name                   |
+| ----------------------------------- | ----------------------------- |
+| `src/HOL/List.thy`                  | `HOL.List`                    |
+| `src/ZF/ZFC.thy`                    | `ZF.ZFC`                      |
+| `src/HOL/Library/BigO.thy`          | `"HOL-Library.BigO"`          |
+| `src/HOL/Data_Structures/Heaps.thy` | `"HOL-Data_Structures.Heaps"` |
+
+Imports containing special characters, like dashes `-`, must be surrounded by double quotes.
+
+The session `HOL` is active per default (see [Mechanics](#mechanics-and-session-images) below), such that the theory `src/HOL/Main.thy` can be imported using just `Main`.
+
+#### Local Files
+
+Files in the same directory as the importing file can be accessed by just the theory name.
+So for instance a session called `OtherExample.thy` can be imported as `OtherExample`, or (in case of name conflicts) through its qualified name in the virtual package `Draft` as `Draft.OtherExample`.
+Files in other directories can be imported using their relative paths, for example `"Dir1/Thy1"` (the quotes are required, as the slash `/` is a special character).
+
+See also [Creating Sessions](#creating-sessions) below for a way to make theories available for import in other sessions.
+
+#### AFP
+
+The Archive of Formal Proofs is a growing collection of sessions.
+It is not included with Isabelle distributions per default, so using the libraries requires prior setup:
+
+Download the version of the AFP that corresponds to the version of Isabelle from the [downloads section](https://www.isa-afp.org/download.html).
+Note that downloading the wrong version may result in errors and warnings in the underlying proofs.
+
+Follow the instructions at [Referring to AFP Entries](https://www.isa-afp.org/using.html)
+([download](https://www.isa-afp.org/download.html) and unpack AFP release, run `isabelle components -u path/to/afp/thys`).
+Note that for Windows, the command has to be entered in the cygwin terminal (`<isa install dir>/Cygwin-Terminal.bat`),
+and the path to the AFP installation has to be adapted to fit the cygwin scheme `/cygdrive/<drive letter>/path/to/afp/thys`.
+The command `isabelle components -u ...` is equivalent to adding the path manually to `$ISABELLE_HOME_USER/ROOTS`.
+
+After setup, AFP entries can be accessed like standard libraries.
+
+#### Mechanics and Session Images
+
+When importing sessions, all stated results and proofs will be checked in the same way that code is executed live in the Isabelle/jEdit.
+This may take some time depending on the size of the sessions.
+The import progress can be tracked in the _Theories_ panel in Isabelle/jEdit, docked on the right by default, otherwise accessible via `Plugins > Isabelle > Theories panel` (see also `jedit.pdf` _ch. 3.1.2 Theories_).
+Additionally, all loaded sessions will be displayed there.
+
+Members of the sessions `HOL` (like `Main`) are exceptions to this as they are part of the pre-compiled _session image_ `HOL` which is loaded per default at startup (the same applies to the session `Pure`).
+The loaded session image can be changed in the _Theories_ panel in Isabelle/jEdit (changes will take effect after a restart of Isabelle/jEdit).
+If a session image is not yet compiled or out of date (newer sources available), it will be rebuilt on startup.
+Session images that are included with the distribution are stored in `$ISABELLE_HOME/heaps/` and user compiled ones in `~/.isabelle/Isabelle<version>/heaps/`.
+
+Note that while changing the session image may result in faster startup times,
+it prevents the semantic highlighting in Isabelle/jEdit to work properly for any theories _of the loaded session_
+(indicated by the warning `Cannot update finished theory ...`).
+To work around this, change the session image to one that does not include the relevant theories and restart Isabelle/jEdit.
+Normally, the default `HOL` is sufficient; for inspecting parts of `HOL`, one may use `Pure`.
+Alternatively, import the theory in question as a file,
+by specifying its path either absolute or relative to the current file
+(it may be necessary to restart the IDE or purge loaded theories).
+
+The session `HOL-Proofs` is special in that the image includes the full proof terms of the entire `HOL-Library`.
+
+#### Defining Sessions
+
+In order for Isabelle to recognize a session, it has to be defined in a `ROOT` file.
+
+```isabelle-root
+(* ROOT (example) *)
+session Example_Session = HOL +
+  sessions
+    "HOL-Library"
+  theories
+    Example_Theory
+```
+
+Any sessions from which theories are imported must be listed here.
+While it is not necessary to extend some parent session (here `HOL`), it is highly recommended.
+If `Example_Theory` imports some `Other_Theory` from the same directory, it will automatically be included.
+
+Isabelle/jEdit provides semantic highlighting and checking for `ROOT` files.  
+See `system.pdf` _ch. 2.1 Session ROOT specifications_ for `ROOT` file structure and syntax.
+
+The built-in command `isabelle mkroot` (see `system.pdf` _ch. 3.2_) generates a stub `ROOT` file.
+
+##### Register Sessions
+
+In order to use a session in Isabelle, its `ROOT` has to be referred to in a `ROOTS` file
+(points to directories with `ROOT` files or further `ROOTS`).
+
+```isabelle-roots
+(* ROOTS (example) *)
+some/path
+/some/absolute/path
+```
+
+There are two main `ROOTS` for each Isabelle installation:
+one in the installation directory (`$ISABELLE_HOME`) that should not be edited,
+and one in `~/.isabelle/Isabelle<version>/` (`$ISABELLE_HOME_USER`).
+
+In addition, <!-- since Isabelle2021-1 --> the Isabelle CLI provides a shortcut
+for adding paths to the main user-`ROOTS`: `isabelle components -u path/to/thys`.
+
+See also `system.pdf` _ch 2.3_.
+
+##### Conventions
+
+It is recommended to include a `ROOT` file in the session's base directory.
+See for instance the [AFP `Example-Submission`](https://foss.heptapod.net/isa-afp/afp-devel/-/tree/branch/default/thys/Example-Submission)
+(contains rules and recommendations for AFP Submissions).
+
+##### Dummy Development Sessions
+
+Since only a single compiled session image can be loaded at startup,
+working on theories that depend on multiple large sessions, such as `HOL-Analysis` and `Graph_Theory`,
+can be tedious, Isabelle/jEdit still needs to check at least one session at each startup.
+To avoid this, developers can create a dummy session containing all dependencies (but no actual code).
+
+A simple setup for this looks as follows (with `dev-session` included in a `ROOTS` file):
+
+```file-structure
+dev-session/
+  ROOT
+  DEV.thy
+```
+
+File contents:
+
+```isabelle-root
+(* ROOT *)
+session "DEV_Something" = "<session1>" +
+  sessions "<session2>" "<session3>"
+  theories "DEV"
+```
+
+```isabelle
+(* DEV.thy *)
+theory DEV
+  imports "<session1>.<theory1>" "<session2>.<theory2>" "<session3>.<theory3>"
+begin
+end
+```
+
+It is advisable to be generous at importing theories in such a session,
+as each addition or change will require rebuilding the session.
+Similarly, when checking such a session into VCS, it should be consistent across branches.
+
+An important choice is which session to choose as the "parent" session (`<session1>` in this example),
+as this session can be compiled independently of the `DEV` session.
+This should be the "largest" session, the one which takes the longest to compile, and, ideally already is compiled.
+For most purposes, this can be `HOL-Library` (because of its wide range) or a session that includes it.
+
+### Theory Presentation
+
+See `system.pdf` ch. 3.
+
+There are two options for generating documents from Isabelle proof sources;
+either (or both) can be used to showcase results.
+
+- PDF (using $`\LaTeX`$)
+  - standard academic LaTeX style
+  - customizable, offers more control over presentation
+    - specify LaTeX code for definitions (may differs from in-IDE presentation)
+  - single document, can be segmented into chapters, sections, ...
+- HTML
+  - close resemblance to viewing sources in Isabelle/jEdit
+  - links facts to their definition
+    - if the definition is included in the build
+  - theories presented as separate pages
+
+| ![HTML page](img/isa_doc_html.png) | ![Isabelle/jEdit](img/isa_doc_source.png) | ![PDF document](img/isa_doc_pdf.png) |
+| :--------------------------------: | :---------------------------------------: | :----------------------------------: |
+|        Generated HTML page         |   Theory source file in Isabelle/jEdit    |        Generated PDF document        |
+
+For either option, [defining](#defining-sessions) and building a session is required.
+Running `isabelle mkroot` to create a stub `ROOT` is especially helpful,
+as it also creates an initial `document/root.tex`, required for PDF generation.
+
+To build an existing session use `isabelle build -B Session_Name`
+(requires the session to be [available to Isabelle](#register-sessions))
+or `isabelle build -D path/to/session`
+(only works if the ROOT file is in the session base directory).
+In the following, only `-B` will be specified.
+Adding `-v` (verbose) to any `build` or `document` can help with identifying issues.
+
+To debug document generation or whenever multiple subsequent builds are expected,
+it may be helpful to _temporarily_ introduce a [dummy parent session](#dummy-development-sessions)
+(`session "My_Session" = "My_Dummy_Session" + ...`)
+so that only the required theories need to be built each time.
+
+#### HTML
+
+To generate HTML files build the session with the `browser_info` system option:
+`isabelle build -o browser_info -B Session_Name`.  
+The generated files will be in `$ISABELLE_HOME_USER/browser_info/Session_Group/Session_Name`
+unless an output path is provided with `-P path/to/output`.  
+`$ISABELLE_HOME_USER` is typically `~/.isabelle/Isabelle<version>`
+and the `Session_Group` is `Unsorted` unless specified in the session `ROOT`.
+
+Uses of Isabelle entities (lemmas, definitions) will link to their declaration,
+but only, if their declaration is also included in the build.
+Include other sessions manually by adding `-B Other_Session`.
+Note that this may significantly increase build time,
+since it will build the entire referenced session.
+
+`isabelle build` provides the option `-R` to build _only the dependencies_
+of a given session and only builds theories that are actually imported
+(compared to `-B Other_Session` which builds the whole session).
+This alone does not allow efficiently generating fully linked HTML for sessions,
+since HTML will be generated for all dependencies, but not for the session itself
+(and generating HTML for the session itself after that will not create links).
+However, the approach lends itself to a workaround:
+create and build a minimal dummy session with the original session as parent:
+
+```isabelle-root
+(* ROOT (in some other directory than the original ROOT) *)
+session Dummy_Session_Name = Session_Name +
+```
+
+Then run `isabelle build -o browser_info -B Dummy_Session_Name -R`.
+
+#### PDF/LaTeX
+
+To generate and compile the LaTeX files:
+
+1. Set up the session
+   1. generate stubs for `ROOT` and `document/root.tex` by running `isabelle mkroot path/to/session`
+   2. complete the `ROOT` file by adding `theories`
+2. Register the session: `isabelle components -u path/to/session`
+3. Build the session and generate the PDF: `isabelle build -B Session_Name`
+   - Alternatively, run `isabelle document -O path/to/output Session_Name`
+
+If the session was already set up without `mkroot` and is lacking the following entries,
+generating the PDF will fail silently:
+
+```isabelle-root
+session Session_Name = ...
+  (* these `options` are not necessary when using `isabelle document ...` *)
+  options [document = pdf, document_output = "output"]
+  ...
+  document_files
+    "root.tex"
+```
+
+##### Troubleshooting
+
+Note: The line numbers from errors occurring while compiling the generated LaTeX
+(`Latex error (line 123 of "Some_Theory.tex"): ...`)
+seem to reference lines in the theory file itself instead of the generated LaTeX
+(in this example, the issue appears in (or very close to) line 123 of `Some_Theory.thy`),
+which helps in debugging.
+
+- `Undefined control sequence` for some math symbol.
+  - Probably only missing an import;  
+    The `document/root.tex` generated by `mkroot` contains
+    references to a few packages, but all commented out.
+    Uncomment relevant package imports.
+  - To find out which package is required for a given symbol,
+    consult the [Detexify Symbol table](http://detexify.kirelabs.org/symbols.html)
+    or [The Comprehensive $`\LaTeX`$ Symbol List](http://tug.ctan.org/info/symbols/comprehensive/symbols-a4.pdf)
+- `Missing $ inserted` / `Extra }, or forgotten \endgroup`
+  - Possibly caused by special characters, such as `$`, `_`, or `}`,
+    appearing in `text` (or `\<comment>`) environments.
+
+##### Order and Included Theories
+
+Specifying more theories than necessary in the session `ROOT` may be useful,
+as theories will appear in the same order as they appear in the `ROOT`,
+unless this violates the dependency graph
+(if `A` imports `B`, then `B` can only appear before `A`).
+
+Theories can also be excluded from the document while still being checked as part of the session,
+by listing them in separate `theories [document = false]` entries.
+This may be useful for tests and examples, but is discouraged
+for theories containing definitions or proofs, as it could confuse readers.
+Note that this does not work for the HTML presentation,
+as pages will be generated for all files that are checked during the build.

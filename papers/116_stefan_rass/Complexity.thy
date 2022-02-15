@@ -89,19 +89,19 @@ subsubsection\<open>Time\<close>
 
 text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>,
   but includes a maximum number of steps.
-  From Hopcroft, p287f:
-   "If for every input word of length n, M makes at most T(n) moves before
+  From @{cite \<open>ch.~12.1\<close> hopcroftAutomata1979}:
+  ``If for every input word of length n, M makes at most T(n) moves before
     halting, then M is said to be a T(n) time-bounded Turing machine, or of time
-    complexity T(n). The language recognized by M is said to be of time complexity T(n)."
+    complexity T(n). The language recognized by M is said to be of time complexity T(n).''
 
-   "[...] it is reasonable to assume that any time complexity function \<open>T(n)\<close> is
+  ``[...] it is reasonable to assume that any time complexity function \<open>T(n)\<close> is
     at least \<open>n + 1\<close>, for this is the time needed just to read the input and verify that the
     end has been reached by reading the first blank.* We thus make the convention
-    that "time complexity \<open>T(n)\<close>" means \<open>max (n + 1, \<lceil>T(n)\<rceil>])\<close>. For example, the value of
+    that `time complexity \<open>T(n)\<close>' means \<open>max (n + 1, \<lceil>T(n)\<rceil>])\<close>. For example, the value of
     time complexity \<open>n log\<^sub>2n\<close> at \<open>m = 1\<close> is \<open>2\<close>, not \<open>0\<close>, and at \<open>n = 2\<close>, its value is \<open>3\<close>.
 
     * Note, however, that there are TM's that accept or reject without reading all their input.
-      We choose to eliminate them from consideration."\<close>
+      We choose to eliminate them from consideration.''\<close>
 
 (* TODO consider turning \<open>tcomp\<close> into a definition to avoid large proof terms *)
 abbreviation tcomp :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
@@ -200,17 +200,17 @@ definition time :: "TM \<Rightarrow> tape \<Rightarrow> nat option"
     )"
 
 
-text\<open>Notion of time-constructible from Hopcroft ch. 12.3, p. 299:
-  "A function T(n) is said to be time constructible if there exists a T(n) time-
+text\<open>Notion of time-constructible from @{cite \<open>ch.~12.3\<close> hopcroftAutomata1979}:
+  ``A function T(n) is said to be time constructible if there exists a T(n) time-
   bounded multitape Turing machine M such that for each n there exists some input
-  on which M actually makes T(n) moves."\<close>
+  on which M actually makes T(n) moves.''\<close>
 
 definition tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
   where "tconstr T \<equiv> \<exists>M. \<forall>n. \<exists>w. time M ([], w) = Some (T n)"
 
-text\<open>Fully time-constructible, ibid.:
-  "We say that T(n) is fully time-constructible if there is a TM
-  that uses T(n) time on all inputs of length n."\<close>
+text\<open>Fully time-constructible, (@{cite \<open>ch.~12.3\<close> hopcroftAutomata1979}):
+  ``We say that T(n) is fully time-constructible if there is a TM
+  that uses T(n) time on all inputs of length n.''\<close>
 
 definition fully_tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
   where "fully_tconstr T \<equiv> \<exists>M. \<forall>n w. length w = n \<longrightarrow> time M ([], w) = Some (T n)"
@@ -288,7 +288,7 @@ lemma tape_size_mono: "n \<le> m \<Longrightarrow> space0 M x n \<le> space0 M x
 subsection\<open>Deciding Languages\<close>
 
 \<comment> \<open>Since \<open>L\<close> is a typical name for unspecified languages in the literature,
-    the synonymous constructor \<^term>\<open>Turing.action.L\<close> ("move head left") is hidden.\<close>
+    the synonymous constructor \<^term>\<open>Turing.action.L\<close> (\<^emph>\<open>move head left\<close>) is hidden.\<close>
 hide_const (open) L
 
 text\<open>A TM \<open>M\<close> is considered to halt on a word \<open>w\<close>, iff it reaches a final state upon input of \<open>w\<close>.
@@ -836,13 +836,13 @@ subsection\<open>Classical Results\<close>
 
 subsubsection\<open>Almost Everywhere\<close>
 
-text\<open>Hopcroft uses the finite control in Lemma 12.3
+text\<open>@{cite \<open>ch.~12.2\<close> hopcroftAutomata1979} uses the finite control in Lemma 12.3
   to make the jump from almost everywhere to everywhere:
 
-  "We say that a statement with parameter \<open>n\<close> is true \<^emph>\<open>almost everywhere\<close> (a.e.) if it
+  ``We say that a statement with parameter \<open>n\<close> is true \<^emph>\<open>almost everywhere\<close> (a.e.) if it
   is true for all but a finite number of values of \<open>n\<close>. We say a statement is true infinitely
   often (i.o.) if it is true for an infinite number of \<open>n\<close>'s. Note that both a statement and
-  its negation may be true i.o."\<close>
+  its negation may be true i.o.''\<close>
 
 definition almost_everywhere :: "('a \<Rightarrow> bool) \<Rightarrow> bool"
   where ae_def[simp]: "almost_everywhere P \<equiv> finite {x. \<not> P x}"
@@ -916,12 +916,14 @@ lemma ae_disj: "almost_everywhere P \<or> almost_everywhere Q \<Longrightarrow> 
   by auto
 
 
-text\<open>"Lemma 12.3  If \<open>L\<close> is accepted by a TM \<open>M\<close> that is \<open>S(n)\<close> space bounded a.e., then \<open>L\<close> is
+text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
+
+  ``\<^bold>\<open>Lemma 12.3\<close>  If \<open>L\<close> is accepted by a TM \<open>M\<close> that is \<open>S(n)\<close> space bounded a.e., then \<open>L\<close> is
   accepted by an \<open>S(n)\<close> space-bounded TM.
   Proof  Use the finite control to accept or reject strings of length \<open>n\<close> for the finite
   number of \<open>n\<close> where \<open>M\<close> is not \<open>S(n)\<close> bounded. Note that the construction is not
   effective, since in the absence of a time bound we cannot tell which of these words
-  \<open>M\<close> accepts."
+  \<open>M\<close> accepts.''
 
   The lemma is only stated for space bounds,
   but it seems reasonable that a similar construction works on time bounds.\<close>
@@ -977,20 +979,20 @@ lemma DTIME_mono_ae:
 
 subsubsection\<open>Linear Speed-Up\<close>
 
-text\<open>Hopcroft:
+text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
 
- "Theorem 12.3  If \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>T(n)\<close> time-bounded Turing machine
+ ``\<^bold>\<open>Theorem 12.3\<close>  If \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>T(n)\<close> time-bounded Turing machine
   \<open>M\<^sub>1\<close>, then \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>cT(n)\<close> time-bounded TM \<open>M\<^sub>2\<close> for any \<open>c > 0\<close>,
-  provided that \<open>k > 1\<close> and \<open>inf\<^sub>n\<^sub>\<rightarrow>\<^sub>\<infinity> T(n)/n = \<infinity>\<close>."
+  provided that \<open>k > 1\<close> and \<open>inf\<^sub>n\<^sub>\<rightarrow>\<^sub>\<infinity> T(n)/n = \<infinity>\<close>.''
 
   Note that the following formalization is likely false
-  (or at least not provable using the construction of Hopcroft),
-  as the used definition of TMs only allows single-tape TMs with a binary alphabet.\<close>
+  (or at least not provable using the construction from @{cite hopcroftAutomata1979}),
+  as the definition of TMs from @{cite xuIsabelleTM2013} only allows single-tape TMs with a binary alphabet.\<close>
 
 lemma linear_time_speed_up:
   assumes "c > 0"
-  \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close> required by Hopcroft, but simpler to define in Isabelle.\<close>
-    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
+    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N" \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close>
+      required by @{cite hopcroftAutomata1979}, but simpler to define in Isabelle.\<close>
     and "decides M\<^sub>1 L"
     and "time_bounded T M\<^sub>1"
   obtains M\<^sub>2 where "decides M\<^sub>2 L" and "time_bounded (\<lambda>n. c * T n) M\<^sub>2"
@@ -1107,15 +1109,15 @@ proof -
   define l where "l \<equiv> tape_size <w>\<^sub>t\<^sub>p"
 
     \<comment> \<open>Idea: We already know that the first machine \<^term>\<open>M\<^sub>R\<close> is time bounded
-    (@{thm \<open>time_bounded_word T\<^sub>R M\<^sub>R w\<close>}),
+    (see @{thm \<open>time_bounded_word T\<^sub>R M\<^sub>R w\<close>}),
     such that its run-time is bounded by \<^term>\<open>T\<^sub>R l = T\<^sub>R (2 * length w)\<close>
-    (@{thm tape_size_input}).
+    (note @{thm tape_size_input}).
 
     We also know that its execution will result in the encoded corresponding input word \<open>f\<^sub>R w\<close>
     (@{thm \<open>computes_word M\<^sub>R f\<^sub>R w\<close>}).
     Since the length of the corresponding input word is bounded by \<^term>\<open>l\<^sub>R (length w)\<close>
     (@{thm \<open>length (f\<^sub>R w) \<le> l\<^sub>R (length w)\<close>}),
-    and the second machine \<^term>\<open>M\<^sub>B\<close> is time bounded (@{thm \<open>time_bounded_word T\<^sub>B M\<^sub>B (f\<^sub>R w)\<close>}),
+    and the second machine \<^term>\<open>M\<^sub>B\<close> is time bounded (see @{thm \<open>time_bounded_word T\<^sub>B M\<^sub>B (f\<^sub>R w)\<close>}),
     we may conclude that the run-time of \<^term>\<open>M \<equiv> M\<^sub>R |+| M\<^sub>B\<close> on the input \<^term>\<open><w>\<^sub>t\<^sub>p\<close>
     is no longer than \<open>T l = T\<^sub>R (l\<^sub>R l) + T\<^sub>B l\<close>.
 
@@ -1149,9 +1151,7 @@ lemma reduce_DTIME':
     and f\<^sub>R :: "word \<Rightarrow> word" \<comment> \<open>the reduction\<close>
     and l\<^sub>R :: "nat \<Rightarrow> nat" \<comment> \<open>length bound of the reduction\<close>
   assumes f\<^sub>R_ae: "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> l\<^sub>R (length w)))"
-    \<comment> \<open>The following assumption allows reasoning about \<^term>\<open>T\<close> and \<^term>\<open>l\<^sub>R\<close>,
-      as if both were \<^const>\<open>mono\<close>.\<close>
-    and "\<And>n. T (l\<^sub>R n) \<ge> T(n)"
+    and "\<And>n. T (l\<^sub>R n) \<ge> T(n)" \<comment> \<open>allows reasoning about \<^term>\<open>T\<close> and \<^term>\<open>l\<^sub>R\<close> as if both were \<^const>\<open>mono\<close>.\<close>
     and "computable_in_time T f\<^sub>R"
     and T_superlinear: "\<forall>N. \<exists>n. \<forall>m\<ge>n. T(m)/m \<ge> N"
     and "L\<^sub>1 \<in> DTIME(T)"
