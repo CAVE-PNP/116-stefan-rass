@@ -852,13 +852,13 @@ lemma ae_everywhereI: "(\<And>x. P x) \<Longrightarrow> almost_everywhere P" by 
 
 lemma ae_word_length_iff[iff]:
   fixes P :: "word \<Rightarrow> bool"
-  shows "almost_everywhere P \<longleftrightarrow> (\<exists>n. \<forall>w. length w \<ge> n \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
+  shows "almost_everywhere P \<longleftrightarrow> (\<exists>l\<^sub>0. \<forall>w. length w \<ge> l\<^sub>0 \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
 proof
   assume ?rhs
-  then obtain n where "P w" if "length w \<ge> n" for w by blast
-  then have "\<not> P w \<Longrightarrow> length w < n" for w by (fold not_le) (rule contrapos_nn)
-  then have "{w. \<not> P w} \<subseteq> {w. length w < n}" by (intro Collect_mono impI)
-  moreover have "finite {w::word. length w < n}" by (rule finite_bin_len_less)
+  then obtain l\<^sub>0 where "P w" if "length w \<ge> l\<^sub>0" for w by blast
+  then have "\<not> P w \<Longrightarrow> length w < l\<^sub>0" for w by (fold not_le) (rule contrapos_nn)
+  then have "{w. \<not> P w} \<subseteq> {w. length w < l\<^sub>0}" by (intro Collect_mono impI)
+  moreover have "finite {w::word. length w < l\<^sub>0}" by (rule finite_bin_len_less)
   ultimately show ?lhs unfolding ae_def by (rule finite_subset)
 next
   assume ?lhs
@@ -882,14 +882,14 @@ qed
 
 lemma ae_word_lengthI[intro]:
   fixes P :: "word \<Rightarrow> bool"
-  assumes "\<exists>n. \<forall>w. length w \<ge> n \<longrightarrow> P w"
+  assumes "\<exists>l\<^sub>0. \<forall>w. length w \<ge> l\<^sub>0 \<longrightarrow> P w"
   shows "almost_everywhere P"
   unfolding ae_word_length_iff using assms by blast
 
 lemma ae_word_lengthE[elim]:
   fixes P :: "word \<Rightarrow> bool"
   assumes "almost_everywhere P"
-  obtains n where "\<And>w. length w \<ge> n \<Longrightarrow> P w"
+  obtains l\<^sub>0 where "\<And>w. length w \<ge> l\<^sub>0 \<Longrightarrow> P w"
   using assms unfolding ae_word_length_iff by blast
 
 
@@ -935,22 +935,22 @@ lemma DTIME_ae:
 proof (unfold DTIME_def mem_Collect_eq)
   from assms obtain M'
     where "almost_everywhere (\<lambda>w. decides_word M' L w \<and> time_bounded_word T M' w)" ..
-  then obtain n
+  then obtain l\<^sub>0
     where "decides_word M' L w" and "time_bounded_word T M' w"
-    if "length w \<ge> n" for w by blast
+    if "length w \<ge> l\<^sub>0" for w by blast
 
   show "\<exists>M. decides M L \<and> time_bounded T M" sorry
 qed
 
 lemma DTIME_aeI:
-  assumes "\<And>w. length w \<ge> n \<Longrightarrow> decides_word M L w"
-    and "\<And>w. length w \<ge> n \<Longrightarrow> time_bounded_word T M w"
+  assumes "\<And>w. length w \<ge> l\<^sub>0 \<Longrightarrow> decides_word M L w"
+    and "\<And>w. length w \<ge> l\<^sub>0 \<Longrightarrow> time_bounded_word T M w"
   shows "L \<in> DTIME(T)"
   using assms by (intro DTIME_ae) blast
 
 
 lemma DTIME_mono_ae':
-  assumes Tt: "\<And>n. n \<ge> N \<Longrightarrow> tcomp T n \<ge> tcomp t n"
+  assumes Tt: "\<And>n. n \<ge> n\<^sub>0 \<Longrightarrow> tcomp T n \<ge> tcomp t n"
     and "L \<in> DTIME(t)"
   shows "L \<in> DTIME(T)"
 proof -
@@ -961,8 +961,8 @@ proof -
   moreover have "almost_everywhere (time_bounded_word T M)"
   proof (intro ae_word_lengthI exI allI impI)
     fix w :: word
-    assume "length w \<ge> N"
-    then have "tape_size <w>\<^sub>t\<^sub>p \<ge> N" unfolding tape_size_input by simp
+    assume "length w \<ge> n\<^sub>0"
+    then have "tape_size <w>\<^sub>t\<^sub>p \<ge> n\<^sub>0" unfolding tape_size_input by simp
     then have "tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w" by (fact Tt)
     moreover from \<open>time_bounded t M\<close> have "time_bounded_word t M w" ..
     ultimately show "time_bounded_word T M w" by (fact time_bounded_word_mono')
@@ -971,10 +971,10 @@ proof -
 qed
 
 lemma DTIME_mono_ae:
-  assumes Tt: "\<And>n. n \<ge> N \<Longrightarrow> T n \<ge> t n"
+  assumes Tt: "\<And>n. n \<ge> n\<^sub>0 \<Longrightarrow> T n \<ge> t n"
     and "L \<in> DTIME(t)"
   shows "L \<in> DTIME(T)"
-  using assms by (intro DTIME_mono_ae'[of N t T]) (rule tcomp_mono)
+  using assms by (intro DTIME_mono_ae'[of n\<^sub>0 t T]) (rule tcomp_mono)
 
 
 subsubsection\<open>Linear Speed-Up\<close>
@@ -991,7 +991,7 @@ text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
 
 lemma linear_time_speed_up:
   assumes "c > 0"
-    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N" \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close>
+    and "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N" \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close>
       required by @{cite hopcroftAutomata1979}, but simpler to define in Isabelle.\<close>
     and "decides M\<^sub>1 L"
     and "time_bounded T M\<^sub>1"
@@ -1003,16 +1003,16 @@ lemma linear_time_speed_up:
  *      find more fitting names or generalize *)
 lemma dominatesE:
   fixes T :: "nat \<Rightarrow> real" and c :: real
-  assumes "\<forall>N. \<exists>n. \<forall>m\<ge>n. T(m)/m \<ge> N"
-  obtains n where "\<And>m. m \<ge> n \<Longrightarrow> T(m) \<ge> c*m"
+  assumes "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
+  obtains n\<^sub>0 where "\<And>n. n \<ge> n\<^sub>0 \<Longrightarrow> T(n) \<ge> c*n"
 proof -
-  from assms obtain N where N: "T(n)/n \<ge> c" if "n \<ge> N" for n by blast
+  from assms obtain n\<^sub>0 where n\<^sub>0: "T(n)/n \<ge> c" if "n \<ge> n\<^sub>0" for n by blast
 
-  then have "T(n) \<ge> c*n" if "n \<ge> Suc N" (is "n \<ge> ?n") for n
+  then have "T(n) \<ge> c*n" if "n \<ge> Suc n\<^sub>0" (is "n \<ge> ?n") for n
   proof -
-    from \<open>n \<ge> Suc N\<close> have "n \<ge> N" by (fact Suc_leD)
-    with N have "T(n)/n \<ge> c" .
-    moreover from \<open>n \<ge> Suc N\<close> have "real n > 0" by simp
+    from \<open>n \<ge> Suc n\<^sub>0\<close> have "n \<ge> n\<^sub>0" by (fact Suc_leD)
+    with n\<^sub>0 have "T(n)/n \<ge> c" .
+    moreover from \<open>n \<ge> Suc n\<^sub>0\<close> have "real n > 0" by simp
     ultimately show "T(n) \<ge> c*n" by (subst (asm) pos_le_divide_eq)
   qed
   then show ?thesis by (rule that)
@@ -1020,13 +1020,13 @@ qed
 
 lemma dominatesE':
   fixes T :: "nat \<Rightarrow> real" and c :: real
-  assumes "\<forall>N. \<exists>n. \<forall>m\<ge>n. T(m)/m \<ge> N"
-  shows "\<exists>n. \<forall>m\<ge>n. T(m) \<ge> c*m"
+  assumes "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
+  shows "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n) \<ge> c*n"
   using assms by (elim dominatesE) blast
 
 corollary DTIME_speed_up:
   assumes "c > 0"
-    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
+    and "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
     and "L \<in> DTIME(T)"
   shows "L \<in> DTIME(\<lambda>n. c * T n)"
 proof -
@@ -1040,7 +1040,7 @@ lemma DTIME_speed_up_rev:
   fixes T c
   defines "T' \<equiv> \<lambda>n. c * T n"
   assumes "c > 0"
-    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
+    and "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
     and "L \<in> DTIME(T')"
   shows "L \<in> DTIME(T)"
 proof -
@@ -1048,14 +1048,14 @@ proof -
   have T_T': "T = (\<lambda>n. c' * T' n)" unfolding T'_def c'_def using \<open>c > 0\<close> by force
 
   from \<open>c > 0\<close> have "c' > 0" unfolding c'_def by simp
-  moreover have "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T'(n)/n \<ge> N" unfolding T'_def
+  moreover have "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T'(n)/n \<ge> N" unfolding T'_def
   proof
     fix N
     define N' where "N' \<equiv> N / c"
     have *: "T(n)/n \<ge> N/c \<longleftrightarrow> c*T(n)/n \<ge> N" for n using \<open>c > 0\<close> by (subst pos_divide_le_eq) argo+
 
-    from assms(3) have "\<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N'" ..
-    then show "\<exists>n'. \<forall>n\<ge>n'. c*T(n)/n \<ge> N" unfolding N'_def * .
+    from assms(3) have "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N'" ..
+    then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c*T(n)/n \<ge> N" unfolding N'_def * .
   qed
   moreover note \<open>L \<in> DTIME(T')\<close>
   ultimately show "L \<in> DTIME(T)" unfolding T_T' by (rule DTIME_speed_up)
@@ -1063,13 +1063,13 @@ qed
 
 corollary DTIME_speed_up_eq:
   assumes "c > 0"
-    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
+    and "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
   shows "DTIME(\<lambda>n. c * T n) = DTIME(T)"
   using assms by (intro set_eqI iffI) (fact DTIME_speed_up_rev, fact DTIME_speed_up)
 
 corollary DTIME_speed_up_div:
   assumes "d > 0"
-    and "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
+    and "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
     and "L \<in> DTIME(T)"
   shows "L \<in> DTIME(\<lambda>n. T n / d)"
 proof -
@@ -1132,17 +1132,17 @@ qed
 
 lemma exists_ge:
   fixes P :: "'a :: linorder \<Rightarrow> bool"
-  assumes "\<exists>n. \<forall>m\<ge>n. P m"
-  shows "\<exists>n. \<forall>m\<ge>n. P m \<and> m \<ge> N"
+  assumes "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. P n"
+  shows "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. P n \<and> n \<ge> N"
 proof -
-  from assms obtain n where n': "P m" if "m \<ge> n" for m by blast
-  then have "m \<ge> max n N \<Longrightarrow> P m \<and> m \<ge> N" for m by simp
+  from assms obtain n\<^sub>0 where "P n" if "n \<ge> n\<^sub>0" for n by blast
+  then have "n \<ge> max n\<^sub>0 N \<Longrightarrow> P n \<and> n \<ge> N" for n by simp
   then show ?thesis by blast
 qed
 
 lemma exists_ge_eq:
   fixes P :: "nat \<Rightarrow> bool"
-  shows "(\<exists>n. \<forall>m\<ge>n. P m) \<longleftrightarrow> (\<exists>n. \<forall>m\<ge>n. P m \<and> m \<ge> N)"
+  shows "(\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. P n) \<longleftrightarrow> (\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. P n \<and> n \<ge> N)"
   by (intro iffI) (fact exists_ge, blast)
 
 lemma reduce_DTIME':
@@ -1153,7 +1153,7 @@ lemma reduce_DTIME':
   assumes f\<^sub>R_ae: "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> l\<^sub>R (length w)))"
     and "\<And>n. T (l\<^sub>R n) \<ge> T(n)" \<comment> \<open>allows reasoning about \<^term>\<open>T\<close> and \<^term>\<open>l\<^sub>R\<close> as if both were \<^const>\<open>mono\<close>.\<close>
     and "computable_in_time T f\<^sub>R"
-    and T_superlinear: "\<forall>N. \<exists>n. \<forall>m\<ge>n. T(m)/m \<ge> N"
+    and T_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
     and "L\<^sub>1 \<in> DTIME(T)"
   shows "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
 proof -
@@ -1163,17 +1163,17 @@ proof -
 
   let ?T' = "\<lambda>n. tcomp (T \<circ> l\<^sub>R) n + tcomp T n"
 
-  from f\<^sub>R_ae obtain n
+  from f\<^sub>R_ae obtain l\<^sub>0
     where f\<^sub>R_correct: "f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2"
       and f\<^sub>R_len: "length (f\<^sub>R w) \<le> l\<^sub>R (length w)"
-    if "length w \<ge> n" for w by blast
+    if "length w \<ge> l\<^sub>0" for w by blast
 
   \<comment> \<open>Prove \<^term>\<open>M\<close> to be \<^term>\<open>T\<close>-time-bounded.
     Part 1: show a time-bound for \<^term>\<open>M\<close>.\<close>
   have "L\<^sub>2 \<in> DTIME(?T')"
   proof (rule DTIME_aeI)
     fix w :: word
-    assume min_len: "length w \<ge> n"
+    assume min_len: "length w \<ge> l\<^sub>0"
 
     show "decides_word M L\<^sub>2 w" unfolding M_def using \<open>tm_wf0 M\<^sub>R\<close>
     proof (intro reduce_decides)
@@ -1194,13 +1194,13 @@ proof -
   (* TODO (?) split proof here *)
 
   \<comment> \<open>Part 2: bound the run-time of M (\<^term>\<open>?T'\<close>) by a multiple of the desired time-bound \<^term>\<open>T\<close>.\<close>
-  from T_superlinear have "\<exists>n. \<forall>m\<ge>n. T m \<ge> 2 * m \<and> m \<ge> 1"
+  from T_superlinear have "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T n \<ge> 2 * n \<and> n \<ge> 1"
     unfolding of_nat_mult by (intro exists_ge) (fact dominatesE')
-  then obtain m where m: "T n \<ge> 2*n" "n \<ge> 1" if "n \<ge> m" for n by blast
+  then obtain n\<^sub>0 where n\<^sub>0: "T n \<ge> 2*n" "n \<ge> 1" if "n \<ge> n\<^sub>0" for n by blast
 
-  have "?T' n \<le> 4 * T (l\<^sub>R n)" if "n \<ge> m" for n
+  have "?T' n \<le> 4 * T (l\<^sub>R n)" if "n \<ge> n\<^sub>0" for n
   proof -
-    from \<open>n \<ge> m\<close> have "n \<ge> 1" and "T n \<ge> 2*n" by (fact m)+
+    from \<open>n \<ge> n\<^sub>0\<close> have "n \<ge> 1" and "T n \<ge> 2*n" by (fact n\<^sub>0)+
     then have "n + 1 \<le> 2 * n" by simp
     also have "2 * n = nat \<lceil>2 * n\<rceil>" unfolding ceiling_of_nat nat_int ..
     also from \<open>T n \<ge> 2*n\<close> have "nat \<lceil>2 * n\<rceil> \<le> nat \<lceil>T n\<rceil>" by (intro nat_mono ceiling_mono)
@@ -1240,7 +1240,7 @@ qed
 lemma reduce_DTIME:
   assumes f\<^sub>R_ae: "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> length w))"
     and "computable_in_time T f\<^sub>R"
-    and T_superlinear: "\<forall>N. \<exists>n. \<forall>m\<ge>n. T(m)/m \<ge> N"
+    and T_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
     and "L\<^sub>1 \<in> DTIME(T)"
   shows "L\<^sub>2 \<in> DTIME(T)" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
   by (rule reduce_DTIME') (use assms in auto)

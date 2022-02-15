@@ -185,7 +185,7 @@ proof (rule ccontr, unfold not_not)
     show "almost_everywhere (\<lambda>w. (reduce_LD_LD'' w \<in> L\<^sub>D'') = (w \<in> L\<^sub>D) \<and> length (reduce_LD_LD'' w) \<le> length w)"
       sorry
 
-    show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" by (fact t_superlinear)
+    show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear)
 
     show "computable_in_time t reduce_LD_LD''" sorry
         \<comment> \<open>Assume that \<^const>\<open>reduce_LD_LD''\<close> can be computed by a TM in time \<open>O(n)\<close>.\<close>
@@ -237,7 +237,7 @@ proof (rule reduce_DTIME)
 
   show "computable_in_time T f\<^sub>R" unfolding f\<^sub>R_def sorry \<comment> \<open>assume that \<^term>\<open>f\<^sub>R\<close> can be evaluated in \<open>O(n)\<close>\<close>
 
-  show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> T m / m" by (fact T_superlinear)
+  show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N" by (fact T_superlinear)
 qed
 
 
@@ -258,7 +258,7 @@ proof (rule ccontr, unfold not_not)
         by (intro eq_imp_le sh_msbD) (fact adj_sq_sh_pfx_half)
     qed
 
-    show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" by (fact t_superlinear)
+    show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear)
 
     show "computable_in_time t adj_sq\<^sub>w" sorry \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<^term>\<open>t\<close>.
       Assuming the computation of \<^const>\<open>adj_sq\<^sub>w\<close> requires \<open>n^3\<close> steps, this is not correct.\<close>

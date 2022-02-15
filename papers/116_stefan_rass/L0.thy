@@ -38,7 +38,7 @@ begin
 lemma T_ge_t_log_t_ae:
   fixes c :: real
   assumes "c \<ge> 0"
-  shows "\<exists>N. \<forall>n\<ge>N. c * t n * log 2 (t n) < T n"
+  shows "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * t n * log 2 (t n) < T n"
 proof (cases "c = 0")
   assume "c = 0"
   from T_not_0 show ?thesis unfolding \<open>c = 0\<close> by simp
@@ -46,42 +46,42 @@ next
   assume "c \<noteq> 0"
   with \<open>c \<ge> 0\<close> have "c > 0" by simp
   moreover from T_not_0 have "real (T n) \<noteq> 0" for n unfolding of_nat_eq_0_iff .
-  ultimately have "\<exists>N. \<forall>n\<ge>N. c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>"
+  ultimately have "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>"
     using T_dominates_t by (subst (asm) dominates_altdef) presburger+
 
-  then obtain N where *: "n \<ge> N \<Longrightarrow> c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>" for n by blast
-  let ?N = "max N 2"
+  then obtain n\<^sub>0 where *: "n \<ge> n\<^sub>0 \<Longrightarrow> c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>" for n by blast
+  let ?n\<^sub>0 = "max n\<^sub>0 2"
 
-  have "c * t n * log 2 (t n) < T n" if "n \<ge> ?N" for n
+  have "c * t n * log 2 (t n) < T n" if "n \<ge> ?n\<^sub>0" for n
   proof -
-    from \<open>n \<ge> ?N\<close> have "n \<ge> N" and "n \<ge> 2" by auto
-    from \<open>n \<ge> N\<close> have "c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>" by (fact *)
+    from \<open>n \<ge> ?n\<^sub>0\<close> have "n \<ge> n\<^sub>0" and "n \<ge> 2" by auto
+    from \<open>n \<ge> n\<^sub>0\<close> have "c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>" by (fact *)
 
     from \<open>n \<ge> 2\<close> and t_min have "t n \<ge> 2" by (rule le_trans)
     then have "log 2 (t n) \<ge> 1" by force
     with \<open>t n \<ge> 2\<close> have "t n * log 2 (t n) > 0" by auto
 
     have "c * t n * log 2 (t n) = c * \<bar>t n * log 2 (t n)\<bar>" using \<open>t n * log 2 (t n) > 0\<close> by fastforce
-    also from \<open>n \<ge> N\<close> have "... < \<bar>real (T n)\<bar>" by (fact *)
+    also from \<open>n \<ge> n\<^sub>0\<close> have "... < \<bar>real (T n)\<bar>" by (fact *)
     also have "... = T n" by simp
     finally show ?thesis .
   qed
-  then show "\<exists>N. \<forall>n\<ge>N. c * t n * log 2 (t n) < T n" by blast
+  then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * t n * log 2 (t n) < T n" by blast
 qed
 
-lemma T_ge_t_ae: "\<exists>N. \<forall>n\<ge>N. T n > t n"
+lemma T_ge_t_ae: "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T n > t n"
 proof -
-  from T_ge_t_log_t_ae[of 1] obtain N where *: "n \<ge> N \<Longrightarrow> t n * log 2 (t n) < T n" for n by auto
-  let ?N = "max N 2"
+  from T_ge_t_log_t_ae[of 1] obtain n\<^sub>0 where *: "n \<ge> n\<^sub>0 \<Longrightarrow> t n * log 2 (t n) < T n" for n by auto
+  let ?n\<^sub>0 = "max n\<^sub>0 2"
 
-  have "t n < T n" if "n \<ge> ?N" for n
+  have "t n < T n" if "n \<ge> ?n\<^sub>0" for n
   proof -
-    from \<open>n \<ge> ?N\<close> and * have "n \<ge> 2" by simp
+    from \<open>n \<ge> ?n\<^sub>0\<close> and * have "n \<ge> 2" by simp
     with t_min have "t n \<ge> 2" using le_trans by blast
     then have "log 2 (t n) \<ge> 1" by force
 
     have "t n \<le> t n * log 2 (t n)" using \<open>log 2 (t n) \<ge> 1\<close> \<open>t n \<ge> 2\<close> by fastforce
-    also have "... < T n" using * \<open>n \<ge> ?N\<close> by simp
+    also have "... < T n" using * \<open>n \<ge> ?n\<^sub>0\<close> by simp
     finally show "t n < T n" by fastforce
   qed
   then show ?thesis by blast
@@ -260,7 +260,7 @@ text\<open>From the proof of Lemma 4.6@{cite rassOwf2017}:
 
 locale tht_sq_assms = tht_assms +
   assumes T_lower_bound: "T n \<ge> n^3"
-    and t_superlinear: "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m"
+    and t_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N"
 begin
 
 
@@ -377,7 +377,7 @@ proof (rule ccontr, unfold not_not)
         by (intro eq_imp_le sh_msbD) (fact adj_sq_sh_pfx_half)
     qed
 
-    show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" by (fact t_superlinear)
+    show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear)
 
     show "computable_in_time t adj_sq\<^sub>w" sorry \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<^term>\<open>t\<close>.
       Assuming the computation of \<^const>\<open>adj_sq\<^sub>w\<close> requires \<open>n^3\<close> steps, this is not correct.\<close>
