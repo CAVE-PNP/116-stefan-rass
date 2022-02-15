@@ -8,39 +8,35 @@ begin
 text\<open>Helpful lemmas centered around \<^const>\<open>LIMSEQ\<close> (\<^term>\<open>x\<^sub>i \<longlonglongrightarrow> x\<close>).\<close>
 
 lemma dominates_altdef:
-  fixes c :: real
+  fixes T t :: "nat \<Rightarrow> real"
   assumes "\<And>n. T n \<noteq> 0"
-    and T_dominates_t: "(\<lambda>n. t n / T n) \<longlonglongrightarrow> 0"
-  shows "\<exists>N. \<forall>n\<ge>N. \<bar>c * t n\<bar> < \<bar>T n\<bar>"
-proof (cases "c = 0")
-  assume "c = 0"
-  show ?thesis proof (intro exI allI impI)
-    fix n
-    have "\<bar>c * t n\<bar> = 0" unfolding \<open>c = 0\<close> by simp
-    also have "0 < \<bar>T n\<bar>" using \<open>T n \<noteq> 0\<close> by simp
-    finally show "\<bar>c * t n\<bar> < \<bar>T n\<bar>" .
-  qed
-next
-  let ?f = "\<lambda>n. t n / T n"
-  assume "c \<noteq> 0"
-  define c' where c': "c' \<equiv> 1 / c"
-  from \<open>c \<noteq> 0\<close> have "c' \<noteq> 0" unfolding c' by simp
-
-  with T_dominates_t have "\<exists>N. \<forall>n\<ge>N. \<bar>?f n\<bar> < \<bar>c'\<bar>"
-    unfolding LIMSEQ_def dist_real_def diff_0_right by force
-  then obtain N where "\<bar>?f n\<bar> < \<bar>c'\<bar>" if "n \<ge> N" for n by blast
-
-  have "\<bar>c * t n\<bar> < \<bar>T n\<bar>" if "n \<ge> N" for n
+  shows "((\<lambda>n. t n / T n) \<longlonglongrightarrow> 0) \<longleftrightarrow> (\<forall>c>0. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * \<bar>t n\<bar> < \<bar>T n\<bar>)"
+proof -
+  have *: "c * \<bar>t n\<bar> < \<bar>T n\<bar> \<longleftrightarrow> \<bar>t n / T n\<bar> < 1/c" if "c > 0" for c :: real and n
   proof -
-    from \<open>T n \<noteq> 0\<close> have "\<bar>T n\<bar> > 0" unfolding zero_less_abs_iff .
-    from \<open>c \<noteq> 0\<close> have "\<bar>c\<bar> > 0" unfolding zero_less_abs_iff .
-
-    have "\<bar>?f n\<bar> < \<bar>c'\<bar>" using \<open>n \<ge> N\<close> by fact
-    then have "\<bar>t n\<bar> / \<bar>T n\<bar> < 1 / \<bar>c\<bar>" unfolding c' abs_divide abs_one .
-    then have "\<bar>t n\<bar> < \<bar>T n\<bar> / \<bar>c\<bar>" unfolding \<open>\<bar>T n\<bar> > 0\<close>[THEN pos_divide_less_eq] by argo
-    then show "\<bar>c * t n\<bar> < \<bar>T n\<bar>" unfolding \<open>\<bar>c\<bar> > 0\<close>[THEN pos_less_divide_eq] abs_mult by argo
+    have "c * \<bar>t n\<bar> < \<bar>T n\<bar> \<longleftrightarrow> \<bar>t n\<bar> < \<bar>T n\<bar> / c"
+      unfolding pos_less_divide_eq[OF \<open>c > 0\<close>] by argo
+    also have "... \<longleftrightarrow> \<bar>t n\<bar> < \<bar>T n\<bar> * (1/c)" by argo
+    also from \<open>T n \<noteq> 0\<close> have "... \<longleftrightarrow> \<bar>t n / T n\<bar> < 1/c"
+      unfolding abs_divide by (subst pos_divide_less_eq) (simp, argo)
+    finally show ?thesis .
   qed
-  then show "\<exists>N. \<forall>n\<ge>N. \<bar>c * t n\<bar> < \<bar>T n\<bar>" by blast
+  
+  \<comment> \<open>The following can be considered boilerplate necessary due to the nested quantification.\<close>
+  have "(\<forall>r>0. \<exists>no. \<forall>n\<ge>no. \<bar>t n / T n\<bar> < r) = (\<forall>c>0. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * \<bar>t n\<bar> < \<bar>T n\<bar>)"
+  proof (intro iffI allI impI; elim allE impE)
+    fix c :: real
+    assume "c > 0" thus "1/c > 0" by simp
+    assume "\<exists>no. \<forall>n\<ge>no. \<bar>t n / T n\<bar> < 1/c"
+    with \<open>c > 0\<close> show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * \<bar>t n\<bar> < \<bar>T n\<bar>" using * by blast
+  next
+    fix r :: real
+    assume "r > 0" thus "1/r > 0" by simp
+    assume "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. 1/r * \<bar>t n\<bar> < \<bar>T n\<bar>"
+    with \<open>1/r > 0\<close> have "\<exists>no. \<forall>n\<ge>no. \<bar>t n / T n\<bar> < 1/(1/r)" using * by blast
+    then show "\<exists>no. \<forall>n\<ge>no. \<bar>t n / T n\<bar> < r" by simp
+  qed
+  then show ?thesis unfolding LIMSEQ_def dist_real_def diff_0_right .
 qed
 
 end

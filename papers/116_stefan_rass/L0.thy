@@ -39,24 +39,29 @@ lemma T_ge_t_log_t_ae:
   fixes c :: real
   assumes "c \<ge> 0"
   shows "\<exists>N. \<forall>n\<ge>N. c * t n * log 2 (t n) < T n"
-proof -
-  from T_not_0 have "real (T n) \<noteq> 0" for n unfolding of_nat_eq_0_iff .
-  then have "\<exists>N. \<forall>n\<ge>N. \<bar>c * (t n * log 2 (t n))\<bar> < \<bar>real (T n)\<bar>"
-    using T_dominates_t by (rule dominates_altdef)
-  then obtain N where *: "n \<ge> N \<Longrightarrow> \<bar>c * (t n * log 2 (t n))\<bar> < \<bar>real (T n)\<bar>" for n by blast
+proof (cases "c = 0")
+  assume "c = 0"
+  from T_not_0 show ?thesis unfolding \<open>c = 0\<close> by simp
+next
+  assume "c \<noteq> 0"
+  with \<open>c \<ge> 0\<close> have "c > 0" by simp
+  moreover from T_not_0 have "real (T n) \<noteq> 0" for n unfolding of_nat_eq_0_iff .
+  ultimately have "\<exists>N. \<forall>n\<ge>N. c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>"
+    using T_dominates_t by (subst (asm) dominates_altdef) presburger+
+
+  then obtain N where *: "n \<ge> N \<Longrightarrow> c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>" for n by blast
   let ?N = "max N 2"
 
   have "c * t n * log 2 (t n) < T n" if "n \<ge> ?N" for n
   proof -
     from \<open>n \<ge> ?N\<close> have "n \<ge> N" and "n \<ge> 2" by auto
-    from \<open>n \<ge> N\<close> have "\<bar>c * (t n * log 2 (t n))\<bar> < \<bar>real (T n)\<bar>" by (fact *)
+    from \<open>n \<ge> N\<close> have "c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>" by (fact *)
 
     from \<open>n \<ge> 2\<close> and t_min have "t n \<ge> 2" by (rule le_trans)
     then have "log 2 (t n) \<ge> 1" by force
     with \<open>t n \<ge> 2\<close> have "t n * log 2 (t n) > 0" by auto
 
     have "c * t n * log 2 (t n) = c * \<bar>t n * log 2 (t n)\<bar>" using \<open>t n * log 2 (t n) > 0\<close> by fastforce
-    also from \<open>c \<ge> 0\<close> have "... = \<bar>c * (t n * log 2 (t n))\<bar>" unfolding abs_mult by force
     also from \<open>n \<ge> N\<close> have "... < \<bar>real (T n)\<bar>" by (fact *)
     also have "... = T n" by simp
     finally show ?thesis .
