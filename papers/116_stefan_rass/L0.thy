@@ -118,6 +118,57 @@ proof -
 qed
 
 
+lemma T_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
+proof (intro allI)
+  fix N :: real
+  from T_ge_t_log_t_ae[of 1] obtain n\<^sub>0
+    where t_log_t: "t n * log 2 (t n) < T n" if "n \<ge> n\<^sub>0" for n by auto
+  let ?n\<^sub>0 = "max n\<^sub>0 (2 ^ nat\<lceil>N\<rceil>)"
+
+  {
+    fix n :: nat
+    assume "n \<ge> ?n\<^sub>0"
+    then have "n \<ge> n\<^sub>0" and "n \<ge> 2 ^ nat\<lceil>N\<rceil>" by (blast elim!: max.boundedE)+
+
+    have "n > 0"
+    proof -
+      have "(0::real) < 1" by (fact zero_less_one)
+      also have "... \<le> 2 ^ nat\<lceil>N\<rceil>" using two_realpow_ge_one .
+      also have "... \<le> n" using \<open>n \<ge> 2 ^ nat\<lceil>N\<rceil>\<close> by simp
+      finally show "n > 0" by simp
+    qed
+    with t_min[of n] have "t n > 0" by simp
+
+    have "n * log 2 n \<le> t n * log 2 (t n)"
+    proof (intro mult_mono)
+      from t_min show "real n \<le> real (t n)" by simp
+      with \<open>n > 0\<close> and \<open>t n > 0\<close> show "log 2 n \<le> log 2 (t n)"
+        by (subst log_le_cancel_iff; linarith)
+
+      show "real (t n) \<ge> 0" by (fact of_nat_0_le_iff)
+      from \<open>n > 0\<close> show "0 \<le> log 2 (real n)"
+        by (subst zero_le_log_cancel_iff) auto
+    qed
+    also from t_log_t and \<open>n \<ge> n\<^sub>0\<close> have "... < T n" .
+    finally have "n * log 2 n \<le> T n" by (fact less_imp_le)
+
+    with \<open>n > 0\<close> have "log 2 n \<le> T(n)/n" by (subst pos_le_divide_eq) (simp, argo)
+
+    have "N \<le> log 2 n"
+    proof -
+      have "N \<le> log 2 (2 ^ nat\<lceil>N\<rceil>)"
+        by (subst log_pow_cancel) (simp, simp, linarith)
+      also have "... \<le> log 2 n" using \<open>n \<ge> 2 ^ nat\<lceil>N\<rceil>\<close> and \<open>n > 0\<close>
+        by (subst log_le_cancel_iff) auto
+      finally show "N \<le> log 2 n" .
+    qed
+    also note \<open>log 2 n \<le> T(n)/n\<close>
+    finally have "N \<le> real (T n) / real n" .
+  }
+  then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. N \<le> real (T n) / real n" by blast
+qed
+
+
 text\<open>\<open>L\<^sub>D\<close>, defined as part of the proof for the Time Hierarchy Theorem.
 
   ``The `diagonal-language' \<open>L\<^sub>D\<close> is thus defined over the alphabet \<open>\<Sigma> = {0, 1}\<close> as
@@ -378,22 +429,6 @@ proof -
   define T' :: "nat \<Rightarrow> real" where "T' \<equiv> \<lambda>n. T n + n^3"
   have "T' n \<le> 2 * T n" for n unfolding T'_def
     using T_lower_bound by (intro of_nat_mono) force
-
-  have T_superlinear: "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
-  proof (intro allI exI impI)
-    fix N :: real and n :: nat
-    let ?n' = "nat \<lceil>N\<rceil>"
-    assume "?n' \<le> n"
-
-    have "N \<le> ?n'" by (rule real_nat_ceiling_ge)
-    also have "... \<le> n" using \<open>?n' \<le> n\<close> by (rule of_nat_mono)
-    also have "... \<le> n\<^sup>2" by (rule of_nat_mono) (rule power2_nat_le_imp_le, rule le_refl)
-    also have "... = n powr (3 - 1)" by force
-    also have "... = n^3 / n" unfolding powr_diff
-      by (simp only: powr_numeral powr_one of_nat_power)
-    also have "... \<le> T(n)/n" using T_lower_bound by (intro divide_right_mono of_nat_mono) auto
-    finally show "T(n)/n \<ge> N" .
-  qed
 
   from time_hierarchy have "L\<^sub>D \<in> DTIME T" ..
   then have "L\<^sub>0 \<in> DTIME(T')" unfolding T'_def L0_def of_nat_add

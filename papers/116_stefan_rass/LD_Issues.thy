@@ -241,7 +241,7 @@ proof (rule reduce_DTIME)
 
   show "computable_in_time T f\<^sub>R" sorry
 
-  show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> T m / m" sorry \<comment> \<open>not correct with current assumptions\<close>
+  show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> T m / m" by (fact T_superlinear)
 qed
 
 
