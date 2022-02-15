@@ -255,6 +255,7 @@ text\<open>From the proof of Lemma 4.6@{cite rassOwf2017}:
 
 locale tht_sq_assms = tht_assms +
   assumes T_lower_bound: "T n \<ge> n^3"
+    and t_superlinear: "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m"
 begin
 
 
@@ -371,13 +372,10 @@ proof (rule ccontr, unfold not_not)
         by (intro eq_imp_le sh_msbD) (fact adj_sq_sh_pfx_half)
     qed
 
-    show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" sorry
-    \<comment> \<open>This is not correct, since \<^term>\<open>t\<close> could be arbitrarily small.
-      Let \<open>t(n) = n\<close> and \<open>T(n) = n\<^sup>3\<close>. Then \<open>DTIME(t)\<close> is limited by \<open>tcomp t n = n + 1\<close>
-      and \<open>DTIME(T)\<close> by \<open>tcomp t n = n\<^sup>3\<close> (for \<open>n > 1\<close>).\<close>
+    show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" by (fact t_superlinear)
 
-    show "computable_in_time t adj_sq\<^sub>w" sorry
-    \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed by a TM in time \<open>n\<^sup>3\<close>.\<close>
+    show "computable_in_time t adj_sq\<^sub>w" sorry \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<^term>\<open>t\<close>.
+      Assuming the computation of \<^const>\<open>adj_sq\<^sub>w\<close> requires \<open>n^3\<close> steps, this is not correct.\<close>
 
     show \<open>L\<^sub>0 \<in> DTIME(t)\<close> by fact
   qed
