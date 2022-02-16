@@ -2,7 +2,6 @@ section\<open>The Time Hierarchy Theorem and the Language \<open>L\<^sub>0\<clos
 
 theory L0
   imports SQ Complexity
-    "Supplementary/Limit"
 begin
 
 

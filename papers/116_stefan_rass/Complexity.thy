@@ -3,7 +3,7 @@ section\<open>Complexity\<close>
 text\<open>Definitions and lemmas from computational complexity theory.\<close>
 
 theory Complexity
-  imports Goedel_Numbering Language_Density TM_Encoding
+  imports Goedel_Numbering Language_Density TM_Encoding Asymptotic
     "Universal_Turing_Machine.UTM"
 begin
 
@@ -836,20 +836,6 @@ subsection\<open>Classical Results\<close>
 
 subsubsection\<open>Almost Everywhere\<close>
 
-text\<open>@{cite \<open>ch.~12.2\<close> hopcroftAutomata1979} uses the finite control in Lemma 12.3
-  to make the jump from almost everywhere to everywhere:
-
-  ``We say that a statement with parameter \<open>n\<close> is true \<^emph>\<open>almost everywhere\<close> (a.e.) if it
-  is true for all but a finite number of values of \<open>n\<close>. We say a statement is true infinitely
-  often (i.o.) if it is true for an infinite number of \<open>n\<close>'s. Note that both a statement and
-  its negation may be true i.o.''\<close>
-
-definition almost_everywhere :: "('a \<Rightarrow> bool) \<Rightarrow> bool"
-  where ae_def[simp]: "almost_everywhere P \<equiv> finite {x. \<not> P x}"
-
-
-lemma ae_everywhereI: "(\<And>x. P x) \<Longrightarrow> almost_everywhere P" by simp
-
 lemma ae_word_length_iff[iff]:
   fixes P :: "word \<Rightarrow> bool"
   shows "almost_everywhere P \<longleftrightarrow> (\<exists>l\<^sub>0. \<forall>w. length w \<ge> l\<^sub>0 \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
@@ -893,29 +879,6 @@ lemma ae_word_lengthE[elim]:
   using assms unfolding ae_word_length_iff by blast
 
 
-lemma ae_mono:
-  assumes "\<And>x. P x \<Longrightarrow> Q x"
-    and "almost_everywhere P"
-  shows "almost_everywhere Q" (is "?ae Q")
-proof -
-  from \<open>\<And>x. P x \<Longrightarrow> Q x\<close> have "{x. \<not> Q x} \<subseteq> {x. \<not> P x}" by blast
-  moreover from \<open>?ae P\<close> have "finite {x. \<not> P x}" by simp
-  ultimately show "?ae Q" unfolding ae_def by (fact finite_subset)
-qed
-
-
-lemma ae_conj_iff: "almost_everywhere (\<lambda>x. P x \<and> Q x) \<longleftrightarrow> almost_everywhere P \<and> almost_everywhere Q"
-  unfolding ae_def de_Morgan_conj Collect_disj_eq by blast
-
-lemma ae_conjI:
-  assumes "almost_everywhere P" and "almost_everywhere Q"
-  shows "almost_everywhere (\<lambda>x. P x \<and> Q x)"
-  unfolding ae_conj_iff using assms ..
-
-lemma ae_disj: "almost_everywhere P \<or> almost_everywhere Q \<Longrightarrow> almost_everywhere (\<lambda>x. P x \<or> Q x)"
-  by auto
-
-
 text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
 
   ``\<^bold>\<open>Lemma 12.3\<close>  If \<open>L\<close> is accepted by a TM \<open>M\<close> that is \<open>S(n)\<close> space bounded a.e., then \<open>L\<close> is
@@ -928,13 +891,12 @@ text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
   The lemma is only stated for space bounds,
   but it seems reasonable that a similar construction works on time bounds.\<close>
 
-
 lemma DTIME_ae:
-  assumes "\<exists>M. almost_everywhere (\<lambda>w. decides_word M L w \<and> time_bounded_word T M w)"
+  assumes "\<exists>M. ae w. decides_word M L w \<and> time_bounded_word T M w"
   shows "L \<in> DTIME(T)"
 proof (unfold DTIME_def mem_Collect_eq)
   from assms obtain M'
-    where "almost_everywhere (\<lambda>w. decides_word M' L w \<and> time_bounded_word T M' w)" ..
+    where "ae w. decides_word M' L w \<and> time_bounded_word T M' w" ..
   then obtain l\<^sub>0
     where "decides_word M' L w" and "time_bounded_word T M' w"
     if "length w \<ge> l\<^sub>0" for w by blast
@@ -957,7 +919,7 @@ proof -
   from \<open>L \<in> DTIME(t)\<close> obtain M where "decides M L" and "time_bounded t M" ..
 
   from \<open>decides M L\<close> have "almost_everywhere (decides_word M L)"
-    by (intro ae_everywhereI) blast
+    by (intro ae_everyI) blast
   moreover have "almost_everywhere (time_bounded_word T M)"
   proof (intro ae_word_lengthI exI allI impI)
     fix w :: word
@@ -998,31 +960,6 @@ lemma linear_time_speed_up:
   obtains M\<^sub>2 where "decides M\<^sub>2 L" and "time_bounded (\<lambda>n. c * T n) M\<^sub>2"
   sorry
 
-
-(* TODO these lemmas are only about superlinear functions and not general ones,
- *      find more fitting names or generalize *)
-lemma dominatesE:
-  fixes T :: "nat \<Rightarrow> real" and c :: real
-  assumes "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
-  obtains n\<^sub>0 where "\<And>n. n \<ge> n\<^sub>0 \<Longrightarrow> T(n) \<ge> c*n"
-proof -
-  from assms obtain n\<^sub>0 where n\<^sub>0: "T(n)/n \<ge> c" if "n \<ge> n\<^sub>0" for n by blast
-
-  then have "T(n) \<ge> c*n" if "n \<ge> Suc n\<^sub>0" (is "n \<ge> ?n") for n
-  proof -
-    from \<open>n \<ge> Suc n\<^sub>0\<close> have "n \<ge> n\<^sub>0" by (fact Suc_leD)
-    with n\<^sub>0 have "T(n)/n \<ge> c" .
-    moreover from \<open>n \<ge> Suc n\<^sub>0\<close> have "real n > 0" by simp
-    ultimately show "T(n) \<ge> c*n" by (subst (asm) pos_le_divide_eq)
-  qed
-  then show ?thesis by (rule that)
-qed
-
-lemma dominatesE':
-  fixes T :: "nat \<Rightarrow> real" and c :: real
-  assumes "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
-  shows "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n) \<ge> c*n"
-  using assms by (elim dominatesE) blast
 
 corollary DTIME_speed_up:
   assumes "c > 0"
