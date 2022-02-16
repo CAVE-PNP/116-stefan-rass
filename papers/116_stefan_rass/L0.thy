@@ -69,7 +69,7 @@ next
   then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * t n * log 2 (t n) < T n" by blast
 qed
 
-lemma T_ge_t_ae: "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T n > t n"
+lemma T_gt_t_ae: "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T n > t n"
 proof -
   from T_ge_t_log_t_ae[of 1] obtain n\<^sub>0 where *: "n \<ge> n\<^sub>0 \<Longrightarrow> t n * log 2 (t n) < T n" for n by auto
   let ?n\<^sub>0 = "max n\<^sub>0 2"
@@ -203,7 +203,7 @@ next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME(t)\<close
     let ?n = "length (encode_TM M\<^sub>w) + 2"
     obtain l where "T(2*l) \<ge> t(2*l)" and "clog l \<ge> ?n"
     proof -
-      obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l > t l" for l using T_ge_t_ae by blast
+      obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l > t l" for l using T_gt_t_ae by blast
       obtain l\<^sub>2 :: nat where l2: "l \<ge> l\<^sub>2 \<Longrightarrow> clog l \<ge> ?n" for l
       proof
         fix l :: nat
@@ -259,9 +259,53 @@ text\<open>From the proof of Lemma 4.6@{cite rassOwf2017}:
     complexity bound here).''\<close>
 
 locale tht_sq_assms = tht_assms +
-  assumes T_lower_bound: "T n \<ge> n^3"
-    and t_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N"
+  assumes t_cubic: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n^3 \<ge> N" \<comment> \<open>This is stronger than required.
+        The requirement is that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<^term>\<open>t\<close>,
+        hence \<open>t \<in> \<Omega>(n\<^sup>3)\<close> (or possibly lower) should suffice.\<close>
+    and T_lower_bound: "T n \<ge> n^3" \<comment> \<open>Should be unnecessary, as @{thm t_cubic} already implies
+        an asymptotic variant of this (see \<open>T_cubic\<close> below),
+        which could replace existing uses of \<open>T_lower_bound\<close> (see @{thm DTIME_mono_ae}).\<close>
 begin
+
+(* TODO lots of boilerplate. extract generic lemmas for this definition of "sufficiently large" *)
+corollary T_cubic: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n^3 \<ge> N"
+proof
+  fix N
+  from t_cubic obtain n1 where n1: "t(n)/n^3 \<ge> N" if "n \<ge> n1" for n by auto
+  from T_gt_t_ae obtain n2 where n2: "t n < T n" if "n \<ge> n2" for n by blast
+  define n\<^sub>0 where "n\<^sub>0 \<equiv> max n1 n2"
+
+  {
+    fix n
+    assume "n \<ge> n\<^sub>0"
+    with n2 have "t n < T n" unfolding n\<^sub>0_def by simp
+
+    from \<open>n \<ge> n\<^sub>0\<close> and n1 have "N \<le> t(n)/n^3" unfolding n\<^sub>0_def by simp
+    also have "... \<le> T(n)/n^3" using \<open>t n < T n\<close> by (auto intro: divide_right_mono)
+    finally have "T(n)/n^3 \<ge> N" .
+  }
+  then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n^3 \<ge> N" by auto
+qed
+
+corollary t_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N"
+proof
+  fix N
+  from t_cubic obtain n\<^sub>0 where n\<^sub>0: "t(n)/n^3 \<ge> N" if "n \<ge> n\<^sub>0" for n by auto
+
+  {
+    fix n
+    assume "n \<ge> Suc n\<^sub>0"
+    with n\<^sub>0 have "N \<le> t(n)/n^3" by simp
+    also have "... \<le> t(n)/n"
+    proof (intro divide_left_mono)
+      show "real n \<le> real (n ^ 3)" by (rule of_nat_mono) force
+      show "0 \<le> real (t n)" by (fact of_nat_0_le_iff)
+      show "0 < real (n ^ 3) * real n" using \<open>n \<ge> Suc n\<^sub>0\<close> by simp
+    qed
+    finally have "t(n)/n \<ge> N" .
+  }
+  then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by blast
+qed
 
 
 definition L\<^sub>0 :: lang
@@ -379,8 +423,7 @@ proof (rule ccontr, unfold not_not)
 
     show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear)
 
-    show "computable_in_time t adj_sq\<^sub>w" sorry \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<^term>\<open>t\<close>.
-      Assuming the computation of \<^const>\<open>adj_sq\<^sub>w\<close> requires \<open>n^3\<close> steps, this is not correct.\<close>
+    show "computable_in_time t adj_sq\<^sub>w" sorry \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<^term>\<open>t\<close>.\<close>
 
     show \<open>L\<^sub>0 \<in> DTIME(t)\<close> by fact
   qed
