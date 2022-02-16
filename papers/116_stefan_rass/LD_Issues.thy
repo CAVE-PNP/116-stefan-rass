@@ -272,11 +272,16 @@ qed
 lemma L0''_T: "L\<^sub>0'' \<in> DTIME(T)"
 proof -
   let ?T' = "\<lambda>n. real (max (T n) (n^3))"
-  from T_lower_bound have "?T' = T" by (intro ext, unfold of_nat_eq_iff) (rule max_absorb1)
+  from T_cubic2 obtain n\<^sub>0 where *: "T(n) \<ge> n^3" if "n \<ge> n\<^sub>0" for n by blast
 
   from L\<^sub>D''_T and SQ_DTIME have "L\<^sub>0'' \<in> DTIME(?T')"
     unfolding L\<^sub>0''_def of_nat_max by (rule DTIME_int')
-  then show "L\<^sub>0'' \<in> DTIME(T)" unfolding \<open>?T' = T\<close> .
+  then show "L\<^sub>0'' \<in> DTIME(T)"
+  proof (rule DTIME_mono_ae)
+    fix n assume "n \<ge> n\<^sub>0"
+    with * have "T(n) \<ge> n^3" .
+    then show "T n \<ge> ?T' n" by simp
+  qed
 qed
 
 theorem L0''_time_hierarchy: "L\<^sub>0'' \<in> DTIME(T) - DTIME(t)" using L0''_T L0''_t ..
