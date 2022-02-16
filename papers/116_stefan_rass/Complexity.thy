@@ -910,13 +910,14 @@ lemma DTIME_aeI:
   shows "L \<in> DTIME(T)"
   using assms by (intro DTIME_ae) blast
 
-
 lemma DTIME_mono_ae':
-  assumes Tt: "\<And>n. n \<ge> n\<^sub>0 \<Longrightarrow> tcomp T n \<ge> tcomp t n"
-    and "L \<in> DTIME(t)"
+  assumes "L \<in> DTIME(t)"
+    and "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. tcomp T n \<ge> tcomp t n"
   shows "L \<in> DTIME(T)"
 proof -
   from \<open>L \<in> DTIME(t)\<close> obtain M where "decides M L" and "time_bounded t M" ..
+
+  from assms(2) obtain n\<^sub>0 where Tt: "tcomp T n \<ge> tcomp t n" if "n\<ge>n\<^sub>0" for n by blast
 
   from \<open>decides M L\<close> have "almost_everywhere (decides_word M L)"
     by (intro ae_everyI) blast
@@ -932,11 +933,22 @@ proof -
   ultimately show ?thesis by (intro DTIME_ae exI ae_conjI)
 qed
 
-lemma DTIME_mono_ae:
-  assumes Tt: "\<And>n. n \<ge> n\<^sub>0 \<Longrightarrow> T n \<ge> t n"
-    and "L \<in> DTIME(t)"
+lemma DTIME_mono_ae2:
+  assumes "L \<in> DTIME(t)"
+    and "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T n \<ge> t n"
   shows "L \<in> DTIME(T)"
-  using assms by (intro DTIME_mono_ae'[of n\<^sub>0 t T]) (rule tcomp_mono)
+  using assms(1)
+proof (rule DTIME_mono_ae')
+  from assms(2) have "ae n. T n \<ge> t n" unfolding ae_suff_large_iff .
+  then have "ae n. tcomp T n \<ge> tcomp t n" using tcomp_mono by (rule ae_mono)
+  then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. tcomp t n \<le> tcomp T n" unfolding ae_suff_large_iff .
+qed
+
+lemma DTIME_mono_ae:
+  assumes "L \<in> DTIME(t)"
+    and "\<And>n. n\<ge>n\<^sub>0 \<Longrightarrow> T n \<ge> t n"
+  shows "L \<in> DTIME(T)"
+  using assms(1) by (rule DTIME_mono_ae2) (use assms(2) in blast)
 
 
 subsubsection\<open>Linear Speed-Up\<close>
@@ -1163,7 +1175,7 @@ proof -
     also have "... = 4 * T (l\<^sub>R n)" by simp
     finally show ?thesis .
   qed
-  from this and \<open>L\<^sub>2 \<in> DTIME(?T')\<close> have I: "L\<^sub>2 \<in> DTIME(\<lambda>n. 4 * T (l\<^sub>R n))" by (fact DTIME_mono_ae)
+  with \<open>L\<^sub>2 \<in> DTIME(?T')\<close> have I: "L\<^sub>2 \<in> DTIME(\<lambda>n. 4 * T (l\<^sub>R n))" by (fact DTIME_mono_ae)
 
   from \<open>\<And>n. T (l\<^sub>R n) \<ge> T(n)\<close> have "T m / m \<le> T (l\<^sub>R m) / m" for m
     by (intro divide_right_mono) auto

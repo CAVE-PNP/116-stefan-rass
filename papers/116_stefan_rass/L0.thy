@@ -289,12 +289,13 @@ qed
 corollary t_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N"
 proof
   fix N
-  from t_cubic obtain n\<^sub>0 where n\<^sub>0: "t(n)/n^3 \<ge> N" if "n \<ge> n\<^sub>0" for n by auto
+  from t_cubic obtain n\<^sub>0 where n\<^sub>0: "t(n)/n^3 \<ge> N" if "n \<ge> n\<^sub>0" for n :: nat by auto
 
   {
     fix n
     assume "n \<ge> Suc n\<^sub>0"
-    with n\<^sub>0 have "N \<le> t(n)/n^3" by simp
+    then have "n \<ge> n\<^sub>0" by simp
+    then have "N \<le> t(n)/n^3" by (fact n\<^sub>0)
     also have "... \<le> t(n)/n"
     proof (intro divide_left_mono)
       show "real n \<le> real (n ^ 3)" by (rule of_nat_mono) force

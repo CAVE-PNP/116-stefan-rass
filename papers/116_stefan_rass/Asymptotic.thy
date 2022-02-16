@@ -19,16 +19,6 @@ definition almost_everywhere :: "('a \<Rightarrow> bool) \<Rightarrow> bool" (bi
 
 lemma ae_everyI: "(\<And>x. P x) \<Longrightarrow> (ae x. P x)" by simp
 
-lemma ae_mono:
-  assumes "\<And>x. P x \<Longrightarrow> Q x"
-    and "ae x. P x"
-  shows "ae x. Q x" (is "?ae Q")
-proof -
-  from \<open>\<And>x. P x \<Longrightarrow> Q x\<close> have "{x. \<not> Q x} \<subseteq> {x. \<not> P x}" by blast
-  moreover from \<open>?ae P\<close> have "finite {x. \<not> P x}" by simp
-  ultimately show "?ae Q" unfolding ae_def by (fact finite_subset)
-qed
-
 
 lemma ae_conj_iff: "(ae x. P x \<and> Q x) \<longleftrightarrow> (ae x. P x) \<and> (ae x. Q x)"
   unfolding ae_def de_Morgan_conj Collect_disj_eq by blast
@@ -37,6 +27,23 @@ lemma ae_conjI:
   assumes "ae x. P x" and "ae x. Q x"
   shows "ae x. P x \<and> Q x"
   unfolding ae_conj_iff using assms ..
+
+lemma ae_mono2:
+  assumes "ae x. P x"
+    and "ae x. P x \<longrightarrow> Q x"
+  shows "ae x. Q x"
+proof -
+  have "{x. \<not> Q x} \<subseteq> {x. \<not> (P x \<and> (P x \<longrightarrow> Q x))}" by blast
+  moreover from assms have "ae x. P x \<and> (P x \<longrightarrow> Q x)" by (rule ae_conjI)
+  ultimately show "ae x. Q x" unfolding ae_def by (rule finite_subset)
+qed
+
+lemma ae_mono:
+  assumes "ae x. P x"
+    and "\<And>x. P x \<Longrightarrow> Q x"
+  shows "ae x. Q x"
+  using assms(1) by (rule ae_mono2) (use assms(2) in simp)
+
 
 lemma ae_disj: "(ae x. P x) \<or> (ae x. Q x) \<Longrightarrow> ae x. P x \<or> Q x"
   by auto
