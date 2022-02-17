@@ -422,8 +422,7 @@ text\<open>From @{cite rassOwf2017}:
 lemma L0_t: "L\<^sub>0 \<notin> DTIME(t)"
 proof (rule ccontr, unfold not_not)
   assume "L\<^sub>0 \<in> DTIME(t)"
-
-  have "L\<^sub>D \<in> DTIME(t)"
+  then have "L\<^sub>D \<in> DTIME(t)"
   proof (rule reduce_DTIME)
     show "almost_everywhere (\<lambda>w. (adj_sq\<^sub>w w \<in> L\<^sub>0) = (w \<in> L\<^sub>D) \<and> length (adj_sq\<^sub>w w) \<le> length w)"
     proof (intro ae_word_lengthI exI allI impI conjI)
@@ -437,8 +436,6 @@ proof (rule ccontr, unfold not_not)
     show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear)
 
     show "computable_in_time t adj_sq\<^sub>w" sorry \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<^term>\<open>t\<close>.\<close>
-
-    show \<open>L\<^sub>0 \<in> DTIME(t)\<close> by fact
   qed
 
   moreover from time_hierarchy have "L\<^sub>D \<notin> DTIME(t)" ..

@@ -1099,11 +1099,11 @@ lemma reduce_DTIME':
     and L\<^sub>1 L\<^sub>2 :: lang
     and f\<^sub>R :: "word \<Rightarrow> word" \<comment> \<open>the reduction\<close>
     and l\<^sub>R :: "nat \<Rightarrow> nat" \<comment> \<open>length bound of the reduction\<close>
-  assumes f\<^sub>R_ae: "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> l\<^sub>R (length w)))"
+  assumes "L\<^sub>1 \<in> DTIME(T)"
+    and f\<^sub>R_ae: "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> l\<^sub>R (length w)))"
     and "\<And>n. T (l\<^sub>R n) \<ge> T(n)" \<comment> \<open>allows reasoning about \<^term>\<open>T\<close> and \<^term>\<open>l\<^sub>R\<close> as if both were \<^const>\<open>mono\<close>.\<close>
     and "computable_in_time T f\<^sub>R"
     and T_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
-    and "L\<^sub>1 \<in> DTIME(T)"
   shows "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
 proof -
   from \<open>computable_in_time T f\<^sub>R\<close> obtain M\<^sub>R where "computes M\<^sub>R f\<^sub>R" "time_bounded T M\<^sub>R" "tm_wf0 M\<^sub>R" ..
@@ -1186,11 +1186,11 @@ proof -
 qed
 
 
-lemma reduce_DTIME:
-  assumes f\<^sub>R_ae: "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> length w))"
+lemma reduce_DTIME: \<comment> \<open>Version of \<open>reduce_DTIME'\<close> with constant length bound (\<^term>\<open>l\<^sub>R = Fun.id\<close>).\<close>
+  assumes "L\<^sub>1 \<in> DTIME(T)"
+    and f\<^sub>R_ae: "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> length w))"
     and "computable_in_time T f\<^sub>R"
     and T_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
-    and "L\<^sub>1 \<in> DTIME(T)"
   shows "L\<^sub>2 \<in> DTIME(T)" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
   by (rule reduce_DTIME') (use assms in auto)
 
