@@ -116,6 +116,9 @@ lemma ae_suff_large_iff:
   using ae_suff_large and suff_large_ae by (rule iffI)
 
 
+lemma ae_gt_N: "ae n. n \<ge> (N::nat)" unfolding ae_suff_large_iff by blast
+
+
 subsection\<open>Asymptotic Domination\<close>
 
 (* TODO unify definitions *)

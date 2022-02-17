@@ -974,13 +974,13 @@ lemma linear_time_speed_up:
 
 
 corollary DTIME_speed_up:
-  assumes "c > 0"
+  assumes "L \<in> DTIME(T)"
+    and "c > 0"
     and "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
-    and "L \<in> DTIME(T)"
   shows "L \<in> DTIME(\<lambda>n. c * T n)"
 proof -
   from \<open>L \<in> DTIME(T)\<close> obtain M\<^sub>1 where "decides M\<^sub>1 L" and "time_bounded T M\<^sub>1" ..
-  with assms(1-2) obtain M\<^sub>2 where "decides M\<^sub>2 L" and "time_bounded (\<lambda>n. c * T n) M\<^sub>2"
+  with assms(2-3) obtain M\<^sub>2 where "decides M\<^sub>2 L" and "time_bounded (\<lambda>n. c * T n) M\<^sub>2"
     by (rule linear_time_speed_up)
   then show ?thesis ..
 qed
@@ -988,46 +988,51 @@ qed
 lemma DTIME_speed_up_rev:
   fixes T c
   defines "T' \<equiv> \<lambda>n. c * T n"
-  assumes "c > 0"
-    and "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
-    and "L \<in> DTIME(T')"
+  assumes "L \<in> DTIME(T')"
+    and "c > 0"
+    and T_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
   shows "L \<in> DTIME(T)"
 proof -
   define c' where "c' \<equiv> 1/c"
   have T_T': "T = (\<lambda>n. c' * T' n)" unfolding T'_def c'_def using \<open>c > 0\<close> by force
 
   from \<open>c > 0\<close> have "c' > 0" unfolding c'_def by simp
-  moreover have "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T'(n)/n \<ge> N" unfolding T'_def
+  have "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T'(n)/n \<ge> N" unfolding T'_def
   proof
     fix N
     define N' where "N' \<equiv> N / c"
     have *: "T(n)/n \<ge> N/c \<longleftrightarrow> c*T(n)/n \<ge> N" for n using \<open>c > 0\<close> by (subst pos_divide_le_eq) argo+
 
-    from assms(3) have "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N'" ..
+    from T_superlinear have "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N'" ..
     then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c*T(n)/n \<ge> N" unfolding N'_def * .
   qed
-  moreover note \<open>L \<in> DTIME(T')\<close>
-  ultimately show "L \<in> DTIME(T)" unfolding T_T' by (rule DTIME_speed_up)
+  with \<open>L \<in> DTIME(T')\<close> and \<open>c' > 0\<close> show "L \<in> DTIME(T)" unfolding T_T' by (rule DTIME_speed_up)
 qed
 
 corollary DTIME_speed_up_eq:
   assumes "c > 0"
     and "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
   shows "DTIME(\<lambda>n. c * T n) = DTIME(T)"
-  using assms by (intro set_eqI iffI) (fact DTIME_speed_up_rev, fact DTIME_speed_up)
+proof (intro set_eqI iffI)
+  fix x assume "x \<in> DTIME (\<lambda>n. c * T n)"
+  thus "x \<in> DTIME T" using assms by (fact DTIME_speed_up_rev)
+next
+  fix x assume "x \<in> DTIME (T)"
+  thus "x \<in> DTIME (\<lambda>n. c * T n)" using assms by (fact DTIME_speed_up)
+qed
 
 corollary DTIME_speed_up_div:
-  assumes "d > 0"
-    and "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
-    and "L \<in> DTIME(T)"
+  assumes "L \<in> DTIME(T)"
+    and "d > 0"
+    and T_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
   shows "L \<in> DTIME(\<lambda>n. T n / d)"
 proof -
   define c where "c \<equiv> 1 / d"
   have "a / d = c * a" for a unfolding c_def by simp
 
   from \<open>d > 0\<close> have "c > 0" unfolding c_def by simp
-  then show "L \<in> DTIME(\<lambda>n. T n / d)" unfolding \<open>\<And>a. a / d = c * a\<close>
-    using assms(2-3) by (rule DTIME_speed_up)
+  with \<open>L \<in> DTIME(T)\<close> show "L \<in> DTIME(\<lambda>n. T n / d)" unfolding \<open>\<And>a. a / d = c * a\<close>
+    using T_superlinear by (rule DTIME_speed_up)
 qed
 
 
@@ -1078,30 +1083,15 @@ proof -
   show ?thesis sorry
 qed
 
-
-lemma exists_ge:
-  fixes P :: "'a :: linorder \<Rightarrow> bool"
-  assumes "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. P n"
-  shows "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. P n \<and> n \<ge> N"
-proof -
-  from assms obtain n\<^sub>0 where "P n" if "n \<ge> n\<^sub>0" for n by blast
-  then have "n \<ge> max n\<^sub>0 N \<Longrightarrow> P n \<and> n \<ge> N" for n by simp
-  then show ?thesis by blast
-qed
-
-lemma exists_ge_eq:
-  fixes P :: "nat \<Rightarrow> bool"
-  shows "(\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. P n) \<longleftrightarrow> (\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. P n \<and> n \<ge> N)"
-  by (intro iffI) (fact exists_ge, blast)
-
 lemma reduce_DTIME':
   fixes T :: "nat \<Rightarrow> real"
     and L\<^sub>1 L\<^sub>2 :: lang
     and f\<^sub>R :: "word \<Rightarrow> word" \<comment> \<open>the reduction\<close>
     and l\<^sub>R :: "nat \<Rightarrow> nat" \<comment> \<open>length bound of the reduction\<close>
   assumes "L\<^sub>1 \<in> DTIME(T)"
-    and f\<^sub>R_ae: "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> l\<^sub>R (length w)))"
-    and "\<And>n. T (l\<^sub>R n) \<ge> T(n)" \<comment> \<open>allows reasoning about \<^term>\<open>T\<close> and \<^term>\<open>l\<^sub>R\<close> as if both were \<^const>\<open>mono\<close>.\<close>
+    and f\<^sub>R_ae: "ae w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> l\<^sub>R (length w))"
+    and T_l\<^sub>R_mono: "ae n. T (l\<^sub>R n) \<ge> T(n)" \<comment> \<open>allows reasoning about \<^term>\<open>T\<close> and \<^term>\<open>l\<^sub>R\<close>
+          as if both were \<^const>\<open>mono\<close>.\<close>
     and "computable_in_time T f\<^sub>R"
     and T_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
   shows "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
@@ -1143,13 +1133,16 @@ proof -
   (* TODO (?) split proof here *)
 
   \<comment> \<open>Part 2: bound the run-time of M (\<^term>\<open>?T'\<close>) by a multiple of the desired time-bound \<^term>\<open>T\<close>.\<close>
-  from T_superlinear have "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T n \<ge> 2 * n \<and> n \<ge> 1"
-    unfolding of_nat_mult by (intro exists_ge) (fact dominatesE')
-  then obtain n\<^sub>0 where n\<^sub>0: "T n \<ge> 2*n" "n \<ge> 1" if "n \<ge> n\<^sub>0" for n by blast
+  from T_superlinear have "ae n. T n \<ge> 2 * n"
+    unfolding ae_suff_large_iff of_nat_mult by (fact dominatesE')
+  with ae_gt_N have "ae n. n \<ge> 1 \<and> T n \<ge> 2 * n" by (rule ae_conjI)
+  with T_l\<^sub>R_mono have "ae n. T n \<le> T (l\<^sub>R n) \<and> n \<ge> 1 \<and> T n \<ge> 2 * n" by (rule ae_conjI)
+  then obtain n\<^sub>0 where n\<^sub>0: "T n \<ge> 2*n" "n \<ge> 1" "T n \<le> T (l\<^sub>R n)" if "n \<ge> n\<^sub>0" for n
+    unfolding ae_suff_large_iff by blast
 
   have "?T' n \<le> 4 * T (l\<^sub>R n)" if "n \<ge> n\<^sub>0" for n
   proof -
-    from \<open>n \<ge> n\<^sub>0\<close> have "n \<ge> 1" and "T n \<ge> 2*n" by (fact n\<^sub>0)+
+    from \<open>n \<ge> n\<^sub>0\<close> have "n \<ge> 1" and "T n \<ge> 2*n" and "T (l\<^sub>R n) \<ge> T(n)" by (fact n\<^sub>0)+
     then have "n + 1 \<le> 2 * n" by simp
     also have "2 * n = nat \<lceil>2 * n\<rceil>" unfolding ceiling_of_nat nat_int ..
     also from \<open>T n \<ge> 2*n\<close> have "nat \<lceil>2 * n\<rceil> \<le> nat \<lceil>T n\<rceil>" by (intro nat_mono ceiling_mono)
@@ -1175,14 +1168,22 @@ proof -
     also have "... = 4 * T (l\<^sub>R n)" by simp
     finally show ?thesis .
   qed
-  with \<open>L\<^sub>2 \<in> DTIME(?T')\<close> have I: "L\<^sub>2 \<in> DTIME(\<lambda>n. 4 * T (l\<^sub>R n))" by (fact DTIME_mono_ae)
+  with \<open>L\<^sub>2 \<in> DTIME(?T')\<close> have "L\<^sub>2 \<in> DTIME(\<lambda>n. 4 * T (l\<^sub>R n))" by (fact DTIME_mono_ae)
 
-  from \<open>\<And>n. T (l\<^sub>R n) \<ge> T(n)\<close> have "T m / m \<le> T (l\<^sub>R m) / m" for m
-    by (intro divide_right_mono) auto
-  then have "N \<le> T m / m \<Longrightarrow> N \<le> T (l\<^sub>R m) / m" for N m using dual_order.trans by blast
-  with T_superlinear have II: "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. N \<le> T(l\<^sub>R n)/n" by meson
-
-  show "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))" by (rule DTIME_speed_up_rev) (use I II in auto)
+  then show "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))"
+  proof (rule DTIME_speed_up_rev)
+    from T_superlinear have "ae n. T(n)/n \<ge> N" for N unfolding ae_suff_large_iff ..
+    with T_l\<^sub>R_mono have "ae n. T(l\<^sub>R n) \<ge> T(n) \<and> T(n)/n \<ge> N" for N by (rule ae_conjI)
+    then have "ae n. T(l\<^sub>R n)/n \<ge> N" for N
+    proof (rule ae_mono, elim conjE)
+      fix n
+      assume "T(l\<^sub>R n) \<ge> T(n)"
+      assume "N \<le> T(n)/n"
+      also from \<open>T(l\<^sub>R n) \<ge> T(n)\<close> have "... \<le> T(l\<^sub>R n)/n" by (rule divide_right_mono) simp
+      finally show "N \<le> T(l\<^sub>R n)/n" .
+    qed
+    then show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(l\<^sub>R n)/n \<ge> N" unfolding ae_suff_large_iff ..
+  qed \<comment> \<open>\<^term>\<open>0 < 4\<close> by\<close> simp
 qed
 
 
