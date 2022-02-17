@@ -261,6 +261,7 @@ locale tht_sq_assms = tht_assms +
   assumes t_cubic: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n^3 \<ge> N" \<comment> \<open>This is stronger than required.
         The requirement is that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<^term>\<open>t\<close>,
         hence \<open>t \<in> \<Omega>(n\<^sup>3)\<close> (or possibly lower) should suffice.\<close>
+    and t_mono: "mono t"
 begin
 
 (* TODO lots of boilerplate. extract generic lemmas for this definition of "sufficiently large" *)

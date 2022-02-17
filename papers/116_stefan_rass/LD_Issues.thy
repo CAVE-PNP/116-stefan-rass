@@ -169,26 +169,27 @@ context tht_sq_assms begin
 
 lemma L\<^sub>D''_t: "L\<^sub>D'' \<notin> DTIME(t)" \<comment> \<open>The proof is similar to that of @{thm tht_sq_assms.L0_t}.\<close>
 proof (rule ccontr, unfold not_not)
-  assume "L\<^sub>D'' \<in> DTIME(t)"
-  then have "L\<^sub>D \<in> DTIME(t)"
-  proof (rule reduce_DTIME)
-    \<comment> \<open>This part is considerably harder to show than for @{thm tht_sq_assms.L0_t}.
-      Since the length of \<^term>\<open>reduce_LD_LD'' w\<close> is always greater than the length of \<^term>\<open>w\<close>
-      (@{thm reduce_LD_LD''_len}),
-      the existing @{thm reduce_time_bounded} does not hold in this case.
+  let ?f\<^sub>R = reduce_LD_LD'' and ?l\<^sub>R = "\<lambda>n. 4*n + 11"
 
-      Evaluating the time complexity given the differing word-lengths yields a new
-      \<open>t'(n) := T\<^sub>R(n) + t(4n + 11)\<close>.
-      The speed-up theorem does not help here, since for super-polynomial \<open>t\<close>,
-      \<open>t(4n + 11)\<close> is not proportional to \<open>t(n)\<close>.\<close>
-    show "almost_everywhere (\<lambda>w. (reduce_LD_LD'' w \<in> L\<^sub>D'') = (w \<in> L\<^sub>D) \<and> length (reduce_LD_LD'' w) \<le> length w)"
-      sorry
+  assume "L\<^sub>D'' \<in> DTIME(t)"
+  then have "L\<^sub>D \<in> DTIME(t \<circ> ?l\<^sub>R)" unfolding comp_def
+  proof (rule reduce_DTIME')
+    show "ae w. (?f\<^sub>R w \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> L\<^sub>D) \<and> (length (?f\<^sub>R w) \<le> ?l\<^sub>R (length w))"
+    proof (rule ae_conjI)
+      from reduce_LD_LD''_correct show "ae w. ?f\<^sub>R w \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> L\<^sub>D" by (rule ae_everyI)
+      from reduce_LD_LD''_len show "ae w. length (?f\<^sub>R w) \<le> ?l\<^sub>R (length w)"
+        by (intro ae_everyI) simp
+    qed
+
+    from t_mono have "t(n) \<le> t(?l\<^sub>R n)" for n by (rule monoD) linarith
+    then show "ae x. real (t x) \<le> real (t (?l\<^sub>R x))" by (intro ae_everyI of_nat_mono)
 
     show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear)
 
-    show "computable_in_time t reduce_LD_LD''" sorry
-        \<comment> \<open>Assume that \<^const>\<open>reduce_LD_LD''\<close> can be computed by a TM in time \<open>O(n)\<close>.\<close>
+    show "computable_in_time t reduce_LD_LD''" sorry \<comment> \<open>Assume that \<^const>\<open>reduce_LD_LD''\<close> can be computed in time \<open>O(n)\<close>.\<close>
   qed
+  then have "L\<^sub>D \<in> DTIME(t)" sorry \<comment> \<open>False for super-polynomial \<open>t\<close>.
+      Example: \<open>t(n) := 2\<^sup>n\<close>, then \<open>t(?l\<^sub>R n) = 2\<^sup>4\<^sup>n\<^sup>+\<^sup>1\<^sup>1 = 16\<^sup>n \<cdot> 2\<^sup>1\<^sup>1 \<in> \<omega>(t(n))\<close>.\<close>
 
   moreover from time_hierarchy have "L\<^sub>D \<notin> DTIME(t)" ..
   ultimately show False by contradiction
@@ -232,7 +233,7 @@ proof (rule reduce_DTIME)
   ultimately show "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>D) = (w \<in> L\<^sub>D'') \<and> length (f\<^sub>R w) \<le> length w)"
     by blast
 
-  show "computable_in_time T f\<^sub>R" unfolding f\<^sub>R_def sorry \<comment> \<open>assume that \<^term>\<open>f\<^sub>R\<close> can be evaluated in \<open>O(n)\<close>\<close>
+  show "computable_in_time T f\<^sub>R" unfolding f\<^sub>R_def sorry \<comment> \<open>Assume that \<^term>\<open>f\<^sub>R\<close> can be evaluated in \<open>O(n)\<close>.\<close>
 
   show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N" by (fact T_superlinear)
 qed
@@ -256,7 +257,7 @@ proof (rule ccontr, unfold not_not)
 
     show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear)
 
-    show "computable_in_time t adj_sq\<^sub>w" sorry \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<^term>\<open>t\<close>.\<close>
+    show "computable_in_time t adj_sq\<^sub>w" sorry \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<open>O(t(n))\<close>.\<close>
   qed
 
   moreover have "L\<^sub>D'' \<notin> DTIME(t)" by (fact L\<^sub>D''_t)
