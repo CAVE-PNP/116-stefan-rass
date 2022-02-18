@@ -258,67 +258,30 @@ text\<open>From the proof of Lemma 4.6@{cite rassOwf2017}:
     complexity bound here).''\<close>
 
 locale tht_sq_assms = tht_assms +
-  assumes t_cubic: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n^3 \<ge> N" \<comment> \<open>This is stronger than required.
-        The requirement is that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<^term>\<open>t\<close>,
-        hence \<open>t \<in> \<Omega>(n\<^sup>3)\<close> (or possibly lower) should suffice.\<close>
+  assumes t_cubic: "ae n. t(n) \<ge> n^3"
     and t_mono: "mono t"
 begin
 
-(* TODO lots of boilerplate. extract generic lemmas for this definition of "sufficiently large" *)
-corollary T_cubic: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n^3 \<ge> N"
-proof
-  fix N
-  from t_cubic obtain n1 where n1: "t(n)/n^3 \<ge> N" if "n \<ge> n1" for n by auto
-  from T_gt_t_ae obtain n2 where n2: "t n < T n" if "n \<ge> n2" for n by blast
-  define n\<^sub>0 where "n\<^sub>0 \<equiv> max n1 n2"
-
-  {
-    fix n
-    assume "n \<ge> n\<^sub>0"
-    with n2 have "t n < T n" unfolding n\<^sub>0_def by simp
-
-    from \<open>n \<ge> n\<^sub>0\<close> and n1 have "N \<le> t(n)/n^3" unfolding n\<^sub>0_def by simp
-    also have "... \<le> T(n)/n^3" using \<open>t n < T n\<close> by (auto intro: divide_right_mono)
-    finally have "T(n)/n^3 \<ge> N" .
-  }
-  then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n^3 \<ge> N" by auto
-qed
-
-corollary T_cubic2: "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T n \<ge> n^3"
-proof -
-  from T_cubic obtain n\<^sub>0 where n\<^sub>0: "T(n)/n^3 \<ge> 1" if "n \<ge> n\<^sub>0" for n :: nat by auto
-  {
-    fix n :: nat
-    assume "n \<ge> Suc n\<^sub>0"
-    then have "n \<ge> n\<^sub>0" by simp
-    then have "T(n)/n^3 \<ge> 1" by (fact n\<^sub>0)
-
-    from \<open>n \<ge> Suc n\<^sub>0\<close> have "real (n^3) > 0" by simp
-    from \<open>T(n)/n^3 \<ge> 1\<close> have "T n \<ge> n^3"
-      unfolding \<open>real (n^3) > 0\<close>[THEN pos_le_divide_eq] by linarith
-  }
-  then show ?thesis by blast
-qed
+corollary T_cubic: "ae n. T(n) \<ge> n^3"
+  by (ae_intro_nat add: t_cubic T_gt_t_ae) linarith
 
 corollary t_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N"
-proof
-  fix N
-  from t_cubic obtain n\<^sub>0 where n\<^sub>0: "t(n)/n^3 \<ge> N" if "n \<ge> n\<^sub>0" for n :: nat by auto
+proof (intro allI, ae_intro_nat add: t_cubic)
+  fix N :: real and n :: nat
+  assume n_min: "n \<ge> max 1 (nat \<lceil>N\<rceil>)" and "t(n) \<ge> n^3"
 
-  {
-    fix n
-    assume "n \<ge> Suc n\<^sub>0"
-    then have "n \<ge> n\<^sub>0" by simp
-    then have "N \<le> t(n)/n^3" by (fact n\<^sub>0)
-    also have "... \<le> t(n)/n"
-    proof (intro divide_left_mono)
-      show "real n \<le> real (n ^ 3)" by (rule of_nat_mono) force
-      show "0 \<le> real (t n)" by (fact of_nat_0_le_iff)
-      show "0 < real (n ^ 3) * real n" using \<open>n \<ge> Suc n\<^sub>0\<close> by simp
-    qed
-    finally have "t(n)/n \<ge> N" .
-  }
-  then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by blast
+  from n_min have "n \<ge> 1" by (rule max.boundedE)
+
+  from n_min have "N \<le> n" by simp
+  also from \<open>n \<ge> 1\<close> have "... \<le> n^2" using pos2 by (intro of_nat_mono self_le_power) auto
+  also have "n^2 \<le> t(n)/n"
+  proof (subst pos_le_divide_eq)
+    from \<open>n \<ge> 1\<close> show "0 < real n" by force
+    have "n^2 * n = n^3" by algebra
+    also note \<open>n^3 \<le> t(n)\<close>
+    finally show "n\<^sup>2 * real n \<le> t n" by (fold of_nat_mult) linarith
+  qed
+  finally show "t(n)/n \<ge> N" .
 qed
 
 
@@ -449,7 +412,7 @@ lemma DTIME_int: "L\<^sub>1 \<in> DTIME(T\<^sub>1) \<Longrightarrow> L\<^sub>2 \
 lemma L0_T: "L\<^sub>0 \<in> DTIME(T)"
 proof -
   define T' :: "nat \<Rightarrow> real" where "T' \<equiv> \<lambda>n. T n + n^3"
-  from T_cubic2 obtain n\<^sub>0 where *: "T(n) \<ge> n^3" if "n \<ge> n\<^sub>0" for n by blast
+  from T_cubic obtain n\<^sub>0 where *: "T(n) \<ge> n^3" if "n \<ge> n\<^sub>0" for n by blast
 
   from time_hierarchy have "L\<^sub>D \<in> DTIME T" ..
   then have "L\<^sub>0 \<in> DTIME(T')" unfolding T'_def L0_def of_nat_add
@@ -473,7 +436,7 @@ lemma DTIME_int': "L\<^sub>1 \<in> DTIME(T\<^sub>1) \<Longrightarrow> L\<^sub>2 
 lemma L0_T': "L\<^sub>0 \<in> DTIME(T)"
 proof -
   let ?T' = "\<lambda>n. real (max (T n) (n^3))"
-  from T_cubic2 obtain n\<^sub>0 where *: "T(n) \<ge> n^3" if "n \<ge> n\<^sub>0" for n by blast
+  from T_cubic obtain n\<^sub>0 where *: "T(n) \<ge> n^3" if "n \<ge> n\<^sub>0" for n by blast
 
   from time_hierarchy have "L\<^sub>D \<in> DTIME T" ..
   then have "L\<^sub>0 \<in> DTIME(?T')" using SQ_DTIME unfolding L0_def of_nat_max by (rule DTIME_int')

@@ -1,7 +1,8 @@
 section\<open>Asymptotic Behavior\<close>
 
 theory Asymptotic
-  imports Complex_Main "HOL-Library.BigO"
+  imports Complex_Main
+    "HOL-Eisbach.Eisbach"
 begin
 
 text\<open>@{cite \<open>ch.~12.2\<close> hopcroftAutomata1979} uses the finite control in Lemma 12.3
@@ -12,7 +13,8 @@ text\<open>@{cite \<open>ch.~12.2\<close> hopcroftAutomata1979} uses the finite 
   often (i.o.) if it is true for an infinite number of \<open>n\<close>'s. Note that both a statement and
   its negation may be true i.o.''
 
-  We introduce the \<^emph>\<open>binder\<close> notation \<open>ae x. P x\<close> (``for almost every x'').\<close>
+  We introduce the \<^emph>\<open>binder\<close> notation \<open>ae x. P x\<close> (``for almost every x'').
+  Note that the notion of \<^emph>\<open>almost everywhere\<close> is only sensible for non-\<^class>\<open>finite\<close> types.\<close>
 
 definition almost_everywhere :: "('a \<Rightarrow> bool) \<Rightarrow> bool" (binder "ae " 20)
   where ae_def[simp]: "ae x. P x \<equiv> finite {x. \<not> P x}"
@@ -20,13 +22,13 @@ definition almost_everywhere :: "('a \<Rightarrow> bool) \<Rightarrow> bool" (bi
 lemma ae_everyI: "(\<And>x. P x) \<Longrightarrow> (ae x. P x)" by simp
 
 
-lemma ae_conj_iff: "(ae x. P x \<and> Q x) \<longleftrightarrow> (ae x. P x) \<and> (ae x. Q x)"
+lemma ae_conj_iff[iff]: "(ae x. P x \<and> Q x) \<longleftrightarrow> (ae x. P x) \<and> (ae x. Q x)"
   unfolding ae_def de_Morgan_conj Collect_disj_eq by blast
 
 lemma ae_conjI:
   assumes "ae x. P x" and "ae x. Q x"
   shows "ae x. P x \<and> Q x"
-  unfolding ae_conj_iff using assms ..
+  using assms by blast
 
 lemma ae_mono2:
   assumes "ae x. P x"
@@ -44,9 +46,11 @@ lemma ae_mono:
   shows "ae x. Q x"
   using assms(1) by (rule ae_mono2) (use assms(2) in simp)
 
-
 lemma ae_disj: "(ae x. P x) \<or> (ae x. Q x) \<Longrightarrow> ae x. P x \<or> Q x"
   by auto
+
+
+method ae_intro = (elim ae_mono2, intro ae_everyI impI)
 
 
 subsection\<open>Sufficiently Large\<close>
@@ -56,8 +60,10 @@ text\<open>Equivalence of \<^emph>\<open>for sufficiently large\<close> definiti
   since for types with \<^class>\<open>order_top\<close>, \<^term>\<open>\<exists>n\<^sub>0. \<forall>n>n\<^sub>0. P n\<close> would trivially hold
   for \<^term>\<open>P = {}\<close> (\<^term>\<open>\<nexists>n. P n\<close>).\<close>
 
+(*
 abbreviation sufficiently_large (binder "sl " 20)
-  where "sl n. P n \<equiv> \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. P n"
+   where "sl n. P n \<equiv> \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. P n"
+*)
 
 lemma suff_large_ge_imp_gt:
   fixes P :: "'a::{preorder} \<Rightarrow> bool"
@@ -110,13 +116,25 @@ proof -
     using finite_Collect_less_nat rev_finite_subset by blast 
 qed
 
-lemma ae_suff_large_iff:
+lemma ae_suff_large_iff[iff]:
   fixes P :: "nat \<Rightarrow> bool"
   shows "(ae x. P x) \<longleftrightarrow> (\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. P n)"
   using ae_suff_large and suff_large_ae by (rule iffI)
 
+lemma ae_suff_largeI:
+  fixes P :: "nat \<Rightarrow> bool"
+  assumes "\<And>n. n\<ge>n\<^sub>0 \<Longrightarrow> P n"
+  shows "ae n. P n"
+  unfolding ae_suff_large_iff using assms by blast
 
 lemma ae_gt_N: "ae n. n \<ge> (N::nat)" unfolding ae_suff_large_iff by blast
+
+
+method ae_intro_nat uses add =
+  insert add,
+  (fold ae_suff_large_iff)?,
+  elim ae_mono2,
+  intro ae_suff_largeI impI
 
 
 subsection\<open>Asymptotic Domination\<close>

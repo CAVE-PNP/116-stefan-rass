@@ -267,7 +267,7 @@ qed
 lemma L0''_T: "L\<^sub>0'' \<in> DTIME(T)"
 proof -
   let ?T' = "\<lambda>n. real (max (T n) (n^3))"
-  from T_cubic2 obtain n\<^sub>0 where *: "T(n) \<ge> n^3" if "n \<ge> n\<^sub>0" for n by blast
+  from T_cubic obtain n\<^sub>0 where *: "T(n) \<ge> n^3" if "n \<ge> n\<^sub>0" for n by blast
 
   from L\<^sub>D''_T and SQ_DTIME have "L\<^sub>0'' \<in> DTIME(?T')"
     unfolding L\<^sub>0''_def of_nat_max by (rule DTIME_int')
