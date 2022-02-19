@@ -133,7 +133,7 @@ lemma ae_gt_N: "ae n. n \<ge> (N::nat)" unfolding ae_suff_large_iff by blast
 method ae_intro_nat uses add =
   insert add,
   (fold ae_suff_large_iff)?,
-  elim ae_mono2,
+  (elim ae_mono2)?,
   intro ae_suff_largeI impI
 
 
@@ -172,7 +172,33 @@ proof -
   then show ?thesis unfolding LIMSEQ_def dist_real_def diff_0_right .
 qed
 
-lemma dominatesE:
+lemma dominates_mono:
+  fixes T t :: "nat \<Rightarrow> real"
+  assumes "(\<lambda>n. f n / T n) \<longlonglongrightarrow> 0"
+    and "\<And>n. T n \<noteq> 0"
+    and "ae n. \<bar>g n\<bar> \<le> \<bar>f n\<bar>"
+  shows "(\<lambda>n. g n / T n) \<longlonglongrightarrow> 0"
+proof -
+  note * = dominates_altdef[OF \<open>\<And>n. T n \<noteq> 0\<close>]
+
+  show "(\<lambda>n. g n / T n) \<longlonglongrightarrow> 0" unfolding *
+  proof (intro allI impI ae_suff_large)
+    fix c :: real
+    assume "c > 0"
+    with \<open>(\<lambda>n. f n / T n) \<longlonglongrightarrow> 0\<close> have "ae n. c * \<bar>f n\<bar> < \<bar>T n\<bar>" unfolding * by blast
+    with \<open>ae n. \<bar>g n\<bar> \<le> \<bar>f n\<bar>\<close> show "ae n. c * \<bar>g n\<bar> < \<bar>T n\<bar>"
+    proof (ae_intro_nat)
+      fix n :: nat
+      assume "\<bar>g n\<bar> \<le> \<bar>f n\<bar>"
+      moreover from \<open>c > 0\<close> have "c \<ge> 0" by simp
+      ultimately have "c * \<bar>g n\<bar> \<le> c * \<bar>f n\<bar>" by (rule mult_left_mono)
+      also assume "... < \<bar>T n\<bar>"
+      finally show "c * \<bar>g n\<bar> < \<bar>T n\<bar>" .
+    qed
+  qed
+qed
+
+lemma superlinearE:
   fixes T :: "nat \<Rightarrow> real" and c :: real
   assumes "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
   obtains n\<^sub>0 where "\<And>n. n \<ge> n\<^sub>0 \<Longrightarrow> T(n) \<ge> c*n"
@@ -189,11 +215,11 @@ proof -
   then show ?thesis by (rule that)
 qed
 
-lemma dominatesE':
+lemma superlinearE':
   fixes T :: "nat \<Rightarrow> real" and c :: real
   assumes "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
   shows "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n) \<ge> c*n"
-  using assms by (elim dominatesE) blast
+  using assms by (elim superlinearE) blast
 
 
 end

@@ -353,5 +353,67 @@ lemmas lemma4_6'' = L0''_time_hierarchy dens_L0''
 
 end \<comment> \<open>context \<^locale>\<open>tht_sq_assms\<close>\<close>
 
+\<comment> \<open>\<^locale>\<open>tht_assms\<close>\<close>
+
+
+lemma lemma4_6'':
+  fixes T t :: "nat \<Rightarrow> nat"
+  defines "l\<^sub>R \<equiv> \<lambda>n. 4 * n + 11"
+  defines "t' \<equiv> t \<circ> l\<^sub>R"
+  assumes "fully_tconstr T"
+    and T_dominates_t': "(\<lambda>n. t' n * log 2 (t' n) / T n) \<longlonglongrightarrow> 0"
+    and T_not_0: "\<And>n. T n \<noteq> 0"
+    and t_min: "\<And>n. n \<le> t n"
+    and "ae n. t n \<ge> n^3"
+    and "mono t"
+  defines "L\<^sub>0 \<equiv> tht_assms'.L\<^sub>0'' T"
+  shows "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" and "dens L\<^sub>0 n \<le> dsqrt n"
+proof -
+  let ?t' = "t \<circ> (\<lambda>n. 4 * n + 11)"
+
+  have "tht_sq_assms' T t"
+  proof (unfold_locales)
+    show "(\<lambda>n. ?t' n * log 2 (?t' n) / T n) \<longlonglongrightarrow> 0" by (fold t'_def l\<^sub>R_def) fact
+    show "mono t"
+      and "fully_tconstr T"
+      and "\<And>n. T n \<noteq> 0"
+      and "\<And>n. n \<le> t n"
+      and "ae n. t n \<ge> n^3"
+      by fact+
+
+    let ?T = "\<lambda>n. real (T n)"
+    from T_not_0 have *: "\<And>n. ?T n \<noteq> 0" by simp
+  
+    with T_dominates_t' show "(\<lambda>n. t n * log 2 (t n) / T n) \<longlonglongrightarrow> 0"
+    proof (rule dominates_mono)
+      (*from t_min*) show "ae n. \<bar>t n * log 2 (t n)\<bar> \<le> \<bar>t' n * log 2 (t' n)\<bar>"
+      proof (ae_intro_nat)
+        fix n :: nat
+        assume "n \<ge> 2" (*and "n \<le> t n"*)
+        with \<open>n \<le> t n\<close> have "t n \<ge> 2" by linarith
+  
+        also have t_t': "t n \<le> t' n" unfolding l\<^sub>R_def t'_def comp_def
+          using \<open>mono t\<close> by (elim monoD) linarith
+        finally have "t' n \<ge> 2" .
+  
+        with t_t' \<open>t n \<ge> 2\<close> have log_t_t': "log 2 (t n) \<le> log 2 (t' n)"
+          by (subst log_le_cancel_iff) linarith+
+  
+        have "\<bar>f n * log 2 (f n)\<bar> = f n * log 2 (f n)" if "f n \<ge> 2" for f :: "nat \<Rightarrow> nat"
+          using that by force
+        note ** = this[of t, OF \<open>t n \<ge> 2\<close>] this[of t', OF \<open>t' n \<ge> 2\<close>]
+  
+        from t_t' have "t n * log 2 (t n) \<le> t' n * log 2 (t n)"
+          using \<open>t n \<ge> 2\<close> by (intro mult_right_mono of_nat_mono) auto
+        also from log_t_t' have "... \<le> t' n * log 2 (t' n)"
+          using \<open>t n \<ge> 2\<close> by (intro mult_left_mono) linarith+
+        finally 
+        show "\<bar>t n * log 2 (t n)\<bar> \<le> \<bar>t' n * log 2 (t' n)\<bar>" unfolding ** .
+      qed
+    qed
+  qed
+  then show "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" and "dens L\<^sub>0 n \<le> dsqrt n"
+    unfolding L\<^sub>0_def by (fact tht_sq_assms'.lemma4_6'')+
+qed
 
 end

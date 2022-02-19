@@ -1133,7 +1133,7 @@ proof -
 
   \<comment> \<open>Part 2: bound the run-time of M (\<^term>\<open>?T'\<close>) by a multiple of the desired time-bound \<^term>\<open>T\<close>.\<close>
   from T_superlinear have "ae n. T n \<ge> 2 * n"
-    unfolding ae_suff_large_iff of_nat_mult by (fact dominatesE')
+    unfolding ae_suff_large_iff of_nat_mult by (fact superlinearE')
   with ae_gt_N have "ae n. n \<ge> 1 \<and> T n \<ge> 2 * n" by (rule ae_conjI)
   with T_l\<^sub>R_mono have "ae n. T n \<le> T (l\<^sub>R n) \<and> n \<ge> 1 \<and> T n \<ge> 2 * n" by (rule ae_conjI)
   then obtain n\<^sub>0 where n\<^sub>0: "T n \<ge> 2*n" "n \<ge> 1" "T n \<le> T (l\<^sub>R n)" if "n \<ge> n\<^sub>0" for n
