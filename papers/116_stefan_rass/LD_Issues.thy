@@ -93,8 +93,29 @@ qed
 
 subsection\<open>Definition\<close>
 
-context tht_assms
+locale tht_assms' =
+  fixes T t l\<^sub>R :: "nat \<Rightarrow> nat"
+  defines "l\<^sub>R \<equiv> \<lambda>n. 4 * n + 11"
+  assumes T_dominates_t': "(\<lambda>n. (t \<circ> l\<^sub>R) n * log 2 ((t \<circ> l\<^sub>R) n) / T n) \<longlonglongrightarrow> 0"
+    and t_mono': "mono t"
+    and tht_assms: "tht_assms T t" (* TODO inline when finalized *)
 begin
+
+lemma t'_ge_t: "t n \<le> (t \<circ> l\<^sub>R) n" unfolding l\<^sub>R_def comp_def
+  using t_mono' by (elim monoD) linarith
+
+sublocale tht_assms T "t \<circ> l\<^sub>R"
+  using tht_assms and T_dominates_t'
+proof (unfold tht_assms_def, elim conjE, intro conjI)
+  assume "\<forall>n. n \<le> t n"
+  thus "\<forall>n. n \<le> (t \<circ> l\<^sub>R) n"
+  proof (rule all_forward)
+    fix n assume "n \<le> t n"
+    also note t'_ge_t
+    finally show "n \<le> (t \<circ> l\<^sub>R) n" .
+  qed
+qed
+
 
 text\<open>Note: this is not intended to replace \<^const>\<open>L\<^sub>D\<close>.
   Instead, the further proof uses the similarity of \<open>L\<^sub>D\<close> and \<open>L\<^sub>D''\<close>
@@ -164,34 +185,73 @@ proof -
 qed
 
 
-end \<comment> \<open>context \<^locale>\<open>tht_assms\<close>\<close>
-context tht_sq_assms begin
+end \<comment> \<open>context \<^locale>\<open>tht_assms'\<close>\<close>
+locale tht_sq_assms' = tht_assms' +
+  assumes t_cubic': "ae n. t(n) \<ge> n^3"
+begin
+
+lemma mono_comp:
+  assumes "mono f" and "mono g"
+  shows "mono (f \<circ> g)"
+  using assms by (simp add: mono_def) 
+
+lemma l\<^sub>R_mono: "mono l\<^sub>R" unfolding l\<^sub>R_def by (intro monoI) simp
+lemma t_l\<^sub>R_mono: "mono (t \<circ> l\<^sub>R)" using t_mono' l\<^sub>R_mono by (rule mono_comp)
+
+sublocale tht_sq_assms T "t \<circ> l\<^sub>R"
+  using t_l\<^sub>R_mono tht_assms_axioms
+proof (unfold tht_sq_assms_def tht_sq_assms_axioms_def, intro conjI)
+  from t_cubic' show "ae n. (t \<circ> l\<^sub>R) n \<ge> n^3"
+  proof (ae_intro_nat)
+    fix n assume "n^3 \<le> t(n)"
+    also note t'_ge_t
+    finally show "(t \<circ> l\<^sub>R) n \<ge> n^3" .
+  qed
+qed
+
+lemma t_superlinear': "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N"
+proof (intro allI, ae_intro_nat add: t_cubic')
+  fix N :: real and n :: nat
+  assume n_min: "n \<ge> max 1 (nat \<lceil>N\<rceil>)" and "t(n) \<ge> n^3"
+
+  from n_min have "n \<ge> 1" by (rule max.boundedE)
+
+  from n_min have "N \<le> n" by simp
+  also from \<open>n \<ge> 1\<close> have "... \<le> n^2" using pos2 by (intro of_nat_mono self_le_power) auto
+  also have "n^2 \<le> t(n)/n"
+  proof (subst pos_le_divide_eq)
+    from \<open>n \<ge> 1\<close> show "0 < real n" by force
+    have "n^2 * n = n^3" by algebra
+    also note \<open>n^3 \<le> t(n)\<close>
+    finally show "n\<^sup>2 * real n \<le> t n" by (fold of_nat_mult) linarith
+  qed
+  finally show "t(n)/n \<ge> N" .
+qed
+
 
 lemma L\<^sub>D''_t: "L\<^sub>D'' \<notin> DTIME(t)" \<comment> \<open>The proof is similar to that of @{thm tht_sq_assms.L0_t}.\<close>
 proof (rule ccontr, unfold not_not)
   let ?f\<^sub>R = reduce_LD_LD'' and ?l\<^sub>R = "\<lambda>n. 4*n + 11"
 
   assume "L\<^sub>D'' \<in> DTIME(t)"
-  then have "L\<^sub>D \<in> DTIME(t \<circ> ?l\<^sub>R)" unfolding comp_def
+  then have "L\<^sub>D \<in> DTIME(t \<circ> l\<^sub>R)" unfolding comp_def
   proof (rule reduce_DTIME')
-    show "ae w. (?f\<^sub>R w \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> L\<^sub>D) \<and> (length (?f\<^sub>R w) \<le> ?l\<^sub>R (length w))"
+    show "ae w. (?f\<^sub>R w \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> L\<^sub>D) \<and> (length (?f\<^sub>R w) \<le> l\<^sub>R (length w))"
     proof (rule ae_conjI)
       from reduce_LD_LD''_correct show "ae w. ?f\<^sub>R w \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> L\<^sub>D" by (rule ae_everyI)
-      from reduce_LD_LD''_len show "ae w. length (?f\<^sub>R w) \<le> ?l\<^sub>R (length w)"
-        by (intro ae_everyI) simp
+      from reduce_LD_LD''_len show "ae w. length (?f\<^sub>R w) \<le> l\<^sub>R (length w)"
+        unfolding l\<^sub>R_def by (intro ae_everyI) simp
     qed
 
-    from t_mono have "t(n) \<le> t(?l\<^sub>R n)" for n by (rule monoD) linarith
-    then show "ae x. real (t x) \<le> real (t (?l\<^sub>R x))" by (intro ae_everyI of_nat_mono)
+    from t'_ge_t show "ae x. real (t x) \<le> real (t (l\<^sub>R x))"
+      unfolding comp_def by (intro ae_everyI of_nat_mono)
 
-    show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear)
+    show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear')
 
     show "computable_in_time t reduce_LD_LD''" sorry \<comment> \<open>Assume that \<^const>\<open>reduce_LD_LD''\<close> can be computed in time \<open>O(n)\<close>.\<close>
   qed
-  then have "L\<^sub>D \<in> DTIME(t)" sorry \<comment> \<open>False for super-polynomial \<open>t\<close>.
-      Example: \<open>t(n) := 2\<^sup>n\<close>, then \<open>t(?l\<^sub>R n) = 2\<^sup>4\<^sup>n\<^sup>+\<^sup>1\<^sup>1 = 16\<^sup>n \<cdot> 2\<^sup>1\<^sup>1 \<in> \<omega>(t(n))\<close>.\<close>
 
-  moreover from time_hierarchy have "L\<^sub>D \<notin> DTIME(t)" ..
+  moreover from time_hierarchy have "L\<^sub>D \<notin> DTIME(t \<circ> l\<^sub>R)" ..
   ultimately show False by contradiction
 qed
 
@@ -255,7 +315,7 @@ proof (rule ccontr, unfold not_not)
         by (intro eq_imp_le sh_msbD) (fact adj_sq_sh_pfx_half)
     qed
 
-    show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear)
+    show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear')
 
     show "computable_in_time t adj_sq\<^sub>w" sorry \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<open>O(t(n))\<close>.\<close>
   qed
