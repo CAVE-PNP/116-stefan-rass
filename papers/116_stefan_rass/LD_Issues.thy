@@ -231,16 +231,16 @@ qed
 
 lemma L\<^sub>D''_t: "L\<^sub>D'' \<notin> DTIME(t)" \<comment> \<open>The proof is similar to that of @{thm tht_sq_assms.L0_t}.\<close>
 proof (rule ccontr, unfold not_not)
-  let ?f\<^sub>R = reduce_LD_LD'' and ?l\<^sub>R = "\<lambda>n. 4*n + 11"
+  let ?f\<^sub>R = reduce_LD_LD''
 
   assume "L\<^sub>D'' \<in> DTIME(t)"
   then have "L\<^sub>D \<in> DTIME(t \<circ> l\<^sub>R)" unfolding comp_def
   proof (rule reduce_DTIME')
     show "ae w. (?f\<^sub>R w \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> L\<^sub>D) \<and> (length (?f\<^sub>R w) \<le> l\<^sub>R (length w))"
-    proof (rule ae_conjI)
-      from reduce_LD_LD''_correct show "ae w. ?f\<^sub>R w \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> L\<^sub>D" by (rule ae_everyI)
-      from reduce_LD_LD''_len show "ae w. length (?f\<^sub>R w) \<le> l\<^sub>R (length w)"
-        unfolding l\<^sub>R_def by (intro ae_everyI) simp
+    proof (intro ae_conjI ae_everyI)
+      fix w
+      from reduce_LD_LD''_correct show "?f\<^sub>R w \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> L\<^sub>D" .
+      from reduce_LD_LD''_len show "length (?f\<^sub>R w) \<le> l\<^sub>R (length w)" unfolding l\<^sub>R_def by simp
     qed
 
     from t'_ge_t show "ae x. real (t x) \<le> real (t (l\<^sub>R x))"
@@ -421,5 +421,7 @@ proof -
   then show "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" and "dens L\<^sub>0 n \<le> dsqrt n"
     unfolding L\<^sub>0_def by (fact tht_sq_assms'.lemma4_6'')+
 qed
+
+thm_oracles lemma4_6'' \<comment> \<open>shows \<open>skip_proof\<close> (the \<^emph>\<open>oracle\<close> used by \<open>sorry\<close>)\<close>
 
 end

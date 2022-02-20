@@ -50,7 +50,7 @@ lemma ae_disj: "(ae x. P x) \<or> (ae x. Q x) \<Longrightarrow> ae x. P x \<or> 
   by auto
 
 
-method ae_intro = (elim ae_mono2, intro ae_everyI impI)
+method ae_intro = ((elim ae_mono2)?, intro ae_everyI impI)
 
 
 subsection\<open>Sufficiently Large\<close>
