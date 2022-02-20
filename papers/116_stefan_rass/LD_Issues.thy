@@ -363,8 +363,7 @@ lemma lemma4_6'':
   assumes "fully_tconstr T"
     and T_dominates_t': "(\<lambda>n. t' n * log 2 (t' n) / T n) \<longlonglongrightarrow> 0"
     and T_not_0: "ae n. T n \<noteq> 0"
-    and t_min: "ae n. n \<le> t n"
-    and "ae n. t n \<ge> n^3"
+    and t_cubic: "ae n. t n \<ge> n^3"
     and "mono t"
   defines "L\<^sub>0 \<equiv> tht_assms'.L\<^sub>0'' T"
   shows "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" and "dens L\<^sub>0 n \<le> dsqrt n"
@@ -377,9 +376,16 @@ proof -
     show "mono t"
       and "fully_tconstr T"
       and "ae n. T n \<noteq> 0"
-      and "ae n. n \<le> t n"
       and "ae n. t n \<ge> n^3"
       by fact+
+
+    from \<open>ae n. t n \<ge> n^3\<close> show t_min: "ae n. t n \<ge> n"
+    proof (ae_intro_nat)
+      fix n :: nat
+      have "n \<le> n^3" by simp
+      also assume "n^3 \<le> t n"
+      finally show "t n \<ge> n" .
+    qed
 
     let ?T = "\<lambda>n. real (T n)"
     from T_not_0 have *: "ae n. ?T n \<noteq> 0" by simp
