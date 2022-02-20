@@ -136,53 +136,114 @@ method ae_intro_nat uses add =
   (elim ae_mono2)?,
   intro ae_suff_largeI impI
 
+text\<open>To solve goals like \<open>\<lbrakk>ae n. A n; ae n. B n; ...\<rbrakk> \<Longrightarrow> ae n. P n\<close>, where \<open>n :: nat\<close>,
+  apply @{method ae_intro_nat}, then prove the resulting goal
+  of the form \<open>\<And>n. \<lbrakk>n\<ge>n\<^sub>0; A n; B n; ...\<rbrakk> \<Longrightarrow> P n\<close>.
+  The additional premise \<open>n\<ge>n\<^sub>0\<close> allows specifying an arbitrary minimum,
+  as many lemmas require proving \<open>n>0\<close> or similar.\<close>
+
 
 subsection\<open>Asymptotic Domination\<close>
 
-(* TODO unify definitions *)
+lemma dominates_ae_helper: 
+  fixes c :: real
+  assumes "c > 0"
+    and "T n \<noteq> 0"
+  shows "c * \<bar>t n\<bar> < \<bar>T n\<bar> \<longleftrightarrow> \<bar>t n / T n\<bar> < 1/c"
+proof -
+  have "c * \<bar>t n\<bar> < \<bar>T n\<bar> \<longleftrightarrow> \<bar>t n\<bar> < \<bar>T n\<bar> / c"
+    unfolding pos_less_divide_eq[OF \<open>c > 0\<close>] by argo
+  also have "... \<longleftrightarrow> \<bar>t n\<bar> < \<bar>T n\<bar> * (1/c)" by argo
+  also from \<open>T n \<noteq> 0\<close> have "... \<longleftrightarrow> \<bar>t n / T n\<bar> < 1/c"
+    unfolding abs_divide by (subst pos_divide_less_eq) (simp, argo)
+  finally show ?thesis .
+qed
+
+lemma dominates_ae:
+  fixes T t :: "nat \<Rightarrow> real" and c :: real
+  assumes "(\<lambda>n. t n / T n) \<longlonglongrightarrow> 0"
+    and "ae n. T n \<noteq> 0"
+    and "c > 0"
+  shows "ae n. c * \<bar>t n\<bar> < \<bar>T n\<bar>"
+proof -
+  let ?r = "1/c"
+  from \<open>c > 0\<close> have "?r > 0" by simp
+  with \<open>(\<lambda>n. t n / T n) \<longlonglongrightarrow> 0\<close> have "ae n. \<bar>t n / T n\<bar> < ?r"
+    unfolding lim_sequentially dist_real_def diff_0_right by blast
+  with \<open>ae n. T n \<noteq> 0\<close> show "ae n. c * \<bar>t n\<bar> < \<bar>T n\<bar>"
+  proof (ae_intro_nat)
+    fix n
+    assume "\<bar>t n / T n\<bar> < ?r" "T n \<noteq> 0"
+    with \<open>c > 0\<close> show"c * \<bar>t n\<bar> < \<bar>T n\<bar>" by (subst dominates_ae_helper)
+  qed
+qed
+
+lemma ae_dominates:
+  fixes T t :: "nat \<Rightarrow> real" and c :: real
+  assumes "\<And>c. ae n. c * \<bar>t n\<bar> < \<bar>T n\<bar>"
+  shows "(\<lambda>n. t n / T n) \<longlonglongrightarrow> 0"
+proof -
+  have "ae n. \<bar>t n / T n\<bar> < r" if "r > 0" for r
+  proof (ae_intro_nat add: \<open>ae n. (1/r) * \<bar>t n\<bar> < \<bar>T n\<bar>\<close>)
+    from \<open>r > 0\<close> have "1/r > 0" by simp
+    fix n
+    assume "(1/r) * \<bar>t n\<bar> < \<bar>T n\<bar>"
+    show "\<bar>t n / T n\<bar> < r"
+    proof (cases "T n = 0")
+      assume "T n = 0"
+      with \<open>r > 0\<close> show ?thesis by simp
+    next
+      assume "T n \<noteq> 0"
+      with \<open>(1/r) * \<bar>t n\<bar> < \<bar>T n\<bar>\<close> and \<open>1/r > 0\<close> have "\<bar>t n / T n\<bar> < 1/(1/r)"
+        by (subst (asm) dominates_ae_helper)
+      also have "... = r" by simp
+      finally show ?thesis .
+    qed
+  qed
+  then show "(\<lambda>n. t n / T n) \<longlonglongrightarrow> 0"
+    unfolding lim_sequentially dist_real_def diff_0_right by blast
+qed
 
 lemma dominates_altdef:
   fixes T t :: "nat \<Rightarrow> real"
-  assumes "\<And>n. T n \<noteq> 0"
-  shows "((\<lambda>n. t n / T n) \<longlonglongrightarrow> 0) \<longleftrightarrow> (\<forall>c>0. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * \<bar>t n\<bar> < \<bar>T n\<bar>)"
-proof -
-  have *: "c * \<bar>t n\<bar> < \<bar>T n\<bar> \<longleftrightarrow> \<bar>t n / T n\<bar> < 1/c" if "c > 0" for c :: real and n
-  proof -
-    have "c * \<bar>t n\<bar> < \<bar>T n\<bar> \<longleftrightarrow> \<bar>t n\<bar> < \<bar>T n\<bar> / c"
-      unfolding pos_less_divide_eq[OF \<open>c > 0\<close>] by argo
-    also have "... \<longleftrightarrow> \<bar>t n\<bar> < \<bar>T n\<bar> * (1/c)" by argo
-    also from \<open>T n \<noteq> 0\<close> have "... \<longleftrightarrow> \<bar>t n / T n\<bar> < 1/c"
-      unfolding abs_divide by (subst pos_divide_less_eq) (simp, argo)
-    finally show ?thesis .
+  assumes "ae n. T n \<noteq> 0"
+  shows "((\<lambda>n. t n / T n) \<longlonglongrightarrow> 0) \<longleftrightarrow> (\<forall>c>0. ae n. c * \<bar>t n\<bar> < \<bar>T n\<bar>)"
+proof
+  assume "(\<lambda>n. t n / T n) \<longlonglongrightarrow> 0"
+  then show "\<forall>c>0. ae n. c * \<bar>t n\<bar> < \<bar>T n\<bar>" using assms by (intro allI impI dominates_ae)
+next
+  assume asm: "\<forall>c>0. ae n. c * \<bar>t n\<bar> < \<bar>T n\<bar>"
+  show "(\<lambda>n. t n / T n) \<longlonglongrightarrow> 0"
+  proof (intro ae_dominates)
+    fix c
+    show "ae n. c * \<bar>t n\<bar> < \<bar>T n\<bar>"
+    proof (cases "c > 0")
+      assume "c > 0"
+      with asm show ?thesis by blast
+    next
+      assume "\<not> c > 0" hence "c \<le> 0" by simp
+      from \<open>ae n. T n \<noteq> 0\<close> show ?thesis
+      proof (ae_intro_nat)
+        fix n assume "T n \<noteq> 0"
+        from \<open>c \<le> 0\<close> have "c * \<bar>t n\<bar> \<le> 0" by (intro mult_nonneg_nonpos2) auto
+        also from \<open>T n \<noteq> 0\<close> have "0 < \<bar>T n\<bar>" by simp
+        finally show "c * \<bar>t n\<bar> < \<bar>T n\<bar>" .
+      qed
+    qed
   qed
-  
-  have "(\<forall>r>0. \<exists>no. \<forall>n\<ge>no. \<bar>t n / T n\<bar> < r) = (\<forall>c>0. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * \<bar>t n\<bar> < \<bar>T n\<bar>)"
-  proof (intro iffI allI impI; elim allE impE)
-    fix c :: real
-    assume "c > 0" thus "1/c > 0" by simp
-    assume "\<exists>no. \<forall>n\<ge>no. \<bar>t n / T n\<bar> < 1/c"
-    with \<open>c > 0\<close> show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * \<bar>t n\<bar> < \<bar>T n\<bar>" using * by blast
-  next
-    fix r :: real
-    assume "r > 0" thus "1/r > 0" by simp
-    assume "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. 1/r * \<bar>t n\<bar> < \<bar>T n\<bar>"
-    with \<open>1/r > 0\<close> have "\<exists>no. \<forall>n\<ge>no. \<bar>t n / T n\<bar> < 1/(1/r)" using * by blast
-    then show "\<exists>no. \<forall>n\<ge>no. \<bar>t n / T n\<bar> < r" by simp
-  qed
-  then show ?thesis unfolding LIMSEQ_def dist_real_def diff_0_right .
 qed
 
 lemma dominates_mono:
   fixes T t :: "nat \<Rightarrow> real"
   assumes "(\<lambda>n. f n / T n) \<longlonglongrightarrow> 0"
-    and "\<And>n. T n \<noteq> 0"
+    and "ae n. T n \<noteq> 0"
     and "ae n. \<bar>g n\<bar> \<le> \<bar>f n\<bar>"
   shows "(\<lambda>n. g n / T n) \<longlonglongrightarrow> 0"
 proof -
-  note * = dominates_altdef[OF \<open>\<And>n. T n \<noteq> 0\<close>]
+  note * = dominates_altdef[OF \<open>ae n. T n \<noteq> 0\<close>]
 
   show "(\<lambda>n. g n / T n) \<longlonglongrightarrow> 0" unfolding *
-  proof (intro allI impI ae_suff_large)
+  proof (intro allI impI)
     fix c :: real
     assume "c > 0"
     with \<open>(\<lambda>n. f n / T n) \<longlonglongrightarrow> 0\<close> have "ae n. c * \<bar>f n\<bar> < \<bar>T n\<bar>" unfolding * by blast

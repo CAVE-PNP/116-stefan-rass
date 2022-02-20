@@ -107,9 +107,9 @@ lemma t'_ge_t: "t n \<le> (t \<circ> l\<^sub>R) n" unfolding l\<^sub>R_def comp_
 sublocale tht_assms T "t \<circ> l\<^sub>R"
   using tht_assms and T_dominates_t'
 proof (unfold tht_assms_def, elim conjE, intro conjI)
-  assume "\<forall>n. n \<le> t n"
-  thus "\<forall>n. n \<le> (t \<circ> l\<^sub>R) n"
-  proof (rule all_forward)
+  assume "ae n. n \<le> t n"
+  thus "ae n. n \<le> (t \<circ> l\<^sub>R) n"
+  proof (ae_intro_nat)
     fix n assume "n \<le> t n"
     also note t'_ge_t
     finally show "n \<le> (t \<circ> l\<^sub>R) n" .
@@ -362,8 +362,8 @@ lemma lemma4_6'':
   defines "t' \<equiv> t \<circ> l\<^sub>R"
   assumes "fully_tconstr T"
     and T_dominates_t': "(\<lambda>n. t' n * log 2 (t' n) / T n) \<longlonglongrightarrow> 0"
-    and T_not_0: "\<And>n. T n \<noteq> 0"
-    and t_min: "\<And>n. n \<le> t n"
+    and T_not_0: "ae n. T n \<noteq> 0"
+    and t_min: "ae n. n \<le> t n"
     and "ae n. t n \<ge> n^3"
     and "mono t"
   defines "L\<^sub>0 \<equiv> tht_assms'.L\<^sub>0'' T"
@@ -376,21 +376,21 @@ proof -
     show "(\<lambda>n. ?t' n * log 2 (?t' n) / T n) \<longlonglongrightarrow> 0" by (fold t'_def l\<^sub>R_def) fact
     show "mono t"
       and "fully_tconstr T"
-      and "\<And>n. T n \<noteq> 0"
-      and "\<And>n. n \<le> t n"
+      and "ae n. T n \<noteq> 0"
+      and "ae n. n \<le> t n"
       and "ae n. t n \<ge> n^3"
       by fact+
 
     let ?T = "\<lambda>n. real (T n)"
-    from T_not_0 have *: "\<And>n. ?T n \<noteq> 0" by simp
+    from T_not_0 have *: "ae n. ?T n \<noteq> 0" by simp
   
     with T_dominates_t' show "(\<lambda>n. t n * log 2 (t n) / T n) \<longlonglongrightarrow> 0"
     proof (rule dominates_mono)
-      (*from t_min*) show "ae n. \<bar>t n * log 2 (t n)\<bar> \<le> \<bar>t' n * log 2 (t' n)\<bar>"
+      from t_min show "ae n. \<bar>t n * log 2 (t n)\<bar> \<le> \<bar>t' n * log 2 (t' n)\<bar>"
       proof (ae_intro_nat)
         fix n :: nat
-        assume "n \<ge> 2" (*and "n \<le> t n"*)
-        with \<open>n \<le> t n\<close> have "t n \<ge> 2" by linarith
+        assume "n \<ge> 2" and "n \<le> t n"
+        then have "t n \<ge> 2" by linarith
   
         also have t_t': "t n \<le> t' n" unfolding l\<^sub>R_def t'_def comp_def
           using \<open>mono t\<close> by (elim monoD) linarith

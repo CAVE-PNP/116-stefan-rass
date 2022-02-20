@@ -23,7 +23,7 @@ locale tht_assms =
   \<comment> \<open>Additionally, \<open>T n\<close> is assumed not to be zero since in Isabelle,
       \<open>x / 0 = 0\<close> holds over the reals (@{thm division_ring_divide_zero}).
       Thus, the above assumption would trivially hold for \<open>T(n) = 0\<close>.\<close>
-    and T_not_0: "T n \<noteq> 0"
+    and T_not_0: "ae n. T n \<noteq> 0"
 
   \<comment> \<open>The following assumption is not found in @{cite rassOwf2017} or the primary source @{cite hopcroftAutomata1979},
     but is taken from the AAU lecture slides of \<^emph>\<open>Algorithms and Complexity Theory\<close>.
@@ -31,110 +31,107 @@ locale tht_assms =
     It patches a hole that allows one to prove \<^term>\<open>False\<close> from the Time Hierarchy Theorem below
     (\<open>time_hierarchy\<close>).
     This is demonstrated in \<^file>\<open>examples/THT_inconsistencies_MWE.thy\<close>.\<close>
-    and t_min: "n \<le> t n"
+    and t_min: "ae n. n \<le> t n"
 begin
 
 lemma T_ge_t_log_t_ae:
   fixes c :: real
   assumes "c \<ge> 0"
-  shows "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * t n * log 2 (t n) < T n"
+  shows "ae n. c * t n * log 2 (t n) < T n"
 proof (cases "c = 0")
   assume "c = 0"
-  from T_not_0 show ?thesis unfolding \<open>c = 0\<close> by simp
+  from T_not_0 show ?thesis unfolding \<open>c = 0\<close> by (ae_intro_nat) linarith
 next
   assume "c \<noteq> 0"
   with \<open>c \<ge> 0\<close> have "c > 0" by simp
-  moreover from T_not_0 have "real (T n) \<noteq> 0" for n unfolding of_nat_eq_0_iff .
-  ultimately have "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>"
-    using T_dominates_t by (subst (asm) dominates_altdef) presburger+
+  from T_not_0 have "ae n. real (T n) \<noteq> 0" by (ae_intro_nat) linarith
+  with T_dominates_t and \<open>c > 0\<close> have "ae n. c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>"
+    by (subst (asm) dominates_altdef) presburger+
 
-  then obtain n\<^sub>0 where *: "n \<ge> n\<^sub>0 \<Longrightarrow> c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>" for n by blast
-  let ?n\<^sub>0 = "max n\<^sub>0 2"
-
-  have "c * t n * log 2 (t n) < T n" if "n \<ge> ?n\<^sub>0" for n
-  proof -
-    from \<open>n \<ge> ?n\<^sub>0\<close> have "n \<ge> n\<^sub>0" and "n \<ge> 2" by auto
-    from \<open>n \<ge> n\<^sub>0\<close> have "c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>" by (fact *)
-
-    from \<open>n \<ge> 2\<close> and t_min have "t n \<ge> 2" by (rule le_trans)
-    then have "log 2 (t n) \<ge> 1" by force
-    with \<open>t n \<ge> 2\<close> have "t n * log 2 (t n) > 0" by auto
-
-    have "c * t n * log 2 (t n) = c * \<bar>t n * log 2 (t n)\<bar>" using \<open>t n * log 2 (t n) > 0\<close> by fastforce
-    also from \<open>n \<ge> n\<^sub>0\<close> have "... < \<bar>real (T n)\<bar>" by (fact *)
+  then show "ae n. c * t n * log 2 (t n) < T n"
+  proof (ae_intro_nat)
+    fix n
+    from abs_ge_self and \<open>c \<ge> 0\<close> have "c * x \<le> c * \<bar>x\<bar>" for x by (rule mult_left_mono) 
+    then have "c * t n * log 2 (t n) \<le> c * \<bar>t n * log 2 (t n)\<bar>" by (subst mult.assoc)
+    also assume "... < \<bar>real (T n)\<bar>"
     also have "... = T n" by simp
-    finally show ?thesis .
+    finally show "c * t n * log 2 (t n) < T n" .
   qed
-  then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * t n * log 2 (t n) < T n" by blast
 qed
 
-lemma T_gt_t_ae: "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T n > t n"
+lemma T_gt_t_ae: "ae n. T n > t n"
 proof -
-  from T_ge_t_log_t_ae[of 1] obtain n\<^sub>0 where *: "n \<ge> n\<^sub>0 \<Longrightarrow> t n * log 2 (t n) < T n" for n by auto
-  let ?n\<^sub>0 = "max n\<^sub>0 2"
-
-  have "t n < T n" if "n \<ge> ?n\<^sub>0" for n
-  proof -
-    from \<open>n \<ge> ?n\<^sub>0\<close> and * have "n \<ge> 2" by simp
-    with t_min have "t n \<ge> 2" using le_trans by blast
+  from T_ge_t_log_t_ae[of 1] have "ae n. t n * log 2 (t n) < T n" unfolding mult_1 by argo
+  with t_min show "ae n. T n > t n"
+  proof (ae_intro_nat)
+    fix n :: nat
+    assume "n \<ge> 2" also assume "t n \<ge> n"
+    finally have "t n \<ge> 2" .
     then have "log 2 (t n) \<ge> 1" by force
 
-    have "t n \<le> t n * log 2 (t n)" using \<open>log 2 (t n) \<ge> 1\<close> \<open>t n \<ge> 2\<close> by fastforce
-    also have "... < T n" using * \<open>n \<ge> ?n\<^sub>0\<close> by simp
-    finally show "t n < T n" by fastforce
+    with \<open>t n \<ge> 2\<close> have "t n \<le> t n * log 2 (t n)" by simp
+    also assume "... < T n"
+    finally show "t n < T n" by simp
   qed
-  then show ?thesis by blast
 qed
-
 
 lemma T_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
 proof (intro allI)
   fix N :: real
-  from T_ge_t_log_t_ae[of 1] obtain n\<^sub>0
-    where t_log_t: "t n * log 2 (t n) < T n" if "n \<ge> n\<^sub>0" for n by auto
-  let ?n\<^sub>0 = "max n\<^sub>0 (2 ^ nat\<lceil>N\<rceil>)"
 
-  {
-    fix n :: nat
-    assume "n \<ge> ?n\<^sub>0"
-    then have "n \<ge> n\<^sub>0" and "n \<ge> 2 ^ nat\<lceil>N\<rceil>" by (blast elim!: max.boundedE)+
+  show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
+  proof (cases "N > 0")
+    assume "\<not> N > 0"
+    then have "N \<le> 0" by simp
+    also have "0 \<le> T(n)/n" for n by simp
+    finally show ?thesis by simp
+  next
+    assume "N > 0"
+    then have *: "N \<le> N * x" if "x \<ge> 1" for x
+      using that by (subst mult_le_cancel_left1) simp
 
-    have "n > 0"
-    proof -
-      have "(0::real) < 1" by (fact zero_less_one)
-      also have "... \<le> 2 ^ nat\<lceil>N\<rceil>" using two_realpow_ge_one .
-      also have "... \<le> n" using \<open>n \<ge> 2 ^ nat\<lceil>N\<rceil>\<close> by simp
-      finally show "n > 0" by simp
+    from T_ge_t_log_t_ae[of 1] have "ae n. t n * log 2 (t n) < T n" unfolding mult_1 by argo
+    with t_min have "ae n. T(n)/n \<ge> N"
+    proof (ae_intro_nat)
+      fix n :: nat
+      assume "n \<ge> 2 ^ nat\<lceil>N\<rceil>" and t_log_t: "t n * log 2 (t n) < T n"
+
+      from two_realpow_ge_one have "(1::real) \<le> 2 ^ nat\<lceil>N\<rceil>" .
+      also from \<open>n \<ge> 2 ^ nat\<lceil>N\<rceil>\<close> have "... \<le> n" by simp
+      finally have "n > 0" by simp
+
+      also assume "n \<le> t n"
+      finally have "t n > 0" .
+
+
+      have "n * log 2 n \<le> t n * log 2 (t n)"
+      proof (intro mult_mono)
+        from \<open>n \<le> t n\<close> show "real n \<le> real (t n)" by simp
+        with \<open>n > 0\<close> and \<open>t n > 0\<close> show "log 2 n \<le> log 2 (t n)"
+          by (subst log_le_cancel_iff; linarith)
+
+        show "real (t n) \<ge> 0" by (fact of_nat_0_le_iff)
+        from \<open>n > 0\<close> show "0 \<le> log 2 (real n)"
+          by (subst zero_le_log_cancel_iff) auto
+      qed
+      also from t_log_t have "... < T n" .
+      finally have "n * log 2 n \<le> T n" by simp
+
+      with \<open>n > 0\<close> have "log 2 n \<le> T(n)/n" by (subst pos_le_divide_eq) (simp, argo)
+
+      have "N \<le> log 2 n"
+      proof -
+        have "N \<le> log 2 (2 ^ nat\<lceil>N\<rceil>)"
+          by (subst log_pow_cancel) (simp, simp, linarith)
+        also have "... \<le> log 2 n" using \<open>n \<ge> 2 ^ nat\<lceil>N\<rceil>\<close> and \<open>n > 0\<close>
+          by (subst log_le_cancel_iff) auto
+        finally show "N \<le> log 2 n" .
+      qed
+      also note \<open>log 2 n \<le> T(n)/n\<close>
+      finally show "N \<le> T(n)/n" .
     qed
-    with t_min[of n] have "t n > 0" by simp
-
-    have "n * log 2 n \<le> t n * log 2 (t n)"
-    proof (intro mult_mono)
-      from t_min show "real n \<le> real (t n)" by simp
-      with \<open>n > 0\<close> and \<open>t n > 0\<close> show "log 2 n \<le> log 2 (t n)"
-        by (subst log_le_cancel_iff; linarith)
-
-      show "real (t n) \<ge> 0" by (fact of_nat_0_le_iff)
-      from \<open>n > 0\<close> show "0 \<le> log 2 (real n)"
-        by (subst zero_le_log_cancel_iff) auto
-    qed
-    also from t_log_t and \<open>n \<ge> n\<^sub>0\<close> have "... < T n" .
-    finally have "n * log 2 n \<le> T n" by (fact less_imp_le)
-
-    with \<open>n > 0\<close> have "log 2 n \<le> T(n)/n" by (subst pos_le_divide_eq) (simp, argo)
-
-    have "N \<le> log 2 n"
-    proof -
-      have "N \<le> log 2 (2 ^ nat\<lceil>N\<rceil>)"
-        by (subst log_pow_cancel) (simp, simp, linarith)
-      also have "... \<le> log 2 n" using \<open>n \<ge> 2 ^ nat\<lceil>N\<rceil>\<close> and \<open>n > 0\<close>
-        by (subst log_le_cancel_iff) auto
-      finally show "N \<le> log 2 n" .
-    qed
-    also note \<open>log 2 n \<le> T(n)/n\<close>
-    finally have "N \<le> real (T n) / real n" .
-  }
-  then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. N \<le> real (T n) / real n" by blast
+    then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N" ..
+  qed
 qed
 
 
