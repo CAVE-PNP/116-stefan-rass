@@ -259,43 +259,30 @@ qed
 subsection\<open>\<open>L\<^sub>D'' \<in> DTIME(T)\<close> via Reduction from \<open>L\<^sub>D''\<close> to \<open>L\<^sub>D\<close>\<close>
 
 lemma L\<^sub>D''_T: "L\<^sub>D'' \<in> DTIME(T)"
-proof (rule reduce_DTIME)
-  from time_hierarchy show "L\<^sub>D \<in> DTIME(T)" ..
+proof -
+  \<comment> \<open>For now this is a carbon copy of the ``proof'' of this part of the THT (@{thm time_hierarchy}).
 
-  define f\<^sub>R where "f\<^sub>R \<equiv> \<lambda>w. let (l, x) = decode_pair w in drop (length x - l) x"
+    Ideally, if the TM constructed in the THT is feasible to construct in Isabelle/HOL,
+    and its properties can be proven, the ``difficult parts'' could potentially be reused.
+    It may suffice to add a pre-processing step for decoding the input word \<open>w\<close> into \<open>x, v\<close>,
+    with \<open>v\<close> being the input for the universal TM part, and \<open>x\<close> the input for the stopwatch.
 
-  \<comment> \<open>This is very likely incorrect, as \<open>v\<close> and \<open>x\<close> are not necessarily equal.
-    The different time-bound could lead to differences in membership;
-    False positives when increased time-bounds allow \<open>M\<^sub>v\<close> compute additional steps and reject \<open>v\<close>,
-    or false negatives when shorter time-bounds do not afford \<open>M\<^sub>v\<close> enough time.\<close>
-  have "f\<^sub>R w \<in> L\<^sub>D \<longleftrightarrow> w \<in> L\<^sub>D''" for w
-  proof -
-    have "f\<^sub>R w \<in> L\<^sub>D \<longleftrightarrow> (let (l, x) = decode_pair w; v = drop (length x - l) x; M\<^sub>v = TM_decode_pad v
-           in rejects M\<^sub>v v \<and> time_bounded_word T M\<^sub>v v)"
-      unfolding LD_def mem_Collect_eq unfolding f\<^sub>R_def Let_def prod.case ..
-    also have "... \<longleftrightarrow> (let (l, x) = decode_pair w; v = drop (length x - l) x; M\<^sub>v = TM_decode_pad v
-           in rejects M\<^sub>v v \<and> is_final (steps0 (1, <v>\<^sub>t\<^sub>p) M\<^sub>v (tcomp\<^sub>w T v)))"
-      unfolding time_bounded_altdef ..
-    also have "... \<longleftrightarrow> (let (l, x) = decode_pair w; v = drop (length x - l) x; M\<^sub>v = TM_decode_pad v
-           in rejects M\<^sub>v v \<and> is_final (steps0 (1, <v>\<^sub>t\<^sub>p) M\<^sub>v (tcomp\<^sub>w T x)))" sorry \<comment> \<open>not possible\<close>
-    also have "... \<longleftrightarrow> w \<in> L\<^sub>D''"
-      unfolding L\<^sub>D''_def mem_Collect_eq time_bounded_def ..
-    finally show ?thesis .
-  qed
-  moreover have "length (f\<^sub>R w) \<le> length w" for w
-  proof -
-    have "length (f\<^sub>R w) \<le> length (decode_pair_x w)" unfolding f\<^sub>R_def by simp
-    also have "... \<le> length (strip_sq_pad w)" unfolding decode_pair_x_def
-      unfolding Let_def prod.case length_rev length_tl dropWhile_eq_drop length_drop by simp
-    also have "... \<le> length w" unfolding strip_sq_pad_def by simp
-    finally show ?thesis .
-  qed
-  ultimately show "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>D) = (w \<in> L\<^sub>D'') \<and> length (f\<^sub>R w) \<le> length w)"
-    by blast
+    Note: it seems feasible to construct this adapter and (if this approach works)
+    reduce the \<open>sorry\<close> statements in the THT and this prove into one common assumption;
+    the existence of the UTM with only \<open>log\<close> time overhead.
+    However, such a construction is not sensible for the current TM model,
+    as multiple tapes and arbitrary alphabets would be necessary required.\<close>
 
-  show "computable_in_time T f\<^sub>R" unfolding f\<^sub>R_def sorry \<comment> \<open>Assume that \<^term>\<open>f\<^sub>R\<close> can be evaluated in \<open>O(n)\<close>.\<close>
+  define L\<^sub>D''_P where "L\<^sub>D''_P \<equiv> \<lambda>w. let (l, x) = decode_pair w;
+          v = drop (length x - l) x;
+          M\<^sub>v = TM_decode_pad v in
+      rejects M\<^sub>v v \<and> is_final (steps0 (1, <v>\<^sub>t\<^sub>p) M\<^sub>v (tcomp\<^sub>w T x))"
 
-  show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N" by (fact T_superlinear)
+  obtain M where "time_bounded T M"
+    and *: "\<And>w. if L\<^sub>D''_P w then accepts M w else rejects M w" sorry (* probably out of scope *)
+  have "decides M L\<^sub>D''" unfolding decides_altdef4
+    unfolding L\<^sub>D''_def mem_Collect_eq L\<^sub>D''_P_def[symmetric] using * ..
+  with \<open>time_bounded T M\<close> show "L\<^sub>D'' \<in> DTIME(T)" by blast
 qed
 
 
