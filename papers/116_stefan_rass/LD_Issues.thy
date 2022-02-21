@@ -230,7 +230,7 @@ proof (intro allI, ae_intro_nat add: t_cubic')
 qed
 
 
-lemma L\<^sub>D''_t: "L\<^sub>D'' \<notin> DTIME(t)" \<comment> \<open>The proof is similar to that of @{thm tht_sq_assms.L0_t}.\<close>
+lemma L\<^sub>D''_t: "L\<^sub>D'' \<notin> DTIME(t)"
 proof (rule ccontr, unfold not_not)
   let ?f\<^sub>R = reduce_LD_LD''
 
@@ -318,7 +318,7 @@ proof -
   from T_cubic obtain n\<^sub>0 where *: "T(n) \<ge> n^3" if "n \<ge> n\<^sub>0" for n by blast
 
   from L\<^sub>D''_T and SQ_DTIME have "L\<^sub>0'' \<in> DTIME(?T')"
-    unfolding L\<^sub>0''_def of_nat_max by (rule DTIME_int')
+    unfolding L\<^sub>0''_def of_nat_max by (rule DTIME_int)
   then show "L\<^sub>0'' \<in> DTIME(T)"
   proof (rule DTIME_mono_ae)
     fix n assume "n \<ge> n\<^sub>0"

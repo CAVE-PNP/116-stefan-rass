@@ -5,11 +5,6 @@ theory L0
 begin
 
 
-subsection\<open>Preliminaries\<close>
-
-lemma SQ_DTIME: "SQ \<in> DTIME(\<lambda>n. n^3)" sorry
-
-
 subsection\<open>The Time Hierarchy Theorem\<close>
 
 locale tht_assms =
@@ -145,30 +140,9 @@ definition L\<^sub>D :: "lang"
   where LD_def[simp]: "L\<^sub>D \<equiv> {w. let M\<^sub>w = TM_decode_pad w in
                   rejects M\<^sub>w w \<and> time_bounded_word T M\<^sub>w w}"
 
-\<comment> \<open>In the above definition, membership is dependent on the whole word \<open>w\<close>,
-  as this is the input for \<open>M\<^sub>w\<close>.
-  Since no assumptions can be made about the inner workings of \<open>M\<^sub>w\<close>,
-  the result of its computation on \<open>w\<close> could depend on the contents of the padding.
-  Therefore, the membership of some \<open>w'\<close> with \<open>TM_decode_pad w' = M\<^sub>w\<close>
-  is not equivalent to that of \<open>w\<close>.
-
-  For instance, consider a TM that decides words only based on the value of their last bit;
-  accepting if it is \<open>1\<close> and rejecting otherwise.
-  This TM will reject exactly half of its encodings, causing only these to be members of \<open>L\<^sub>D\<close>.\<close>
-
-text\<open>Alternative formulation: \<open>L\<^sub>D' := {w \<in> \<Sigma>\<^sup>*: M\<^sub>w halts and rejects w' within \<le> T(len(w)) steps}\<close>,
-  where \<open>w' := strip_al_prefix (strip_exp_pad w)\<close>.\<close>
-
-definition L\<^sub>D' :: "lang"
-  where LD'_def[simp]: "L\<^sub>D' \<equiv> {w. let M\<^sub>w = TM_decode_pad w; w' = strip_al_prefix (strip_exp_pad w) in
-                  rejects M\<^sub>w w' \<and> time_bounded_word T M\<^sub>w w'}"
-
-
-theorem time_hierarchy: "L\<^sub>D \<in> DTIME(T) - DTIME(t)"
-proof
-  \<comment> \<open>Part 1: \<^term>\<open>L\<^sub>D \<in> DTIME(T)\<close>
-
-    \<open>M\<close> is a modified universal TM that executes two TMs in parallel upon an input word \<open>w\<close>.
+lemma LD_T: "L\<^sub>D \<in> DTIME(T)"
+proof -
+  \<comment> \<open>\<open>M\<close> is a modified universal TM that executes two TMs in parallel upon an input word \<open>w\<close>.
     \<open>M\<^sub>w\<close> is the input word \<open>w\<close> treated as a TM (\<open>M\<^sub>w \<equiv> TM_decode_pad w\<close>).
     \<open>M\<^sub>T\<close> is a "stopwatch", that halts after exactly \<open>tcomp\<^sub>w T w\<close> steps.
     Its existence is assured by the assumption @{thm fully_tconstr_T}.
@@ -184,14 +158,14 @@ proof
     rejects M\<^sub>w w \<and> time_bounded_word T M\<^sub>w w"
 
   obtain M where "time_bounded T M"
-    and *: "\<And>w. if L\<^sub>D_P w then accepts M w else rejects M w" sorry (* probably out of scope *)
+    and *: "\<And>w. if L\<^sub>D_P w then accepts M w else rejects M w" sorry \<comment> \<open>probably out of scope\<close>
   have "decides M L\<^sub>D" unfolding decides_altdef4
     unfolding LD_def mem_Collect_eq L\<^sub>D_P_def[symmetric] using * ..
   with \<open>time_bounded T M\<close> show "L\<^sub>D \<in> DTIME(T)" by blast
+qed
 
-
-next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME(t)\<close>\<close>
-
+lemma LD_t: "L\<^sub>D \<notin> DTIME(t)"
+proof -
   have "L \<noteq> L\<^sub>D" if "L \<in> DTIME(t)" for L
   proof -
     from \<open>L \<in> DTIME(t)\<close> obtain M\<^sub>w where "decides M\<^sub>w L" and "time_bounded t M\<^sub>w" and "tm_wf0 M\<^sub>w" ..
@@ -242,11 +216,16 @@ next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME(t)\<close
   then show "L\<^sub>D \<notin> DTIME(t)" by blast
 qed
 
+theorem time_hierarchy: "L\<^sub>D \<in> DTIME(T) - DTIME(t)" using LD_T and LD_t ..
 
 end \<comment> \<open>\<^locale>\<open>tht_assms\<close>\<close>
 
 
 subsection\<open>The Hard Language \<open>L\<^sub>0\<close>\<close>
+
+
+lemma SQ_DTIME: "SQ \<in> DTIME(\<lambda>n. n^3)" sorry
+
 
 text\<open>From the proof of Lemma 4.6@{cite rassOwf2017}:
 
@@ -282,15 +261,6 @@ proof (intro allI, ae_intro_nat add: t_cubic)
   finally show "t(n)/n \<ge> N" .
 qed
 
-
-definition L\<^sub>0 :: lang
-  where L0_def[simp]: "L\<^sub>0 \<equiv> L\<^sub>D \<inter> SQ"
-
-definition L\<^sub>0' :: lang
-  where L0'_def[simp]: "L\<^sub>0' \<equiv> L\<^sub>D' \<inter> SQ"
-
-(* TODO move lemmas that do not depend on locale defs out of locale context *)
-
 lemma adj_sq_exp_pad:
   fixes w
   defines l: "l \<equiv> length w"
@@ -314,150 +284,6 @@ corollary adj_sq_TM_dec:
   defines "w' \<equiv> adj_sq\<^sub>w w"
   shows "TM_decode_pad w' = TM_decode_pad w"
   unfolding TM_decode_pad_def w'_def using \<open>length w \<ge> 20\<close> by (subst adj_sq_exp_pad) fast+
-
-lemma L\<^sub>D_adj_sq_iff:
-  fixes w
-  assumes l: "length w \<ge> 20"
-  defines w': "w' \<equiv> adj_sq\<^sub>w w"
-  shows "w' \<in> L\<^sub>D \<longleftrightarrow> w \<in> L\<^sub>D"
-proof -
-    \<comment> \<open>Idea: since \<open>w\<close> and \<open>adj_sq\<^sub>w n\<close> share their prefix (@{thm adj_sq_sh_pfx_log}),
-  the relevant parts are identical and this lemma should hold.
-
-  Note: with the current definition of \<^const>\<open>L\<^sub>D\<close>, this likely does not hold,
-        as the whole word \<open>w\<close> is referenced in the definition.\<close>
-
-  from l have dec: "TM_decode_pad w' = TM_decode_pad w" unfolding w' by (rule adj_sq_TM_dec)
-  from l have pad: "strip_exp_pad w' = strip_exp_pad w" unfolding w' by (rule adj_sq_exp_pad)
-  let ?Mw = "TM_decode_pad w"
-
-    \<comment> \<open>Both of the following statements are not provable without further assumptions
-        about the contents of \<^term>\<open>w\<close> (and thus \<^term>\<open>?Mw\<close>).\<close>
-  have a: "rejects ?Mw w' = rejects ?Mw w" sorry
-  have b: "time_bounded_word T ?Mw w' = time_bounded_word T ?Mw w" sorry
-  have "w' \<in> L\<^sub>D \<longleftrightarrow> w \<in> L\<^sub>D" unfolding LD_def mem_Collect_eq Let_def
-    unfolding dec pad unfolding a b ..
-  oops
-
-lemma L\<^sub>D'_adj_sq_iff:
-  fixes w
-  assumes l: "length w \<ge> 20"
-  defines w': "w' \<equiv> adj_sq\<^sub>w w"
-  shows "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'"
-proof -
-  from l have dec: "TM_decode_pad w' = TM_decode_pad w" unfolding w' by (rule adj_sq_TM_dec)
-  from l have pad: "strip_exp_pad w' = strip_exp_pad w" unfolding w' by (rule adj_sq_exp_pad)
-  show "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'" unfolding LD'_def mem_Collect_eq unfolding dec pad ..
-qed
-
-lemma L\<^sub>D'_L\<^sub>0'_adj_sq_iff:
-  fixes w
-  assumes l: "length w \<ge> 20"
-  defines "w' \<equiv> adj_sq\<^sub>w w"
-  shows "w' \<in> L\<^sub>0' \<longleftrightarrow> w \<in> L\<^sub>D'"
-proof
-  assume "w \<in> L\<^sub>D'"
-  then have "w' \<in> L\<^sub>D'" unfolding w'_def using l by (subst L\<^sub>D'_adj_sq_iff)
-  moreover have "w' \<in> SQ" unfolding w'_def by (rule adj_sq_word_correct)
-  ultimately show "w' \<in> L\<^sub>0'" unfolding L0'_def ..
-next
-  assume "w' \<in> L\<^sub>0'"
-  then have "w' \<in> L\<^sub>D'" unfolding L0'_def ..
-  then show "w \<in> L\<^sub>D'" unfolding w'_def using l by (subst (asm) L\<^sub>D'_adj_sq_iff)
-qed
-
-
-text\<open>For now assume that this result will hold for some version of \<open>L\<^sub>D\<close> and \<open>L\<^sub>0\<close>.\<close>
-
-lemma L\<^sub>D_L\<^sub>0_adj_sq_iff:
-  fixes w
-  assumes l: "length w \<ge> 20"
-  defines "w' \<equiv> adj_sq\<^sub>w w"
-  shows "w' \<in> L\<^sub>0 \<longleftrightarrow> w \<in> L\<^sub>D"
-  sorry
-
-
-text\<open>From @{cite rassOwf2017}:
- ``Lemma 4.6. Let \<open>t\<close>, \<open>T\<close> be as in Assumption 4.4 and assume \<open>T(n) \<ge> n\<^sup>3\<close>.
-  Then, there exists a language \<open>L\<^sub>0 \<in> DTIME(T) - DTIME(t)\<close> for which \<open>dens\<^sub>L\<^sub>0(x) \<le> \<surd>x\<close>.''\<close>
-
-lemma L0_t: "L\<^sub>0 \<notin> DTIME(t)"
-proof (rule ccontr, unfold not_not)
-  assume "L\<^sub>0 \<in> DTIME(t)"
-  then have "L\<^sub>D \<in> DTIME(t)"
-  proof (rule reduce_DTIME)
-    show "almost_everywhere (\<lambda>w. (adj_sq\<^sub>w w \<in> L\<^sub>0) = (w \<in> L\<^sub>D) \<and> length (adj_sq\<^sub>w w) \<le> length w)"
-    proof (intro ae_word_lengthI exI allI impI conjI)
-      fix w :: word assume "length w \<ge> 20"
-      then show "adj_sq\<^sub>w w \<in> L\<^sub>0 \<longleftrightarrow> w \<in> L\<^sub>D" by (fact L\<^sub>D_L\<^sub>0_adj_sq_iff)
-      from \<open>length w \<ge> 20\<close> have "length w \<ge> 9" by simp
-      then show "length (adj_sq\<^sub>w w) \<le> length w"
-        by (intro eq_imp_le sh_msbD) (fact adj_sq_sh_pfx_half)
-    qed
-
-    show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear)
-
-    show "computable_in_time t adj_sq\<^sub>w" sorry \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<^term>\<open>t\<close>.\<close>
-  qed
-
-  moreover from time_hierarchy have "L\<^sub>D \<notin> DTIME(t)" ..
-  ultimately show False by contradiction
-qed
-
-(* TODO move to Complexity.thy *)
-lemma DTIME_int: "L\<^sub>1 \<in> DTIME(T\<^sub>1) \<Longrightarrow> L\<^sub>2 \<in> DTIME(T\<^sub>2) \<Longrightarrow> L\<^sub>1 \<inter> L\<^sub>2 \<in> DTIME(\<lambda>n. T\<^sub>1 n + T\<^sub>2 n)" sorry
-
-lemma L0_T: "L\<^sub>0 \<in> DTIME(T)"
-proof -
-  define T' :: "nat \<Rightarrow> real" where "T' \<equiv> \<lambda>n. T n + n^3"
-  from T_cubic obtain n\<^sub>0 where *: "T(n) \<ge> n^3" if "n \<ge> n\<^sub>0" for n by blast
-
-  from time_hierarchy have "L\<^sub>D \<in> DTIME T" ..
-  then have "L\<^sub>0 \<in> DTIME(T')" unfolding T'_def L0_def of_nat_add
-    using SQ_DTIME by (rule DTIME_int)
-  then have "L\<^sub>0 \<in> DTIME(\<lambda>n. 2 * T n)"
-  proof (rule DTIME_mono_ae)
-    fix n assume "n \<ge> n\<^sub>0"
-    then have "T n \<ge> n^3" by (fact *)
-    then show "T' n \<le> real (2 * T n)" unfolding T'_def by (intro of_nat_mono) simp
-  qed
-  then show "L\<^sub>0 \<in> DTIME(T)" unfolding of_nat_mult
-    using T_superlinear by (subst (asm) DTIME_speed_up_eq) linarith
-qed
-
-\<comment> \<open>Alternative proof for \<open>L\<^sub>0 \<in> DTIME(T)\<close> without the need for the Speed-Up Theorem.
-  This version of @{thm DTIME_int} should work, if multiple tapes may be used.\<close>
-
-(* TODO move to Complexity.thy *)
-lemma DTIME_int': "L\<^sub>1 \<in> DTIME(T\<^sub>1) \<Longrightarrow> L\<^sub>2 \<in> DTIME(T\<^sub>2) \<Longrightarrow> L\<^sub>1 \<inter> L\<^sub>2 \<in> DTIME(\<lambda>n. max (T\<^sub>1 n) (T\<^sub>2 n))" sorry
-
-lemma L0_T': "L\<^sub>0 \<in> DTIME(T)"
-proof -
-  let ?T' = "\<lambda>n. real (max (T n) (n^3))"
-  from T_cubic obtain n\<^sub>0 where *: "T(n) \<ge> n^3" if "n \<ge> n\<^sub>0" for n by blast
-
-  from time_hierarchy have "L\<^sub>D \<in> DTIME T" ..
-  then have "L\<^sub>0 \<in> DTIME(?T')" using SQ_DTIME unfolding L0_def of_nat_max by (rule DTIME_int')
-  then show "L\<^sub>0 \<in> DTIME(T)"
-  proof (rule DTIME_mono_ae)
-    fix n assume "n \<ge> n\<^sub>0"
-    with * have "T(n) \<ge> n^3" .
-    then show "T n \<ge> ?T' n" by simp
-  qed
-qed
-
-
-theorem L0_time_hierarchy: "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" using L0_T L0_t ..
-
-theorem dens_L0: "dens L\<^sub>0 n \<le> dsqrt n"
-proof -
-  have "dens L\<^sub>0 n = dens (L\<^sub>D \<inter> SQ) n" unfolding L0_def ..
-  also have "... \<le> dens SQ n" by (subst Int_commute) (rule dens_intersect_le)
-  also have "... = dsqrt n" by (rule dens_SQ)
-  finally show ?thesis .
-qed
-
-lemmas lemma4_6 = L0_time_hierarchy dens_L0
 
 end \<comment> \<open>\<^locale>\<open>tht_sq_assms\<close>\<close>
 

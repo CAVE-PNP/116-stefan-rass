@@ -1036,6 +1036,14 @@ proof -
 qed
 
 
+subsubsection\<open>Intersection of Languages\<close>
+
+lemma DTIME_int:
+  assumes "L\<^sub>1 \<in> DTIME(T\<^sub>1)"
+    and "L\<^sub>2 \<in> DTIME(T\<^sub>2)"
+  shows "L\<^sub>1 \<inter> L\<^sub>2 \<in> DTIME(\<lambda>n. max (T\<^sub>1 n) (T\<^sub>2 n))" sorry
+
+
 subsection\<open>Reductions\<close>
 
 lemma reduce_decides:
