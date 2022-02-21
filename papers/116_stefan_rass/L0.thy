@@ -95,13 +95,13 @@ proof -
     If \<open>M\<^sub>w\<close> accepts, then \<open>M\<close> rejects \<open>w\<close>. If \<open>M\<^sub>w\<close> rejects, then \<open>M\<close> accepts \<open>w\<close>.
     Thus \<open>M\<close> accepts \<open>w\<close>, iff \<open>M\<^sub>w\<close> rejects \<open>w\<close> in time \<open>tcomp\<^sub>w T w\<close>.\<close>
 
-  define L\<^sub>D_P where "L\<^sub>D_P \<equiv> \<lambda>w. let M\<^sub>w = TM_decode_pad w in
+  define LD_P where "LD_P \<equiv> \<lambda>w. let M\<^sub>w = TM_decode_pad w in
     rejects M\<^sub>w w \<and> time_bounded_word T M\<^sub>w w"
 
   obtain M where "time_bounded T M"
-    and *: "\<And>w. if L\<^sub>D_P w then accepts M w else rejects M w" sorry \<comment> \<open>probably out of scope\<close>
+    and *: "\<And>w. if LD_P w then accepts M w else rejects M w" sorry \<comment> \<open>probably out of scope\<close>
   have "decides M L\<^sub>D" unfolding decides_altdef4
-    unfolding LD_def mem_Collect_eq L\<^sub>D_P_def[symmetric] using * ..
+    unfolding LD_def mem_Collect_eq LD_P_def[symmetric] using * ..
   with \<open>time_bounded T M\<close> show "L\<^sub>D \<in> DTIME(T)" by blast
 qed
 
@@ -162,7 +162,7 @@ theorem time_hierarchy: "L\<^sub>D \<in> DTIME(T) - DTIME(t)" using LD_T and LD_
 end \<comment> \<open>\<^locale>\<open>tht_assms\<close>\<close>
 
 
-subsection\<open>The Intermediate Language \<open>L\<^sub>D''\<close>\<close>
+subsection\<open>The Intermediate Language \<open>L\<^sub>D'\<close>\<close>
 
 subsubsection\<open>Encoding\<close>
 
@@ -281,22 +281,22 @@ qed
 
 
 text\<open>Note: this is not intended to replace \<^const>\<open>tht.L\<^sub>D\<close>.
-  Instead, the further proof uses the similarity of \<open>L\<^sub>D\<close> and \<open>L\<^sub>D''\<close>
-  to prove properties of \<open>L\<^sub>D''\<close> via reduction to \<open>L\<^sub>D\<close>.
+  Instead, the further proof uses the similarity of \<open>L\<^sub>D\<close> and \<open>L\<^sub>D'\<close>
+  to prove properties of \<open>L\<^sub>D'\<close> via reduction to \<open>L\<^sub>D\<close>.
 
   Construction: Given a word \<open>w\<close>.
   Split the word \<open>w\<close> into \<open>(l::nat, x::word)\<close> using \<^const>\<open>decode_pair\<close>.
   Define \<open>v\<close> as the \<open>l\<close> most-significant-bits of \<open>x\<close>.
   Remove the arbitrary-length \<open>1\<^sup>+0\<close>-prefix from \<open>v\<close> to retain the pure encoding of \<open>M\<^sub>v\<close>.
-  If \<open>M\<^sub>v\<close> rejects \<open>v\<close> within \<open>T(len(x))\<close> steps, \<open>w \<in> L\<^sub>D''\<close> holds.
+  If \<open>M\<^sub>v\<close> rejects \<open>v\<close> within \<open>T(len(x))\<close> steps, \<open>w \<in> L\<^sub>D'\<close> holds.
 
   Note that in this version, using \<^const>\<open>time_bounded_word\<close> is not possible,
   as the word that determines the time bound (\<open>x\<close>) differs from the input word (\<open>v\<close>).
   For simplicity, a predicate similar to the shorter but equivalent
   term for \<^const>\<open>time_bounded_word\<close> is used (@{thm time_bounded_altdef}).\<close>
 
-definition L\<^sub>D'' :: lang
-  where "L\<^sub>D'' \<equiv> {w.
+definition L\<^sub>D' :: lang
+  where LD'_def: "L\<^sub>D' \<equiv> {w.
       let (l, x) = decode_pair w;
           v = drop (length x - l) x;
           M\<^sub>v = TM_decode_pad v in
@@ -334,45 +334,45 @@ proof (intro allI, ae_intro_nat add: t_cubic)
 qed
 
 
-subsubsection\<open>\<open>L\<^sub>D'' \<notin> DTIME(t)\<close> via Reduction from \<open>L\<^sub>D\<close> to \<open>L\<^sub>D''\<close>\<close>
+subsubsection\<open>\<open>L\<^sub>D' \<notin> DTIME(t)\<close> via Reduction from \<open>L\<^sub>D\<close> to \<open>L\<^sub>D'\<close>\<close>
 
-text\<open>Reduce \<open>L\<^sub>D\<close> to \<open>L\<^sub>D''\<close>:
+text\<open>Reduce \<open>L\<^sub>D\<close> to \<open>L\<^sub>D'\<close>:
     Given a word \<open>w\<close>, construct its counterpart \<open>w' := 1\<^sup>l0x0\<^sup>l\<^sup>+\<^sup>9\<close>, where \<open>l = length w\<close>.
     Decoding \<open>w'\<close> then yields \<open>(l, w)\<close> which results in the intermediate value \<open>v\<close>
-    being equal to \<open>w\<close> in the definition of \<^const>\<open>L\<^sub>D''\<close>.\<close>
+    being equal to \<open>w\<close> in the definition of \<^const>\<open>L\<^sub>D'\<close>.\<close>
 
-definition reduce_LD_LD'' :: "word \<Rightarrow> word"
-  where "reduce_LD_LD'' w \<equiv> encode_pair (length w) w"
+definition reduce_LD_LD' :: "word \<Rightarrow> word"
+  where "reduce_LD_LD' w \<equiv> encode_pair (length w) w"
 
-lemma reduce_LD_LD''_len: "length (reduce_LD_LD'' w) = 4 * length w + 11"
-  unfolding reduce_LD_LD''_def encode_pair_def rev_suffix_len_def by auto
+lemma reduce_LD_LD'_len: "length (reduce_LD_LD' w) = 4 * length w + 11"
+  unfolding reduce_LD_LD'_def encode_pair_def rev_suffix_len_def by auto
 
-lemma reduce_LD_LD''_correct:
+lemma reduce_LD_LD'_correct:
   fixes w
-  defines w'': "w'' \<equiv> reduce_LD_LD'' w"
-  shows "w'' \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> tht.L\<^sub>D"
+  defines w: "w' \<equiv> reduce_LD_LD' w"
+  shows "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> tht.L\<^sub>D"
 proof -
   let ?M\<^sub>w = "TM_decode_pad w"
-  have "w'' \<in> L\<^sub>D'' \<longleftrightarrow> rejects ?M\<^sub>w w \<and> time_bounded_word T ?M\<^sub>w w"
-    unfolding L\<^sub>D''_def w'' reduce_LD_LD''_def mem_Collect_eq decode_encode_pair
+  have "w' \<in> L\<^sub>D' \<longleftrightarrow> rejects ?M\<^sub>w w \<and> time_bounded_word T ?M\<^sub>w w"
+    unfolding LD'_def w reduce_LD_LD'_def mem_Collect_eq decode_encode_pair
     unfolding diff_self_eq_0 drop_0 Let_def prod.case unfolding time_bounded_altdef ..
   also have "... \<longleftrightarrow> w \<in> tht.L\<^sub>D" unfolding tht.LD_def mem_Collect_eq Let_def ..
   finally show ?thesis .
 qed
 
 
-lemma L\<^sub>D''_t: "L\<^sub>D'' \<notin> DTIME(t)"
+lemma LD'_t: "L\<^sub>D' \<notin> DTIME(t)"
 proof (rule ccontr, unfold not_not)
-  let ?f\<^sub>R = reduce_LD_LD''
+  let ?f\<^sub>R = reduce_LD_LD'
 
-  assume "L\<^sub>D'' \<in> DTIME(t)"
+  assume "L\<^sub>D' \<in> DTIME(t)"
   then have "tht.L\<^sub>D \<in> DTIME(t \<circ> l\<^sub>R)" unfolding comp_def
   proof (rule reduce_DTIME')
-    show "ae w. (?f\<^sub>R w \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> tht.L\<^sub>D) \<and> (length (?f\<^sub>R w) \<le> l\<^sub>R (length w))"
+    show "ae w. (?f\<^sub>R w \<in> L\<^sub>D' \<longleftrightarrow> w \<in> tht.L\<^sub>D) \<and> (length (?f\<^sub>R w) \<le> l\<^sub>R (length w))"
     proof (intro ae_conjI ae_everyI)
       fix w
-      from reduce_LD_LD''_correct show "?f\<^sub>R w \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> tht.L\<^sub>D" .
-      from reduce_LD_LD''_len show "length (?f\<^sub>R w) \<le> l\<^sub>R (length w)" unfolding l\<^sub>R_def by simp
+      from reduce_LD_LD'_correct show "?f\<^sub>R w \<in> L\<^sub>D' \<longleftrightarrow> w \<in> tht.L\<^sub>D" .
+      from reduce_LD_LD'_len show "length (?f\<^sub>R w) \<le> l\<^sub>R (length w)" unfolding l\<^sub>R_def by simp
     qed
 
     from t'_ge_t show "ae x. real (t x) \<le> real (t (l\<^sub>R x))"
@@ -380,7 +380,7 @@ proof (rule ccontr, unfold not_not)
 
     show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear)
 
-    show "computable_in_time t reduce_LD_LD''" sorry \<comment> \<open>Assume that \<^const>\<open>reduce_LD_LD''\<close> can be computed in time \<open>O(n)\<close>.\<close>
+    show "computable_in_time t reduce_LD_LD'" sorry \<comment> \<open>Assume that \<^const>\<open>reduce_LD_LD'\<close> can be computed in time \<open>O(n)\<close>.\<close>
   qed
 
   moreover from tht.time_hierarchy have "tht.L\<^sub>D \<notin> DTIME(t \<circ> l\<^sub>R)" ..
@@ -388,9 +388,9 @@ proof (rule ccontr, unfold not_not)
 qed
 
 
-subsubsection\<open>\<open>L\<^sub>D'' \<in> DTIME(T)\<close> via Reduction from \<open>L\<^sub>D''\<close> to \<open>L\<^sub>D\<close>\<close>
+subsubsection\<open>\<open>L\<^sub>D' \<in> DTIME(T)\<close> via Reduction from \<open>L\<^sub>D'\<close> to \<open>L\<^sub>D\<close>\<close>
 
-lemma L\<^sub>D''_T: "L\<^sub>D'' \<in> DTIME(T)"
+lemma LD'_T: "L\<^sub>D' \<in> DTIME(T)"
 proof -
   \<comment> \<open>For now this is a carbon copy of the ``proof'' of this part of the THT (@{thm tht.time_hierarchy}).
 
@@ -405,16 +405,16 @@ proof -
     However, such a construction is not sensible for the current TM model,
     as multiple tapes and arbitrary alphabets would be necessary required.\<close>
 
-  define L\<^sub>D''_P where "L\<^sub>D''_P \<equiv> \<lambda>w. let (l, x) = decode_pair w;
+  define LD'_P where "LD'_P \<equiv> \<lambda>w. let (l, x) = decode_pair w;
           v = drop (length x - l) x;
           M\<^sub>v = TM_decode_pad v in
       rejects M\<^sub>v v \<and> is_final (steps0 (1, <v>\<^sub>t\<^sub>p) M\<^sub>v (tcomp\<^sub>w T x))"
 
   obtain M where "time_bounded T M"
-    and *: "\<And>w. if L\<^sub>D''_P w then accepts M w else rejects M w" sorry (* probably out of scope *)
-  have "decides M L\<^sub>D''" unfolding decides_altdef4
-    unfolding L\<^sub>D''_def mem_Collect_eq L\<^sub>D''_P_def[symmetric] using * ..
-  with \<open>time_bounded T M\<close> show "L\<^sub>D'' \<in> DTIME(T)" by blast
+    and *: "\<And>w. if LD'_P w then accepts M w else rejects M w" sorry (* probably out of scope *)
+  have "decides M L\<^sub>D'" unfolding decides_altdef4
+    unfolding LD'_def mem_Collect_eq LD'_P_def[symmetric] using * ..
+  with \<open>time_bounded T M\<close> show "L\<^sub>D' \<in> DTIME(T)" by blast
 qed
 
 
@@ -423,33 +423,33 @@ subsection\<open>The Hard Language \<open>L\<^sub>0\<close>\<close>
 text\<open>``\<^bold>\<open>Lemma 4.6.\<close> Let \<open>t\<close>, \<open>T\<close> be as in Assumption 4.4 and assume \<open>T(n) \<ge> n\<^sup>3\<close>.
   Then, there exists a language \<open>L\<^sub>0 \<in> DTIME(T) - DTIME(t)\<close> for which \<open>dens\<^sub>L\<^sub>0(x) \<le> \<surd>x\<close>.''\<close>
 
-definition L\<^sub>0'' :: lang
-  where "L\<^sub>0'' \<equiv> L\<^sub>D'' \<inter> SQ"
+definition L\<^sub>0 :: lang
+  where L0_def: "L\<^sub>0 \<equiv> L\<^sub>D' \<inter> SQ"
 
 
-lemma L\<^sub>D''_adj_sq_iff:
+lemma LD'_adj_sq_iff:
   fixes w
   defines w': "w' \<equiv> adj_sq\<^sub>w w"
   assumes len: "length w \<ge> 9"
-  shows "w' \<in> L\<^sub>D'' \<longleftrightarrow> w \<in> L\<^sub>D''"
-  unfolding L\<^sub>D''_def mem_Collect_eq w' len[THEN pair_adj_sq_eq] ..
+  shows "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'"
+  unfolding LD'_def mem_Collect_eq w' len[THEN pair_adj_sq_eq] ..
 
-lemma L\<^sub>D''_L\<^sub>0''_adj_sq_iff:
+lemma LD'_L0_adj_sq_iff:
   fixes w
   defines w': "w' \<equiv> adj_sq\<^sub>w w"
   assumes len: "length w \<ge> 9"
-  shows "w' \<in> L\<^sub>0'' \<longleftrightarrow> w \<in> L\<^sub>D''"
-  unfolding L\<^sub>0''_def w' using len[THEN L\<^sub>D''_adj_sq_iff] adj_sq_word_correct by blast
+  shows "w' \<in> L\<^sub>0 \<longleftrightarrow> w \<in> L\<^sub>D'"
+  unfolding L0_def w' using len[THEN LD'_adj_sq_iff] adj_sq_word_correct by blast
 
-lemma L0''_t: "L\<^sub>0'' \<notin> DTIME(t)"
+lemma L0_t: "L\<^sub>0 \<notin> DTIME(t)"
 proof (rule ccontr, unfold not_not)
-  assume "L\<^sub>0'' \<in> DTIME(t)"
-  then have "L\<^sub>D'' \<in> DTIME(t)"
+  assume "L\<^sub>0 \<in> DTIME(t)"
+  then have "L\<^sub>D' \<in> DTIME(t)"
   proof (rule reduce_DTIME)
-    show "almost_everywhere (\<lambda>w. (adj_sq\<^sub>w w \<in> L\<^sub>0'') = (w \<in> L\<^sub>D'') \<and> length (adj_sq\<^sub>w w) \<le> length w)"
+    show "almost_everywhere (\<lambda>w. (adj_sq\<^sub>w w \<in> L\<^sub>0) = (w \<in> L\<^sub>D') \<and> length (adj_sq\<^sub>w w) \<le> length w)"
     proof (intro ae_word_lengthI exI allI impI conjI)
       fix w :: word assume len: "length w \<ge> 9"
-      from len show "adj_sq\<^sub>w w \<in> L\<^sub>0'' \<longleftrightarrow> w \<in> L\<^sub>D''" by (fact L\<^sub>D''_L\<^sub>0''_adj_sq_iff)
+      from len show "adj_sq\<^sub>w w \<in> L\<^sub>0 \<longleftrightarrow> w \<in> L\<^sub>D'" by (fact LD'_L0_adj_sq_iff)
       from len show "length (adj_sq\<^sub>w w) \<le> length w"
         by (intro eq_imp_le sh_msbD) (fact adj_sq_sh_pfx_half)
     qed
@@ -459,20 +459,20 @@ proof (rule ccontr, unfold not_not)
     show "computable_in_time t adj_sq\<^sub>w" sorry \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<open>O(t(n))\<close>.\<close>
   qed
 
-  moreover have "L\<^sub>D'' \<notin> DTIME(t)" by (fact L\<^sub>D''_t)
+  moreover have "L\<^sub>D' \<notin> DTIME(t)" by (fact LD'_t)
   ultimately show False by contradiction
 qed
 
 
 lemma SQ_DTIME: "SQ \<in> DTIME(\<lambda>n. n^3)" sorry
 
-lemma L0''_T: "L\<^sub>0'' \<in> DTIME(T)"
+lemma L0_T: "L\<^sub>0 \<in> DTIME(T)"
 proof -
   let ?T' = "\<lambda>n. real (max (T n) (n^3))"
 
-  from L\<^sub>D''_T and SQ_DTIME have "L\<^sub>0'' \<in> DTIME(?T')"
-    unfolding L\<^sub>0''_def of_nat_max by (rule DTIME_int)
-  then show "L\<^sub>0'' \<in> DTIME(T)"
+  from LD'_T and SQ_DTIME have "L\<^sub>0 \<in> DTIME(?T')"
+    unfolding L0_def of_nat_max by (rule DTIME_int)
+  then show "L\<^sub>0 \<in> DTIME(T)"
   proof (rule DTIME_mono_ae, ae_intro_nat add: T_cubic)
     fix n :: nat
     have "n \<le> n^3" by simp
@@ -485,17 +485,17 @@ proof -
 qed
 
 
-theorem L0''_time_hierarchy: "L\<^sub>0'' \<in> DTIME(T) - DTIME(t)" using L0''_T L0''_t ..
+theorem L0_time_hierarchy: "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" using L0_T L0_t ..
 
-theorem dens_L0'': "dens L\<^sub>0'' n \<le> dsqrt n"
+theorem dens_L0: "dens L\<^sub>0 n \<le> dsqrt n"
 proof -
-  have "dens L\<^sub>0'' n = dens (L\<^sub>D'' \<inter> SQ) n" unfolding L\<^sub>0''_def ..
+  have "dens L\<^sub>0 n = dens (L\<^sub>D' \<inter> SQ) n" unfolding L0_def ..
   also have "... \<le> dens SQ n" by (subst Int_commute) (rule dens_intersect_le)
   also have "... = dsqrt n" by (rule dens_SQ)
   finally show ?thesis .
 qed
 
-lemmas lemma4_6'' = L0''_time_hierarchy dens_L0''
+lemmas lemma4_6 = L0_time_hierarchy dens_L0
 
 end \<comment> \<open>context \<^locale>\<open>lemma4_6\<close>\<close>
 
@@ -509,7 +509,7 @@ lemma lemma4_6:
     and T_not_0: "ae n. T n \<noteq> 0"
     and t_cubic: "ae n. t n \<ge> n^3"
     and "mono t"
-  defines "L\<^sub>0 \<equiv> lemma4_6.L\<^sub>0'' T"
+  defines L0: "L\<^sub>0 \<equiv> lemma4_6.L\<^sub>0 T"
   shows "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" and "dens L\<^sub>0 n \<le> dsqrt n"
 proof -
   let ?t' = "t \<circ> (\<lambda>n. 4 * n + 11)"
@@ -563,7 +563,7 @@ proof -
     qed
   qed
   then show "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" and "dens L\<^sub>0 n \<le> dsqrt n"
-    unfolding L\<^sub>0_def by (fact lemma4_6.lemma4_6'')+
+    unfolding L0 by (fact lemma4_6.lemma4_6)+
 qed
 
 thm_oracles lemma4_6 \<comment> \<open>shows \<open>skip_proof\<close> (the \<^emph>\<open>oracle\<close> used by \<open>sorry\<close>)\<close>

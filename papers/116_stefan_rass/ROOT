@@ -24,7 +24,6 @@ session "116_stefan_rass" = "HOL-Library" +
     TM_Encoding
     Complexity
     L0
-    LD_Issues
   document_files
     "root.tex"
     "root.bib"
