@@ -4,6 +4,7 @@ session "116_stefan_rass" = "HOL-Library" +
     Universal_Turing_Machine
     "HOL-Computational_Algebra"
     Intro_Dest_Elim
+    "HOL-Eisbach"
   directories
     Supplementary
   theories [quick_and_dirty] (* allow `sorry` *)

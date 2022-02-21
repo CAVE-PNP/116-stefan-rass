@@ -129,7 +129,8 @@ text\<open>Note: this is not intended to replace \<^const>\<open>L\<^sub>D\<clos
 
   Note that in this version, using \<^const>\<open>time_bounded_word\<close> is not possible,
   as the word that determines the time bound (\<open>x\<close>) differs from the input word (\<open>v\<close>).
-  The alternative version shown in @{thm time_bounded_altdef} is used for simplicity.\<close>
+  For simplicity, a predicate similar to the shorter but equivalent
+  term for \<^const>\<open>time_bounded_word\<close> is used (@{thm time_bounded_altdef}).\<close>
 
 definition L\<^sub>D'' :: lang
   where "L\<^sub>D'' \<equiv> {w.
@@ -184,8 +185,8 @@ proof -
   finally show ?thesis .
 qed
 
-
 end \<comment> \<open>context \<^locale>\<open>tht_assms'\<close>\<close>
+
 locale tht_sq_assms' = tht_assms' +
   assumes t_cubic': "ae n. t(n) \<ge> n^3"
 begin
@@ -193,7 +194,7 @@ begin
 lemma mono_comp:
   assumes "mono f" and "mono g"
   shows "mono (f \<circ> g)"
-  using assms by (simp add: mono_def) 
+  using assms by (simp add: mono_def)
 
 lemma l\<^sub>R_mono: "mono l\<^sub>R" unfolding l\<^sub>R_def by (intro monoI) simp
 lemma t_l\<^sub>R_mono: "mono (t \<circ> l\<^sub>R)" using t_mono' l\<^sub>R_mono by (rule mono_comp)
@@ -338,9 +339,7 @@ qed
 
 lemmas lemma4_6'' = L0''_time_hierarchy dens_L0''
 
-end \<comment> \<open>context \<^locale>\<open>tht_sq_assms\<close>\<close>
-
-\<comment> \<open>\<^locale>\<open>tht_assms\<close>\<close>
+end \<comment> \<open>context \<^locale>\<open>tht_sq_assms'\<close>\<close>
 
 
 lemma lemma4_6'':
@@ -376,7 +375,7 @@ proof -
 
     let ?T = "\<lambda>n. real (T n)"
     from T_not_0 have *: "ae n. ?T n \<noteq> 0" by simp
-  
+
     with T_dominates_t' show "(\<lambda>n. t n * log 2 (t n) / T n) \<longlonglongrightarrow> 0"
     proof (rule dominates_mono)
       from t_min show "ae n. \<bar>t n * log 2 (t n)\<bar> \<le> \<bar>t' n * log 2 (t' n)\<bar>"
@@ -384,23 +383,23 @@ proof -
         fix n :: nat
         assume "n \<ge> 2" and "n \<le> t n"
         then have "t n \<ge> 2" by linarith
-  
+
         also have t_t': "t n \<le> t' n" unfolding l\<^sub>R_def t'_def comp_def
           using \<open>mono t\<close> by (elim monoD) linarith
         finally have "t' n \<ge> 2" .
-  
+
         with t_t' \<open>t n \<ge> 2\<close> have log_t_t': "log 2 (t n) \<le> log 2 (t' n)"
           by (subst log_le_cancel_iff) linarith+
-  
+
         have "\<bar>f n * log 2 (f n)\<bar> = f n * log 2 (f n)" if "f n \<ge> 2" for f :: "nat \<Rightarrow> nat"
           using that by force
         note ** = this[of t, OF \<open>t n \<ge> 2\<close>] this[of t', OF \<open>t' n \<ge> 2\<close>]
-  
+
         from t_t' have "t n * log 2 (t n) \<le> t' n * log 2 (t n)"
           using \<open>t n \<ge> 2\<close> by (intro mult_right_mono of_nat_mono) auto
         also from log_t_t' have "... \<le> t' n * log 2 (t' n)"
           using \<open>t n \<ge> 2\<close> by (intro mult_left_mono) linarith+
-        finally 
+        finally
         show "\<bar>t n * log 2 (t n)\<bar> \<le> \<bar>t' n * log 2 (t' n)\<bar>" unfolding ** .
       qed
     qed

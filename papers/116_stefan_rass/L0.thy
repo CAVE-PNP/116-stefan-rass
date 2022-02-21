@@ -28,7 +28,7 @@ locale tht_assms =
   \<comment> \<open>The following assumption is not found in @{cite rassOwf2017} or the primary source @{cite hopcroftAutomata1979},
     but is taken from the AAU lecture slides of \<^emph>\<open>Algorithms and Complexity Theory\<close>.
     \<^footnote>\<open>TODO properly cite this\<close>
-    It patches a hole that allows one to prove \<^term>\<open>False\<close> from the Time Hierarchy Theorem below
+    It patches a hole that allows one to prove \<^const>\<open>False\<close> from the Time Hierarchy Theorem below
     (\<open>time_hierarchy\<close>).
     This is demonstrated in \<^file>\<open>examples/THT_inconsistencies_MWE.thy\<close>.\<close>
     and t_min: "ae n. n \<le> t n"
@@ -51,7 +51,7 @@ next
   then show "ae n. c * t n * log 2 (t n) < T n"
   proof (ae_intro_nat)
     fix n
-    from abs_ge_self and \<open>c \<ge> 0\<close> have "c * x \<le> c * \<bar>x\<bar>" for x by (rule mult_left_mono) 
+    from abs_ge_self and \<open>c \<ge> 0\<close> have "c * x \<le> c * \<bar>x\<bar>" for x by (rule mult_left_mono)
     then have "c * t n * log 2 (t n) \<le> c * \<bar>t n * log 2 (t n)\<bar>" by (subst mult.assoc)
     also assume "... < \<bar>real (T n)\<bar>"
     also have "... = T n" by simp
@@ -138,7 +138,7 @@ qed
 text\<open>\<open>L\<^sub>D\<close>, defined as part of the proof for the Time Hierarchy Theorem.
 
   ``The `diagonal-language' \<open>L\<^sub>D\<close> is thus defined over the alphabet \<open>\<Sigma> = {0, 1}\<close> as
-       \<open>LD := {w \<in> \<Sigma>\<^sup>*: M\<^sub>w halts and rejects w within \<le> T(len(w)) steps}\<close>.    (9)''
+       \<open>L\<^sub>D := {w \<in> \<Sigma>\<^sup>*: M\<^sub>w halts and rejects w within \<le> T(len(w)) steps}\<close>.''
   @{cite rassOwf2017}\<close>
 
 definition L\<^sub>D :: "lang"
@@ -152,7 +152,7 @@ definition L\<^sub>D :: "lang"
   Therefore, the membership of some \<open>w'\<close> with \<open>TM_decode_pad w' = M\<^sub>w\<close>
   is not equivalent to that of \<open>w\<close>.
 
-  To illustrate this, consider a TM that decides word only based on the value of their last bit;
+  For instance, consider a TM that decides words only based on the value of their last bit;
   accepting if it is \<open>1\<close> and rejecting otherwise.
   This TM will reject exactly half of its encodings, causing only these to be members of \<open>L\<^sub>D\<close>.\<close>
 
@@ -185,7 +185,8 @@ proof
 
   obtain M where "time_bounded T M"
     and *: "\<And>w. if L\<^sub>D_P w then accepts M w else rejects M w" sorry (* probably out of scope *)
-  have "decides M L\<^sub>D" unfolding decides_altdef4 LD_def mem_Collect_eq L\<^sub>D_P_def[symmetric] using * ..
+  have "decides M L\<^sub>D" unfolding decides_altdef4
+    unfolding LD_def mem_Collect_eq L\<^sub>D_P_def[symmetric] using * ..
   with \<open>time_bounded T M\<close> show "L\<^sub>D \<in> DTIME(T)" by blast
 
 
@@ -420,7 +421,7 @@ proof -
     then have "T n \<ge> n^3" by (fact *)
     then show "T' n \<le> real (2 * T n)" unfolding T'_def by (intro of_nat_mono) simp
   qed
-  then show "L\<^sub>0 \<in> DTIME(T)" unfolding of_nat_mult                          
+  then show "L\<^sub>0 \<in> DTIME(T)" unfolding of_nat_mult
     using T_superlinear by (subst (asm) DTIME_speed_up_eq) linarith
 qed
 

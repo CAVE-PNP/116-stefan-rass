@@ -94,7 +94,7 @@ lemma suff_large_iff:
 
 text\<open>Relationship of \<^emph>\<open>sufficiently large\<close> and \<^emph>\<open>almost everywhere\<close>\<close>
 
-lemma ae_suff_large: 
+lemma ae_suff_large:
   fixes P :: "'a::{linorder, no_top} \<Rightarrow> bool"
   assumes "ae n. P n"
   shows "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. P n"
@@ -113,7 +113,7 @@ proof -
   from assms obtain n\<^sub>0 where *: "\<forall>n\<ge>n\<^sub>0. P n" by blast
   then have "{n. \<not> P n} \<subseteq> {n. n < n\<^sub>0}" using linorder_le_less_linear by blast
   then show "ae n. P n" unfolding ae_def
-    using finite_Collect_less_nat rev_finite_subset by blast 
+    using finite_Collect_less_nat rev_finite_subset by blast
 qed
 
 lemma ae_suff_large_iff[iff]:
@@ -145,7 +145,7 @@ text\<open>To solve goals like \<open>\<lbrakk>ae n. A n; ae n. B n; ...\<rbrakk
 
 subsection\<open>Asymptotic Domination\<close>
 
-lemma dominates_ae_helper: 
+lemma dominates_ae_helper:
   fixes c :: real
   assumes "c > 0"
     and "T n \<noteq> 0"
