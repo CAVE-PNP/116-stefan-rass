@@ -469,15 +469,18 @@ lemma SQ_DTIME: "SQ \<in> DTIME(\<lambda>n. n^3)" sorry
 lemma L0''_T: "L\<^sub>0'' \<in> DTIME(T)"
 proof -
   let ?T' = "\<lambda>n. real (max (T n) (n^3))"
-  from T_cubic obtain n\<^sub>0 where *: "T(n) \<ge> n^3" if "n \<ge> n\<^sub>0" for n by blast
 
   from L\<^sub>D''_T and SQ_DTIME have "L\<^sub>0'' \<in> DTIME(?T')"
     unfolding L\<^sub>0''_def of_nat_max by (rule DTIME_int)
   then show "L\<^sub>0'' \<in> DTIME(T)"
-  proof (rule DTIME_mono_ae)
-    fix n assume "n \<ge> n\<^sub>0"
-    with * have "T(n) \<ge> n^3" .
-    then show "T n \<ge> ?T' n" by simp
+  proof (rule DTIME_mono_ae, ae_intro_nat add: T_cubic)
+    fix n :: nat
+    have "n \<le> n^3" by simp
+    also assume "n^3 \<le> T(n)"
+    finally have "T(n) \<ge> n" .
+
+    from \<open>T(n) \<ge> n^3\<close> have *: "max (T n) (n ^ 3) = T n" by simp
+    from \<open>T(n) \<ge> n\<close> show "T n \<ge> ?T' n" unfolding * by simp
   qed
 qed
 

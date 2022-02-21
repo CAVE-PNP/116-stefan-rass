@@ -910,9 +910,9 @@ lemma DTIME_aeI:
   shows "L \<in> DTIME(T)"
   using assms by (intro DTIME_ae) blast
 
-lemma DTIME_mono_ae':
+lemma DTIME_mono_tcomp_ae:
   assumes "L \<in> DTIME(t)"
-    and "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. tcomp T n \<ge> tcomp t n"
+    and "ae n. tcomp T n \<ge> tcomp t n"
   shows "L \<in> DTIME(T)"
 proof -
   from \<open>L \<in> DTIME(t)\<close> obtain M where "decides M L" and "time_bounded t M" ..
@@ -933,22 +933,20 @@ proof -
   ultimately show ?thesis by (intro DTIME_ae exI ae_conjI)
 qed
 
-lemma DTIME_mono_ae2:
+lemma DTIME_mono_ae:
   assumes "L \<in> DTIME(t)"
-    and "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T n \<ge> t n"
+    and "ae n. T n \<ge> t n"
   shows "L \<in> DTIME(T)"
   using assms(1)
-proof (rule DTIME_mono_ae')
-  from assms(2) have "ae n. T n \<ge> t n" unfolding ae_suff_large_iff .
-  then have "ae n. tcomp T n \<ge> tcomp t n" using tcomp_mono by (rule ae_mono)
-  then show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. tcomp t n \<le> tcomp T n" unfolding ae_suff_large_iff .
+proof (rule DTIME_mono_tcomp_ae)
+  from \<open>ae n. T n \<ge> t n\<close> show "ae n. tcomp T n \<ge> tcomp t n" using tcomp_mono by (rule ae_mono)
 qed
 
-lemma DTIME_mono_ae:
+lemma DTIME_mono_ae2:
   assumes "L \<in> DTIME(t)"
     and "\<And>n. n\<ge>n\<^sub>0 \<Longrightarrow> T n \<ge> t n"
   shows "L \<in> DTIME(T)"
-  using assms(1) by (rule DTIME_mono_ae2) (use assms(2) in blast)
+  using assms(1) by (rule DTIME_mono_ae) (use assms(2) in blast)
 
 
 subsubsection\<open>Linear Speed-Up\<close>
@@ -1037,6 +1035,13 @@ qed
 
 
 subsubsection\<open>Intersection of Languages\<close>
+
+text\<open>A TM that decides the intersection of two languages \<open>L\<^sub>i\<close> could be constructed as follows:
+  From the membership in \<open>DTIME(T\<^sub>i)\<close> obtain TMs \<open>M\<^sub>i\<close> (with \<open>k\<^sub>i\<close> tapes).
+  Construct \<open>M\<close> as \<open>k\<^sub>1+k\<^sub>2\<close>-tape TM.
+  Copy the input from tape \<open>1\<close> to tape \<open>k\<^sub>1+1\<close> (and reset the head on tape \<open>1\<close> to the start of the input).
+  Assign tapes \<open>1..k\<^sub>1\<close> to \<open>M\<^sub>1\<close> and tapes \<open>k\<^sub>1+1..k\<^sub>1+k\<^sub>2\<close> to \<open>M\<^sub>2\<close> and run both TMs.
+  When both TMs have terminated, accept the word if both TMs have accepted, and reject otherwise.\<close>
 
 lemma DTIME_int:
   assumes "L\<^sub>1 \<in> DTIME(T\<^sub>1)"
@@ -1142,14 +1147,10 @@ proof -
   \<comment> \<open>Part 2: bound the run-time of M (\<^term>\<open>?T'\<close>) by a multiple of the desired time-bound \<^term>\<open>T\<close>.\<close>
   from T_superlinear have "ae n. T n \<ge> 2 * n"
     unfolding ae_suff_large_iff of_nat_mult by (fact superlinearE')
-  with ae_gt_N have "ae n. n \<ge> 1 \<and> T n \<ge> 2 * n" by (rule ae_conjI)
-  with T_l\<^sub>R_mono have "ae n. T n \<le> T (l\<^sub>R n) \<and> n \<ge> 1 \<and> T n \<ge> 2 * n" by (rule ae_conjI)
-  then obtain n\<^sub>0 where n\<^sub>0: "T n \<ge> 2*n" "n \<ge> 1" "T n \<le> T (l\<^sub>R n)" if "n \<ge> n\<^sub>0" for n
-    unfolding ae_suff_large_iff by blast
-
-  have "?T' n \<le> 4 * T (l\<^sub>R n)" if "n \<ge> n\<^sub>0" for n
-  proof -
-    from \<open>n \<ge> n\<^sub>0\<close> have "n \<ge> 1" and "T n \<ge> 2*n" and "T (l\<^sub>R n) \<ge> T(n)" by (fact n\<^sub>0)+
+  with T_l\<^sub>R_mono have "ae n. ?T' n \<le> 4 * T (l\<^sub>R n)"
+  proof (ae_intro_nat)
+    fix n :: nat
+    assume "n \<ge> 1" and "T n \<ge> 2*n" and "T (l\<^sub>R n) \<ge> T(n)"
     then have "n + 1 \<le> 2 * n" by simp
     also have "2 * n = nat \<lceil>2 * n\<rceil>" unfolding ceiling_of_nat nat_int ..
     also from \<open>T n \<ge> 2*n\<close> have "nat \<lceil>2 * n\<rceil> \<le> nat \<lceil>T n\<rceil>" by (intro nat_mono ceiling_mono)
@@ -1173,22 +1174,24 @@ proof -
       finally show "nat \<lceil>T (l\<^sub>R n)\<rceil> \<le> 2 * T (l\<^sub>R n)" .
     qed simp
     also have "... = 4 * T (l\<^sub>R n)" by simp
-    finally show ?thesis .
+    finally show "?T' n \<le> 4 * T (l\<^sub>R n)" .
   qed
-  with \<open>L\<^sub>2 \<in> DTIME(?T')\<close> have "L\<^sub>2 \<in> DTIME(\<lambda>n. 4 * T (l\<^sub>R n))" by (fact DTIME_mono_ae)
+  with \<open>L\<^sub>2 \<in> DTIME(?T')\<close> have "L\<^sub>2 \<in> DTIME(\<lambda>n. 4 * T (l\<^sub>R n))" by (rule DTIME_mono_ae)
 
   then show "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))"
   proof (rule DTIME_speed_up_rev)
-    from T_superlinear have "ae n. T(n)/n \<ge> N" for N unfolding ae_suff_large_iff ..
-    with T_l\<^sub>R_mono have "ae n. T(l\<^sub>R n) \<ge> T(n) \<and> T(n)/n \<ge> N" for N by (rule ae_conjI)
-    then have "ae n. T(l\<^sub>R n)/n \<ge> N" for N
-    proof (rule ae_mono, elim conjE)
-      fix n
-      assume "T(l\<^sub>R n) \<ge> T(n)"
-      assume "N \<le> T(n)/n"
-      also from \<open>T(l\<^sub>R n) \<ge> T(n)\<close> have "... \<le> T(l\<^sub>R n)/n" by (rule divide_right_mono) simp
-      finally show "N \<le> T(l\<^sub>R n)/n" .
-    qed
+    {
+      fix N
+      from T_superlinear have "ae n. T(n)/n \<ge> N" unfolding ae_suff_large_iff ..
+      with T_l\<^sub>R_mono have "ae n. T(l\<^sub>R n)/n \<ge> N"
+      proof (ae_intro_nat)
+        fix n
+        assume "T(l\<^sub>R n) \<ge> T(n)"
+        assume "N \<le> T(n)/n"
+        also from \<open>T(l\<^sub>R n) \<ge> T(n)\<close> have "... \<le> T(l\<^sub>R n)/n" by (rule divide_right_mono) simp
+        finally show "N \<le> T(l\<^sub>R n)/n" .
+      qed
+    }
     then show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(l\<^sub>R n)/n \<ge> N" unfolding ae_suff_large_iff ..
   qed \<comment> \<open>\<^term>\<open>0 < 4\<close> by\<close> simp
 qed
