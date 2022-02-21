@@ -388,7 +388,7 @@ proof (rule ccontr, unfold not_not)
 qed
 
 
-subsubsection\<open>\<open>L\<^sub>D' \<in> DTIME(T)\<close> via Reduction from \<open>L\<^sub>D'\<close> to \<open>L\<^sub>D\<close>\<close>
+subsubsection\<open>\<open>L\<^sub>D' \<in> DTIME(T)\<close> analogous to the THT\<close>
 
 lemma LD'_T: "L\<^sub>D' \<in> DTIME(T)"
 proof -
