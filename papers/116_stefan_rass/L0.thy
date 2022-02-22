@@ -18,7 +18,7 @@ locale tht_assms =
   \<comment> \<open>Additionally, \<open>T n\<close> is assumed not to be zero since in Isabelle,
       \<open>x / 0 = 0\<close> holds over the reals (@{thm division_ring_divide_zero}).
       Thus, the above assumption would trivially hold for \<open>T(n) = 0\<close>.\<close>
-    and T_not_0: "ae n. T n \<noteq> 0"
+    and T_not_0: "MOST n. T n \<noteq> 0"
 
   \<comment> \<open>The following assumption is not found in @{cite rassOwf2017} or the primary source @{cite hopcroftAutomata1979},
     but is taken from the AAU lecture slides of \<^emph>\<open>Algorithms and Complexity Theory\<close>.
@@ -26,25 +26,25 @@ locale tht_assms =
     It patches a hole that allows one to prove \<^const>\<open>False\<close> from the Time Hierarchy Theorem below
     (\<open>time_hierarchy\<close>).
     This is demonstrated in \<^file>\<open>examples/THT_inconsistencies_MWE.thy\<close>.\<close>
-    and t_min: "ae n. n \<le> t n"
+    and t_min: "MOST n. n \<le> t n"
 begin
 
-lemma T_ge_t_log_t_ae:
+lemma T_ge_t_log_t_MOST:
   fixes c :: real
   assumes "c \<ge> 0"
-  shows "ae n. c * t n * log 2 (t n) < T n"
+  shows "MOST n. c * t n * log 2 (t n) < T n"
 proof (cases "c = 0")
   assume "c = 0"
-  from T_not_0 show ?thesis unfolding \<open>c = 0\<close> by (ae_intro_nat) linarith
+  from T_not_0 show ?thesis unfolding \<open>c = 0\<close> by (MOST_intro) linarith
 next
   assume "c \<noteq> 0"
   with \<open>c \<ge> 0\<close> have "c > 0" by simp
-  from T_not_0 have "ae n. real (T n) \<noteq> 0" by (ae_intro_nat) linarith
-  with T_dominates_t and \<open>c > 0\<close> have "ae n. c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>"
+  from T_not_0 have "MOST n. real (T n) \<noteq> 0" by (MOST_intro) linarith
+  with T_dominates_t and \<open>c > 0\<close> have "MOST n. c * \<bar>t n * log 2 (t n)\<bar> < \<bar>real (T n)\<bar>"
     by (subst (asm) dominates_altdef) presburger+
 
-  then show "ae n. c * t n * log 2 (t n) < T n"
-  proof (ae_intro_nat)
+  then show "MOST n. c * t n * log 2 (t n) < T n"
+  proof (MOST_intro)
     fix n
     from abs_ge_self and \<open>c \<ge> 0\<close> have "c * x \<le> c * \<bar>x\<bar>" for x by (rule mult_left_mono)
     then have "c * t n * log 2 (t n) \<le> c * \<bar>t n * log 2 (t n)\<bar>" by (subst mult.assoc)
@@ -54,11 +54,11 @@ next
   qed
 qed
 
-lemma T_gt_t_ae: "ae n. T n > t n"
+lemma T_gt_t_MOST: "MOST n. T n > t n"
 proof -
-  from T_ge_t_log_t_ae[of 1] have "ae n. t n * log 2 (t n) < T n" unfolding mult_1 by argo
-  with t_min show "ae n. T n > t n"
-  proof (ae_intro_nat)
+  from T_ge_t_log_t_MOST[of 1] have "MOST n. t n * log 2 (t n) < T n" unfolding mult_1 by argo
+  with t_min show "MOST n. T n > t n"
+  proof (MOST_intro)
     fix n :: nat
     assume "n \<ge> 2" also assume "t n \<ge> n"
     finally have "t n \<ge> 2" .
@@ -115,7 +115,7 @@ proof -
     let ?n = "length (encode_TM M\<^sub>w) + 2"
     obtain l where "T(2*l) \<ge> t(2*l)" and "clog l \<ge> ?n"
     proof -
-      obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l > t l" for l using T_gt_t_ae by blast
+      obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l > t l" for l using T_gt_t_MOST by blast
       obtain l\<^sub>2 :: nat where l2: "l \<ge> l\<^sub>2 \<Longrightarrow> clog l \<ge> ?n" for l
       proof
         fix l :: nat
@@ -258,7 +258,7 @@ locale lemma4_6 =
   defines "l\<^sub>R \<equiv> \<lambda>n. 4 * n + 11"
   assumes T_dominates_t': "(\<lambda>n. (t \<circ> l\<^sub>R) n * log 2 ((t \<circ> l\<^sub>R) n) / T n) \<longlonglongrightarrow> 0"
     and t_mono: "mono t"
-    and t_cubic: "ae n. t(n) \<ge> n^3"
+    and t_cubic: "MOST n. t(n) \<ge> n^3"
     and tht_assms: "tht_assms T t" (* TODO inline when finalized *)
 begin
 
@@ -270,9 +270,9 @@ lemma t'_ge_t: "t n \<le> (t \<circ> l\<^sub>R) n" unfolding l\<^sub>R_def comp_
 sublocale tht: tht_assms T "t \<circ> l\<^sub>R"
   using tht_assms and T_dominates_t'
 proof (unfold tht_assms_def, elim conjE, intro conjI)
-  assume "ae n. n \<le> t n"
-  thus "ae n. n \<le> (t \<circ> l\<^sub>R) n"
-  proof (ae_intro_nat)
+  assume "MOST n. n \<le> t n"
+  thus "MOST n. n \<le> (t \<circ> l\<^sub>R) n"
+  proof (MOST_intro)
     fix n assume "n \<le> t n"
     also note t'_ge_t
     finally show "n \<le> (t \<circ> l\<^sub>R) n" .
@@ -306,8 +306,8 @@ definition L\<^sub>D' :: lang
 
 subsubsection\<open>Preliminaries\<close>
 
-lemma T_cubic: "ae n. T(n) \<ge> n^3"
-proof (ae_intro_nat add: t_cubic tht.T_gt_t_ae)
+lemma T_cubic: "MOST n. T(n) \<ge> n^3"
+proof (MOST_intro add: t_cubic tht.T_gt_t_MOST)
   fix n assume "n^3 \<le> t n"
   also from t'_ge_t have "... \<le> (t \<circ> l\<^sub>R) n" .
   also assume "... < T n"
@@ -315,7 +315,7 @@ proof (ae_intro_nat add: t_cubic tht.T_gt_t_ae)
 qed
 
 lemma t_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N"
-proof (intro allI, ae_intro_nat add: t_cubic)
+proof (intro allI, MOST_intro add: t_cubic)
   fix N :: real and n :: nat
   assume n_min: "n \<ge> max 1 (nat \<lceil>N\<rceil>)" and "t(n) \<ge> n^3"
 
@@ -368,15 +368,15 @@ proof (rule ccontr, unfold not_not)
   assume "L\<^sub>D' \<in> DTIME(t)"
   then have "tht.L\<^sub>D \<in> DTIME(t \<circ> l\<^sub>R)" unfolding comp_def
   proof (rule reduce_DTIME')
-    show "ae w. (?f\<^sub>R w \<in> L\<^sub>D' \<longleftrightarrow> w \<in> tht.L\<^sub>D) \<and> (length (?f\<^sub>R w) \<le> l\<^sub>R (length w))"
-    proof (intro ae_conjI ae_everyI)
+    show "MOST w. (?f\<^sub>R w \<in> L\<^sub>D' \<longleftrightarrow> w \<in> tht.L\<^sub>D) \<and> (length (?f\<^sub>R w) \<le> l\<^sub>R (length w))"
+    proof (intro eventually_conj eventuallyI)
       fix w
       from reduce_LD_LD'_correct show "?f\<^sub>R w \<in> L\<^sub>D' \<longleftrightarrow> w \<in> tht.L\<^sub>D" .
       from reduce_LD_LD'_len show "length (?f\<^sub>R w) \<le> l\<^sub>R (length w)" unfolding l\<^sub>R_def by simp
     qed
 
-    from t'_ge_t show "ae x. real (t x) \<le> real (t (l\<^sub>R x))"
-      unfolding comp_def by (intro ae_everyI of_nat_mono)
+    from t'_ge_t show "MOST x. real (t x) \<le> real (t (l\<^sub>R x))"
+      unfolding comp_def by (intro eventuallyI of_nat_mono)
 
     show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. t(n)/n \<ge> N" by (fact t_superlinear)
 
@@ -446,8 +446,8 @@ proof (rule ccontr, unfold not_not)
   assume "L\<^sub>0 \<in> DTIME(t)"
   then have "L\<^sub>D' \<in> DTIME(t)"
   proof (rule reduce_DTIME)
-    show "almost_everywhere (\<lambda>w. (adj_sq\<^sub>w w \<in> L\<^sub>0) = (w \<in> L\<^sub>D') \<and> length (adj_sq\<^sub>w w) \<le> length w)"
-    proof (intro ae_word_lengthI exI allI impI conjI)
+    show "MOST w. (adj_sq\<^sub>w w \<in> L\<^sub>0) = (w \<in> L\<^sub>D') \<and> length (adj_sq\<^sub>w w) \<le> length w"
+    proof (intro MOST_word_lengthI exI allI impI conjI)
       fix w :: word assume len: "length w \<ge> 9"
       from len show "adj_sq\<^sub>w w \<in> L\<^sub>0 \<longleftrightarrow> w \<in> L\<^sub>D'" by (fact LD'_L0_adj_sq_iff)
       from len show "length (adj_sq\<^sub>w w) \<le> length w"
@@ -473,7 +473,7 @@ proof -
   from LD'_T and SQ_DTIME have "L\<^sub>0 \<in> DTIME(?T')"
     unfolding L0_def of_nat_max by (rule DTIME_int)
   then show "L\<^sub>0 \<in> DTIME(T)"
-  proof (rule DTIME_mono_ae, ae_intro_nat add: T_cubic)
+  proof (rule DTIME_mono_MOST, MOST_intro add: T_cubic)
     fix n :: nat
     have "n \<le> n^3" by simp
     also assume "n^3 \<le> T(n)"
@@ -506,8 +506,8 @@ lemma lemma4_6:
   defines "t' \<equiv> t \<circ> l\<^sub>R"
   assumes "fully_tconstr T"
     and T_dominates_t': "(\<lambda>n. t' n * log 2 (t' n) / T n) \<longlonglongrightarrow> 0"
-    and T_not_0: "ae n. T n \<noteq> 0"
-    and t_cubic: "ae n. t n \<ge> n^3"
+    and T_not_0: "MOST n. T n \<noteq> 0"
+    and t_cubic: "MOST n. t n \<ge> n^3"
     and "mono t"
   defines L0: "L\<^sub>0 \<equiv> lemma4_6.L\<^sub>0 T"
   shows "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" and "dens L\<^sub>0 n \<le> dsqrt n"
@@ -519,12 +519,12 @@ proof -
     show "(\<lambda>n. ?t' n * log 2 (?t' n) / T n) \<longlonglongrightarrow> 0" by (fold t'_def l\<^sub>R_def) fact
     show "mono t"
       and "fully_tconstr T"
-      and "ae n. T n \<noteq> 0"
-      and "ae n. t n \<ge> n^3"
+      and "MOST n. T n \<noteq> 0"
+      and "MOST n. t n \<ge> n^3"
       by fact+
 
-    from \<open>ae n. t n \<ge> n^3\<close> show t_min: "ae n. t n \<ge> n"
-    proof (ae_intro_nat)
+    from \<open>MOST n. t n \<ge> n^3\<close> show t_min: "MOST n. t n \<ge> n"
+    proof (MOST_intro)
       fix n :: nat
       have "n \<le> n^3" by simp
       also assume "n^3 \<le> t n"
@@ -532,12 +532,12 @@ proof -
     qed
 
     let ?T = "\<lambda>n. real (T n)"
-    from T_not_0 have *: "ae n. ?T n \<noteq> 0" by simp
+    from T_not_0 have *: "MOST n. ?T n \<noteq> 0" by simp
 
     with T_dominates_t' show "(\<lambda>n. t n * log 2 (t n) / T n) \<longlonglongrightarrow> 0"
     proof (rule dominates_mono)
-      from t_min show "ae n. \<bar>t n * log 2 (t n)\<bar> \<le> \<bar>t' n * log 2 (t' n)\<bar>"
-      proof (ae_intro_nat)
+      from t_min show "MOST n. \<bar>t n * log 2 (t n)\<bar> \<le> \<bar>t' n * log 2 (t' n)\<bar>"
+      proof (MOST_intro)
         fix n :: nat
         assume "n \<ge> 2" and "n \<le> t n"
         then have "t n \<ge> 2" by linarith

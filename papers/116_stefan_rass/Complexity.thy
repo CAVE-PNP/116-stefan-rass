@@ -836,19 +836,19 @@ subsection\<open>Classical Results\<close>
 
 subsubsection\<open>Almost Everywhere\<close>
 
-lemma ae_word_length_iff[iff]:
+lemma MOST_word_length_iff[iff]:
   fixes P :: "word \<Rightarrow> bool"
-  shows "almost_everywhere P \<longleftrightarrow> (\<exists>l\<^sub>0. \<forall>w. length w \<ge> l\<^sub>0 \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
+  shows "(MOST w. P w) \<longleftrightarrow> (\<exists>l\<^sub>0. \<forall>w. length w \<ge> l\<^sub>0 \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
 proof
   assume ?rhs
   then obtain l\<^sub>0 where "P w" if "length w \<ge> l\<^sub>0" for w by blast
   then have "\<not> P w \<Longrightarrow> length w < l\<^sub>0" for w by (fold not_le) (rule contrapos_nn)
   then have "{w. \<not> P w} \<subseteq> {w. length w < l\<^sub>0}" by (intro Collect_mono impI)
   moreover have "finite {w::word. length w < l\<^sub>0}" by (rule finite_bin_len_less)
-  ultimately show ?lhs unfolding ae_def by (rule finite_subset)
+  ultimately show ?lhs unfolding eventually_cofinite by (rule finite_subset)
 next
   assume ?lhs
-  then have "finite {x. \<not> P x}" unfolding ae_def .
+  then have "finite {x. \<not> P x}" unfolding eventually_cofinite .
   show ?rhs proof (cases "{x. \<not> P x} = {}")
     assume "{x. \<not> P x} \<noteq> {}"
     define n where "n = Suc (Max (length ` {x. \<not> P x}))"
@@ -866,17 +866,17 @@ next
   qed (* case "{x. \<not> P x} = {}" by *) blast
 qed
 
-lemma ae_word_lengthI[intro]:
+lemma MOST_word_lengthI[intro]:
   fixes P :: "word \<Rightarrow> bool"
   assumes "\<exists>l\<^sub>0. \<forall>w. length w \<ge> l\<^sub>0 \<longrightarrow> P w"
-  shows "almost_everywhere P"
-  unfolding ae_word_length_iff using assms by blast
+  shows "MOST w. P w"
+  unfolding MOST_word_length_iff using assms by blast
 
-lemma ae_word_lengthE[elim]:
+lemma MOST_word_lengthE[elim]:
   fixes P :: "word \<Rightarrow> bool"
-  assumes "almost_everywhere P"
+  assumes "MOST w. P w"
   obtains l\<^sub>0 where "\<And>w. length w \<ge> l\<^sub>0 \<Longrightarrow> P w"
-  using assms unfolding ae_word_length_iff by blast
+  using assms unfolding MOST_word_length_iff by blast
 
 
 text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
@@ -891,12 +891,12 @@ text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
   The lemma is only stated for space bounds,
   but it seems reasonable that a similar construction works on time bounds.\<close>
 
-lemma DTIME_ae:
-  assumes "\<exists>M. ae w. decides_word M L w \<and> time_bounded_word T M w"
+lemma DTIME_MOST:
+  assumes "\<exists>M. MOST w. decides_word M L w \<and> time_bounded_word T M w"
   shows "L \<in> DTIME(T)"
 proof (unfold DTIME_def mem_Collect_eq)
   from assms obtain M'
-    where "ae w. decides_word M' L w \<and> time_bounded_word T M' w" ..
+    where "MOST w. decides_word M' L w \<and> time_bounded_word T M' w" ..
   then obtain l\<^sub>0
     where "decides_word M' L w" and "time_bounded_word T M' w"
     if "length w \<ge> l\<^sub>0" for w by blast
@@ -904,25 +904,25 @@ proof (unfold DTIME_def mem_Collect_eq)
   show "\<exists>M. decides M L \<and> time_bounded T M" sorry
 qed
 
-lemma DTIME_aeI:
+lemma DTIME_MOSTI:
   assumes "\<And>w. length w \<ge> l\<^sub>0 \<Longrightarrow> decides_word M L w"
     and "\<And>w. length w \<ge> l\<^sub>0 \<Longrightarrow> time_bounded_word T M w"
   shows "L \<in> DTIME(T)"
-  using assms by (intro DTIME_ae) blast
+  using assms by (intro DTIME_MOST) blast
 
-lemma DTIME_mono_tcomp_ae:
+lemma DTIME_mono_tcomp_MOST:
   assumes "L \<in> DTIME(t)"
-    and "ae n. tcomp T n \<ge> tcomp t n"
+    and "MOST n. tcomp T n \<ge> tcomp t n"
   shows "L \<in> DTIME(T)"
 proof -
   from \<open>L \<in> DTIME(t)\<close> obtain M where "decides M L" and "time_bounded t M" ..
 
   from assms(2) obtain n\<^sub>0 where Tt: "tcomp T n \<ge> tcomp t n" if "n\<ge>n\<^sub>0" for n by blast
 
-  from \<open>decides M L\<close> have "almost_everywhere (decides_word M L)"
-    by (intro ae_everyI) blast
-  moreover have "almost_everywhere (time_bounded_word T M)"
-  proof (intro ae_word_lengthI exI allI impI)
+  from \<open>decides M L\<close> have "MOST w. decides_word M L w"
+    by (intro eventuallyI) blast
+  moreover have "MOST w. time_bounded_word T M w"
+  proof (intro MOST_word_lengthI exI allI impI)
     fix w :: word
     assume "length w \<ge> n\<^sub>0"
     then have "tape_size <w>\<^sub>t\<^sub>p \<ge> n\<^sub>0" unfolding tape_size_input by simp
@@ -930,23 +930,23 @@ proof -
     moreover from \<open>time_bounded t M\<close> have "time_bounded_word t M w" ..
     ultimately show "time_bounded_word T M w" by (fact time_bounded_word_mono')
   qed
-  ultimately show ?thesis by (intro DTIME_ae exI ae_conjI)
+  ultimately show ?thesis by (intro DTIME_MOST exI eventually_conj)
 qed
 
-lemma DTIME_mono_ae:
+lemma DTIME_mono_MOST:
   assumes "L \<in> DTIME(t)"
-    and "ae n. T n \<ge> t n"
+    and "MOST n. T n \<ge> t n"
   shows "L \<in> DTIME(T)"
   using assms(1)
-proof (rule DTIME_mono_tcomp_ae)
-  from \<open>ae n. T n \<ge> t n\<close> show "ae n. tcomp T n \<ge> tcomp t n" using tcomp_mono by (rule ae_mono)
+proof (rule DTIME_mono_tcomp_MOST)
+  from \<open>MOST n. T n \<ge> t n\<close> show "MOST n. tcomp T n \<ge> tcomp t n" using tcomp_mono by (rule eventually_mono)
 qed
 
-lemma DTIME_mono_ae2:
+lemma DTIME_mono_MOST2:
   assumes "L \<in> DTIME(t)"
     and "\<And>n. n\<ge>n\<^sub>0 \<Longrightarrow> T n \<ge> t n"
   shows "L \<in> DTIME(T)"
-  using assms(1) by (rule DTIME_mono_ae) (use assms(2) in blast)
+  using assms(1) by (rule DTIME_mono_MOST) (use assms(2) in blast)
 
 
 subsubsection\<open>Linear Speed-Up\<close>
@@ -1102,10 +1102,10 @@ lemma reduce_DTIME':
     and f\<^sub>R :: "word \<Rightarrow> word" \<comment> \<open>the reduction\<close>
     and l\<^sub>R :: "nat \<Rightarrow> nat" \<comment> \<open>length bound of the reduction\<close>
   assumes "L\<^sub>1 \<in> DTIME(T)"
-    and f\<^sub>R_ae: "ae w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> l\<^sub>R (length w))"
+    and f\<^sub>R_MOST: "MOST w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> l\<^sub>R (length w))"
     and "computable_in_time T f\<^sub>R"
     and T_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
-    and T_l\<^sub>R_mono: "ae n. T (l\<^sub>R n) \<ge> T(n)" \<comment> \<open>allows reasoning about \<^term>\<open>T\<close> and \<^term>\<open>l\<^sub>R\<close> as if both were \<^const>\<open>mono\<close>.\<close>
+    and T_l\<^sub>R_mono: "MOST n. T (l\<^sub>R n) \<ge> T(n)" \<comment> \<open>allows reasoning about \<^term>\<open>T\<close> and \<^term>\<open>l\<^sub>R\<close> as if both were \<^const>\<open>mono\<close>.\<close>
   shows "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
 proof -
   from \<open>computable_in_time T f\<^sub>R\<close> obtain M\<^sub>R where "computes M\<^sub>R f\<^sub>R" "time_bounded T M\<^sub>R" "tm_wf0 M\<^sub>R" ..
@@ -1114,7 +1114,7 @@ proof -
 
   let ?T' = "\<lambda>n. tcomp (T \<circ> l\<^sub>R) n + tcomp T n"
 
-  from f\<^sub>R_ae obtain l\<^sub>0
+  from f\<^sub>R_MOST obtain l\<^sub>0
     where f\<^sub>R_correct: "f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2"
       and f\<^sub>R_len: "length (f\<^sub>R w) \<le> l\<^sub>R (length w)"
     if "length w \<ge> l\<^sub>0" for w by blast
@@ -1122,7 +1122,7 @@ proof -
   \<comment> \<open>Prove \<^term>\<open>M\<close> to be \<^term>\<open>T\<close>-time-bounded.
     Part 1: show a time-bound for \<^term>\<open>M\<close>.\<close>
   have "L\<^sub>2 \<in> DTIME(?T')"
-  proof (rule DTIME_aeI)
+  proof (rule DTIME_MOSTI)
     fix w :: word
     assume min_len: "length w \<ge> l\<^sub>0"
 
@@ -1145,10 +1145,10 @@ proof -
   (* TODO (?) split proof here *)
 
   \<comment> \<open>Part 2: bound the run-time of M (\<^term>\<open>?T'\<close>) by a multiple of the desired time-bound \<^term>\<open>T\<close>.\<close>
-  from T_superlinear have "ae n. T n \<ge> 2 * n"
-    unfolding ae_suff_large_iff of_nat_mult by (fact superlinearE')
-  with T_l\<^sub>R_mono have "ae n. ?T' n \<le> 4 * T (l\<^sub>R n)"
-  proof (ae_intro_nat)
+  from T_superlinear have "MOST n. T n \<ge> 2 * n"
+    unfolding MOST_suff_large_iff of_nat_mult by (fact superlinearE')
+  with T_l\<^sub>R_mono have "MOST n. ?T' n \<le> 4 * T (l\<^sub>R n)"
+  proof (MOST_intro)
     fix n :: nat
     assume "n \<ge> 1" and "T n \<ge> 2*n" and "T (l\<^sub>R n) \<ge> T(n)"
     then have "n + 1 \<le> 2 * n" by simp
@@ -1176,15 +1176,15 @@ proof -
     also have "... = 4 * T (l\<^sub>R n)" by simp
     finally show "?T' n \<le> 4 * T (l\<^sub>R n)" .
   qed
-  with \<open>L\<^sub>2 \<in> DTIME(?T')\<close> have "L\<^sub>2 \<in> DTIME(\<lambda>n. 4 * T (l\<^sub>R n))" by (rule DTIME_mono_ae)
+  with \<open>L\<^sub>2 \<in> DTIME(?T')\<close> have "L\<^sub>2 \<in> DTIME(\<lambda>n. 4 * T (l\<^sub>R n))" by (rule DTIME_mono_MOST)
 
   then show "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))"
   proof (rule DTIME_speed_up_rev)
     {
       fix N
-      from T_superlinear have "ae n. T(n)/n \<ge> N" unfolding ae_suff_large_iff ..
-      with T_l\<^sub>R_mono have "ae n. T(l\<^sub>R n)/n \<ge> N"
-      proof (ae_intro_nat)
+      from T_superlinear have "MOST n. T(n)/n \<ge> N" unfolding MOST_suff_large_iff ..
+      with T_l\<^sub>R_mono have "MOST n. T(l\<^sub>R n)/n \<ge> N"
+      proof (MOST_intro)
         fix n
         assume "T(l\<^sub>R n) \<ge> T(n)"
         assume "N \<le> T(n)/n"
@@ -1192,14 +1192,14 @@ proof -
         finally show "N \<le> T(l\<^sub>R n)/n" .
       qed
     }
-    then show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(l\<^sub>R n)/n \<ge> N" unfolding ae_suff_large_iff ..
+    then show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(l\<^sub>R n)/n \<ge> N" unfolding MOST_suff_large_iff ..
   qed \<comment> \<open>\<^term>\<open>0 < 4\<close> by\<close> simp
 qed
 
 
 lemma reduce_DTIME: \<comment> \<open>Version of \<open>reduce_DTIME'\<close> with constant length bound (\<^term>\<open>l\<^sub>R = Fun.id\<close>).\<close>
   assumes "L\<^sub>1 \<in> DTIME(T)"
-    and f\<^sub>R_ae: "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> length w))"
+    and f\<^sub>R_MOST: "MOST w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> length w)"
     and "computable_in_time T f\<^sub>R"
     and T_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
   shows "L\<^sub>2 \<in> DTIME(T)" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
