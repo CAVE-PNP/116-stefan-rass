@@ -3,7 +3,7 @@ section\<open>Complexity\<close>
 text\<open>Definitions and lemmas from computational complexity theory.\<close>
 
 theory Complexity
-  imports Goedel_Numbering Language_Density TM_Encoding Asymptotic
+  imports Goedel_Numbering Language_Density TM_Encoding "Supplementary/Asymptotic"
     "Universal_Turing_Machine.UTM"
 begin
 
