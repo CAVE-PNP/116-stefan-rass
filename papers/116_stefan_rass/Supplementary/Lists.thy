@@ -4,7 +4,6 @@ theory Lists
   imports Main
 begin
 
-
 text\<open>Extends \<^theory>\<open>HOL.List\<close>.\<close>
 
 \<comment> \<open>From \<^session>\<open>Universal_Turing_Machine\<close>.\<close>
@@ -152,5 +151,50 @@ proof -
   also have "... = min (length xs) m - n" by (fact card_atLeastLessThan)
   finally show ?thesis .
 qed
+
+subsection \<open>Trimming words\<close>
+
+abbreviation "trimLeft b xs \<equiv> dropWhile (\<lambda>x. x = b) xs"
+abbreviation "trimRight b xs \<equiv> rev (trimLeft b (rev xs))"
+definition "trim b xs \<equiv> trimRight b (trimLeft b xs)"
+
+lemma trim_nil[simp]: "trim b [] = []"
+  unfolding trim_def by simp
+
+lemma trim_left[simp]: "trim b (b # xs) = trim b xs"
+  unfolding trim_def by simp
+
+lemma trim_right[simp]: "trim b (xs @ [b]) = trim b xs"
+  unfolding trim_def by (induction xs) auto
+
+lemma trim_left_neq: "x \<noteq> b \<Longrightarrow> trim b (x # xs) = x # trimRight b xs"
+  unfolding trim_def by (simp add: dropWhile_append3)
+
+lemma trim_right_neq: "x \<noteq> b \<Longrightarrow> trim b (xs @ [x]) = trimLeft b xs @ [x]"
+  unfolding trim_def by (simp add: dropWhile_append3)
+
+lemma trim_rev: "trim b (rev xs) = rev (trim b xs)"
+unfolding rev_is_rev_conv proof (induction xs)
+  case (Cons x xs)
+  then show ?case proof (cases "x = b")
+    case True
+    from True have 1: "trim b (rev (x # xs)) = trim b (rev xs)" by simp
+    from True have 2: "rev (trim b (x # xs)) = rev (trim b xs)" by simp
+    show ?thesis unfolding 1 2 by fact
+  next
+    case False
+    have 1: "trim b (rev (x # xs)) = trimLeft b (rev xs) @ [x]"
+      using trim_right_neq[OF False] by simp
+    have 2: "rev (trim b (x # xs)) = trimLeft b (rev xs) @ [x]"
+      using trim_left_neq[OF False] by simp
+    show ?thesis unfolding 1 2 ..
+  qed
+qed simp
+
+lemma trim_comm: "trimLeft b (trimRight b xs) = trimRight b (trimLeft b xs)"
+  using trim_rev unfolding trim_def by fast
+
+lemma trim_idem [simp]: "trim b (trim b xs) = trim b xs"
+  unfolding trim_def trim_comm by simp
 
 end
