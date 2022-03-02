@@ -15,6 +15,11 @@ lemma set_replicate_subset: "set (x \<up> n) \<subseteq> {x}" by auto
 lemma map2_replicate: "map2 f (x \<up> n) ys = map (f x) (take n ys)"
   unfolding zip_replicate1 map_map by simp
 
+lemma replicate_set_eq: "set xs \<subseteq> {x} \<longleftrightarrow> (\<exists>n. xs = x \<up> n)"
+  by (metis (no_types, opaque_lifting)
+      bot.extremum_uniqueI insert_absorb replicate_0 replicate_eqI
+      set_empty2 set_replicate_subset singleton_insert_inj_eq subset_insert)
+
 lemma map2_singleton:
   assumes "set xs \<subseteq> {x}" and "length xs = length ys"
   shows "map2 f xs ys = map (f x) ys"
@@ -194,7 +199,32 @@ qed simp
 lemma trim_comm: "trimLeft b (trimRight b xs) = trimRight b (trimLeft b xs)"
   using trim_rev unfolding trim_def by fast
 
-lemma trim_idem [simp]: "trim b (trim b xs) = trim b xs"
+lemma trim_idem[simp]: "trim b (trim b xs) = trim b xs"
   unfolding trim_def trim_comm by simp
+
+lemma trim_replicate[simp]: "trim b (b \<up> n) = []"
+  by (induction n) auto
+
+lemma trim_nil_set: "trim b xs = [] \<Longrightarrow> set xs \<subseteq> {b}"
+proof (induction xs)
+  case (Cons x xs)
+  have "x = b" proof (rule ccontr)
+    assume "x \<noteq> b"
+    then have "trim b (x # xs) = x # trimRight b xs" by (rule trim_left_neq)
+    with Cons(2) show False by simp
+  qed
+  with Cons show ?case by simp
+qed simp
+
+lemma trim_nil_eq: "trim b xs = [] \<longleftrightarrow> (\<exists>n. xs = b \<up> n)"
+proof
+  assume "\<exists>n. xs = b \<up> n"
+  then obtain n where "xs = b \<up> n" ..
+  thus "trim b xs = []" by simp
+next
+  assume "trim b xs = []"
+  hence "set xs \<subseteq> {b}" by (rule trim_nil_set)
+  with replicate_set_eq show "\<exists>n. xs = b \<up> n" ..
+qed
 
 end
