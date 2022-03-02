@@ -1,7 +1,7 @@
 section\<open>Lists\<close>
 
 theory Lists
-  imports Main
+  imports Main Misc "HOL-Library.Sublist"
 begin
 
 text\<open>Extends \<^theory>\<open>HOL.List\<close>.\<close>
@@ -76,16 +76,19 @@ proof -
   then show "infinite X" using finite_maxlen by (rule contrapos_nn)
 qed
 
-abbreviation "pad n x xs \<equiv> xs @ x \<up> (n - length xs)"
+(* TODO this should be a definition *)
+abbreviation pad :: "nat \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a list"
+  where "pad n x xs \<equiv> xs @ x \<up> (n - length xs)"
 
-lemma pad_length: "length (pad n x xs) = max n (length xs)"
-  by simp
+lemma pad_length: "length (pad n x xs) = max n (length xs)" by simp
+lemma pad_le_length[simp]: "length xs \<le> n \<Longrightarrow> length (pad n x xs) = n" by simp
+lemma pad_ge_length[simp]: "length xs \<ge> n \<Longrightarrow> pad n x xs = xs" by simp
 
-lemma pad_le_length[simp]: "length xs \<le> n \<Longrightarrow> length (pad n x xs) = n"
-  by simp
+lemma pad_prefix: "prefix xs (pad n x xs)" by simp
 
 
 \<comment> \<open>\<open>ends_in\<close> - an alternative to \<^const>\<open>last\<close>.\<close>
+(* TODO this should be a definition *)
 abbreviation (input) ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" where
   "ends_in x xs \<equiv> (\<exists>ys. xs = ys @ [x])"
 
@@ -226,5 +229,90 @@ next
   hence "set xs \<subseteq> {b}" by (rule trim_nil_set)
   with replicate_set_eq show "\<exists>n. xs = b \<up> n" ..
 qed
+
+
+text\<open>A version of \<^const>\<open>nth\<close> with a default value; if the requested element is not in the list,
+  the default value is returned instead.\<close>
+
+definition nth_or :: "nat \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a"
+  where "nth_or n x xs \<equiv> if n < length xs then xs ! n else x"
+
+lemma nth_or_simps:
+  shows nth_or_Nil: "nth_or n x [] = x"
+    and nth_or_val: "n < length xs \<Longrightarrow> nth_or n x xs = xs ! n"
+  unfolding nth_or_def by auto
+
+
+text\<open>Force a list to a given length; truncate if too long, and pad with the default value if too short.\<close>
+
+definition take_or :: "nat \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a list"
+  where "take_or n x xs \<equiv> pad n x (take n xs)"
+
+lemma take_or_length[simp]: "length (take_or n x xs) = n" unfolding take_or_def by force
+lemma take_or_id: "length xs = n \<Longrightarrow> take_or n x xs = xs" unfolding take_or_def by simp
+
+lemma take_or_altdef: "take_or n x xs = take n xs @ x \<up> (n - length xs)"
+proof (cases "length xs \<ge> n")
+  assume "length xs \<ge> n"
+  then have "length (take n xs) \<ge> n" by simp
+  with \<open>length xs \<ge> n\<close> show ?thesis unfolding take_or_def by force
+next
+  assume "\<not> length xs \<ge> n" hence "length xs < n" by simp
+  then have *: "take n xs = xs" by simp
+  show ?thesis unfolding take_or_def * ..
+qed
+
+
+text\<open>Force a list \<open>xs\<close> to match the length of another list \<open>ys\<close>;
+  truncate if \<open>xs\<close> is longer than \<open>ys\<close>, insert corresponding values from \<open>ys\<close> if \<open>xs\<close> is shorter.
+  Can also be interpreted as overwriting \<open>ys\<close> with values from \<open>xs\<close>;
+  if \<open>xs\<close> is longer the additional values are ignored,
+  if \<open>xs\<close> is shorter \<open>ys\<close> will retain some of its original values.\<close>
+
+(* TODO find a more intuitive name *)
+definition overwrite :: "'a list \<Rightarrow> 'a list \<Rightarrow> 'a list"
+  where "overwrite xs ys \<equiv> take (length ys) xs @ drop (length xs) ys"
+
+lemma overwrite_length: "length (overwrite xs ys) = length ys"
+proof -
+  let ?lx = "length xs" and ?ly = "length ys"
+  have "length (overwrite xs ys) = min ?lx ?ly + (?ly - ?lx)" unfolding overwrite_def by simp
+  also have "... = ?ly" by (cases "?ly \<ge> ?lx") auto
+  finally show ?thesis .
+qed
+
+lemma overwrite_id: "length xs = length ys \<Longrightarrow> overwrite xs ys = xs" unfolding overwrite_def by simp
+lemma overwrite_nth1: "n < min (length xs) (length ys) \<Longrightarrow> overwrite xs ys ! n = xs ! n"
+  unfolding overwrite_def nth_append by simp
+
+lemma overwrite_nth2:
+  assumes "n < length ys"
+    and "n \<ge> min (length xs) (length ys)"
+  shows "overwrite xs ys ! n = ys ! n"
+proof -
+  let ?lx = "length xs" and ?ly = "length ys"
+  from assms have "?lx \<le> ?ly" by linarith
+  then have lm: "min ?lx ?ly = ?lx" by force
+  then have lt: "length (take ?ly xs) = ?lx" by force
+  from \<open>n \<ge> min ?lx ?ly\<close> have "n \<ge> ?lx" unfolding lm .
+
+  from \<open>n \<ge> min ?lx ?ly\<close> have "\<not> n < length (take ?ly xs)" unfolding length_take by (rule leD)
+  then have "overwrite xs ys ! n = drop ?lx ys ! (n - ?lx)"
+    unfolding overwrite_def nth_append lt by presburger
+  also have "... = ys ! n" unfolding nth_drop[OF \<open>?lx \<le> ?ly\<close>] le_add_diff_inverse[OF \<open>n \<ge> ?lx\<close>] ..
+  finally show ?thesis .
+qed
+
+lemma overwrite_nth:
+  assumes "n < length ys" \<comment> \<open>to ensure there is a \<^const>\<open>nth\<close> element.\<close>
+  shows "overwrite xs ys ! n = (if n < min (length xs) (length ys) then xs ! n else ys ! n)"
+proof (rule ifI)
+  assume "n < min (length xs) (length ys)"
+  thus "overwrite xs ys ! n = xs ! n" by (rule overwrite_nth1)
+next
+  assume "\<not> n < min (length xs) (length ys)"
+  thus "overwrite xs ys ! n = ys ! n" by (intro overwrite_nth2[OF assms]) (rule leI)
+qed
+
 
 end

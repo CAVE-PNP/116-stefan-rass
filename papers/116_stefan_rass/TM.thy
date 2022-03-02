@@ -1,97 +1,230 @@
-section\<open>Turing Machines\<close>
+section\<open>A Theory of Turing Machines\<close>
 
 theory TM
   imports Main "Supplementary/Misc" "Supplementary/Lists" "Supplementary/Option_S"
     "Intro_Dest_Elim.IHOL_IDE" "HOL-Library.Countable_Set"
 begin
 
-section\<open>Turing Machines\<close>
 
 subsection\<open>Prerequisites\<close>
 
+text\<open>We introduce the locale \<open>TM_abbrevs\<close> to scope local abbreviations.
+  The idea for this is from the Style Guide for Contributors to IsarMathLib\<^footnote>\<open>\<^url>\<open>https://www.nongnu.org/isarmathlib/IsarMathLib/CONTRIBUTING.html\<close>\<close>.\<close>
+locale TM_abbrevs
+
+(* TODO consider extracting these to some other theory *)
 type_synonym ('symbol) word = "'symbol list"
 type_synonym ('symbol) lang = "'symbol word set"
 
+
+subsubsection\<open>Symbols\<close>
+
 text\<open>Symbols on the tape are represented by \<^typ>\<open>'symbol option\<close>,
-  where \<^const>\<open>None\<close> represents a "blank" tape-cell.
+  where \<^const>\<open>None\<close> represents a \<^emph>\<open>blank\<close> tape-cell.
+  This enables clear distinction between the symbols used by TM computations and those for TM inputs.
+  Allowing TM input terms to contain \<^emph>\<open>blanks\<close> makes reasoning about TM computations harder,
+  since TMs could not reasonably distinguish between the end of the input
+  and a sequence of blanks as part of the input.\<close>
 
-  This enables clear distinction between the symbols used by TM computations
-  and those for TM inputs. Allowing TM input terms to contain "blanks"
-  makes reasoning about TM computations harder, since TMs could not reasonably
-  differentiate between the end of the input and a sequence of blanks as part of the input.\<close>
 type_synonym ('symbol) tp_symbol = "'symbol option"
-abbreviation "Bk \<equiv> None"
+abbreviation blank_symbol :: "('symbol) tp_symbol" where "blank_symbol \<equiv> None"
+abbreviation (in TM_abbrevs) "Bk \<equiv> blank_symbol"
+(* TODO consider notation, for instance "\<box>" ("#" is possible, but annoying, as it is used for lists) *)
+
+text\<open>In the following, we will also refer to the type of symbols (\<open>'symbol\<close> here)
+  with the short form \<open>'s\<close>, and in locales with the generic \<open>'a\<close>%
+  \<^footnote>\<open>When extending Isabelle locales, all type variables get replaced by generic ones (\<open>'a, 'b, 'c, ...\<close>)\<close>.\<close>
 
 
-subsection\<open>Actions\<close>
+subsubsection\<open>Tape Head Movement\<close>
 
-text\<open>We define TM actions (per tape) as either
-  moving the TM head one cell (left \<open>L\<close>, right \<open>R\<close>),
-  writing a symbol (\<open>W \<sigma>\<close>) to the cell currently under the TM head ("current cell"),
-  or doing nothing (\<open>Nop\<close>).
+text\<open>We define TM tape head moves as either shifting the TM head one cell (left \<open>L\<close>, right \<open>R\<close>),
+  or doing nothing (\<open>N\<close>).
+  \<open>N\<close> seems redundant, since for single-tape TMs it can be simulated by moving the head back-and-forth
+  or just leaving out any step that performs \<open>N\<close> (integrate into the preceding step).
+  However, for multi-tape TMs, these simple replacements do not work.
 
-  \<open>Nop\<close> is somewhat redundant, since it can be simulated by moving the head back-and-forth
-  and for single-tape TMs, any step that performs \<open>Nop\<close> can just be left out.
-  However, this\<close>
-datatype ('symbol) action = L | R | W "'symbol tp_symbol" | Nop
+  \<^emph>\<open>Moving the TM head\<close> is equivalent to shifting the entire tape under the head.
+  This is how we implement the head movement.\<close>
 
-fun symbol_of_write :: "'symbol action \<Rightarrow> 'symbol tp_symbol" where
-  "symbol_of_write (W w) = w" | "symbol_of_write _ = None"
+datatype head_move = Shift_Left | Shift_Right | No_Shift
 
-lemma symbol_of_write_def: "symbol_of_write a = (case a of W w \<Rightarrow> w | _ \<Rightarrow> None)"
-  by (induction a) auto
-
-
-fun action_app :: "('s1 tp_symbol \<Rightarrow> 's2 tp_symbol) \<Rightarrow> 's1 action \<Rightarrow> 's2 action" where
-  "action_app _ L = L"
-| "action_app _ R = R"
-| "action_app f (W x) = W (f x)"
-| "action_app _ Nop = Nop"
-
-abbreviation action_map_app :: "('s1 \<Rightarrow> 's2) \<Rightarrow> 's1 action \<Rightarrow> 's2 action" where
-  "action_map_app f \<equiv> action_app (map_option f)"
-
-lemma action_map_app_same[simp]:
-  fixes f :: "'s \<Rightarrow> 's"
-  shows "action_map_app f a = (case a of W w \<Rightarrow> W (map_option f w) | _ \<Rightarrow> a)"
-  by (induction a) auto
-
-lemma symbol_action_app[simp]:
-  fixes g :: "('s1 tp_symbol \<Rightarrow> 's2 tp_symbol)" and A :: "'s1 action set"
-  assumes "g Bk = Bk"
-  shows "symbol_of_write ` (action_app g ` A) = g ` symbol_of_write ` A"
-proof -
-  from assms have "symbol_of_write (action_app g a) = g (symbol_of_write a)" for a :: "'s1 action"
-    by (induction a) simp_all
-  then show ?thesis unfolding image_image by simp
-qed
-
-lemma symbol_action_map_app[simp]:
-  fixes g :: "('s1 \<Rightarrow> 's2)" and A :: "'s1 action set"
-  shows "symbol_of_write ` (action_map_app g ` A) = map_option g ` symbol_of_write ` A"
-  by (intro symbol_action_app) simp
+abbreviation (in TM_abbrevs) "L \<equiv> Shift_Left"
+abbreviation (in TM_abbrevs) "R \<equiv> Shift_Right"
+abbreviation (in TM_abbrevs) "N \<equiv> No_Shift"
 
 
-subsection\<open>Tapes\<close>
+subsection\<open>Turing Machines\<close>
+
+text\<open>We model a (deterministic \<open>k\<close>-tape) TM over the type \<^typ>\<open>'q\<close> of states
+  and the finite type \<^typ>\<open>'s\<close> of symbols, as a tuple of:\<close>
+
+(* the inclusion of accepting states at this point seems somewhat arbitrary.
+ * consider applying the "labelling" pattern used by Forster et al.,
+ * as this would allow more advanced extensions, such as oracles as well *)
+
+record ('q, 's::finite) TM_record =
+  tape_count :: nat \<comment> \<open>\<open>k\<close>, the number of tapes\<close>
+  states :: "'q set" \<comment> \<open>\<open>Q\<close>, the set of states\<close>
+  initial_state  :: 'q \<comment> \<open>\<open>q\<^sub>0 \<in> Q\<close>, the initial state; computation will start on \<open>k\<close> blank tapes in this state\<close>
+  final_states :: "'q set" \<comment> \<open>\<open>F \<subseteq> Q\<close>, the set of final states; if a TM is in a final state,
+    its computation is considered finished (the TM has halted) and no further steps will be executed\<close>
+  accepting_states :: "'q set" \<comment> \<open>\<open>F\<^sup>+ \<subseteq> F\<close>, the set of accepting states; if a TM halts in an accepting state,
+    it is considered to have accepted the input\<close>
+  transition :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> 'q \<times> ('s tp_symbol \<times> head_move) list" \<comment> \<open>\<open>\<delta>\<close>,
+    the transition function that maps the current state and vector of read symbols
+    to a next state and a vector of actions;
+    each tape is assigned a symbol to write and a tape head \<^typ>\<open>head_move\<close> afterwards\<close>
+
+text\<open>The elements of type \<^typ>\<open>'s\<close> comprise the TM's input alphabet,
+  and the wrapper \<^typ>\<open>'s tp_symbol\<close> represent its working alphabet, including the \<^const>\<open>blank_symbol\<close>.
+
+  As Isabelle does not provide dependent types, the transition function is not actually defined
+  for vectors/tuples, but lists instead.
+  As a result, the returned lists are not guaranteed to have \<open>k\<close> elements, as required.
+  To avoid complex requirements for this function, we apply a trick similar to one used by Xu et. al.:
+  invalid return values are ignored. Elements beyond the \<open>k\<close>-th will not be considered,
+  and missing actions will be assumed to have no effect (write the same symbol that was read, do not move head).\<close>
+
+
+subsubsection\<open>A Type of Turing Machines\<close>
+
+text\<open>To use TMs conveniently, we setup a type and a locale as follows:
+
+  \<^item> We have defined the structure of TMs as a record.
+  \<^item> We define our validity predicate over \<open>TM_record\<close> as a locale, as this allows more convenient access to the axioms.
+  \<^item> From the predicate, a type of (valid) TMs is defined.
+  \<^item> Using the type, we set up definitions and lemmas concerning TMs within a locale.
+    The locale allows convenient access to the internals of TMs.
+
+  A simpler form of this pattern has been used to define the type of filters (\<^typ>\<open>'a filter\<close>).\<close>
+
+locale is_valid_TM =
+  fixes M :: "('q, 's::finite) TM_record" (structure)
+  assumes at_least_one_tape: "1 \<le> tape_count M" (* TODO motivate this assm. "why is this necessary?" *)
+    and state_axioms: "finite (states M)" "initial_state M \<in> states M"
+      "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
+
+text\<open>To define a type, we must prove that it is inhabited (there exist elements that have this type).
+  For this we define the trivial ``rejecting TM'', and prove it to be valid.\<close>
+
+definition "rejecting_TM_rec a \<equiv> \<lparr>
+  tape_count = 1,
+  states = {a}, initial_state = a, final_states = {a}, accepting_states = {},
+  transition = (\<lambda>q hds. (a, [(blank_symbol, No_Shift)]))
+\<rparr>"
+
+lemma rejecting_TM_valid: "is_valid_TM (rejecting_TM_rec a)"
+    by (unfold_locales, unfold rejecting_TM_rec_def TM_record.simps) blast+
+
+text\<open>The type \<open>TM\<close> is then defined as the set of valid \<open>TM_record\<close>s.\<close>
+(* TODO elaborate on the implications of this *)
+
+typedef ('q, 's::finite) TM = "{M :: ('q, 's) TM_record. is_valid_TM M}"
+  using rejecting_TM_valid by fast
+
+locale TM = TM_abbrevs +
+  (* TODO find out what `(structure)` actually does. according to isar-ref.pdf,
+   *      it allows the element to "be referenced implicitly in this context",
+   *      but i have not yet seen any difference *)
+  fixes M :: "('q, 's::finite) TM"
+begin
+
+abbreviation "M_rec \<equiv> Rep_TM M"
+abbreviation tape_count where "tape_count \<equiv> TM_record.tape_count M_rec"
+abbreviation states where "states \<equiv> TM_record.states M_rec"
+abbreviation initial_state where "initial_state \<equiv> TM_record.initial_state M_rec"
+abbreviation final_states where "final_states \<equiv> TM_record.final_states M_rec"
+abbreviation accepting_states ("F\<^sup>+") where "F\<^sup>+ \<equiv> TM_record.accepting_states M_rec"
+abbreviation rejecting_states ("F\<^sup>-") where "F\<^sup>- \<equiv> final_states - accepting_states"
+abbreviation transition where "transition \<equiv> TM_record.transition M_rec"
+
+text\<open>The following abbreviations are not modelled as notation,
+  as notation is not transferred when interpreting locales (see below).\<close>
+
+abbreviation "k \<equiv> tape_count"
+abbreviation "Q \<equiv> states"
+abbreviation "q\<^sub>0 \<equiv> initial_state"
+abbreviation "F \<equiv> final_states"
+abbreviation "F\<^sub>A \<equiv> accepting_states"
+abbreviation "F\<^sub>R \<equiv> rejecting_states"
+abbreviation "\<delta> \<equiv> transition"
+
+text\<open>We provide the following shortcuts for ``unpacking'' the transition function.
+  \<open>hds\<close> refers to the symbols currently under the TM heads.\<close>
+
+definition [simp]: "no_action hds \<equiv> map (\<lambda>hd. (hd, N)) hds"
+
+definition [simp]: "next_state q hds \<equiv> fst (\<delta> q hds)"
+definition [simp]: "next_actions q hds \<equiv> overwrite (snd (\<delta> q hds)) (no_action hds)"
+abbreviation "next_writes q hds \<equiv> map fst (next_actions q hds)"
+abbreviation "next_moves q hds \<equiv> map snd (next_actions q hds)"
+
+(* TODO consider replacing nth "xs ! n" here as it is "nonexhaustive" which makes it somewhat harder to use *)
+abbreviation "next_action q hds n \<equiv> (next_actions q hds) ! n"
+abbreviation "next_write q hds n \<equiv> fst (next_action q hds n)"
+abbreviation "next_move q hds n \<equiv> snd (next_action q hds n)"
+
+
+subsubsection\<open>Properties\<close>
+
+sublocale is_valid_TM M_rec using Rep_TM .. \<comment> \<open>The axioms of \<^locale>\<open>is_valid_TM\<close> hold by definition.\<close>
+thm at_least_one_tape state_axioms
+
+lemma next_actions_length: "length (next_actions q hds) = length hds"
+  by (simp add: overwrite_length)
+
+
+end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
+
+
+text\<open>The following code showcases the usage of TM concepts in this draft:\<close>
+
+notepad
+begin
+  fix M M\<^sub>1 :: "('q, 's::finite) TM"
+
+  interpret TM M .
+  term \<delta>
+  term transition
+  thm state_axioms
+
+  text\<open>Note that \<^emph>\<open>notation\<close> like \<open>F\<^sup>+\<close> is not available.\<close>
+
+  interpret M\<^sub>1: TM M\<^sub>1 .
+  term M\<^sub>1.\<delta>
+  term M\<^sub>1.transition
+  thm M\<^sub>1.state_axioms
+end
+
+
+subsection\<open>Configuration and State\<close>
+
+subsubsection\<open>Tapes\<close>
 
 text\<open>We describe a TM tape as a record containing:
-    \<open>head\<close>, the symbol currently under the TM head, and
-    \<open>left\<close>/\<open>right\<close>, the lists of symbols currently left/right of the TM head.
+
+  \<^item> \<open>head\<close>, the symbol currently under the TM head, and
+  \<^item> \<open>left\<close>/\<open>right\<close>, the lists of symbols currently left/right of the TM head.
+
   For both \<open>left\<close> and \<open>right\<close>, the \<open>n\<close>-th element represents the symbol reached
-  by \<open>n\<close> consecutive moves left (\<^const>\<open>L\<close>) or right (\<^const>\<open>R\<close>) resp.
+  by \<open>n\<close> consecutive moves left (\<^const>\<open>Shift_Left\<close>) or right (\<^const>\<open>Shift_Right\<close>) resp.
   The tape is assumed to be infinite in both directions (containing blanks),
-  so blanks will be inserted into the record if the TM crosses the "ends".
+  so blanks will be inserted into the record if the TM crosses the ``ends''.
 
   We chose this approach as compared to letting the symbol under the head
-  be the first element of \<open>right\<close> (see Xu et al.), as it enables symmetry for move-actions.\<close>
+  be the first element of \<open>right\<close> (see Xu et al.), as it allows symmetry for move-actions.\<close>
+
+(* TODO consider putting left,right,head in TM_abbrevs *)
 record 's tape =
   left :: "'s tp_symbol list"
   head :: "'s tp_symbol"
   right :: "'s tp_symbol list"
 
-fun tape_app :: "('s1 option \<Rightarrow> 's2 option) \<Rightarrow> 's1 tape \<Rightarrow> 's2 tape" where
+fun tape_app :: "('s1 tp_symbol \<Rightarrow> 's2 tp_symbol) \<Rightarrow> 's1 tape \<Rightarrow> 's2 tape" where
   "tape_app f \<lparr> left = l, head = h, right = r \<rparr> = \<lparr> left = map f l, head = f h, right = map f r \<rparr>"
 
+(* should be a definition. find a better name *)
 abbreviation tape_map_app :: "('s1 \<Rightarrow> 's2) \<Rightarrow> 's1 tape \<Rightarrow> 's2 tape" where
   "tape_map_app f \<equiv> tape_app (map_option f)"
 
@@ -105,14 +238,19 @@ text\<open>Our definition of tapes allows no completely empty tape (containing z
   However, this makes sense concerning space-complexity,
   as a TM (depending on the exact definition) always reads at least one cell
   (and thus matches Hopcroft's requirement for space-complexity-functions to be at least \<open>1\<close>).\<close>
-abbreviation "empty_tape \<equiv> \<lparr> left=[], head = Bk, right=[] \<rparr>"
+
+abbreviation "empty_tape \<equiv> \<lparr> left=[], head = blank_symbol, right=[] \<rparr>"
 
 
 text\<open>The set of symbols that appear on a tape.
-  \<^const>\<open>Bk\<close> (technically) appears (infinitely often) on any given tape
+  \<^const>\<open>blank_symbol\<close> (technically) appears (infinitely often) on any given tape
   and is therefore included by default.\<close>
+
+(* TODO consider removing this definition if it is not used.
+ *      since many advanced use-cases seem to require "f Bk = Bk" anyway, why not use the_set_of_tape instead?
+ *      similar for tape_app *)
 definition set_of_tape :: "'s tape \<Rightarrow> 's tp_symbol set"
-  where [simp]: "set_of_tape tp \<equiv> set (left tp) \<union> {head tp} \<union> set (right tp) \<union> {Bk}"
+  where [simp]: "set_of_tape tp \<equiv> set (left tp) \<union> {head tp} \<union> set (right tp) \<union> {blank_symbol}"
 
 abbreviation the_set_of_tape :: "'s tape \<Rightarrow> 's set"
   where "the_set_of_tape tp \<equiv> Option.these (set_of_tape tp)"
@@ -122,19 +260,19 @@ lemma the_set_of_tape_def[simp]:
   "the_set_of_tape tp \<equiv> Option.these (set (left tp) \<union> {head tp} \<union> set (right tp))" by force
 
 lemma set_of_tape_simps[simp]:
-  "set_of_tape \<lparr> left = l, head = h, right = r \<rparr> \<equiv> (set l \<union> {h} \<union> set r \<union> {Bk})" by force
+  "set_of_tape \<lparr> left = l, head = h, right = r \<rparr> \<equiv> (set l \<union> {h} \<union> set r \<union> {blank_symbol})" by force
 
 lemma set_of_tape_head: "head tp \<in> set_of_tape tp"
-  and set_of_tape_Bk:        "Bk \<in> set_of_tape tp" by auto
+  and set_of_tape_Bk: "blank_symbol \<in> set_of_tape tp" by auto
 
-lemma the_set_of_tape_head: "head tp \<noteq> Bk \<Longrightarrow> the (head tp) \<in> the_set_of_tape tp" by force
+lemma the_set_of_tape_head: "head tp \<noteq> blank_symbol \<Longrightarrow> the (head tp) \<in> the_set_of_tape tp" by force
 
 
-lemma tape_set_app: "set_of_tape (tape_app f tp) = f ` set_of_tape tp" if "f Bk = Bk"
+lemma tape_set_app: "set_of_tape (tape_app f tp) = f ` set_of_tape tp" if "f blank_symbol = blank_symbol"
 proof (induction tp)
   case (fields l h r) show ?case
     unfolding tape_app.simps set_of_tape_simps tape.simps
-    unfolding image_Un singleton_image set_map \<open>f Bk = Bk\<close> by simp
+    unfolding image_Un singleton_image set_map \<open>f blank_symbol = blank_symbol\<close> by simp
 qed
 
 lemma the_tape_set_app: "the_set_of_tape (tape_map_app f tp) = f ` the_set_of_tape tp"
@@ -142,18 +280,16 @@ lemma the_tape_set_app: "the_set_of_tape (tape_map_app f tp) = f ` the_set_of_ta
 
 
 text\<open>TM execution begins with the head at the start of the input word.\<close>
+
 fun input_tape ("<_>\<^sub>t\<^sub>p") where
   "<[]>\<^sub>t\<^sub>p = empty_tape"
 | "<x # xs>\<^sub>t\<^sub>p = \<lparr> left=[], head = x, right = xs \<rparr>"
 
-lemma input_tape_left[simp]: "left (<w>\<^sub>t\<^sub>p) = []"
-  by (induction w) auto
+lemma input_tape_app: "f blank_symbol = blank_symbol \<Longrightarrow> tape_app f <w>\<^sub>t\<^sub>p = <map f w>\<^sub>t\<^sub>p" by (induction w) auto
+lemma input_tape_app_alt: "w \<noteq> [] \<Longrightarrow> tape_app f <w>\<^sub>t\<^sub>p = <map f w>\<^sub>t\<^sub>p" by (induction w) auto
 
-lemma input_tape_right: "w \<noteq> [] \<longleftrightarrow> head <w>\<^sub>t\<^sub>p # right <w>\<^sub>t\<^sub>p = w"
-  by (induction w) auto
-
-lemma input_tape_app: "f Bk = Bk \<Longrightarrow> tape_app f <w>\<^sub>t\<^sub>p = <map f w>\<^sub>t\<^sub>p"
-  by (induction w) auto
+lemma input_tape_left[simp]: "left (<w>\<^sub>t\<^sub>p) = []" by (induction w) auto
+lemma input_tape_right: "w \<noteq> [] \<longleftrightarrow> head <w>\<^sub>t\<^sub>p # right <w>\<^sub>t\<^sub>p = w" by (induction w) auto
 
 lemma input_tape_def:
   "<w>\<^sub>t\<^sub>p = (if w = [] then empty_tape else \<lparr> left=[], head = hd w, right = tl w \<rparr>)"
@@ -164,67 +300,47 @@ abbreviation tp_size :: "'s tape \<Rightarrow> nat" where
 
 lemma input_tape_size: "w \<noteq> [] \<Longrightarrow> tp_size <w>\<^sub>t\<^sub>p = length w" by (induction w) force+
 
-fun tp_update :: "'s action \<Rightarrow> 's tape \<Rightarrow> 's tape" where
-  "tp_update L \<lparr>left=[],   head = h, right=rs  \<rparr> = \<lparr>left=[],   head = Bk, right=h#rs \<rparr>"
-| "tp_update L \<lparr>left=l#ls, head = h, right=rs  \<rparr> = \<lparr>left=ls,   head = l,  right=h#rs \<rparr>"
-| "tp_update R \<lparr>left=ls,   head = h, right=[]  \<rparr> = \<lparr>left=h#ls, head = Bk, right=[]   \<rparr>"
-| "tp_update R \<lparr>left=ls,   head = h, right=r#rs\<rparr> = \<lparr>left=h#ls, head = r,  right=rs   \<rparr>"
-| "tp_update (W h) tp = tp\<lparr> head := h \<rparr>"
-| "tp_update Nop tp = tp"
+(* TODO split into shiftL and shiftR (maybe use symmetry) *)
+fun tp_update :: "head_move \<Rightarrow> 's tape \<Rightarrow> 's tape" where
+  "tp_update Shift_Left \<lparr>left=[],   head = h, right=rs  \<rparr> = \<lparr>left=[],   head = blank_symbol, right=h#rs \<rparr>"
+| "tp_update Shift_Left \<lparr>left=l#ls, head = h, right=rs  \<rparr> = \<lparr>left=ls,   head = l,  right=h#rs \<rparr>"
+| "tp_update Shift_Right \<lparr>left=ls,   head = h, right=[]  \<rparr> = \<lparr>left=h#ls, head = blank_symbol, right=[]   \<rparr>"
+| "tp_update Shift_Right \<lparr>left=ls,   head = h, right=r#rs\<rparr> = \<lparr>left=h#ls, head = r,  right=rs   \<rparr>"
+| "tp_update No_Shift tp = tp"
 
-lemma tp_update_set: "set_of_tape (tp_update a tp) \<subseteq> set_of_tape tp \<union> {symbol_of_write a}"
-proof -
-  obtain l h r where expand_tp: "tp = \<lparr>left=l, head=h, right=r\<rparr>" by (rule tape.cases)
-  show ?thesis unfolding expand_tp
+lemma tp_update_set: "set_of_tape (tp_update a tp) \<subseteq> set_of_tape tp"
+proof (induction tp)
+  case (fields l h r)
+  show ?case
   proof (induction a)
-    case L show ?case by (induction l) auto next
-    case R show ?case by (induction r) auto next
-    case (W x) show ?case by (induction r) auto
+    case Shift_Left show ?case by (induction l) auto next
+    case Shift_Right show ?case by (induction r) auto
   qed simp
 qed
 
-record ('q, 's) TM =
-  tape_count :: nat
 
-  start_state  :: 'q
-  final_states :: "'q set"
-  accepting_states :: "'q set"
+subsection\<open>Turing Machine Model\<close>
 
-  next_state  :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> 'q"
-  next_action :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> 's action list"
-
-abbreviation "rejecting_states \<equiv> \<lambda>M. final_states M - accepting_states M"
 
 record ('q, 's) TM_config =
   state :: 'q
   tapes :: "'s tape list"
 
 
-locale pre_TM =
-  fixes M :: "('q::finite, 's::finite) TM" (structure)
-begin
 
 \<comment> \<open>A vector \<open>hds\<close> (\<^typ>\<open>'s list\<close>) of symbols currently under the TM-heads,
-  is considered a well-formed state w.r.t. a \<^typ>\<open>('q, 's) TM\<close> \<open>M\<close>,
+  is considered a well-formed state w.r.t. a \<^typ>\<open>('q, 's) TM_record\<close> \<open>M\<close>,
   iff the number of elements of \<open>hds\<close> matches the number of tapes of \<open>M\<close>.\<close>
-definition wf_state :: "'s tp_symbol list \<Rightarrow> bool"
-  where [simp]: "wf_state hds \<equiv> length hds = tape_count M"
+definition wf_state :: "('q, 's::finite) TM_record \<Rightarrow> 's tp_symbol list \<Rightarrow> bool"
+  where [simp]: "wf_state M hds \<equiv> length hds = tape_count M"
 
-\<comment> \<open>A \<^typ>\<open>('q, 's) TM_config\<close> \<open>c\<close> is considered well-formed w.r.t. a \<^typ>\<open>('q, 's) TM\<close> \<open>M\<close>,
+\<comment> \<open>A \<^typ>\<open>('q, 's) TM_config\<close> \<open>c\<close> is considered well-formed w.r.t. a \<^typ>\<open>('q, 's) TM_record\<close> \<open>M\<close>,
   iff the number of \<^const>\<open>tapes\<close> of \<open>c\<close> matches the number of tapes of \<open>M\<close>.\<close>
-definition wf_config :: "('q, 's) TM_config \<Rightarrow> bool"
-  where [simp]: "wf_config c \<equiv> length (tapes c) = tape_count M"
-
-end \<comment> \<open>\<^locale>\<open>pre_TM\<close>\<close>
+definition wf_config :: "('q, 's::finite) TM_record \<Rightarrow> ('q, 's) TM_config \<Rightarrow> bool"
+  where [simp]: "wf_config M c \<equiv> length (tapes c) = tape_count M"
 
 
-locale TM = pre_TM +
-  assumes at_least_one_tape: "1 \<le> tape_count M"
-  and accepting_final: "accepting_states M \<subseteq> final_states M"
-  and next_action_length: "\<And>q hds. wf_state hds \<Longrightarrow> length (next_action M q hds) = tape_count M"
-  and final_state: "\<And>q hds. wf_state hds \<Longrightarrow> q \<in> final_states M \<Longrightarrow> next_state M q hds = q"
-  and final_action: "\<And>q hds. wf_state hds \<Longrightarrow> q \<in> final_states M \<Longrightarrow> set (next_action M q hds) \<subseteq> {Nop}"
-begin
+
 
 abbreviation wf_state_of_config ("wf'_state\<^sub>c")
   where "wf_state\<^sub>c c \<equiv> wf_state (map head (tapes c))"
@@ -240,7 +356,7 @@ definition step :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config" where
       tapes=map2 tp_update (next_action M q w) (tapes c)
    \<rparr>)"
 
-abbreviation all_Nop ("Nop\<^sub>k") where "Nop\<^sub>k \<equiv> Nop \<up> (tape_count M)"
+abbreviation all_Nop ("Nop\<^sub>k") where "Nop\<^sub>k \<equiv> No_Shift \<up> (tape_count M)"
 
 corollary all_Nop_update[simp]: "length ts = tape_count M \<Longrightarrow> map2 tp_update Nop\<^sub>k ts = ts"
   unfolding map2_replicate by (simp add: map_idI)
@@ -259,7 +375,7 @@ proof -
   have na: "next_action M ?q ?w = Nop\<^sub>k" using wf fc by (rule final_action_explicit)
   have tu: "map2 tp_update Nop\<^sub>k ?ts = ?ts" using all_Nop_update wf_config_state wf .
 
-  show "step c = c" unfolding step_def Let_def unfolding ns na tu by simp
+  show "step c = c" unfolding step_def Shift_Leftet_def unfolding ns na tu by simp
 qed
 
 lemma final_steps: "wf_state\<^sub>c c \<Longrightarrow> is_final c \<Longrightarrow> (step^^n) c = c"
@@ -310,7 +426,7 @@ corollary wf_config_steps: "wf_config c \<Longrightarrow> wf_config ((step^^n) c
 
 definition start_config :: "'s list \<Rightarrow> ('q, 's) TM_config" where [simp]:
   "start_config w = \<lparr>
-    state = start_state M,
+    state = initial_state M,
     tapes = <w>\<^sub>t\<^sub>p # empty_tape \<up> (tape_count M - 1)
   \<rparr>"
 
@@ -378,7 +494,7 @@ definition tm_comp :: "('q1, 's) TM \<Rightarrow> ('q2, 's) TM \<Rightarrow> ('q
   where "tm_comp M1 M2 = (let k = tape_count M1 + tape_count M2 - 1 in \<lparr>
     tape_count = k,
     states = states M1 <+> states M2,
-    start_state = Inl (start_state M1),
+    initial_state = Inl (initial_state M1),
     final_states = Inr ` final_states M2,
     accepting_states = Inr ` accepting_states M2,
     symbols = symbols M1 \<union> symbols M2,
@@ -386,7 +502,7 @@ definition tm_comp :: "('q1, 's) TM \<Rightarrow> ('q2, 's) TM \<Rightarrow> ('q
                         Inl q1 \<Rightarrow> let w1 = nths w {0..<tape_count M1} in
                                   let q' = next_state M1 q1 w1 in
                                   if q' \<in> final_states M1
-                                    then Inr (start_state M2)
+                                    then Inr (initial_state M2)
                                     else Inl q'
                       | Inr q2 \<Rightarrow> let w2 = nths w ({0} \<union> {tape_count M1..<k}) in
                                   Inr (next_state M2 q2 w2)
@@ -407,12 +523,12 @@ lemma tm_comp_simps[simp]:
   defines "k \<equiv> k1 + k2 - 1"
   shows     "tape_count M = k"
                 "states M = states M1 <+> states M2"
-           "start_state M = Inl (start_state M1)"
+           "initial_state M = Inl (initial_state M1)"
           "final_states M = Inr ` final_states M2"
       "accepting_states M = Inr ` accepting_states M2"
                "symbols M = symbols M1 \<union> symbols M2"
    "next_state M (Inl q1) = (\<lambda>w. let q' = next_state M1 q1 (nths w {0..<k1}) in
-                                   if q' \<in> final_states M1 then Inr (start_state M2) else Inl q')"
+                                   if q' \<in> final_states M1 then Inr (initial_state M2) else Inl q')"
    "next_state M (Inr q2) = (\<lambda>w. Inr (next_state M2 q2 (nths w ({0} \<union> {k1..<k}))))"
   "next_action M (Inl q1) = (\<lambda>w. pad k Nop (next_action M1 q1 (nths w {0..<k1})))"
   "next_action M (Inr q2) = (\<lambda>w. let a2 = next_action M2 q2 (nths w ({0} \<union> {k1..<k})) in
@@ -428,7 +544,7 @@ lemma tm_comp_simps':
                               Inl q1 \<Rightarrow> let w1 = nths w {0..<tape_count M1};
                                             q' = next_state M1 q1 w1 in
                                           if q' \<in> final_states M1
-                                            then Inr (start_state M2)
+                                            then Inr (initial_state M2)
                                             else Inl q'
                             | Inr q2 \<Rightarrow> let w2 = nths w ({0} \<union> {tape_count M1..<k}) in
                                           Inr (next_state M2 q2 w2) )"
@@ -533,7 +649,7 @@ proof (intro TM.intro; (elim tm_comp_cases[OF assms])?)
     unfolding tm_comp_simps using le_add1 by (subst diff_add_assoc)
   with M1.at_least_one_tape show "tape_count ?M \<ge> 1" by (fact le_trans)
   from M1.state_axioms(1) M2.state_axioms(1) show "finite (states ?M)" by simp
-  from M1.state_axioms(2) show "start_state ?M \<in> states ?M" by auto
+  from M1.state_axioms(2) show "initial_state ?M \<in> states ?M" by auto
   from M2.state_axioms(3) show "final_states ?M \<subseteq> states ?M" by auto
   from M2.state_axioms(4) show "accepting_states ?M \<subseteq> final_states ?M" by auto
   from M1.symbol_axioms(1) show "finite (symbols ?M)" by simp
@@ -547,7 +663,7 @@ proof (intro TM.intro; (elim tm_comp_cases[OF assms])?)
 
     show "next_state ?M (Inl q1) w \<in> states ?M" unfolding tm_comp_simps Let_def
     proof (rule if_cases)
-      show "Inr (start_state M2) \<in> states M1 <+> states M2"
+      show "Inr (initial_state M2) \<in> states M1 <+> states M2"
         using TM.state_axioms(2)[OF wf(2)] by blast
       show "Inl (next_state M1 q1 (nths w {0..<?k1})) \<in> states M1 <+> states M2"
         using TM.next_state[OF wf(1) wfs1] by blast
@@ -653,11 +769,11 @@ lemma (in TM) wf_alphabet_lift:
   unfolding simple_alphabet_lift_def using TM_axioms
 proof (induction M)
   case (fields k Z q0 F Fa \<Sigma> \<delta>s \<delta>a)
-  let ?M = "\<lparr>tape_count = k, states = Z, start_state = q0, final_states = F,
+  let ?M = "\<lparr>tape_count = k, states = Z, initial_state = q0, final_states = F,
     accepting_states = Fa, symbols = \<Sigma>, next_state = \<delta>s, next_action = \<delta>a\<rparr>"
   interpret M: TM ?M by fact
 
-  let ?M' = "\<lparr>tape_count = k, states = Z, start_state = q0, final_states = F,
+  let ?M' = "\<lparr>tape_count = k, states = Z, initial_state = q0, final_states = F,
     accepting_states = Fa, symbols = \<Sigma> \<union> \<Sigma>',
     next_state = \<lambda>q w. if set w \<subseteq> \<Sigma> then \<delta>s q w else q,
     next_action = \<lambda>q w. if set w \<subseteq> \<Sigma> then \<delta>a q w else Nop \<up> k\<rparr>"
@@ -876,7 +992,7 @@ qed
 lemma init_input: "init w c \<Longrightarrow> input w c"
   unfolding start_config_def by simp
 
-lemma init_state_start_state: "init w c \<Longrightarrow> state c = start_state M"
+lemma init_state_initial_state: "init w c \<Longrightarrow> state c = initial_state M"
   unfolding start_config_def by simp
 
 definition accepts :: "'s list \<Rightarrow> bool"
@@ -1056,7 +1172,7 @@ definition Rejecting_TM :: "('q, 's) TM"
   where [simp]: "Rejecting_TM \<equiv> \<lparr>
     tape_count = 1,
     states = {\<alpha>},
-    start_state = \<alpha>,
+    initial_state = \<alpha>,
     final_states = {\<alpha>},
     accepting_states = {},
     symbols = \<Sigma> \<union> {Bk},
@@ -1083,7 +1199,7 @@ next
   proof
     fix c0
     assume "init w c0"
-    then have "state c0 = start_state Rejecting_TM" by (fact init_state_start_state)
+    then have "state c0 = initial_state Rejecting_TM" by (fact init_state_initial_state)
     then have "is_final ((step^^0) c0)" unfolding Rejecting_TM_def by simp
     then show "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<in> ?rej"
       using final_rej by metis
@@ -1124,7 +1240,7 @@ definition natM :: "(nat, nat) TM" ("M\<^sub>\<nat>")
   where "natM \<equiv> \<lparr>
     tape_count = tape_count M,
     states = f ` states M,
-    start_state = f (start_state M),
+    initial_state = f (initial_state M),
     final_states = f ` (final_states M),
     accepting_states = f ` (accepting_states M),
     symbols = g ` (symbols M),
@@ -1381,7 +1497,7 @@ proof (induction c)
     case (fields ls m rs) thus ?case
     proof (induction a)
       case L thus ?case by (induction ls) auto next
-      case R thus ?case by (induction rs) auto
+      case Shift_Right thus ?case by (induction rs) auto
     qed (* cases "(W \<sigma>)" and "Nop" by *) auto
   qed
 
