@@ -65,7 +65,14 @@ fun input_tape ("<_>\<^sub>t\<^sub>p") where
   "<[]>\<^sub>t\<^sub>p = empty_tape"
 | "<x # xs>\<^sub>t\<^sub>p = \<lparr> left=[], head = x, right = xs \<rparr>"
 
-lemma input_tape_app: "f Bk = Bk \<Longrightarrow> tape_app f <w>\<^sub>t\<^sub>p = <map f w>\<^sub>t\<^sub>p" by (induction w) auto
+lemma input_tape_left[simp]: "left (<w>\<^sub>t\<^sub>p) = []"
+  by (induction w) auto
+
+lemma input_tape_right: "w \<noteq> [] \<longleftrightarrow> head <w>\<^sub>t\<^sub>p # right <w>\<^sub>t\<^sub>p = w"
+  by (induction w) auto
+
+lemma input_tape_app: "f Bk = Bk \<Longrightarrow> tape_app f <w>\<^sub>t\<^sub>p = <map f w>\<^sub>t\<^sub>p"
+  by (induction w) auto
 
 lemma input_tape_def:
   "<w>\<^sub>t\<^sub>p = (if w = [] then empty_tape else \<lparr> left=[], head = hd w, right = tl w \<rparr>)"
@@ -202,7 +209,6 @@ definition step :: "('a, 'b) TM_config \<Rightarrow> ('a, 'b) TM_config" where
    \<rparr>)"
 
 abbreviation all_Nop ("Nop\<^sub>k") where "Nop\<^sub>k \<equiv> Nop \<up> (tape_count M)"
-
 
 corollary all_Nop_update[simp]: "length ts = tape_count M \<Longrightarrow> map2 tp_update Nop\<^sub>k ts = ts"
   unfolding map2_replicate by (simp add: map_idI)
@@ -794,8 +800,8 @@ qed
 
 end
 
-abbreviation "tps_word c \<equiv> let tp = hd (tapes c) in left tp @ right tp"
-abbreviation "input_assert (P::'b list \<Rightarrow> bool) \<equiv> \<lambda>c::('a, 'b) TM_config. P (tps_word c)"
+definition "input_assert (P::'b list \<Rightarrow> bool) \<equiv> \<lambda>c::('a, 'b::blank) TM_config.
+              let tp = hd (tapes c) in P (head tp # right tp) \<and> left tp = []"
 
 lemma hoare_comp:
   fixes M1 :: "('a1, 'b::blank) TM" and M2 :: "('a2, 'b) TM"
@@ -810,6 +816,30 @@ subsection\<open>Deciding Languages\<close>
 abbreviation input where "input w \<equiv> (\<lambda>c. hd (tapes c) = <w>\<^sub>t\<^sub>p)"
 
 context TM begin
+
+abbreviation "good_assert P \<equiv> \<forall>w. P (trim Bk w) = P w"
+
+lemma good_assert_single: "good_assert P \<Longrightarrow> P [Bk] = P []"
+proof -
+  assume "good_assert P"
+  hence "P (trim Bk [Bk]) = P [Bk]" ..
+  thus ?thesis by simp
+qed
+
+lemma input_tp_assert:
+  assumes "good_assert P"
+  shows "P w \<longleftrightarrow> input_assert P (start_config w)"
+proof (cases "w = []")
+  case True
+  then show ?thesis
+    unfolding input_assert_def start_config_def apply simp
+    using good_assert_single[OF assms] ..
+next
+  case False
+  then show ?thesis
+    unfolding input_assert_def start_config_def apply simp
+    using input_tape_right by metis
+qed
 
 lemma init_input: "init w c \<Longrightarrow> input w c"
   unfolding start_config_def by simp
