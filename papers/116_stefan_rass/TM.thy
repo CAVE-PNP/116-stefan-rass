@@ -121,6 +121,14 @@ record ('a, 'b) TM_config =
   state :: 'a
   tapes :: "'b tape list"
 
+definition "input_assert (P::'b list \<Rightarrow> bool) \<equiv> \<lambda>c::('a, 'b::blank) TM_config.
+              let tp = hd (tapes c) in left tp = [] \<and> P (head tp # right tp)"
+
+lemma input_assert_contr[dest]: "input_assert (\<lambda>_. False) c \<Longrightarrow> False"
+  unfolding input_assert_def by simp
+
+lemma input_assert_and: "input_assert P c \<and> input_assert Q c \<longleftrightarrow> input_assert (\<lambda>w. P w \<and> Q w) c"
+ unfolding input_assert_def by meson
 
 locale pre_TM =
   fixes M :: "('a, 'b::blank) TM" (structure)
@@ -319,6 +327,11 @@ proof -
   also have "... = (step^^n) c" using wf \<open>is_final ((step^^n) c)\<close> by (rule final_steps)
   finally show "(step^^m) c = (step^^n) c" .
 qed
+
+corollary run_mono:
+  assumes "n \<le> m" and "wf_word w" and "is_final (run n w)"
+  shows "run m w = run n w"
+  using assms wf_start_config final_le_steps by simp
 
 corollary final_mono:
   assumes "wf_config c"
@@ -709,120 +722,101 @@ hide_const (open) "TM.action.L" "TM.action.R" "TM.action.W"
 
 subsection \<open>Hoare Rules\<close>
 
-type_synonym ('a, 'b) assert = "('a, 'b) TM_config \<Rightarrow> bool"
+type_synonym 'b assert = "'b list \<Rightarrow> bool"
 
-definition (in TM) hoare_halt :: "('a, 'b) assert \<Rightarrow> ('a, 'b) assert \<Rightarrow> bool" where
-  "hoare_halt P Q \<longleftrightarrow> (\<forall>c. wf_config c \<longrightarrow> P c \<longrightarrow>
-    (\<exists>n. let cn = (step^^n) c in is_final cn \<and> Q cn))"
+definition (in TM) hoare_halt :: "'b assert \<Rightarrow> 'b assert \<Rightarrow> bool" where
+  "hoare_halt P Q \<longleftrightarrow> (\<forall>w\<in>wf_words. P w \<longrightarrow>
+  (\<exists>n. let cn = run n w in is_final cn \<and> input_assert Q cn))"
 
 context TM begin
 lemma hoare_haltI[intro]:
   fixes P Q
-  assumes "\<And>c. wf_config c \<Longrightarrow> P c \<Longrightarrow>
-             \<exists>n. let cn = (step^^n) c in is_final cn \<and> Q cn"
+  assumes "\<And>w. wf_word w \<Longrightarrow> P w \<Longrightarrow> \<exists>n. let cn = run n w in is_final cn \<and> input_assert Q cn"
   shows "hoare_halt P Q"
   unfolding hoare_halt_def using assms by blast
 
 lemma hoare_haltE[elim]:
-  fixes c
-  assumes "wf_config c" "P c"
+  fixes w
+  assumes "wf_word w" "P w"
       and "hoare_halt P Q"
-    obtains n where "is_final ((step^^n) c)" and "Q ((step^^n) c)"
-  using assms
-  unfolding hoare_halt_def by meson
+    obtains n where "is_final (run n w)" and "input_assert Q (run n w)"
+  using assms by (metis hoare_halt_def mem_Collect_eq)
+
+(* Do we actually need all those Hoare lemmas? *)
 
 lemma hoare_contr:
-  fixes P and c
-  assumes "wf_config c" "P c" "hoare_halt P (\<lambda>_. False)"
+  fixes P and w
+  assumes "wf_word w" "P w" "hoare_halt P (\<lambda>_. False)"
   shows "False"
-using assms by (rule hoare_haltE)
+using assms by blast
 
 lemma hoare_true: "hoare_halt P Q \<Longrightarrow> hoare_halt P (\<lambda>_. True)"
-  unfolding hoare_halt_def by metis
+  unfolding hoare_halt_def input_assert_def by meson
 
 lemma hoare_and[intro]:
   assumes h1: "hoare_halt P Q1"
     and h2: "hoare_halt P Q2"
-  shows "hoare_halt P (\<lambda>c. Q1 c \<and> Q2 c)"
+  shows "hoare_halt P (\<lambda>w. Q1 w \<and> Q2 w)"
 proof
-  fix c assume "P c" and wf: "wf_config c"
-  from wf \<open>P c\<close> h1 obtain n1 where fn1: "is_final ((step^^n1) c)" and q1: "Q1 ((step^^n1) c)"
-    by (rule hoare_haltE)
-  from wf \<open>P c\<close> h2 obtain n2 where fn2: "is_final ((step^^n2) c)" and q2: "Q2 ((step^^n2) c)"
-    by (rule hoare_haltE)
+  fix w assume wwf: "wf_word w" and Pw: "P w"
+  from wwf Pw h1 obtain n1 where fn1: "is_final (run n1 w)" and q1: "input_assert Q1 (run n1 w)" by rule
+  from wwf Pw h2 obtain n2 where fn2: "is_final (run n2 w)" and q2: "input_assert Q2 (run n2 w)" by rule
 
   define n::nat where "n \<equiv> max n1 n2"
   hence "n1 \<le> n" "n2 \<le> n" by simp+
 
-  from wf \<open>n1 \<le> n\<close> fn1 have steps1: "((step^^n) c) = ((step^^n1) c)" by (fact final_le_steps)
-  from wf \<open>n2 \<le> n\<close> fn2 have steps2: "((step^^n) c) = ((step^^n2) c)" by (fact final_le_steps)
-  from fn1 q1 q2 have "let qn=(step^^n) c in is_final qn \<and> Q1 qn \<and> Q2 qn"
-    by (fold steps1 steps2) simp
-  thus "\<exists>n. let cn = (step ^^ n) c in is_final cn \<and> Q1 cn \<and> Q2 cn" ..
+  from \<open>n1 \<le> n\<close> wwf fn1 have run1: "run n w = run n1 w" by (fact run_mono)
+  from \<open>n2 \<le> n\<close> wwf fn2 have run2: "run n w = run n2 w" by (fact run_mono)
+  from fn1 q1 q2 have "let qn=run n w in is_final qn \<and> input_assert Q1 qn \<and> input_assert Q2 qn"
+    by (fold run1 run2) simp
+  thus "\<exists>n. let cn = run n w in is_final cn \<and> input_assert (\<lambda>w. Q1 w \<and> Q2 w) cn"
+    unfolding input_assert_and ..
 qed
 
-abbreviation (input) init where "init w \<equiv> (\<lambda>c. c = start_config w)"
-
-definition halts :: "'b list \<Rightarrow> bool"
-  where "halts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>_. True)"
-
-lemma halts_I[intro]: "wf_word w \<Longrightarrow> \<exists>n. is_final (run n w) \<Longrightarrow> halts w"
-  unfolding halts_def hoare_halt_def by simp
-
-lemma halts_D[dest]:
-  assumes "halts w"
-  shows "wf_word w"
-    and "\<exists>n. is_final (run n w)"
-  using assms hoare_halt_def wf_start_config
-  unfolding halts_def by fastforce+
-
-lemma halts_altdef: "halts w \<longleftrightarrow> wf_word w \<and> (\<exists>n. is_final (run n w))" by blast
-
-lemma hoare_halt_neg:
-  assumes "\<not> hoare_halt (init w) Q"
-    and "halts w"
-  shows "hoare_halt (init w) (\<lambda>tp. \<not> Q tp)"
-  using assms unfolding hoare_halt_def halts_def Let_def unfolding wf_config_def by fast
-
-lemma halt_inj:
+lemma hoare_halt_inj:
   assumes "wf_word w"
-      and "hoare_halt (init w) (\<lambda>c. f c = x)"
-      and "hoare_halt (init w) (\<lambda>c. f c = y)"
+      and "hoare_halt ((=) w) (\<lambda>v. f v = x)"
+      and "hoare_halt ((=) w) (\<lambda>v. f v = y)"
     shows "x = y"
 proof (rule ccontr)
   assume "x \<noteq> y"
   then have *: "a = x \<and> a = y \<longleftrightarrow> False" for a by blast
 
-  from hoare_and assms(2-3) have "hoare_halt (init w) (\<lambda>c. f c = x \<and> f c = y)".
-  then have "hoare_halt (init w) (\<lambda>_. False)" unfolding * .
-  thus False using hoare_contr wf_start_config[OF assms(1)] by fastforce
+  from hoare_and assms(2-3) have "hoare_halt ((=) w) (\<lambda>v. f v = x \<and> f v = y)".
+  then have "hoare_halt ((=) w) (\<lambda>_. False)" unfolding * .
+  thus False using assms(1) hoare_contr by fastforce
 qed
 
-end
+definition halts :: "'b list \<Rightarrow> bool"
+  where "halts w \<equiv> wf_word w \<and> (\<exists>n. is_final (run n w))"
 
-definition "input_assert (P::'b list \<Rightarrow> bool) \<equiv> \<lambda>c::('a, 'b::blank) TM_config.
-              let tp = hd (tapes c) in P (head tp # right tp) \<and> left tp = []"
+mk_ide halts_def |intro haltsI[intro]| |elim haltsE[elim]| |dest haltsD[dest]|
+
+lemma hoare_halt_halts: "wf_word w \<Longrightarrow> hoare_halt ((=) w) (\<lambda>_. True) \<Longrightarrow> halts w"
+  unfolding halts_def by blast
+
+end
 
 lemma hoare_comp:
   fixes M1 :: "('a1, 'b::blank) TM" and M2 :: "('a2, 'b) TM"
     and Q :: "'b list \<Rightarrow> bool"
-  assumes "TM.hoare_halt M1 (input_assert P) (input_assert Q)"
-      and "TM.hoare_halt M2 (input_assert Q) (input_assert S)"
-    shows "TM.hoare_halt (M1 |+| M2) (input_assert P) (input_assert S)"
+  assumes "TM.hoare_halt M1 P Q"
+      and "TM.hoare_halt M2 Q S"
+    shows "TM.hoare_halt (M1 |+| M2) P S"
 sorry
 
 subsection\<open>Deciding Languages\<close>
 
-abbreviation input where "input w \<equiv> (\<lambda>c. hd (tapes c) = <w>\<^sub>t\<^sub>p)"
+abbreviation input where "input w \<equiv> input_assert ((=) w)"
 
 context TM begin
 
-abbreviation "good_assert P \<equiv> \<forall>w. P (trim Bk w) = P w"
+abbreviation "good_assert P \<equiv> \<forall>w. P (trim Bk w) \<longleftrightarrow> P w"
 
-lemma good_assert_single: "good_assert P \<Longrightarrow> P [Bk] = P []"
+lemma good_assert_single: "good_assert P \<Longrightarrow> P [Bk] \<longleftrightarrow> P []"
 proof -
   assume "good_assert P"
-  hence "P (trim Bk [Bk]) = P [Bk]" ..
+  hence "P (trim Bk [Bk]) \<longleftrightarrow> P [Bk]" ..
   thus ?thesis by simp
 qed
 
@@ -841,43 +835,36 @@ next
     using input_tape_right by metis
 qed
 
-lemma init_input: "init w c \<Longrightarrow> input w c"
-  unfolding start_config_def by simp
-
-lemma init_state_start_state: "init w c \<Longrightarrow> state c = start_state M"
-  unfolding start_config_def by simp
-
 definition accepts :: "'b list \<Rightarrow> bool"
-  where "accepts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
+  where "accepts w \<equiv> wf_word w \<and> (\<exists>n. state (run n w) \<in> accepting_states M)"
 
 lemma acceptsI[intro]:
   assumes "wf_word w"
     and "state (run n w) \<in> accepting_states M"
   shows "accepts w"
-  using assms unfolding accepts_def hoare_halt_def
-  by (meson state_axioms(4) subsetD)
+  using assms unfolding accepts_def by blast
 
 lemma acceptsE[elim]:
   assumes "accepts w"
-  obtains n where "state (run n w) \<in> accepting_states M"
-using accepts_def assms hoare_halt_def wf_start_config by fastforce
+  obtains n where "is_final (run n w)"
+   and "state (run n w) \<in> accepting_states M"
+using assms state_axioms(4) unfolding accepts_def by fast
 
 definition rejects :: "'b list \<Rightarrow> bool"
-  where "rejects w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> rejecting_states M)"
+  where "rejects w \<equiv> wf_word w \<and> (\<exists>n. state (run n w) \<in> rejecting_states M)"
 
 lemma rejectsI[intro]:
   assumes "wf_word w"
     and "is_final (run n w)"
     and "state (run n w) \<in> rejecting_states M"
   shows "rejects w"
-  using assms unfolding rejects_def hoare_halt_def
-  by meson
+  using assms unfolding rejects_def by blast
 
 lemma rejectsE[elim]:
   assumes "rejects w"
   obtains n where "is_final (run n w)"
     and "state (run n w) \<in> rejecting_states M"
-by (smt (verit, ccfv_SIG) assms hoare_halt_def rejects_def wf_start_config)
+  using assms rejects_def by auto
 
 lemma halts_iff: "halts w \<longleftrightarrow> accepts w \<or> rejects w"
 proof (intro iffI)
@@ -885,36 +872,35 @@ proof (intro iffI)
   then obtain n where fin: "is_final (run n w)" and wf: "wf_word w" by blast
   thus "accepts w \<or> rejects w"
   proof (cases "state (run n w) \<in> accepting_states M")
-    case True hence "accepts w"
-      using fin wf acceptsI by blast
+    case True hence "accepts w" using fin wf by blast
   next
-    case False hence "rejects w"
-      using fin wf rejectsI by blast
+    case False hence "rejects w" using fin wf by blast
   qed blast+
 next
   assume "accepts w \<or> rejects w" thus "halts w"
-  unfolding accepts_def rejects_def halts_def using hoare_true by blast
+    unfolding accepts_def rejects_def halts_def using state_axioms(4) by fast
 qed
 
-lemma acc_not_rej:
-  assumes "accepts w"
-  shows "\<not> rejects w"
-proof (intro notI)
-  assume "rejects w"
+lemma acc_not_rej: "accepts w \<Longrightarrow> \<not> rejects w"
+proof (intro notI) (* same proof as hoare_and *)
+  assume "accepts w" then obtain n_acc
+    where acc: "state (run n_acc w) \<in> accepting_states M"
+      and accf: "is_final (run n_acc w)" by blast
 
-  have "hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
-    using \<open>accepts w\<close> unfolding accepts_def by (rule conjunct2)
-  moreover have "hoare_halt (init w) (\<lambda>c. state c \<in> rejecting_states M)"
-    using \<open>rejects w\<close> unfolding rejects_def by (rule conjunct2)
-  ultimately have "hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M
-                                          \<and> state c \<in> rejecting_states M)"
-    by (fact hoare_and)
-  then have "hoare_halt (init w) (\<lambda>c. False)" by auto
+  from \<open>accepts w\<close> have wwf: "wf_word w" unfolding accepts_def ..
 
-  moreover from assms have "wf_config (start_config w)"
-    unfolding accepts_def by (intro wf_start_config) blast
-  moreover have "init w (start_config w)" ..
-  ultimately show False by (intro hoare_contr)
+  assume "rejects w" then obtain n_rej
+    where rej: "state (run n_rej w) \<in> rejecting_states M"
+      and rejf: "is_final (run n_rej w)" by blast
+
+  define n where "n \<equiv> max n_acc n_rej"
+  hence 1: "n_acc \<le> n" and 2: "n_rej \<le> n" by simp+
+
+  from run_mono have "run n_acc w = run n w" using 1 wwf accf by simp
+  moreover from run_mono have "run n_rej w = run n w" using 2 wwf rejf by simp
+  ultimately have "state (run n w) \<in> accepting_states M" and "state (run n w) \<in> rejecting_states M"
+    using acc rej by simp+
+  thus False by simp
 qed
 
 lemma rejects_altdef:
@@ -948,10 +934,6 @@ qed
 
 lemma decides_altdef4: "decides_word L w \<longleftrightarrow> (if w \<in> L then accepts w else rejects w)"
   unfolding decides_def using acc_not_rej by (cases "w \<in> L") auto
-
-lemma decides_altdef3: "decides_word L w \<longleftrightarrow> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M \<longleftrightarrow> w\<in>L)"
-  unfolding decides_altdef4 accepts_def rejects_def
-  by (cases "w\<in>L") (simp add: hoare_halt_def del: start_config_def)+
 
 end
 
