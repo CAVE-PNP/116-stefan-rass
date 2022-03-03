@@ -60,7 +60,7 @@ text\<open>We model a (deterministic \<open>k\<close>-tape) TM over the type \<^
   and the finite type \<^typ>\<open>'s\<close> of symbols, as a tuple of:\<close>
 
 (* the inclusion of accepting states at this point seems somewhat arbitrary.
- * consider applying the "labelling" pattern used by Forster et al.,
+ * consider applying the "labelling" pattern used by @{cite forsterCoqTM2020},
  * as this would allow more advanced extensions, such as oracles as well *)
 
 record ('q, 's::finite) TM_record =
@@ -202,7 +202,7 @@ subsection\<open>Configuration and State\<close>
 
 subsubsection\<open>Tapes\<close>
 
-text\<open>We describe a TM tape as a record containing:
+text\<open>We describe a TM tape following @{cite forsterCoqTM2020} as a record containing:
 
   \<^item> \<open>head\<close>, the symbol currently under the TM head, and
   \<^item> \<open>left\<close>/\<open>right\<close>, the lists of symbols currently left/right of the TM head.
@@ -213,7 +213,7 @@ text\<open>We describe a TM tape as a record containing:
   so blanks will be inserted into the record if the TM crosses the ``ends''.
 
   We chose this approach as compared to letting the symbol under the head
-  be the first element of \<open>right\<close> (see Xu et al.), as it allows symmetry for move-actions.\<close>
+  be the first element of \<open>right\<close>@{cite xuIsabelleTM2013}, as it allows symmetry for move-actions.\<close>
 
 (* TODO consider putting left,right,head in TM_abbrevs *)
 record 's tape =
@@ -237,7 +237,7 @@ text\<open>Our definition of tapes allows no completely empty tape (containing z
   as the \<^const>\<open>head\<close> symbol is always set.
   However, this makes sense concerning space-complexity,
   as a TM (depending on the exact definition) always reads at least one cell
-  (and thus matches Hopcroft's requirement for space-complexity-functions to be at least \<open>1\<close>).\<close>
+  (and thus matches the requirement for space-complexity-functions to be at least \<open>1\<close> from @{cite hopcroftAutomata1979}).\<close>
 
 abbreviation "empty_tape \<equiv> \<lparr> left=[], head = blank_symbol, right=[] \<rparr>"
 
