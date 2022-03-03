@@ -7,7 +7,7 @@ theory Binary
 begin
 
 
-text\<open>In the paper "On the Existence of Weak One-Way Functions",
+text\<open>In @{cite rassOwf2017},
   a binary alphabet \<open>\<Sigma> := {0, 1}\<close> is used for virtually all TM related definitions.
   Therefore, a strong theory of binary strings is required for reasoning.
 
@@ -44,16 +44,16 @@ fun bin_of_nat :: "nat \<Rightarrow> bin" where
   "bin_of_nat 0 = []" |
   "bin_of_nat (Suc n) = inc (bin_of_nat n)"
 
-\<comment> \<open>For binary numbers, as stated in the paper (ch. 1, p. 2),
+text\<open>For binary numbers, as stated in @{cite \<open>ch.~1\<close> rassOwf2017},
   the "least significant bit is located at the right end".
-  The recursive definitions for binary strings result in somewhat unintuitive definitions:
+  The recursive definitions for binary strings result in somewhat less intuitive definitions:
   The number \<open>6\<^sub>1\<^sub>0\<close> is written \<open>110\<^sub>2\<close> in binary, but as \<^typ>\<open>bin\<close>,
-  it is \<^term>\<open>[False, True, True]\<close> (an abbreviation for \<^term>\<open>False # True # True # []\<close>).
+  it is \<^term>\<open>[False, True, True]\<close> (an abbreviation for \<open>False # True # True # []\<close>).
   This results in some strange properties including swapping prefix and suffix:
   the concepts of \<^const>\<open>prefix\<close> and \<^const>\<open>suffix\<close> defined over lists (see \<^theory>\<open>HOL-Library.Sublist\<close>)
   mean their exact opposites when applied to our definition of \<^typ>\<open>bin\<close>.\<close>
 
-value "([False, True, True])\<^sub>2"
+value "([False, True, True])\<^sub>2" \<comment> \<open>returns @{value "([False, True, True])\<^sub>2"}\<close>
 
 
 subsection\<open>Numeric Properties\<close>
@@ -183,6 +183,8 @@ text\<open>The number of bits in the binary representation.
 
 abbreviation (input) bit_length :: "nat \<Rightarrow> nat" where
   "bit_length n \<equiv> length (bin_of_nat n)"
+
+value "bit_length 0" \<comment> \<open>is @{value "bit_length 0"}\<close>
 
 
 lemma bit_length_mono: "mono bit_length"
@@ -452,7 +454,7 @@ lemma bit_length_eq_log:
 
 subsection\<open>Order\<close>
 
-text\<open>From ch. 4.4, p14: "we will order two words \<open>u, v \<in> \<Sigma>\<^sup>*\<close> as \<open>u \<le> v \<Longleftrightarrow> (u)\<^sub>2 \<le> (v)\<^sub>2\<close>."
+text\<open>From @{cite \<open>ch.~4.4\<close> rassOwf2017}: "we will order two words \<open>u, v \<in> \<Sigma>\<^sup>*\<close> as \<open>u \<le> v \<Longleftrightarrow> (u)\<^sub>2 \<le> (v)\<^sub>2\<close>."
   Note: defining the \<^const>\<open>less\<close> relation is necessary for \<^class>\<open>ord\<close>
   (of which \<^class>\<open>preorder\<close> is a subclass).
   As anti-symmetry is not given, no partial order (\<^class>\<open>order\<close>) can be established.\<close>

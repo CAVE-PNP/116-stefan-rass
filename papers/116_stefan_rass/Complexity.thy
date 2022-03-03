@@ -10,19 +10,19 @@ subsubsection\<open>Time\<close>
 
 text\<open>The time restriction predicate is similar to \<^term>\<open>Hoare_halt\<close>,
   but includes a maximum number of steps.
-  From Hopcroft, p287f:
-   "If for every input word of length n, M makes at most T(n) moves before
+  From @{cite \<open>ch.~12.1\<close> hopcroftAutomata1979}:
+  ``If for every input word of length n, M makes at most T(n) moves before
     halting, then M is said to be a T(n) time-bounded Turing machine, or of time
-    complexity T(n). The language recognized by M is said to be of time complexity T(n)."
+    complexity T(n). The language recognized by M is said to be of time complexity T(n).''
 
-   "[...] it is reasonable to assume that any time complexity function \<open>T(n)\<close> is
+  ``[...] it is reasonable to assume that any time complexity function \<open>T(n)\<close> is
     at least \<open>n + 1\<close>, for this is the time needed just to read the input and verify that the
     end has been reached by reading the first blank.* We thus make the convention
-    that "time complexity \<open>T(n)\<close>" means \<open>max (n + 1, \<lceil>T(n)\<rceil>])\<close>. For example, the value of
+    that `time complexity \<open>T(n)\<close>' means \<open>max (n + 1, \<lceil>T(n)\<rceil>])\<close>. For example, the value of
     time complexity \<open>n log\<^sub>2n\<close> at \<open>m = 1\<close> is \<open>2\<close>, not \<open>0\<close>, and at \<open>n = 2\<close>, its value is \<open>3\<close>.
 
     * Note, however, that there are TM's that accept or reject without reading all their input.
-      We choose to eliminate them from consideration."\<close>
+      We choose to eliminate them from consideration.''\<close>
 
 definition tcomp :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
   where [simp]: "tcomp T n \<equiv> max (n + 1) (nat \<lceil>T (of_nat n)\<rceil>)"
@@ -174,17 +174,17 @@ qed
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
 
 
-text\<open>Notion of time-constructible from Hopcroft ch. 12.3, p. 299:
-  "A function T(n) is said to be time constructible if there exists a T(n) time-
+text\<open>Notion of time-constructible from @{cite \<open>ch.~12.3\<close> hopcroftAutomata1979}:
+  ``A function T(n) is said to be time constructible if there exists a T(n) time-
   bounded multitape Turing machine M such that for each n there exists some input
-  on which M actually makes T(n) moves."\<close>
+  on which M actually makes T(n) moves.''\<close>
 
 definition tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
   where "tconstr T \<equiv> \<exists>M::(nat, nat) TM. \<forall>n. \<exists>w. TM.time M w = Some (T n)"
 
-text\<open>Fully time-constructible, ibid.:
-  "We say that T(n) is fully time-constructible if there is a TM
-  that uses T(n) time on all inputs of length n."\<close>
+text\<open>Fully time-constructible, (@{cite \<open>ch.~12.3\<close> hopcroftAutomata1979}):
+  ``We say that T(n) is fully time-constructible if there is a TM
+  that uses T(n) time on all inputs of length n.''\<close>
 
 definition fully_tconstr :: "'q itself \<Rightarrow> 's itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
   where "fully_tconstr TYPE('q) TYPE('s) T \<equiv>
@@ -287,6 +287,15 @@ corollary in_dtime_mono:
 subsection\<open>Classical Results\<close>
 
 subsubsection\<open>Almost Everywhere\<close>
+
+text\<open>@{cite \<open>ch.~12.2\<close> hopcroftAutomata1979} uses the finite control in Lemma 12.3
+  to make the jump from almost everywhere to everywhere:
+
+  ``We say that a statement with parameter \<open>n\<close> is true \<^emph>\<open>almost everywhere\<close> (a.e.) if it
+  is true for all but a finite number of values of \<open>n\<close>. We say a statement is true infinitely
+  often (i.o.) if it is true for an infinite number of \<open>n\<close>'s. Note that both a statement and
+  its negation may be true i.o.''\<close>
+
 context TM begin
 definition "alm_all P \<equiv> finite {w \<in> wf_words. \<not> P w}"
 
@@ -349,12 +358,14 @@ lemma ae_conjI:
 end
 
 
-text\<open>"Lemma 12.3  If \<open>L\<close> is accepted by a TM \<open>M\<close> that is \<open>S(n)\<close> space bounded a.e., then \<open>L\<close> is
+text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
+
+  ``\<^bold>\<open>Lemma 12.3\<close>  If \<open>L\<close> is accepted by a TM \<open>M\<close> that is \<open>S(n)\<close> space bounded a.e., then \<open>L\<close> is
   accepted by an \<open>S(n)\<close> space-bounded TM.
   Proof  Use the finite control to accept or reject strings of length \<open>n\<close> for the finite
   number of \<open>n\<close> where \<open>M\<close> is not \<open>S(n)\<close> bounded. Note that the construction is not
   effective, since in the absence of a time bound we cannot tell which of these words
-  \<open>M\<close> accepts."
+  \<open>M\<close> accepts.''
 
   The lemma is only stated for space bounds,
   but it seems reasonable that a similar construction works on time bounds.\<close>
@@ -409,11 +420,11 @@ qed (fact \<open>L \<in> typed_DTIME TYPE('q) t\<close>)
 
 subsubsection\<open>Linear Speed-Up\<close>
 
-text\<open>Hopcroft:
- "Theorem 12.3  If \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>T(n)\<close> time-bounded Turing machine
+text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
+
+ ``\<^bold>\<open>Theorem 12.3\<close>  If \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>T(n)\<close> time-bounded Turing machine
   \<open>M\<^sub>1\<close>, then \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>cT(n)\<close> time-bounded TM \<open>M\<^sub>2\<close> for any \<open>c > 0\<close>,
-  provided that \<open>k > 1\<close> and \<open>inf\<^sub>n\<^sub>\<rightarrow>\<^sub>\<infinity> T(n)/n = \<infinity>\<close>."
-\<close>
+  provided that \<open>k > 1\<close> and \<open>inf\<^sub>n\<^sub>\<rightarrow>\<^sub>\<infinity> T(n)/n = \<infinity>\<close>.''\<close>
 
 definition "unbounded f \<equiv> \<forall>S. \<exists>n0. \<forall>n\<ge>n0. S \<le> f n"
 
@@ -421,7 +432,6 @@ lemma unboundedD[dest]:
   assumes "unbounded f"
   obtains n0 where "\<And>n. n \<ge> n0 \<Longrightarrow> S \<le> f n"
   using assms unfolding unbounded_def by presburger
-
 
 abbreviation "superlinear f \<equiv> unbounded (\<lambda>n. f (of_nat n) / (of_nat n))"
 
@@ -452,7 +462,7 @@ lemma superlinearE':
 
 lemma linear_time_speed_up:
   assumes "c > 0"
-  \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close> required by Hopcroft, but simpler to define in Isabelle.\<close>
+  \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close> required by @{cite hopcroftAutomata1979}, but simpler to define in Isabelle.\<close>
     and "superlinear T"
     and "TM M1"
     and "TM.decides M1 L"

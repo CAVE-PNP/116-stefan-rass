@@ -10,12 +10,11 @@ begin
 text\<open>Extends \<^theory>\<open>HOL-Library.Discrete\<close> with various helpful lemmas
   centered around \<^const>\<open>Discrete.log\<close>.\<close>
 
-\<comment> \<open>\<open>dlog\<close> defines \<open>\<lfloor>log\<^sub>2 n\<rfloor>\<close> over the natural numbers.\<close>
-abbreviation dlog :: "nat \<Rightarrow> nat"
+abbreviation dlog :: "nat \<Rightarrow> nat" \<comment> \<open>\<open>\<lfloor>log\<^sub>2 n\<rfloor>\<close> over the natural numbers.\<close>
   where "dlog \<equiv> Discrete.log"
 
-\<comment> \<open>\<open>clog\<close> defines \<open>\<lceil>log\<^sub>2 n\<rceil>\<close> over the natural numbers. Note that this is not correct over the reals.\<close>
-definition clog :: "nat \<Rightarrow> nat"
+
+definition clog :: "nat \<Rightarrow> nat" \<comment> \<open>\<open>\<lceil>log\<^sub>2 n\<rceil>\<close> over the natural numbers. Note that this definition is not correct over the reals.\<close>
   where clog_def[simp]: "clog n \<equiv> dlog (n-1) + 1"
 
 

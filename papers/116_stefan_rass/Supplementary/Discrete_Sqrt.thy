@@ -10,8 +10,7 @@ text\<open>Helpful lemmas centered around \<^const>\<open>Discrete.sqrt\<close>.
 abbreviation (input) is_square :: "nat \<Rightarrow> bool" where
   "is_square n \<equiv> (\<exists>m. n = m\<^sup>2)"
 
-\<comment> \<open>\<open>dsqrt\<close> defines \<open>\<lfloor>\<surd>n\<rfloor>\<close> over the natural numbers.\<close>
-abbreviation dsqrt :: "nat \<Rightarrow> nat"
+abbreviation dsqrt :: "nat \<Rightarrow> nat" \<comment> \<open>\<open>\<lfloor>\<surd>n\<rfloor>\<close> over the natural numbers.\<close>
   where "dsqrt \<equiv> Discrete.sqrt"
 
 
@@ -71,13 +70,12 @@ qed
 
 subsubsection\<open>Integer Squares\<close>
 
-\<comment> \<open>\<open>prev_square\<close> defines \<open>\<lfloor>\<surd>n\<rfloor>\<^sup>2\<close> or \<^term>\<open>\<lambda>n. Max {sq::nat. is_square sq \<and> sq \<le> n}\<close>.\<close>
-abbreviation prev_square :: "nat \<Rightarrow> nat"
+abbreviation prev_square :: "nat \<Rightarrow> nat" \<comment> \<open>\<open>\<lfloor>\<surd>n\<rfloor>\<^sup>2\<close> or \<^term>\<open>\<lambda>n. Max {sq::nat. is_square sq \<and> sq \<le> n}\<close>.\<close>
   where "prev_square n \<equiv> (dsqrt n)\<^sup>2"
 
-\<comment> \<open>\<open>next_square\<close> defines \<open>\<lceil>\<surd>n\<rceil>\<^sup>2\<close> or \<^term>\<open>\<lambda>n. Min {sq::nat. is_square sq \<and> sq > n}\<close>.\<close>
-definition next_square :: "nat \<Rightarrow> nat" where
-  next_sq_def[simp]: "next_square n = (dsqrt (n - 1) + 1)\<^sup>2"
+
+definition next_square :: "nat \<Rightarrow> nat" \<comment> \<open>\<open>\<lceil>\<surd>n\<rceil>\<^sup>2\<close> or \<^term>\<open>\<lambda>n. Min {sq::nat. is_square sq \<and> sq > n}\<close>.\<close>
+  where next_sq_def[simp]: "next_square n = (dsqrt (n - 1) + 1)\<^sup>2"
 
 \<comment> \<open>The pattern \<open>\<lceil>f n\<rceil> = \<lfloor>f (n-1)\<rfloor> + 1\<close> seems to hold for arbitrary functions
   that exhibit sub-linear asymptotic growth.\<close>
@@ -85,7 +83,7 @@ definition next_square :: "nat \<Rightarrow> nat" where
 
 corollary prev_sq_correct: "is_square (prev_square n)" by blast
 
-\<comment> \<open>\<^term>\<open>prev_square n \<le> n\<close> is proven in @{thm Discrete.sqrt_power2_le}\<close>
+text\<open>\<^term>\<open>prev_square n \<le> n\<close> is proven in @{thm Discrete.sqrt_power2_le}.\<close>
 
 corollary next_sq_correct1: "is_square (next_square n)" by simp
 

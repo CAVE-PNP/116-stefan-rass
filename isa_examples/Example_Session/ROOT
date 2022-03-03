@@ -1,0 +1,9 @@
+session Example_Session = HOL +
+  options [
+      document = pdf,
+      document_output = "output"
+    ]
+  theories
+    Example_Theory
+  document_files
+    "root.tex"

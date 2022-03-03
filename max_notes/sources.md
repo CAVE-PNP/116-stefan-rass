@@ -62,6 +62,7 @@ This section lists results and resources relevant or close to the topic of this 
 
 ### Quick Reference
 
+- [isabelle.systems](https://isabelle.systems/) - Isabelle Quick Access Links
 - Isabelle [Search](https://search.isabelle.in.tum.de/)
   - filter by type
   - allows following _uses_ and _used by_ relations of definitions
@@ -96,11 +97,10 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
   - requires an understanding of functional programming
 - `concrete_semantics.pdf`: Tobias Nipkow and Gerwin Klein: [Concrete Semantics](http://www.concrete-semantics.org/)
   - full book as PDF available on the [homepage](http://www.concrete-semantics.org/concrete-semantics.pdf)
-  - full lecture (from Tobias Nipkow, follows the book) available from the
-    [course page](https://www21.in.tum.de/teaching/semantik/WS20/)
   - `prog-prove.pdf` is _Part I_ of this book
-    - Tobias Nipkow: [Programming and Proving in Isabelle/HOL](https://isabelle.in.tum.de/doc/prog-prove.pdf). 2020.
+    - Tobias Nipkow: [Programming and Proving in Isabelle/HOL](https://isabelle.in.tum.de/doc/prog-prove.pdf).
     - this is the top entry in the [list of documentation items](https://isabelle.in.tum.de/documentation.html) on the isabelle homepage
+    - is updated (along with other official documentation) with every release
     - gives a solid introduction into the basics of using Isabelle/Isar
 - `tutorial.pdf`: Tobias Nipkow and Lawrence C. Paulson and Markus Wenzel: [Isabelle/Hol: A Proof Assistant for Higher-Order Logic](https://isabelle.in.tum.de/doc/tutorial.pdf). Springer 2020.
   - this is an updated version of the [book of the same name](https://permalink.obvsg.at/UKL/AC03403462)
@@ -180,6 +180,12 @@ as well as the page [Course Material](https://isabelle.in.tum.de/community/Cours
         than one where the intermediate steps are enumerated
         - i.e. only using the `..` ("default") and `.` ("immediate") tactics
         - these tactics and the concept are not mentioned in `prog-prove.pdf`
+- [Isabelle Community Conventions](https://isabelle.systems/conventions/)
+  - Conventions for various aspects of the Isabelle ecosystem
+- Gerwin Klein's Style Guide for Isabelle/HOL
+  ([Part 1: Good Proofs](https://proofcraft.org/blog/isabelle-style.html),
+  [Part 2: Good Style](https://proofcraft.org/blog/isabelle-style-part2.html))
+  - Tips/~Conventions for Isabelle/HOL
 
 ## Coq
 

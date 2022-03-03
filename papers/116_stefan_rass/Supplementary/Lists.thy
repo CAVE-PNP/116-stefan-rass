@@ -87,10 +87,9 @@ lemma pad_ge_length[simp]: "length xs \<ge> n \<Longrightarrow> pad n x xs = xs"
 lemma pad_prefix: "prefix xs (pad n x xs)" by simp
 
 
-\<comment> \<open>\<open>ends_in\<close> - an alternative to \<^const>\<open>last\<close>.\<close>
 (* TODO this should be a definition *)
-abbreviation (input) ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" where
-  "ends_in x xs \<equiv> (\<exists>ys. xs = ys @ [x])"
+abbreviation (input) ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" \<comment> \<open>an alternative to \<^const>\<open>last\<close>.\<close>
+  where "ends_in x xs \<equiv> (\<exists>ys. xs = ys @ [x])"
 
 lemma ends_inI[intro]: "ends_in x (xs @ [x])" by blast
 

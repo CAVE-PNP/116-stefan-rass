@@ -52,7 +52,7 @@ locale tht_assms =
   fixes T t :: "nat \<Rightarrow> nat"
   assumes fully_tconstr_T: "fully_tconstr TYPE('a) TYPE('b::blank) T"
 
-  \<comment> \<open>This assumption represents the statements containing \<open>lim\<close> (Rass) and \<open>lim inf\<close> (Hopcroft).
+  \<comment> \<open>This assumption represents the statements containing \<open>lim\<close> @{cite rassOwf2017} and \<open>lim inf\<close> @{cite hopcroftAutomata1979}.
       \<^const>\<open>LIMSEQ\<close> (\<^term>\<open>X \<longlonglongrightarrow> x\<close>) was chosen, as it seems to match the intended meaning
       (@{thm LIMSEQ_def lim_sequentially}).\<close>
     and T_dominates_t: "(\<lambda>n. t n * log 2 (t n) / T n) \<longlonglongrightarrow> 0"
@@ -61,11 +61,12 @@ locale tht_assms =
       Thus, the above assumption would trivially hold for \<open>T(n) = 0\<close>.\<close>
     and T_not_0: "T n \<noteq> 0"
 
-  \<comment> \<open>The following assumption is not found in the paper or the primary source (Hopcroft),
+  \<comment> \<open>The following assumption is not found in @{cite rassOwf2017} or the primary source @{cite hopcroftAutomata1979},
     but is taken from the AAU lecture slides of \<^emph>\<open>Algorithms and Complexity Theory\<close>.
+    \<^footnote>\<open>TODO properly cite this\<close>
     It patches a hole that allows one to prove \<^term>\<open>False\<close> from the Time Hierarchy Theorem below
     (\<open>time_hierarchy\<close>).
-    This is demonstrated in \<^file>\<open>../../isa_examples/THT_inconsistencies_MWE.thy\<close>.\<close>
+    This is demonstrated in \<^file>\<open>examples/THT_inconsistencies_MWE.thy\<close>.\<close>
     and t_min: "n \<le> t n"
 begin
 
@@ -119,8 +120,9 @@ qed
 
 text\<open>\<open>L\<^sub>D\<close>, defined as part of the proof for the Time Hierarchy Theorem.
 
-  "The “diagonal-language” \<open>L\<^sub>D\<close> is thus defined over the alphabet \<open>\<Sigma> = {0, 1}\<close> as
-       \<open>LD := {w \<in> \<Sigma>\<^sup>*: M\<^sub>w halts and rejects w within \<le> T(len(w)) steps}\<close>.    (9)"\<close>
+  ``The `diagonal-language' \<open>L\<^sub>D\<close> is thus defined over the alphabet \<open>\<Sigma> = {0, 1}\<close> as
+       \<open>LD := {w \<in> \<Sigma>\<^sup>*: M\<^sub>w halts and rejects w within \<le> T(len(w)) steps}\<close>.    (9)''
+  @{cite rassOwf2017}\<close>
 
 definition L\<^sub>D :: "'b lang"
   where LD_def[simp]: "L\<^sub>D \<equiv> {w. let M\<^sub>w = TM_decode_pad w in
@@ -231,12 +233,12 @@ end \<comment> \<open>\<^locale>\<open>tht_assms\<close>\<close>
 
 subsection\<open>The Hard Language \<open>L\<^sub>0\<close>\<close>
 
-text\<open>From the proof of Lemma 4.6, p14:
+text\<open>From the proof of Lemma 4.6@{cite rassOwf2017}:
 
-   "To retain \<open>L\<^sub>D \<inter> SQ \<in> DTIME(T)\<close>, we must choose \<open>T\<close> so large that the decision
+   ``To retain \<open>L\<^sub>D \<inter> SQ \<in> DTIME(T)\<close>, we must choose \<open>T\<close> so large that the decision
     \<open>w \<in> SQ\<close> is possible within the time limit incurred by \<open>T\<close>, so we add \<open>T(n) \<ge> n\<^sup>3\<close>
     to our hypothesis besides Assumption 4.4 (note that we do not need an optimal
-    complexity bound here)."\<close>
+    complexity bound here).''\<close>
 
 locale tht_sq_assms = tht_assms +
   assumes T_lower_bound: "T n \<ge> n^3"
@@ -326,7 +328,7 @@ next
 qed
 
 
-\<comment> \<open>For now assume that this result will hold for some version of \<open>L\<^sub>D\<close> and \<open>L\<^sub>0\<close>.\<close>
+text\<open>For now assume that this result will hold for some version of \<open>L\<^sub>D\<close> and \<open>L\<^sub>0\<close>.\<close>
 
 lemma L\<^sub>D_L\<^sub>0_adj_sq_iff:
   fixes w
@@ -336,8 +338,9 @@ lemma L\<^sub>D_L\<^sub>0_adj_sq_iff:
   sorry
 
 
-text\<open>Lemma 4.6. Let \<open>t\<close>, \<open>T\<close> be as in Assumption 4.4 and assume \<open>T(n) \<ge> n\<^sup>3\<close>.
-  Then, there exists a language \<open>L\<^sub>0 \<in> DTIME(T) - DTIME(t)\<close> for which \<open>dens\<^sub>L\<^sub>0(x) \<le> \<surd>x\<close>.\<close>
+text\<open>From @{cite rassOwf2017}:
+ ``Lemma 4.6. Let \<open>t\<close>, \<open>T\<close> be as in Assumption 4.4 and assume \<open>T(n) \<ge> n\<^sup>3\<close>.
+  Then, there exists a language \<open>L\<^sub>0 \<in> DTIME(T) - DTIME(t)\<close> for which \<open>dens\<^sub>L\<^sub>0(x) \<le> \<surd>x\<close>.''\<close>
 
 lemma L0_t: "L\<^sub>0 \<notin> DTIME(t)"
 proof (rule ccontr, unfold not_not)

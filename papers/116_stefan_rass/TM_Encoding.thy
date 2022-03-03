@@ -5,17 +5,14 @@ theory TM_Encoding
     "Supplementary/Misc" "HOL-Library.Sublist"
 begin
 
-
-subsection\<open>Encoding TMs\<close>
-
-text\<open>As defined in the paper (ch 4.2, p. 11f, outlined in ch. 3.1, p. 8)
+text\<open>As defined in @{cite \<open>ch.~4.2\<close> rassOwf2017} (outlined in @{cite \<open>ch.~3.1\<close> rassOwf2017})
   the decoding of a TM \<open>M\<close> from a binary word \<open>w\<close> includes:
 
-  1. Exponential padding. "all but the most significant \<open>\<lceil>log(len(w))\<rceil>\<close> bits are ignored"
-  2. Arbitrary-length \<open>1\<^sup>+0\<close> prefix. "from [the result] we drop all preceding 1-bits and the first 0-bit"
-  3. Code description. "let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form".
+    \<^item> Exponential padding. ``all but the most significant \<open>\<lceil>log(len(w))\<rceil>\<close> bits are ignored''
+    \<^item> Arbitrary-length \<open>1\<^sup>+0\<close> prefix. ``from [the result] we drop all preceding 1-bits and the first 0-bit''
+    \<^item> Code description. ``let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form''.
 
-  Recall the definition of \<^typ>\<open>bin\<close> (see \<^file>\<open>Binary.thy\<close>),
+  Recall the definition of \<^typ>\<open>bin\<close> (see \<^theory>\<open>116_stefan_rass.Binary\<close>),
   which causes the MSB to be the \<^const>\<open>last\<close> element of the list,
   which is the \<^emph>\<open>rightmost\<close> one when explicitly referring to lists in Isabelle.\<close>
 
@@ -235,16 +232,17 @@ lemma wf_TM_has_enc: "\<exists>w. TM_decode_pad w = M"
 
 subsubsection\<open>Proving required properties\<close>
 
-text\<open>from ch. 3.1:
-  "The encoding that we will use [...] will have the following properties:
+text\<open>From @{cite \<open>ch.~3.1\<close> rassOwf2017}:
 
-  1. every string over \<open>{0, 1}\<^sup>*\<close> represents some TM [...],\<close>
+  ``The encoding that we will use [...] will have the following properties:
+
+  1. every string over \<open>{0, 1}\<^sup>*\<close> represents some TM [...],''\<close>
 
 theorem TM_decode_pad_wf: "TM (Rep_wf_TM (TM_decode_pad w))"
   unfolding TM_decode_pad_def by (fact decode_TM_wf)
 
 
-text\<open>2. every TM is represented by infinitely many strings. [...]"\<close>
+text\<open>``2. every TM is represented by infinitely many strings. [...]''\<close>
 
 theorem TM_inf_encs: "infinite {w. TM_decode_pad w = M}"
 proof (intro infinite_lists allI bexI CollectI)
@@ -264,14 +262,15 @@ proof (intro infinite_lists allI bexI CollectI)
 qed
 
 
-text\<open>from ch. 4.2:
-  "[The encoding] assures several properties [...]:
+text\<open>From @{cite \<open>ch.~4.2\<close> rassOwf2017}:
+
+  ``[The encoding] assures several properties [...]:
 
   1. [...] an arbitrary word \<open>w'\<close> encoding a TM has at least
-             \<open>2^(ℓ - \<lceil>log ℓ\<rceil>) \<ge> 2^(ℓ - (log ℓ) - 1)\<close>      (7)
+             \<open>2\<^bsup>ℓ - \<lceil>log ℓ\<rceil>\<^esup> \<ge> 2\<^bsup>ℓ - log ℓ - 1\<^esup>\<close>
      equivalents \<open>w\<close> in the set \<open>{0, 1}\<^sup>ℓ\<close> that map to \<open>w'\<close>.
-     Thus, if a TM \<open>M\<close> is encoded within \<open>ℓ\<close> bits, then (7) counts
-     how many equivalent codes for \<open>M\<close> are found at least in \<open>{0, 1}\<^sup>ℓ\<close>.\<close>
+     Thus, if a TM \<open>M\<close> is encoded within \<open>ℓ\<close> bits, then [the above equation] counts
+     how many equivalent codes for \<open>M\<close> are found at least in \<open>{0, 1}\<^sup>ℓ\<close>.''\<close>
 
 theorem num_equivalent_encodings:
   fixes M w
@@ -313,15 +312,15 @@ proof -
 qed
 
 
-text\<open>2. The retraction of preceding 1-bits creates the needed infinitude of
+text\<open>``2. The retraction of preceding 1-bits creates the needed infinitude of
         equivalent encodings of every possible TM \<open>M\<close>, as \<^emph>\<open>we can embed any code \<open>\<rho>(M)\<close>
-        in a word of length \<open>ℓ\<close> for which \<open>log(ℓ) > len (\<rho>(M))\<close>.\<close>
-        We will need this to prove the hierarchy theorem in Section 4.3.\<close>
+        in a word of length \<open>ℓ\<close> for which \<open>log ℓ > len (\<rho>(M))\<close>.\<close>
+        We will need this to prove the hierarchy theorem in Section 4.3.''\<close>
 
 theorem embed_TM_in_len:
   fixes M l
-  assumes min_word_len: "clog l \<ge> length (TM_encode M) + 2"
-    \<comment> \<open>The \<open>+2\<close> bits are required for the \<open>1\<^sup>+0\<close>-prefix.
+  assumes min_word_len: "clog l \<ge> length (encode_TM M) + 2" \<comment> \<open>The \<open>+2\<close> bits are required for the \<open>1\<^sup>+0\<close>-prefix.
+
         Note: this theorem technically also holds when the assumption @{thm min_word_len} reads
         \<^term>\<open>clog l > length (TM_encode M) \<longleftrightarrow> clog l \<ge> length (TM_encode M) + 1\<close>,
         but only due to \<^const>\<open>strip_al_prefix\<close> allowing the absence of preceding ones.
