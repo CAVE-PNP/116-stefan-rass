@@ -9,6 +9,8 @@ begin
 subsection\<open>Prerequisites\<close>
 
 text\<open>We introduce the locale \<open>TM_abbrevs\<close> to scope local abbreviations.
+  This allows easy access to notation without introducing possible bloat on the global scope.
+  In other words, users of this theory have to \<^emph>\<open>opt-in\<close> to more specialized abbreviations.
   The idea for this is from the Style Guide for Contributors to IsarMathLib\<^footnote>\<open>\<^url>\<open>https://www.nongnu.org/isarmathlib/IsarMathLib/CONTRIBUTING.html\<close>\<close>.\<close>
 locale TM_abbrevs
 
@@ -27,7 +29,7 @@ text\<open>Symbols on the tape are represented by \<^typ>\<open>'symbol option\<
   and a sequence of blanks as part of the input.\<close>
 
 type_synonym ('symbol) tp_symbol = "'symbol option"
-abbreviation blank_symbol :: "('symbol) tp_symbol" where "blank_symbol \<equiv> None"
+abbreviation (input) blank_symbol :: "('symbol) tp_symbol" where "blank_symbol \<equiv> None"
 abbreviation (in TM_abbrevs) "Bk \<equiv> blank_symbol"
 (* TODO consider notation, for instance "\<box>" ("#" is possible, but annoying, as it is used for lists) *)
 
@@ -198,126 +200,144 @@ begin
 end
 
 
-subsection\<open>Configuration and State\<close>
+subsection\<open>Turing Machine State\<close>
 
 subsubsection\<open>Tapes\<close>
 
-text\<open>We describe a TM tape following @{cite forsterCoqTM2020} as a record containing:
+text\<open>We describe a TM tape following @{cite forsterCoqTM2020} as a datatype containing:\<close>
 
-  \<^item> \<open>head\<close>, the symbol currently under the TM head, and
-  \<^item> \<open>left\<close>/\<open>right\<close>, the lists of symbols currently left/right of the TM head.
+datatype 's tape = Tape
+  (left: "'s tp_symbol list") \<comment> \<open>the lists of symbols currently left of the TM head\<close>
+  (head: "'s tp_symbol") \<comment> \<open>the symbol currently under the TM head\<close>
+  (right: "'s tp_symbol list") \<comment> \<open>the lists of symbols currently right of the TM head\<close>
 
-  For both \<open>left\<close> and \<open>right\<close>, the \<open>n\<close>-th element represents the symbol reached
+text\<open>For both \<^const>\<open>left\<close> and \<^const>\<open>right\<close>, the \<open>n\<close>-th element represents the symbol reached
   by \<open>n\<close> consecutive moves left (\<^const>\<open>Shift_Left\<close>) or right (\<^const>\<open>Shift_Right\<close>) resp.
-  The tape is assumed to be infinite in both directions (containing blanks),
+  The tape is assumed to be infinite in both directions (containing \<^const>\<open>blank_symbol\<close>s),
   so blanks will be inserted into the record if the TM crosses the ``ends''.
 
   We chose this approach as compared to letting the symbol under the head
-  be the first element of \<open>right\<close>@{cite xuIsabelleTM2013}, as it allows symmetry for move-actions.\<close>
-
-(* TODO consider putting left,right,head in TM_abbrevs *)
-record 's tape =
-  left :: "'s tp_symbol list"
-  head :: "'s tp_symbol"
-  right :: "'s tp_symbol list"
-
-fun tape_app :: "('s1 tp_symbol \<Rightarrow> 's2 tp_symbol) \<Rightarrow> 's1 tape \<Rightarrow> 's2 tape" where
-  "tape_app f \<lparr> left = l, head = h, right = r \<rparr> = \<lparr> left = map f l, head = f h, right = map f r \<rparr>"
-
-(* should be a definition. find a better name *)
-abbreviation tape_map_app :: "('s1 \<Rightarrow> 's2) \<Rightarrow> 's1 tape \<Rightarrow> 's2 tape" where
-  "tape_map_app f \<equiv> tape_app (map_option f)"
-
-lemma tape_app_def:
-  "tape_app f tp = \<lparr> left = map f (left tp), head = f (head tp), right = map f (right tp) \<rparr>"
-  by (induction tp) simp
-
-
-text\<open>Our definition of tapes allows no completely empty tape (containing zero symbols),
+  be the first element of \<open>right\<close>@{cite xuIsabelleTM2013}, as it allows symmetry for move-actions.
+  Our definition of tapes allows no completely empty tape (containing zero symbols),
   as the \<^const>\<open>head\<close> symbol is always set.
   However, this makes sense concerning space-complexity,
   as a TM (depending on the exact definition) always reads at least one cell
-  (and thus matches the requirement for space-complexity-functions to be at least \<open>1\<close> from @{cite hopcroftAutomata1979}).\<close>
+  (and thus matches the requirement for space-complexity-functions to be at least \<open>1\<close> from @{cite hopcroftAutomata1979}).
 
-abbreviation "empty_tape \<equiv> \<lparr> left=[], head = blank_symbol, right=[] \<rparr>"
+  The use of datatype (as compared to record, for instance) grants the predefined
+  \<^const>\<open>map_tape\<close> and \<^const>\<open>set_tape\<close>, including useful lemmas.\<close>
 
+context TM_abbrevs
+begin
 
-text\<open>The set of symbols that appear on a tape.
-  \<^const>\<open>blank_symbol\<close> (technically) appears (infinitely often) on any given tape
-  and is therefore included by default.\<close>
+text\<open>The following notation definitions would seem to be a good use case for \<open>syntax\<close> and \<open>translation\<close>
+  (see for instance \<^term>\<open>\<exists>\<^sub>\<le>\<^sub>1x. P x\<close>, the syntax for \<^const>\<open>Uniq\<close>).
+  Unfortunately, defining translations within a locale is not possible.
+  The upside of this approach however, is that it allows inspection via \<^emph>\<open>Ctrl+Mouseover\<close> and \<^emph>\<open>Ctrl+Click\<close>,
+  making it more accessible to users unfamiliar with the notation.\<close>
 
-(* TODO consider removing this definition if it is not used.
- *      since many advanced use-cases seem to require "f Bk = Bk" anyway, why not use the_set_of_tape instead?
- *      similar for tape_app *)
-definition set_of_tape :: "'s tape \<Rightarrow> 's tp_symbol set"
-  where [simp]: "set_of_tape tp \<equiv> set (left tp) \<union> {head tp} \<union> set (right tp) \<union> {blank_symbol}"
+notation Tape ("\<langle>_|_|_\<rangle>")
+abbreviation Tape_no_left ("\<langle>|_|_\<rangle>") where "\<langle>|h|r\<rangle> \<equiv> \<langle>[]|h|r\<rangle>"
+abbreviation Tape_no_right ("\<langle>_|_|\<rangle>") where "\<langle>l|h|\<rangle> \<equiv> \<langle>l|h|[]\<rangle>"
+abbreviation Tape_no_left_no_right ("\<langle>|_|\<rangle>") where "\<langle>|h|\<rangle> \<equiv> \<langle>[]|h|[]\<rangle>"
+abbreviation empty_tape ("\<langle>\<rangle>") where "\<langle>\<rangle> \<equiv> \<langle>|Bk|\<rangle>"
 
-abbreviation the_set_of_tape :: "'s tape \<Rightarrow> 's set"
-  where "the_set_of_tape tp \<equiv> Option.these (set_of_tape tp)"
+text\<open>The following lemmas should be useful in cases
+  when expanding a tape \<open>tp\<close> into \<open>\<langle>l|h|r\<rangle>\<close> is inconvenient.\<close>
 
+corollary set_tape_simps[simp]:
+  "set_tape \<langle>l|h|r\<rangle> = \<Union> (set_option ` (set l \<union> {h} \<union> set r))"
+  unfolding tape.set by blast
+corollary set_tape_def: "set_tape tp = \<Union> (set_option ` (set (left tp) \<union> {head tp} \<union> set (right tp)))"
+  by (induction tp) (unfold set_tape_simps tape.sel, rule refl)
 
-lemma the_set_of_tape_def[simp]:
-  "the_set_of_tape tp \<equiv> Option.these (set (left tp) \<union> {head tp} \<union> set (right tp))" by force
-
-lemma set_of_tape_simps[simp]:
-  "set_of_tape \<lparr> left = l, head = h, right = r \<rparr> \<equiv> (set l \<union> {h} \<union> set r \<union> {blank_symbol})" by force
-
-lemma set_of_tape_head: "head tp \<in> set_of_tape tp"
-  and set_of_tape_Bk: "blank_symbol \<in> set_of_tape tp" by auto
-
-lemma the_set_of_tape_head: "head tp \<noteq> blank_symbol \<Longrightarrow> the (head tp) \<in> the_set_of_tape tp" by force
-
-
-lemma tape_set_app: "set_of_tape (tape_app f tp) = f ` set_of_tape tp" if "f blank_symbol = blank_symbol"
+lemma set_tape_finite: "finite (set_tape tp)"
 proof (induction tp)
-  case (fields l h r) show ?case
-    unfolding tape_app.simps set_of_tape_simps tape.simps
-    unfolding image_Un singleton_image set_map \<open>f blank_symbol = blank_symbol\<close> by simp
+  case (Tape l h r)
+  have "finite (\<Union> (set_option ` set xs))" for xs :: "'a option list" by (intro finite_UN_I) auto
+  moreover have "finite (set_option x)" for x :: "'a option" by (rule finite_set_option)
+  ultimately show ?case unfolding tape.set by (intro finite_UnI)
 qed
 
-lemma the_tape_set_app: "the_set_of_tape (tape_map_app f tp) = f ` the_set_of_tape tp"
-  by (subst tape_set_app, unfold these_image) blast+
+corollary map_tape_def[unfolded Let_def]:
+  "map_tape f tp = (let f' = map_option f in \<langle>map f' (left tp)|f' (head tp)|map f' (right tp)\<rangle>)"
+  unfolding Let_def by (induction tp) simp
 
+text\<open>We define the size of a tape as the number of cells the TM has visited.
+  Even though the tape is considered infinite, this can be used for exploring space requirements.
+  Note that \<^const>\<open>size\<close> \<^footnote>\<open>defined by the datatype command, see for instance @{thm tape.size(2)}\<close>
+  is not of use in this case, since it applies \<^const>\<open>size\<close> recursively,
+  such that the \<^const>\<open>size\<close> of the tape depends on the \<^const>\<open>size\<close> of the tape symbols and not just their number.\<close>
+
+definition tape_size :: "'s tape \<Rightarrow> nat"
+  where "tape_size tp \<equiv> length (left tp) + length (right tp) + 1"
+
+lemma tape_size_simps[simp]: "tape_size \<langle>l|h|r\<rangle> = length l + length r + 1"
+  unfolding tape_size_def by simp
+
+lemma map_tape_size[simp]: "tape_size (map_tape f tp) = tape_size tp"
+  unfolding tape_size_def tape.map_sel by simp
+
+lemma set_tape_size[simp]: "card (set_tape tp) \<le> tape_size tp"
+proof (induction tp)
+  case (Tape l h r)
+  let ?S = "set l \<union> {h} \<union> set r"
+
+  have "card (set_tape \<langle>l|h|r\<rangle>) = card (\<Union> (set_option ` ?S))" unfolding set_tape_simps ..
+  also have "... \<le> (\<Sum>s\<in>?S. card (set_option s))" by (rule card_UN_le) blast
+  also have "... \<le> (\<Sum>s\<in>?S. 1)" using card_set_option by (rule sum_mono)
+  also have "... = card ?S" using card_eq_sum ..
+  also have "... \<le> card (set l \<union> {h}) + card (set r)" by (fact card_Un_le)
+  also have "... \<le> card (set l) + card {h} + card (set r)"
+    unfolding add_le_cancel_right by (fact card_Un_le)
+  also have "... \<le> tape_size \<langle>l|h|r\<rangle>" unfolding tape_size_simps by (simp add: add_mono card_length)
+  finally show "card (set_tape \<langle>l|h|r\<rangle>) \<le> tape_size \<langle>l|h|r\<rangle>" .
+qed
+
+lemma empty_tape_size[simp]: "tape_size \<langle>\<rangle> = 1" by simp
+
+
+paragraph\<open>Tape Input\<close>
 
 text\<open>TM execution begins with the head at the start of the input word.\<close>
 
-fun input_tape ("<_>\<^sub>t\<^sub>p") where
-  "<[]>\<^sub>t\<^sub>p = empty_tape"
-| "<x # xs>\<^sub>t\<^sub>p = \<lparr> left=[], head = x, right = xs \<rparr>"
+fun input_tape :: "'s word \<Rightarrow> 's tape" ("<_>\<^sub>t\<^sub>p") where
+  "<[]>\<^sub>t\<^sub>p = \<langle>\<rangle>"
+| "<x # xs>\<^sub>t\<^sub>p = \<langle>|Some x|map Some xs\<rangle>"
 
-lemma input_tape_app: "f blank_symbol = blank_symbol \<Longrightarrow> tape_app f <w>\<^sub>t\<^sub>p = <map f w>\<^sub>t\<^sub>p" by (induction w) auto
-lemma input_tape_app_alt: "w \<noteq> [] \<Longrightarrow> tape_app f <w>\<^sub>t\<^sub>p = <map f w>\<^sub>t\<^sub>p" by (induction w) auto
+lemma input_tape_map: "map_tape f <w>\<^sub>t\<^sub>p = <map f w>\<^sub>t\<^sub>p" by (induction w) auto
 
-lemma input_tape_left[simp]: "left (<w>\<^sub>t\<^sub>p) = []" by (induction w) auto
-lemma input_tape_right: "w \<noteq> [] \<longleftrightarrow> head <w>\<^sub>t\<^sub>p # right <w>\<^sub>t\<^sub>p = w" by (induction w) auto
+lemma input_tape_left[simp]: "left <w>\<^sub>t\<^sub>p = []" by (induction w) auto
+lemma input_tape_right: "w \<noteq> [] \<longleftrightarrow> head <w>\<^sub>t\<^sub>p # right <w>\<^sub>t\<^sub>p = map Some w" by (induction w) auto
 
-lemma input_tape_def:
-  "<w>\<^sub>t\<^sub>p = (if w = [] then empty_tape else \<lparr> left=[], head = hd w, right = tl w \<rparr>)"
+lemma input_tape_def: "<w>\<^sub>t\<^sub>p = (if w = [] then \<langle>\<rangle> else \<langle>|Some (hd w)|map Some (tl w)\<rangle>)"
   by (induction w) auto
 
-abbreviation tp_size :: "'s tape \<Rightarrow> nat" where
-  "tp_size tp \<equiv> length (left tp) + length (right tp) + 1"
+lemma input_tape_size: "w \<noteq> [] \<Longrightarrow> tape_size <w>\<^sub>t\<^sub>p = length w"
+  unfolding tape_size_def by (induction w) auto
 
-lemma input_tape_size: "w \<noteq> [] \<Longrightarrow> tp_size <w>\<^sub>t\<^sub>p = length w" by (induction w) force+
+
+paragraph\<open>Tape Shifts\<close>
 
 (* TODO split into shiftL and shiftR (maybe use symmetry) *)
 fun tp_update :: "head_move \<Rightarrow> 's tape \<Rightarrow> 's tape" where
-  "tp_update Shift_Left \<lparr>left=[],   head = h, right=rs  \<rparr> = \<lparr>left=[],   head = blank_symbol, right=h#rs \<rparr>"
-| "tp_update Shift_Left \<lparr>left=l#ls, head = h, right=rs  \<rparr> = \<lparr>left=ls,   head = l,  right=h#rs \<rparr>"
-| "tp_update Shift_Right \<lparr>left=ls,   head = h, right=[]  \<rparr> = \<lparr>left=h#ls, head = blank_symbol, right=[]   \<rparr>"
-| "tp_update Shift_Right \<lparr>left=ls,   head = h, right=r#rs\<rparr> = \<lparr>left=h#ls, head = r,  right=rs   \<rparr>"
-| "tp_update No_Shift tp = tp"
+  "tp_update L     \<langle>|h|rs\<rangle>   =     \<langle>|Bk|h#rs\<rangle>"
+| "tp_update L \<langle>l#ls|h|rs\<rangle>   =   \<langle>ls|l |h#rs\<rangle>"
+| "tp_update R   \<langle>ls|h|\<rangle>     = \<langle>h#ls|Bk|\<rangle>"
+| "tp_update R   \<langle>ls|h|r#rs\<rangle> = \<langle>h#ls|r |rs\<rangle>"
+| "tp_update N tp = tp"
 
-lemma tp_update_set: "set_of_tape (tp_update a tp) \<subseteq> set_of_tape tp"
+lemma tp_update_set: "set_tape (tp_update m tp) = set_tape tp"
 proof (induction tp)
-  case (fields l h r)
+  case (Tape l h r)
   show ?case
-  proof (induction a)
+  proof (induction m)
     case Shift_Left show ?case by (induction l) auto next
     case Shift_Right show ?case by (induction r) auto
   qed simp
 qed
 
+end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
 
 subsection\<open>Turing Machine Model\<close>
 
@@ -1362,11 +1382,11 @@ sublocale natM: TM natM
 
 fun config_conv :: "('q, 's) TM_config \<Rightarrow> (nat, nat) TM_config" ("C") where
   "config_conv \<lparr> state = q, tapes = tps \<rparr> =
-          \<lparr> state = f q, tapes = map (tape_app g) tps \<rparr>"
+          \<lparr> state = f q, tapes = map (tape_map g) tps \<rparr>"
 
 fun config_conv_inv :: "(nat, nat) TM_config \<Rightarrow> ('q, 's) TM_config" ("C\<inverse>") where
   "config_conv_inv \<lparr> state = q, tapes = tps \<rparr> =
-          \<lparr> state = f_inv q, tapes = map (tape_app g_inv) tps \<rparr>"
+          \<lparr> state = f_inv q, tapes = map (tape_map g_inv) tps \<rparr>"
 
 lemmas cc_simps = config_conv.simps config_conv_inv.simps
 
@@ -1377,12 +1397,12 @@ lemma config_conv_state_inv:
   "q \<in> states M \<Longrightarrow> state (CC \<lparr> state = q, tapes = tps \<rparr>) = q"
   unfolding cc_simps TM.TM_config.simps(1) by (fact f_inv)
 
-lemma tape_app_g_inv: "set_of_tape tp \<subseteq> symbols M \<Longrightarrow> (tape_app g_inv \<circ> tape_app g) tp = tp"
+lemma tape_map_g_inv: "set_of_tape tp \<subseteq> symbols M \<Longrightarrow> (tape_map g_inv \<circ> tape_map g) tp = tp"
 proof (induction tp)
   case (fields ls m rs)
   then have l: "set ls \<subseteq> symbols M" and m: "m \<in> symbols M" and r: "set rs \<subseteq> symbols M" by auto
   have *: "\<And>w. wf_word w \<Longrightarrow> map (\<lambda>x. g_inv (g x)) w = w" by (intro map_idI g_inv) blast
-  show ?case unfolding comp_def tape_app.simps map_map unfolding *[OF l] *[OF r] g_inv[OF m] ..
+  show ?case unfolding comp_def tape_map.simps map_map unfolding *[OF l] *[OF r] g_inv[OF m] ..
 qed
 
 lemma config_conv_inv: "wf_config c \<Longrightarrow> CC c = c"
@@ -1399,7 +1419,7 @@ proof (induction c)
   proof (intro map_idI)
     fix tp assume "tp \<in> set tps"
     with tps_symbols have "set_of_tape tp \<subseteq> symbols M" by blast
-    then show "(tape_app g_inv \<circ> tape_app g) tp = tp" by (fact tape_app_g_inv)
+    then show "(tape_map g_inv \<circ> tape_map g) tp = tp" by (fact tape_map_g_inv)
   qed
   ultimately show ?case by (rule TM.TM_config.equality) simp
 qed
@@ -1423,12 +1443,12 @@ proof (induction c)
   proof (intro map_idI)
     fix tp assume "tp \<in> set tps"
     with tps_symbols have "set_of_tape tp \<subseteq> symbols natM" by blast
-    then show "(tape_app g \<circ> tape_app g_inv) tp = tp"
+    then show "(tape_map g \<circ> tape_map g_inv) tp = tp"
     proof (induction tp)
       case (fields ls m rs)
       then have l: "set ls \<subseteq> symbols natM" and m: "m \<in> symbols natM" and r: "set rs \<subseteq> symbols natM" by auto
       have *: "\<And>w. pre_natM.wf_word w \<Longrightarrow> map (\<lambda>x. g (g_inv x)) w = w" by (intro map_idI inv_g) blast
-      show ?case unfolding comp_def tape_app.simps map_map unfolding *[OF l] *[OF r] inv_g[OF m] ..
+      show ?case unfolding comp_def tape_map.simps map_map unfolding *[OF l] *[OF r] inv_g[OF m] ..
     qed
   qed
   ultimately show ?case by (rule TM.TM_config.equality) simp
@@ -1452,11 +1472,11 @@ proof (induction c)
     proof (intro ballI)
       fix tp
       assume "tp \<in> set (tapes (C ?c))"
-      then have "tp \<in> tape_app g ` set tps" unfolding cc_simps TM_config.simps set_map .
-      then obtain tp' where tp': "tp = tape_app g tp'" and "tp' \<in> set tps" by blast
+      then have "tp \<in> tape_map g ` set tps" unfolding cc_simps TM_config.simps set_map .
+      then obtain tp' where tp': "tp = tape_map g tp'" and "tp' \<in> set tps" by blast
 
       have "set_of_tape tp = g ` set_of_tape tp'"
-        unfolding \<open>tp = tape_app g tp'\<close> tape_set_app[of g, OF g_Bk] ..
+        unfolding \<open>tp = tape_map g tp'\<close> tape_set_app[of g, OF g_Bk] ..
       also have "... \<subseteq> g ` symbols M" using \<open>tp' \<in> set tps\<close> by (intro image_mono) (fact wf_tp)
       finally show "set_of_tape tp \<subseteq> symbols natM" unfolding natM_simps .
     qed
@@ -1467,7 +1487,7 @@ lemma natM_step_eq: "wf_config c \<Longrightarrow> C\<inverse> (natM.step (C c))
 proof (induction c)
   case (fields q tps)
   let ?c = "\<lparr>state = q, tapes = tps\<rparr>" let ?c' = "C ?c"
-  let ?q = "f q" and ?tps = "map (tape_app g) tps"
+  let ?q = "f q" and ?tps = "map (tape_map g) tps"
   let ?w = "map head tps"
 
   from \<open>wf_config ?c\<close> have "pre_natM.wf_config (C ?c)" by (fact wf_natM_config)
@@ -1477,12 +1497,12 @@ proof (induction c)
     using wf_config_state[of ?c] by (intro next_state) simp
   from \<open>wf_config ?c\<close> have wf_step: "wf_config (step ?c)" by (fact wf_config_step)
 
-  have tp_read_eq: "map (\<lambda>tp. g_inv (head (tape_app g tp))) tps = map head tps"
+  have tp_read_eq: "map (\<lambda>tp. g_inv (head (tape_map g tp))) tps = map head tps"
   proof (intro list.map_cong0)
     fix tp assume "tp \<in> set tps"
     with \<open>wf_config ?c\<close> have "set_of_tape tp \<subseteq> symbols M" by (fast dest: wf_config_simpD(3))
     then have "head tp \<in> symbols M" by force
-    then show "g_inv (head (tape_app g tp)) = head tp"
+    then show "g_inv (head (tape_map g tp)) = head tp"
       by (induction tp) (simp add: g_inv)
   qed
 
@@ -1492,7 +1512,7 @@ proof (induction c)
     unfolding natM_def TM.TM.simps map_map unfolding ff_q comp_def tp_read_eq ..
   finally have state_step: "state (natM.step ?c') = f (next_state M q ?w)" .
 
-  have tp_upd: "tp_update (action_app g a) (tape_app g tp) = tape_app g (tp_update a tp)" for a tp
+  have tp_upd: "tp_update (action_app g a) (tape_map g tp) = tape_map g (tp_update a tp)" for a tp
   proof (induction tp)
     case (fields ls m rs) thus ?case
     proof (induction a)
@@ -1506,14 +1526,14 @@ proof (induction c)
     unfolding natM.step_def Let_def cc_simps TM_config.simps ..
   also have "... = map2 tp_update (map (action_app g) ?na) ?tps"
     unfolding natM_def TM.TM.simps map_map comp_def tp_read_eq ff_q ..
-  also have "... = map (tape_app g) (map2 tp_update ?na tps)"
+  also have "... = map (tape_map g) (map2 tp_update ?na tps)"
     unfolding zip_map2 map_map zip_map1 unfolding comp_def case_prod_beta' fst_conv snd_conv
     unfolding tp_upd ..
-  finally have "tapes (natM.step ?c') = map (tape_app g) (map2 tp_update ?na tps)" .
+  finally have "tapes (natM.step ?c') = map (tape_map g) (map2 tp_update ?na tps)" .
 
   with state_step have natM_step: "natM.step ?c' = \<lparr>
     state = f (next_state M q ?w),
-    tapes = map (tape_app g) (map2 tp_update ?na tps)
+    tapes = map (tape_map g) (map2 tp_update ?na tps)
   \<rparr>" using unit_eq by (intro TM_config.equality) (unfold TM_config.simps)
 
   have "C\<inverse> (natM.step (C ?c)) = CC (step ?c)"  unfolding natM_step step_def Let_def TM_config.simps
@@ -1544,8 +1564,8 @@ qed
 lemma natM_start_config:
   shows "C (start_config w) = natM.start_config (map g w)"
 unfolding start_config_def natM.start_config_def cc_simps
-    unfolding list.map map_replicate tape_app.simps g_Bk
-    unfolding natM_def TM.TM.simps input_tape_app[of g, OF g_Bk] ..
+    unfolding list.map map_replicate tape_map.simps g_Bk
+    unfolding natM_def TM.TM.simps input_tape_map[of g, OF g_Bk] ..
 
 lemma c_inv_state: "state (C\<inverse> c) = f_inv (state c)" for c
   by (induction c) simp
