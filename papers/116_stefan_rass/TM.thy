@@ -55,6 +55,8 @@ abbreviation (in TM_abbrevs) "L \<equiv> Shift_Left"
 abbreviation (in TM_abbrevs) "R \<equiv> Shift_Right"
 abbreviation (in TM_abbrevs) "N \<equiv> No_Shift"
 
+(* consider introducing a type of actions:
+ * type_synonym (in TM_abbrevs) ('s) action = "'s tp_symbol \<times> head_move" *)
 
 subsection\<open>Turing Machines\<close>
 
@@ -103,7 +105,7 @@ text\<open>To use TMs conveniently, we setup a type and a locale as follows:
 
 locale is_valid_TM =
   fixes M :: "('q, 's::finite) TM_record" (structure)
-  assumes at_least_one_tape: "1 \<le> tape_count M" (* TODO motivate this assm. "why is this necessary?" *)
+  assumes at_least_one_tape: "1 \<le> tape_count M" (* TODO motivate this assm. "why is this necessary?" edit: initial_config would have to be defined differently *)
     and state_axioms: "finite (states M)" "initial_state M \<in> states M"
       "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
 
@@ -296,8 +298,164 @@ qed
 
 lemma empty_tape_size[simp]: "tape_size \<langle>\<rangle> = 1" by simp
 
+end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
 
-paragraph\<open>Tape Input\<close>
+
+subsubsection\<open>Configuration\<close>
+
+text\<open>We define a TM \<^emph>\<open>configuration\<close> as a record of:\<close>
+
+record ('q, 's) TM_config =
+  state :: 'q \<comment> \<open>the current state\<close>
+  tapes :: "'s tape list" \<comment> \<open>a vector of tapes\<close>
+
+text\<open>Combined with the \<^typ>\<open>('q, 's) TM\<close> definition, it completely describes a TM at any time during its execution.\<close>
+
+definition heads :: "('q, 's) TM_config \<Rightarrow> 's tp_symbol list" \<comment> \<open>The vector of symbols currently under the TM-heads\<close>
+  where [simp]: "heads c = map head (tapes c)"
+
+
+context TM
+begin
+
+text\<open>A vector \<open>hds\<close> of symbols currently under the TM-heads,
+  is considered a well-formed state w.r.t. a TM \<open>M\<close>,
+  iff the number of elements of \<open>hds\<close> matches the number of tapes of \<open>M\<close>.\<close>
+
+definition wf_state :: "'s tp_symbol list \<Rightarrow> bool" (* this is currently unused due to the mitigations put in place with next_actions *)
+  where [simp]: "wf_state hds \<equiv> length hds = k"
+
+text\<open>A \<^typ>\<open>('q, 's) TM_config\<close> \<open>c\<close> is considered well-formed w.r.t. a TM \<open>M\<close>,
+  iff the number of \<^const>\<open>tapes\<close> of \<open>c\<close> matches the number of tapes of \<open>M\<close>.\<close>
+
+definition wf_config :: "('q, 's) TM_config \<Rightarrow> bool"
+  where [simp]: "wf_config c \<equiv> length (tapes c) = k"
+
+
+abbreviation is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
+  "is_final c \<equiv> state c \<in> F"
+
+end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
+
+
+subsection\<open>TM Execution\<close>
+
+subsubsection\<open>Actions\<close>
+
+context TM_abbrevs
+begin
+
+text\<open>To execute a TM tape \<^typ>\<open>head_move\<close>, we shift the entire tape by one element.
+  If the tape head is at the ``end'' of the defined tape, we insert \<^const>\<open>blank_symbol\<close>s,
+  as the tape is considered infinite in both directions.\<close>
+
+(* TODO split into shiftL and shiftR (maybe use symmetry) *)
+fun tape_shift :: "head_move \<Rightarrow> 's tape \<Rightarrow> 's tape" where
+  "tape_shift L     \<langle>|h|rs\<rangle>   =     \<langle>|Bk|h#rs\<rangle>"
+| "tape_shift L \<langle>l#ls|h|rs\<rangle>   =   \<langle>ls|l |h#rs\<rangle>"
+| "tape_shift R   \<langle>ls|h|\<rangle>     = \<langle>h#ls|Bk|\<rangle>"
+| "tape_shift R   \<langle>ls|h|r#rs\<rangle> = \<langle>h#ls|r |rs\<rangle>"
+| "tape_shift N tp = tp"
+
+lemma tape_shift_set: "set_tape (tape_shift m tp) = set_tape tp"
+proof (induction tp)
+  case (Tape l h r)
+  show ?case
+  proof (induction m)
+    case Shift_Left show ?case by (induction l) auto next
+    case Shift_Right show ?case by (induction r) auto
+  qed simp
+qed
+
+
+text\<open>Write a symbol to the current position of the TM tape head.\<close>
+
+definition tape_write :: "'s tp_symbol \<Rightarrow> 's tape \<Rightarrow> 's tape"
+  where "tape_write s tp = \<langle>left tp|s|right tp\<rangle>"
+
+corollary tape_write_simps[simp]: "tape_write s \<langle>l|h|r\<rangle> = \<langle>l|s|r\<rangle>" unfolding tape_write_def by simp
+
+
+text\<open>Write a symbol, then move the head.\<close>
+
+definition tape_action :: "('s tp_symbol \<times> head_move) \<Rightarrow> 's tape \<Rightarrow> 's tape"
+  where "tape_action a tp = tape_shift (snd a) (tape_write (fst a) tp)"
+
+corollary tape_action_altdef: "tape_action (s, m) = tape_shift m \<circ> tape_write s"
+  unfolding tape_action_def by auto
+
+end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
+
+
+subsubsection\<open>Steps\<close>
+
+context TM
+begin
+
+text\<open>If the current state is not final,
+  apply the action determined by \<^const>\<open>\<delta>\<close> for the current configuration.
+  Otherwise, do not execute any action.\<close>
+
+definition step_not_final :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
+  where [simp]: "step_not_final c = (let q=state c; hds=heads c in \<lparr>
+      state = next_state q hds,
+      tapes = map2 tape_action (next_actions q hds) (tapes c)
+   \<rparr>)"
+
+definition step :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
+  where [simp]: "step c = (if state c \<in> F then c else step_not_final c)"
+
+abbreviation "steps n \<equiv> step ^^ n"
+
+corollary step_simps:
+  shows step_final: "is_final c \<Longrightarrow> step c = c"
+    and step_not_final: "\<not> is_final c \<Longrightarrow> step c = step_not_final c"
+  unfolding step_def by auto
+
+
+paragraph\<open>Final Steps\<close>
+
+lemma final_steps[simp, intro]: "is_final c \<Longrightarrow> steps n c = c"
+  by (rule funpow_fixpoint) (rule step_final)
+
+lemma final_le_steps:
+  assumes "is_final (steps n c)"
+    and "n \<le> m"
+  shows "steps m c = steps n c"
+proof -
+  from \<open>n\<le>m\<close> obtain x where "m = x + n" unfolding le_iff_add by force
+  have "(step^^m) c = (step^^x) ((step^^n) c)" unfolding \<open>m = x + n\<close> funpow_add by simp
+  also have "... = (step^^n) c" using \<open>is_final (steps n c)\<close> by blast
+  finally show "steps m c = steps n c" .
+qed
+
+corollary final_mono[elim]:
+  assumes "is_final (steps n c)"
+    and "n \<le> m"
+  shows "is_final (steps m c)"
+  unfolding final_le_steps[OF assms] by (fact \<open>is_final (steps n c)\<close>)
+
+corollary final_mono': "mono (\<lambda>n. is_final ((step^^n) c))"
+  using final_mono by (intro monoI le_boolI)
+
+
+paragraph\<open>Well-Formed Steps\<close>
+
+lemma wf_step_not_final: "wf_config c \<Longrightarrow> wf_config (step_not_final c)"
+  unfolding wf_config_def step_not_final_def Let_def TM_config.simps
+  unfolding length_map length_zip next_actions_length by simp
+
+lemma wf_step[intro]: "wf_config c \<Longrightarrow> wf_config (step c)"
+  unfolding step_def using wf_step_not_final by presburger
+
+lemma funpow_induct: "P x \<Longrightarrow> (\<And>x. P x \<Longrightarrow> P (f x)) \<Longrightarrow> P ((f^^n) x)"
+  by (induction n) auto
+
+corollary wf_steps[intro]: "wf_config c \<Longrightarrow> wf_config (steps n c)"
+  using wf_step by (elim funpow_induct)
+
+
+subsubsection\<open>Running a TM Program\<close>
 
 text\<open>TM execution begins with the head at the start of the input word.\<close>
 
@@ -317,191 +475,19 @@ lemma input_tape_size: "w \<noteq> [] \<Longrightarrow> tape_size <w>\<^sub>t\<^
   unfolding tape_size_def by (induction w) auto
 
 
-paragraph\<open>Tape Shifts\<close>
+definition initial_config :: "'s list \<Rightarrow> ('q, 's) TM_config"
+  where [simp]: "initial_config w = \<lparr> state = q\<^sub>0, tapes = <w>\<^sub>t\<^sub>p # empty_tape \<up> (k - 1) \<rparr>"
 
-(* TODO split into shiftL and shiftR (maybe use symmetry) *)
-fun tp_update :: "head_move \<Rightarrow> 's tape \<Rightarrow> 's tape" where
-  "tp_update L     \<langle>|h|rs\<rangle>   =     \<langle>|Bk|h#rs\<rangle>"
-| "tp_update L \<langle>l#ls|h|rs\<rangle>   =   \<langle>ls|l |h#rs\<rangle>"
-| "tp_update R   \<langle>ls|h|\<rangle>     = \<langle>h#ls|Bk|\<rangle>"
-| "tp_update R   \<langle>ls|h|r#rs\<rangle> = \<langle>h#ls|r |rs\<rangle>"
-| "tp_update N tp = tp"
-
-lemma tp_update_set: "set_tape (tp_update m tp) = set_tape tp"
-proof (induction tp)
-  case (Tape l h r)
-  show ?case
-  proof (induction m)
-    case Shift_Left show ?case by (induction l) auto next
-    case Shift_Right show ?case by (induction r) auto
-  qed simp
-qed
-
-end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
-
-subsection\<open>Turing Machine Model\<close>
+definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
+  where [simp]: "run n w \<equiv> steps n (initial_config w)"
 
 
-record ('q, 's) TM_config =
-  state :: 'q
-  tapes :: "'s tape list"
+lemma wf_initial_config[intro]: "wf_config (initial_config w)" using at_least_one_tape by simp
 
-
-
-\<comment> \<open>A vector \<open>hds\<close> (\<^typ>\<open>'s list\<close>) of symbols currently under the TM-heads,
-  is considered a well-formed state w.r.t. a \<^typ>\<open>('q, 's) TM_record\<close> \<open>M\<close>,
-  iff the number of elements of \<open>hds\<close> matches the number of tapes of \<open>M\<close>.\<close>
-definition wf_state :: "('q, 's::finite) TM_record \<Rightarrow> 's tp_symbol list \<Rightarrow> bool"
-  where [simp]: "wf_state M hds \<equiv> length hds = tape_count M"
-
-\<comment> \<open>A \<^typ>\<open>('q, 's) TM_config\<close> \<open>c\<close> is considered well-formed w.r.t. a \<^typ>\<open>('q, 's) TM_record\<close> \<open>M\<close>,
-  iff the number of \<^const>\<open>tapes\<close> of \<open>c\<close> matches the number of tapes of \<open>M\<close>.\<close>
-definition wf_config :: "('q, 's::finite) TM_record \<Rightarrow> ('q, 's) TM_config \<Rightarrow> bool"
-  where [simp]: "wf_config M c \<equiv> length (tapes c) = tape_count M"
-
-
-
-
-abbreviation wf_state_of_config ("wf'_state\<^sub>c")
-  where "wf_state\<^sub>c c \<equiv> wf_state (map head (tapes c))"
-
-lemma wf_config_state: "wf_state\<^sub>c c \<longleftrightarrow> wf_config c" by force
-
-abbreviation is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
-  "is_final c \<equiv> state c \<in> final_states M"
-
-definition step :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config" where
-  "step c = (let q=state c; w=map head (tapes c) in \<lparr>
-      state=next_state M q w,
-      tapes=map2 tp_update (next_action M q w) (tapes c)
-   \<rparr>)"
-
-abbreviation all_Nop ("Nop\<^sub>k") where "Nop\<^sub>k \<equiv> No_Shift \<up> (tape_count M)"
-
-corollary all_Nop_update[simp]: "length ts = tape_count M \<Longrightarrow> map2 tp_update Nop\<^sub>k ts = ts"
-  unfolding map2_replicate by (simp add: map_idI)
-
-lemma final_action_explicit:
-  "\<lbrakk>wf_state q w; q \<in> final_states M\<rbrakk> \<Longrightarrow> next_action M q w = Nop\<^sub>k"
-  using next_action_length final_action by (intro replicate_eqI) blast+
-
-lemma final_step_fixpoint:
-  assumes wf: "wf_state\<^sub>c c" and fc: "is_final c"
-  shows "step c = c"
-proof -
-  let ?q = "state c" and ?w = "map head (tapes c)" and ?ts = "tapes c"
-
-  have ns: "next_state M ?q ?w = ?q" using wf fc by (rule final_state)
-  have na: "next_action M ?q ?w = Nop\<^sub>k" using wf fc by (rule final_action_explicit)
-  have tu: "map2 tp_update Nop\<^sub>k ?ts = ?ts" using all_Nop_update wf_config_state wf .
-
-  show "step c = c" unfolding step_def Shift_Leftet_def unfolding ns na tu by simp
-qed
-
-lemma final_steps: "wf_state\<^sub>c c \<Longrightarrow> is_final c \<Longrightarrow> (step^^n) c = c"
-  by (intro funpow_fixpoint final_step_fixpoint)
-
-lemma wf_config_step: "wf_config c \<Longrightarrow> wf_config (step c)"
-proof
-  let ?q = "state c" and ?w = "map head (tapes c)" and ?ts = "tapes c"
-  let ?q' = "state (step c)" and ?ts' = "tapes (step c)"
-  let ?na = "next_action M ?q ?w"
-  assume "wf_config c"
-  then have wf: "wf_state\<^sub>c c" by (rule wf_config_state)
-
-  from \<open>wf_config c\<close> have "?q \<in> states M" ..
-  have q': "?q' = next_state M ?q ?w" unfolding step_def Let_def by simp
-  show "?q' \<in> states M" unfolding q' using wf by (rule next_state)
-
-  have lna: "length ?na = tape_count M" using wf by (rule next_action_length)
-  moreover have lts: "length ?ts = tape_count M" using \<open>wf_config c\<close> ..
-  ultimately show lts': "length ?ts' = tape_count M" unfolding step_def Let_def by simp
-
-  have "\<forall>i < length ?ts'. set_of_tape (?ts' ! i) \<subseteq> symbols M" unfolding lts'
-  proof (intro allI impI)
-    fix i assume "i < tape_count M"
-    have *: "?ts' ! i = tp_update (?na ! i) (?ts ! i)" unfolding step_def Let_def TM_config.simps(2)
-      using lna lts \<open>i < tape_count M\<close> by (intro nth_map2) auto
-
-    have "set_of_tape (?ts' ! i) \<subseteq> set_of_tape (?ts ! i) \<union> {symbol_of_write (?na ! i)}"
-      unfolding * by (rule tp_update_set)
-    also have "... \<subseteq> symbols M"
-    proof (intro Un_least)
-      have "i < length ?ts" unfolding lts by (fact \<open>i < tape_count M\<close>)
-      moreover from \<open>wf_config c\<close> have "\<forall>tp \<in> set ?ts. set_of_tape tp \<subseteq> symbols M" ..
-      ultimately show "set_of_tape (?ts ! i) \<subseteq> symbols M" by (rule list_ball_nth)
-
-      have "i < length ?na" unfolding lna by (fact \<open>i < tape_count M\<close>)
-      moreover have "\<forall>tp \<in> set ?na. symbol_of_write tp \<in> symbols M"
-        using next_write_symbol \<open>wf_state\<^sub>c c\<close> unfolding image_subset_iff .
-      ultimately show "{symbol_of_write (?na ! i)} \<subseteq> symbols M" by (intro list_ball_nth) blast+
-    qed
-    finally show "set_of_tape (?ts' ! i) \<subseteq> symbols M" .
-  qed
-  then show "\<forall>tp \<in> set ?ts'. set_of_tape tp \<subseteq> symbols M" unfolding all_set_conv_all_nth .
-qed
-
-corollary wf_config_steps: "wf_config c \<Longrightarrow> wf_config ((step^^n) c)"
-  using wf_config_step by (induction n) auto
-
-definition start_config :: "'s list \<Rightarrow> ('q, 's) TM_config" where [simp]:
-  "start_config w = \<lparr>
-    state = initial_state M,
-    tapes = <w>\<^sub>t\<^sub>p # empty_tape \<up> (tape_count M - 1)
-  \<rparr>"
-
-abbreviation "run n w \<equiv> (step^^n) (start_config w)"
-
-lemma words_length_finite[simp]: "finite {w\<in>wf_words. length w \<le> n}"
-  using symbol_axioms(1) finite_lists_length_le[of "symbols M"] by simp
-
-lemma set_of_wf_word: "wf_word w \<Longrightarrow> set_of_tape <w>\<^sub>t\<^sub>p \<subseteq> symbols M"
-  using symbol_axioms(2) by (induction w) auto
-
-lemma wf_start_config[intro]: "wf_word w \<Longrightarrow> wf_config (start_config w)"
-proof
-  let ?ts = "tapes (start_config w)"
-  show "state (start_config w) \<in> states M" using state_axioms(2) by simp
-  show "length ?ts = tape_count M" using at_least_one_tape by simp
-
-  assume "set w \<subseteq> symbols M"
-  have "set ?ts \<subseteq> {<w>\<^sub>t\<^sub>p} \<union> {empty_tape}" by fastforce
-  moreover have "set_of_tape empty_tape \<subseteq> symbols M" using symbol_axioms(2) by simp
-  moreover have "set_of_tape <w>\<^sub>t\<^sub>p \<subseteq> symbols M" using \<open>set w \<subseteq> symbols M\<close> by (fact set_of_wf_word)
-  ultimately show "\<forall>tp \<in> set ?ts. set_of_tape tp \<subseteq> symbols M" by blast
-qed
-
-corollary wf_config_run: "wf_word w \<Longrightarrow> wf_config (run n w)"
-  using wf_start_config by (rule wf_config_steps)
-
-lemma final_le_steps:
-  assumes "wf_config c"
-      and "n \<le> m"
-      and "is_final ((step^^n) c)"
-    shows "(step^^m) c = (step^^n) c"
-proof -
-  from \<open>n\<le>m\<close> obtain n' where "m = n' + n" by (metis add.commute less_eqE)
-  have wf: "wf_state\<^sub>c ((step^^n) c)" using wf_config_state wf_config_steps \<open>wf_config c\<close> .
-  have "(step^^m) c = (step^^n') ((step^^n) c)"
-    unfolding \<open>m = n' + n\<close> funpow_add by (rule comp_apply)
-  also have "... = (step^^n) c" using wf \<open>is_final ((step^^n) c)\<close> by (rule final_steps)
-  finally show "(step^^m) c = (step^^n) c" .
-qed
-
-corollary final_mono:
-  assumes "wf_config c"
-    and "n \<le> m"
-    and "is_final ((step^^n) c)"
-  shows "is_final ((step^^m) c)"
-  unfolding final_le_steps[OF assms] by fact
-
-corollary final_mono':
-  assumes "wf_config c"
-  shows "mono (\<lambda>n. is_final ((step^^n) c))"
-  using final_mono[OF assms] by (intro monoI le_boolI)
-
+corollary wf_config_run: "wf_config (run n w)" unfolding run_def by blast
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
+
 
 subsection \<open>Composition of Turing Machines\<close>
 
@@ -929,7 +915,7 @@ proof
   thus "\<exists>n. let cn = (step ^^ n) c in is_final cn \<and> Q1 cn \<and> Q2 cn" ..
 qed
 
-abbreviation (input) init where "init w \<equiv> (\<lambda>c. c = start_config w)"
+abbreviation (input) init where "init w \<equiv> (\<lambda>c. c = initial_config w)"
 
 definition halts :: "'s list \<Rightarrow> bool"
   where "halts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>_. True)"
@@ -941,7 +927,7 @@ lemma halts_D[dest]:
   assumes "halts w"
   shows "wf_word w"
     and "\<exists>n. is_final (run n w)"
-  using assms hoare_halt_def wf_start_config
+  using assms hoare_halt_def wf_initial_config
   unfolding halts_def by fastforce+
 
 lemma halts_altdef: "halts w \<longleftrightarrow> wf_word w \<and> (\<exists>n. is_final (run n w))" by blast
@@ -963,7 +949,7 @@ proof (rule ccontr)
 
   from hoare_and assms(2-3) have "hoare_halt (init w) (\<lambda>c. f c = x \<and> f c = y)".
   then have "hoare_halt (init w) (\<lambda>_. False)" unfolding * .
-  thus False using hoare_contr wf_start_config[OF assms(1)] by fastforce
+  thus False using hoare_contr wf_initial_config[OF assms(1)] by fastforce
 qed
 
 end
@@ -996,24 +982,24 @@ qed
 
 lemma input_tp_assert:
   assumes "good_assert P"
-  shows "P w \<longleftrightarrow> input_assert P (start_config w)"
+  shows "P w \<longleftrightarrow> input_assert P (initial_config w)"
 proof (cases "w = []")
   case True
   then show ?thesis
-    unfolding input_assert_def start_config_def apply simp
+    unfolding input_assert_def initial_config_def apply simp
     using good_assert_single[OF assms] ..
 next
   case False
   then show ?thesis
-    unfolding input_assert_def start_config_def apply simp
+    unfolding input_assert_def initial_config_def apply simp
     using input_tape_right by metis
 qed
 
 lemma init_input: "init w c \<Longrightarrow> input w c"
-  unfolding start_config_def by simp
+  unfolding initial_config_def by simp
 
 lemma init_state_initial_state: "init w c \<Longrightarrow> state c = initial_state M"
-  unfolding start_config_def by simp
+  unfolding initial_config_def by simp
 
 definition accepts :: "'s list \<Rightarrow> bool"
   where "accepts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
@@ -1028,7 +1014,7 @@ lemma acceptsI[intro]:
 lemma acceptsE[elim]:
   assumes "accepts w"
   obtains n where "state (run n w) \<in> accepting_states M"
-using accepts_def assms hoare_halt_def wf_start_config by fastforce
+using accepts_def assms hoare_halt_def wf_initial_config by fastforce
 
 definition rejects :: "'s list \<Rightarrow> bool"
   where "rejects w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> rejecting_states M)"
@@ -1045,7 +1031,7 @@ lemma rejectsE[elim]:
   assumes "rejects w"
   obtains n where "is_final (run n w)"
     and "state (run n w) \<in> rejecting_states M"
-by (smt (verit, ccfv_SIG) assms hoare_halt_def rejects_def wf_start_config)
+by (smt (verit, ccfv_SIG) assms hoare_halt_def rejects_def wf_initial_config)
 
 lemma halts_iff: "halts w \<longleftrightarrow> accepts w \<or> rejects w"
 proof (intro iffI)
@@ -1079,9 +1065,9 @@ proof (intro notI)
     by (fact hoare_and)
   then have "hoare_halt (init w) (\<lambda>c. False)" by auto
 
-  moreover from assms have "wf_config (start_config w)"
-    unfolding accepts_def by (intro wf_start_config) blast
-  moreover have "init w (start_config w)" ..
+  moreover from assms have "wf_config (initial_config w)"
+    unfolding accepts_def by (intro wf_initial_config) blast
+  moreover have "init w (initial_config w)" ..
   ultimately show False by (intro hoare_contr)
 qed
 
@@ -1119,7 +1105,7 @@ lemma decides_altdef4: "decides_word L w \<longleftrightarrow> (if w \<in> L the
 
 lemma decides_altdef3: "decides_word L w \<longleftrightarrow> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M \<longleftrightarrow> w\<in>L)"
   unfolding decides_altdef4 accepts_def rejects_def
-  by (cases "w\<in>L") (simp add: hoare_halt_def del: start_config_def)+
+  by (cases "w\<in>L") (simp add: hoare_halt_def del: initial_config_def)+
 
 end
 
@@ -1561,9 +1547,9 @@ next
   finally show ?case .
 qed
 
-lemma natM_start_config:
-  shows "C (start_config w) = natM.start_config (map g w)"
-unfolding start_config_def natM.start_config_def cc_simps
+lemma natM_initial_config:
+  shows "C (initial_config w) = natM.initial_config (map g w)"
+unfolding initial_config_def natM.initial_config_def cc_simps
     unfolding list.map map_replicate tape_map.simps g_Bk
     unfolding natM_def TM.TM.simps input_tape_map[of g, OF g_Bk] ..
 
@@ -1574,9 +1560,9 @@ lemma natM_state_eq:
   assumes "wf_word w"
   shows "state (natM.run n (map g w)) = f (state (run n w))"
 proof -
-  from assms have wfc: "wf_config (start_config w)" by (rule wf_start_config)
+  from assms have wfc: "wf_config (initial_config w)" by (rule wf_initial_config)
   hence "C\<inverse> (natM.run n (map g w)) = run n w"
-    using natM_start_config natM_steps_eq by metis
+    using natM_initial_config natM_steps_eq by metis
   thus ?thesis using c_inv_state
     by (metis assms inv_f natM.wf_config_run natM_wf_word pre_natM.wf_configD(1))
 qed
@@ -1585,17 +1571,17 @@ lemma final_eq:
   assumes "wf_word w"
   shows "is_final (run n w) \<longleftrightarrow> natM.is_final (natM.run n (map g w))"
 proof - (* using natM_state_eq[OF assms] try *)
-  let ?w = "map g w" and ?c0 = "start_config w"
-  from \<open>wf_word w\<close> have wf_c0: "wf_config ?c0" by (fact wf_start_config)
+  let ?w = "map g w" and ?c0 = "initial_config w"
+  from \<open>wf_word w\<close> have wf_c0: "wf_config ?c0" by (fact wf_initial_config)
 
   have "state ((step ^^ n) ?c0) = state (C\<inverse> ((natM.step ^^ n) (C ?c0)))"
     unfolding natM_steps_eq[OF wf_c0] ..
   also have "... = f_inv (state ((natM.step ^^ n) (C ?c0)))" unfolding c_inv_state ..
-  also have "... = f_inv (state (natM.run n ?w))" unfolding natM_start_config ..
+  also have "... = f_inv (state (natM.run n ?w))" unfolding natM_initial_config ..
   finally have run_eq: "state (run n w) = f_inv (state (natM.run n ?w))" .
 
-  have "pre_natM.wf_config (natM.start_config (map g w))"
-    using wf_natM_config[of ?c0] and wf_c0 unfolding natM_start_config[symmetric] .
+  have "pre_natM.wf_config (natM.initial_config (map g w))"
+    using wf_natM_config[of ?c0] and wf_c0 unfolding natM_initial_config[symmetric] .
   then have "pre_natM.wf_config (natM.run n ?w)" by (fact natM.wf_config_steps)
   then have wf_run_state: "state (natM.run n ?w) \<in> states natM" by blast
   then have wf_run_state': "f_inv (state (natM.run n ?w)) \<in> states M" by (fact f_inv_states)
