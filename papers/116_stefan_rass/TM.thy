@@ -314,6 +314,9 @@ qed
 corollary wf_config_run: "wf_word w \<Longrightarrow> wf_config (run n w)"
   using wf_start_config by (rule wf_config_steps)
 
+corollary state_run_state: "wf_word w \<Longrightarrow> state (run n w) \<in> states M"
+  using wf_config_run unfolding wf_config_def Let_def ..
+
 lemma final_le_steps:
   assumes "wf_config c"
       and "n \<le> m"
@@ -344,7 +347,6 @@ corollary final_mono':
   assumes "wf_config c"
   shows "mono (\<lambda>n. is_final ((step^^n) c))"
   using final_mono[OF assms] by (intro monoI le_boolI)
-
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
@@ -807,8 +809,6 @@ sorry
 
 subsection\<open>Deciding Languages\<close>
 
-abbreviation input where "input w \<equiv> input_assert ((=) w)"
-
 context TM begin
 
 abbreviation "good_assert P \<equiv> \<forall>w. P (trim Bk w) \<longleftrightarrow> P w"
@@ -984,8 +984,9 @@ subsection\<open>Computation of Functions\<close>
 
 context TM begin
 
+(* TODO: will probably need (=) modulo trim Bk *)
 definition computes_word :: "('b list \<Rightarrow> 'b list) \<Rightarrow> 'b list \<Rightarrow> bool"
-  where computes_def[simp]: "computes_word f w \<equiv> hoare_halt (input w) (input (f w))"
+  where computes_def[simp]: "computes_word f w \<equiv> hoare_halt ((=) w) ((=) (f w))"
 
 abbreviation computes :: "('b list \<Rightarrow> 'b list) \<Rightarrow> bool"
   where "computes f \<equiv> \<forall>w. computes_word f w"
@@ -1025,19 +1026,12 @@ lemma rej_TM:
   shows "rejects w"
   unfolding rejects_def
 proof
-  show "wf_word w" using assms by auto
-next
-  let ?rej = "rejecting_states Rejecting_TM"
-  have final_rej: "?rej = final_states Rejecting_TM" by simp
-  show "hoare_halt (init w) (\<lambda>c. state c \<in> ?rej)"
-  proof
-    fix c0
-    assume "init w c0"
-    then have "state c0 = start_state Rejecting_TM" by (fact init_state_start_state)
-    then have "is_final ((step^^0) c0)" unfolding Rejecting_TM_def by simp
-    then show "\<exists>n. let cn = (step ^^ n) c0 in is_final cn \<and> state cn \<in> ?rej"
-      using final_rej by metis
-  qed
+  show wwf: "wf_word w" using assms by auto
+
+  have "rejecting_states Rejecting_TM = states Rejecting_TM" by simp
+  then have "state (run 1 w) \<in> rejecting_states Rejecting_TM"
+    using wwf state_run_state by fast
+  thus "\<exists>n. state ((step ^^ n) (start_config w)) \<in> rejecting_states Rejecting_TM" ..
 qed
 
 end \<comment> \<open>\<^locale>\<open>Rej_TM\<close>\<close>
@@ -1425,10 +1419,10 @@ proof - (* using natM_state_eq[OF assms] try *)
 qed
 
 lemma natM_halts': "wf_word w \<Longrightarrow> halts w \<longleftrightarrow> natM.halts (map g w)"
-  unfolding halts_altdef natM.halts_altdef using final_eq natM_wf_word by presburger
+  using final_eq natM_wf_word by fast
 
 lemma natM_halts: "halts w \<Longrightarrow> natM.halts (map g w)"
-  unfolding halts_altdef using natM_halts' by blast
+  using natM_halts' by auto
 
 lemma natM_accepts: "accepts w \<Longrightarrow> natM.accepts (map g w)"
 proof -
@@ -1476,7 +1470,7 @@ lemma lemmy:
 proof -
   from assms(3) obtain w' where "w'\<in>L" and "map g w = map g w'" by blast
   with assms(1-2) map_g_inj have "w = w'"
-    unfolding inj_on_def by blast
+    unfolding inj_on_def by (meson subsetD)
   with \<open>w'\<in>L\<close> show "w \<in> L" by simp
 qed
 

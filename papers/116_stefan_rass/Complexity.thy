@@ -158,7 +158,7 @@ lemma halts_time: "halts w \<Longrightarrow> \<exists>n. time w = Some n"
   using wf_config_run wf_start_config by fastforce
 
 lemma time_halts: "wf_word w \<Longrightarrow> time w = Some n \<Longrightarrow> halts w"
-  using TM_axioms by (intro halts_I TM.time_Some_D)
+  using TM_axioms halts_def TM.time_Some_D by fast
 
 lemma halts_altdef: "halts w \<longleftrightarrow> wf_word w \<and> (\<exists>n. time w = Some n)"
   using halts_time time_halts TM.halts_def TM_axioms by blast
@@ -392,7 +392,7 @@ proof -
     moreover from \<open>time_bounded t\<close> have "time_bounded_word t w" ..
     ultimately show "time_bounded_word T w" by (fact time_bounded_word_mono')
   qed
-  ultimately show ?thesis using DTIME_ae[of L T] TM.ae_conjI wf by blast
+  ultimately show ?thesis using DTIME_ae[of L T] TM.ae_conjI wf by metis
 qed
 
 lemma DTIME_mono_ae:
