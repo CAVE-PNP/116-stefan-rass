@@ -19,6 +19,28 @@ lemma ifI:
   shows "P (If c a b)"
   using assms by force
 
+
+lemma Max_atLeastAtMost_nat:
+  fixes x y :: nat
+  assumes "x \<le> y"
+  shows "Max {x..y} = y"
+  using assms by (intro Max_eqI) auto
+
+lemma Max_atLeastLessThan_nat:
+  fixes x y :: nat
+  assumes "x < y"
+  shows "Max {x..<y} = y-1"
+  using assms
+proof (induction y)
+  case 0 thus ?case by blast
+next
+  case (Suc y)
+  from \<open>x < Suc y\<close> have "x \<le> y" by auto
+  then show ?case unfolding atLeastLessThanSuc_atLeastAtMost diff_Suc_1
+    by (rule Max_atLeastAtMost_nat)
+qed
+
+
 lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_def)
 
 lemma inv_into_onto: "inj_on f A \<Longrightarrow> inv_into A f ` f ` A = A" by simp

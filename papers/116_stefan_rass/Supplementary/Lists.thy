@@ -42,6 +42,8 @@ lemma nth_map2:
 
 lemma map2_same: "map2 f xs xs = map (\<lambda>x. f x x) xs" unfolding zip_same_conv_map by simp
 
+lemma take_eq[simp]: "take (length xs) xs = xs" by simp
+
 lemma len_tl_Cons: "xs \<noteq> [] \<Longrightarrow> length (x # tl xs) = length xs"
   by simp
 
@@ -232,16 +234,30 @@ next
 qed
 
 
+lemma map_nthI:
+  assumes f_nth: "\<And>n. n < length xs \<Longrightarrow> f n = xs ! n"
+  shows "map f [0..<length xs] = xs"
+proof -
+  let ?is = "[0..<length xs]"
+  from f_nth have "map f ?is = map (nth xs) ?is" by (intro list.map_cong0) simp
+  also have "... = xs" unfolding map_nth ..
+  finally show ?thesis .
+qed
+
+
 text\<open>A version of \<^const>\<open>nth\<close> with a default value; if the requested element is not in the list,
   the default value is returned instead.\<close>
 
 definition nth_or :: "nat \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a"
   where "nth_or n x xs \<equiv> if n < length xs then xs ! n else x"
 
-lemma nth_or_simps:
+lemma nth_or_simps[simp]:
   shows nth_or_Nil: "nth_or n x [] = x"
     and nth_or_val: "n < length xs \<Longrightarrow> nth_or n x xs = xs ! n"
+    and nth_or_other: "\<not> n < length xs \<Longrightarrow> nth_or n x xs = x"
   unfolding nth_or_def by auto
+
+lemma nth_or_map: "f (nth_or n x xs) = nth_or n (f x) (map f xs)" by (cases "n < length xs") auto
 
 
 text\<open>Force a list to a given length; truncate if too long, and pad with the default value if too short.\<close>

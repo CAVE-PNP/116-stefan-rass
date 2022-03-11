@@ -36,6 +36,8 @@ qed
 
 lemma these_id: "None \<notin> A \<Longrightarrow> Option.these A = the ` A" unfolding Option.these_def by fast
 
+lemma these_altdef: "Option.these A = \<Union> (set_option ` A)" unfolding Option.these_def by force
+
 
 lemma card_set_option[simp]: "card (set_option x) \<le> 1" by (induction x) auto
 lemma finite_set_option[simp]: "finite (set_option x)" by (induction x) auto
