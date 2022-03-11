@@ -40,6 +40,8 @@ lemma nth_map2:
   shows "map2 f xs ys ! i = f (xs ! i) (ys ! i)"
   using assms by (subst nth_map) auto
 
+lemma map2_same: "map2 f xs xs = map (\<lambda>x. f x x) xs" unfolding zip_same_conv_map by simp
+
 lemma len_tl_Cons: "xs \<noteq> [] \<Longrightarrow> length (x # tl xs) = length xs"
   by simp
 

@@ -75,14 +75,26 @@ record ('q, 's::finite) TM_record =
     its computation is considered finished (the TM has halted) and no further steps will be executed\<close>
   accepting_states :: "'q set" \<comment> \<open>\<open>F\<^sup>+ \<subseteq> F\<close>, the set of accepting states; if a TM halts in an accepting state,
     it is considered to have accepted the input\<close>
-  transition :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> 'q \<times> ('s tp_symbol \<times> head_move) list" \<comment> \<open>\<open>\<delta>\<close>,
-    the transition function that maps the current state and vector of read symbols
-    to a next state and a vector of actions;
-    each tape is assigned a symbol to write and a tape head \<^typ>\<open>head_move\<close> afterwards\<close>
+
+  next_state :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> 'q" \<comment> \<open>Maps the current state and vector of read symbols to the next state.\<close>
+  next_write :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> nat \<Rightarrow> 's tp_symbol" \<comment> \<open>Maps the current state, read symbols and tape index
+    to the symbol to write before transitioning to the next state.\<close>
+  next_move  :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> nat \<Rightarrow> head_move" \<comment> \<open>Maps the current state, read symbols and tape index
+    to the head movement to perform before transitionin to the next state.\<close>
 
 text\<open>The elements of type \<^typ>\<open>'s\<close> comprise the TM's input alphabet,
   and the wrapper \<^typ>\<open>'s tp_symbol\<close> represent its working alphabet, including the \<^const>\<open>blank_symbol\<close>.
 
+  We split the transition function \<open>\<delta>\<close> into three components for easier access and definition.
+  To perform an execution step, assuming that \<open>q :: 'q\<close> is the current state, and \<open>hds :: 's tp_symbol list\<close>
+  are the symbols currently under the tape heads (the read symbols),
+  each tape head first writes a symbol to its current position on the tape, then moves by one symbol to the left or right (or stays still).
+  That is, the head on the \<open>i\<close>-th tape writes \<^term>\<open>next_write q hds i\<close>, then moves according to \<^term>\<open>next_move q hds i\<close>.
+  After all head have performed their respective actions, \<open>next_state q hds\<close> is assigned as the new current state.\<close>
+
+
+(* TODO update this *)
+text\<open>
   As Isabelle does not provide dependent types, the transition function is not actually defined
   for vectors/tuples, but lists instead.
   As a result, the returned lists are not guaranteed to have \<open>k\<close> elements, as required.
@@ -115,7 +127,7 @@ text\<open>To define a type, we must prove that it is inhabited (there exist ele
 definition "rejecting_TM_rec a \<equiv> \<lparr>
   tape_count = 1,
   states = {a}, initial_state = a, final_states = {a}, accepting_states = {},
-  transition = (\<lambda>q hds. (a, [(blank_symbol, No_Shift)]))
+  next_state = (\<lambda>q hds. a), next_write = (\<lambda>q hds i. blank_symbol), next_move = (\<lambda>q hds i. No_Shift)
 \<rparr>"
 
 lemma rejecting_TM_valid: "is_valid_TM (rejecting_TM_rec a)"
@@ -135,13 +147,18 @@ locale TM = TM_abbrevs +
 begin
 
 abbreviation "M_rec \<equiv> Rep_TM M"
-abbreviation tape_count where "tape_count \<equiv> TM_record.tape_count M_rec"
-abbreviation states where "states \<equiv> TM_record.states M_rec"
-abbreviation initial_state where "initial_state \<equiv> TM_record.initial_state M_rec"
-abbreviation final_states where "final_states \<equiv> TM_record.final_states M_rec"
-abbreviation accepting_states ("F\<^sup>+") where "F\<^sup>+ \<equiv> TM_record.accepting_states M_rec"
-abbreviation rejecting_states ("F\<^sup>-") where "F\<^sup>- \<equiv> final_states - accepting_states"
-abbreviation transition where "transition \<equiv> TM_record.transition M_rec"
+definition tape_count where "tape_count \<equiv> TM_record.tape_count M_rec"
+definition states where "states \<equiv> TM_record.states M_rec"
+definition initial_state where "initial_state \<equiv> TM_record.initial_state M_rec"
+definition final_states where "final_states \<equiv> TM_record.final_states M_rec"
+definition accepting_states ("F\<^sup>+") where "F\<^sup>+ \<equiv> TM_record.accepting_states M_rec"
+definition rejecting_states ("F\<^sup>-") where "F\<^sup>- \<equiv> final_states - accepting_states"
+definition next_state where "next_state \<equiv> TM_record.next_state M_rec"
+definition next_write where "next_write \<equiv> TM_record.next_write M_rec"
+definition next_move  where "next_move  \<equiv> TM_record.next_move  M_rec"
+
+lemmas TM_fields_defs = tape_count_def states_def initial_state_def final_states_def
+  accepting_states_def rejecting_states_def next_state_def next_write_def next_move_def
 
 text\<open>The following abbreviations are not modelled as notation,
   as notation is not transferred when interpreting locales (see below).\<close>
@@ -152,32 +169,44 @@ abbreviation "q\<^sub>0 \<equiv> initial_state"
 abbreviation "F \<equiv> final_states"
 abbreviation "F\<^sub>A \<equiv> accepting_states"
 abbreviation "F\<^sub>R \<equiv> rejecting_states"
-abbreviation "\<delta> \<equiv> transition"
+abbreviation "\<delta>\<^sub>q \<equiv> next_state"
+abbreviation "\<delta>\<^sub>w \<equiv> next_write"
+abbreviation "\<delta>\<^sub>m \<equiv> next_move"
+
 
 text\<open>We provide the following shortcuts for ``unpacking'' the transition function.
   \<open>hds\<close> refers to the symbols currently under the TM heads.\<close>
 
-definition [simp]: "no_action hds \<equiv> map (\<lambda>hd. (hd, N)) hds"
+(* this is currently unused, and only included for demonstration *)
+definition transition :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> 'q \<times> ('s tp_symbol \<times> head_move) list"
+  where "transition q hds = (\<delta>\<^sub>q q hds, map (\<lambda>i. (\<delta>\<^sub>w q hds i, \<delta>\<^sub>m q hds i)) [0..<k])"
+abbreviation "\<delta> \<equiv> transition"
 
-definition [simp]: "next_state q hds \<equiv> fst (\<delta> q hds)"
-definition [simp]: "next_actions q hds \<equiv> overwrite (snd (\<delta> q hds)) (no_action hds)"
-abbreviation "next_writes q hds \<equiv> map fst (next_actions q hds)"
-abbreviation "next_moves q hds \<equiv> map snd (next_actions q hds)"
+abbreviation "next_writes q hds \<equiv> map (\<delta>\<^sub>w q hds) [0..<k]"
+abbreviation "next_moves q hds \<equiv> map (\<delta>\<^sub>m q hds) [0..<k]"
+definition [simp]: "next_actions q hds \<equiv> zip (next_writes q hds) (next_moves q hds)"
+abbreviation "\<delta>\<^sub>a \<equiv> next_actions"
 
-(* TODO consider replacing nth "xs ! n" here as it is "nonexhaustive" which makes it somewhat harder to use *)
-abbreviation "next_action q hds n \<equiv> (next_actions q hds) ! n"
-abbreviation "next_write q hds n \<equiv> fst (next_action q hds n)"
-abbreviation "next_move q hds n \<equiv> snd (next_action q hds n)"
+lemma next_actions_altdef: "\<delta>\<^sub>a q hds = map (\<lambda>i. (\<delta>\<^sub>w q hds i, \<delta>\<^sub>m q hds i)) [0..<k]"
+  unfolding next_actions_def zip_map_map map2_same ..
+
+
+(* TODO consider removing [simp] here, as it would only be useful for low-level stuff *)
+lemma M_rec[simp]: "M_rec = \<lparr> TM_record.tape_count = k,
+    states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
+    next_state = \<delta>\<^sub>q, next_write = \<delta>\<^sub>w, next_move  = \<delta>\<^sub>m \<rparr>"
+    unfolding TM_fields_defs by simp
 
 
 subsubsection\<open>Properties\<close>
 
 sublocale is_valid_TM M_rec using Rep_TM .. \<comment> \<open>The axioms of \<^locale>\<open>is_valid_TM\<close> hold by definition.\<close>
-thm at_least_one_tape state_axioms
 
-lemma next_actions_length: "length (next_actions q hds) = length hds"
-  by (simp add: overwrite_length)
+lemmas at_least_one_tape = at_least_one_tape[folded TM_fields_defs]
+lemmas state_axioms = state_axioms[folded TM_fields_defs]
+lemmas TM_axioms = at_least_one_tape state_axioms
 
+lemma next_actions_length[simp]: "length (next_actions q hds) = k" by simp
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
@@ -189,15 +218,15 @@ begin
   fix M M\<^sub>1 :: "('q, 's::finite) TM"
 
   interpret TM M .
-  term \<delta>
-  term transition
+  term \<delta>\<^sub>q
+  term next_state
   thm state_axioms
 
   text\<open>Note that \<^emph>\<open>notation\<close> like \<open>F\<^sup>+\<close> is not available.\<close>
 
   interpret M\<^sub>1: TM M\<^sub>1 .
-  term M\<^sub>1.\<delta>
-  term M\<^sub>1.transition
+  term M\<^sub>1.\<delta>\<^sub>q
+  term M\<^sub>1.next_state
   thm M\<^sub>1.state_axioms
 end
 
@@ -229,6 +258,8 @@ text\<open>For both \<^const>\<open>left\<close> and \<^const>\<open>right\<clos
   The use of datatype (as compared to record, for instance) grants the predefined
   \<^const>\<open>map_tape\<close> and \<^const>\<open>set_tape\<close>, including useful lemmas.\<close>
 
+abbreviation empty_tape where "empty_tape \<equiv> Tape [] blank_symbol []"
+
 context TM_abbrevs
 begin
 
@@ -242,7 +273,7 @@ notation Tape ("\<langle>_|_|_\<rangle>")
 abbreviation Tape_no_left ("\<langle>|_|_\<rangle>") where "\<langle>|h|r\<rangle> \<equiv> \<langle>[]|h|r\<rangle>"
 abbreviation Tape_no_right ("\<langle>_|_|\<rangle>") where "\<langle>l|h|\<rangle> \<equiv> \<langle>l|h|[]\<rangle>"
 abbreviation Tape_no_left_no_right ("\<langle>|_|\<rangle>") where "\<langle>|h|\<rangle> \<equiv> \<langle>[]|h|[]\<rangle>"
-abbreviation empty_tape ("\<langle>\<rangle>") where "\<langle>\<rangle> \<equiv> \<langle>|Bk|\<rangle>"
+notation empty_tape ("\<langle>\<rangle>")
 
 text\<open>The following lemmas should be useful in cases
   when expanding a tape \<open>tp\<close> into \<open>\<langle>l|h|r\<rangle>\<close> is inconvenient.\<close>
