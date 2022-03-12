@@ -38,7 +38,6 @@ lemma these_id: "None \<notin> A \<Longrightarrow> Option.these A = the ` A" unf
 
 lemma these_altdef: "Option.these A = \<Union> (set_option ` A)" unfolding Option.these_def by force
 
-
 lemma card_set_option[simp]: "card (set_option x) \<le> 1" by (induction x) auto
 lemma finite_set_option[simp]: "finite (set_option x)" by (induction x) auto
 
@@ -56,5 +55,9 @@ qed
 lemma case_option_same[simp]: "(case x of None \<Rightarrow> a | Some y \<Rightarrow> a) = a"
   by (simp add: option.case_eq_if)
 
+lemma if_Some_P[elim, elim_format]: "(if P then Some x else None) = Some y \<Longrightarrow> P" by (cases P) auto
+lemma if_None_notP[elim, elim_format]: "(if P then Some x else None) = None \<Longrightarrow> \<not>P" by (cases P) auto
+lemma if_Some_notP[elim, elim_format]: "(if P then None else Some x) = Some y \<Longrightarrow> \<not>P" by (cases P) auto
+lemma if_None_P[elim, elim_format]: "(if P then None else Some x) = None \<Longrightarrow> P" by (cases P) auto
 
 end
