@@ -405,6 +405,7 @@ definition tape_write :: "'s tp_symbol \<Rightarrow> 's tape \<Rightarrow> 's ta
   where "tape_write s tp = \<langle>left tp|s|right tp\<rangle>"
 
 corollary tape_write_simps[simp]: "tape_write s \<langle>l|h|r\<rangle> = \<langle>l|s|r\<rangle>" unfolding tape_write_def by simp
+corollary tape_write_id[simp]: "tape_write (head tp) tp = tp" by (induction tp) simp
 
 
 text\<open>Write a symbol, then move the head.\<close>
@@ -414,6 +415,9 @@ definition tape_action :: "('s tp_symbol \<times> head_move) \<Rightarrow> 's ta
 
 corollary tape_action_altdef: "tape_action (s, m) = tape_shift m \<circ> tape_write s"
   unfolding tape_action_def by auto
+
+lemma tape_action_id[simp]: "tape_action (head tp, No_Shift) tp = tp"
+  unfolding tape_action_altdef by simp
 
 end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
 
@@ -507,158 +511,148 @@ end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
 subsubsection\<open>Reordering Tapes\<close>
 
-definition reorder :: "nat option list \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a list"
-  where "reorder is x xs = map (\<lambda>i'. case i' of None \<Rightarrow> x | Some i \<Rightarrow> nth_or i x xs) is"
 
-value "reorder [Some 0, Some 2, Some 1, None] x [a,b,c]"
+definition reorder :: "(nat \<Rightarrow> nat option) \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> 'a list"
+  where "reorder p xs ys = map2 (\<lambda>i x. case p i of None \<Rightarrow> x | Some i' \<Rightarrow> nth_or i' x ys) [0..<length xs] xs"
 
+value "reorder (\<lambda>i. [Some 0, Some 2, Some 1, None]!i) (x\<up>4) [a,b,c]"
 
-lemma reorder_length[simp]: "length (reorder is x xs) = length is" unfolding reorder_def by simp
+lemma reorder_length[simp]: "length (reorder p xs ys) = length xs" unfolding reorder_def by simp
 
-lemma reorder_map[simp]: "map f (reorder is x xs) = reorder is (f x) (map f xs)"
-  unfolding reorder_def map_map comp_def option.case_distrib nth_or_map ..
+lemma reorder_Nil[simp]: "reorder p xs [] = xs"
+  unfolding reorder_def nth_or_Nil case_option_same prod.snd_def[symmetric] by simp
 
-lemma reorder_nth:
-  assumes "i < length is"
-  shows "reorder is x xs ! i = (case is ! i of None \<Rightarrow> x | Some i \<Rightarrow> nth_or i x xs)"
-  unfolding reorder_def nth_map[OF assms] ..
+lemma reorder_nth[simp]:
+  assumes "i < length xs"
+  shows "reorder p xs ys ! i = (case p i of None \<Rightarrow> xs ! i | Some i' \<Rightarrow> nth_or i' (xs ! i) ys)"
+  using assms unfolding reorder_def by (subst nth_map2) auto
 
-lemma reorder_zip:
-  assumes [simp]: "length xs = length ys"
-  shows "reorder is (x, y) (zip xs ys) = zip (reorder is x xs) (reorder is y ys)"
-  unfolding reorder_def zip_map_map map2_same
-proof (intro list.map_cong0)
-  fix i'
-  show "(case i' of None \<Rightarrow> (x, y) | Some i \<Rightarrow> nth_or i (x, y) (zip xs ys)) =
-    (case i' of None \<Rightarrow> x | Some i \<Rightarrow> nth_or i x xs, case i' of None \<Rightarrow> y | Some i \<Rightarrow> nth_or i y ys)"
-  proof (induction i', unfold option.case)
-    fix i
-    show "nth_or i (x, y) (zip xs ys) = (nth_or i x xs, nth_or i y ys)"
-      by (cases "i < length ys") auto
-  qed simp
+lemma reorder_map[simp]: "map f (reorder p xs ys) = reorder p (map f xs) (map f ys)"
+proof -
+  have "map f (reorder p xs ys) = map (\<lambda>(i, x). f (case p i of None \<Rightarrow> x | Some i' \<Rightarrow> nth_or i' x ys)) (zip [0..<length xs] xs)"
+    unfolding reorder_def map_map comp_def by force
+  also have "... = map2 (\<lambda>i x. case p i of None \<Rightarrow> f x | Some i' \<Rightarrow> nth_or i' (f x) (map f ys)) [0..<length xs] xs"
+    unfolding option.case_distrib nth_or_map ..
+  also have "... = map ((\<lambda>(i, x). case p i of None \<Rightarrow> x | Some i' \<Rightarrow> nth_or i' x (map f ys)) \<circ> (\<lambda>(i, x). (i, f x))) (zip [0..<length xs] xs)"
+    by fastforce
+  also have "... = map (\<lambda>(i, x). case p i of None \<Rightarrow> x | Some i' \<Rightarrow> nth_or i' x (map f ys)) (map (\<lambda>(i, x). (i, f x)) (zip [0..<length xs] xs))"
+    by force
+  also have "... = map2 (\<lambda>i x. case p i of None \<Rightarrow> x | Some i' \<Rightarrow> nth_or i' x (map f ys)) [0..<length xs] (map f xs)"
+    unfolding zip_map_map[symmetric] list.map_ident ..
+  also have "... = reorder p (map f xs) (map f ys)" unfolding reorder_def by simp
+  finally show ?thesis .
 qed
 
-lemma reorder_map2:
-  assumes ls: "length xs = length ys"
-    and fxy: "fxy = f x y"
-  shows "reorder is fxy (map2 f xs ys) = map2 f (reorder is x xs) (reorder is y ys)"
-  unfolding fxy reorder_zip[OF ls, symmetric] reorder_map prod.case ..
+
+(* TODO are both xs and ys needed here? in practice they seem always be identical *)
+definition reorder_inv :: "(nat \<Rightarrow> nat option) \<Rightarrow> 'a list \<Rightarrow> 'a list"
+  where "reorder_inv p ys = map
+    (\<lambda>i. ys ! (LEAST i'. i'<length ys \<and> p i' = Some i))
+    [0..<Suc (Max (Option.these (p ` {0..<length ys})))]"
 
 
-definition reorder_inv :: "nat option list \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a list"
-  where "reorder_inv is x xs = map
-    (\<lambda>i. case find (\<lambda>(i', x). x = Some i) (List.enumerate 0 is)
-         of None \<Rightarrow> x
-          | Some i' \<Rightarrow> nth_or (fst i') x xs )
-    [0..<if set is \<subseteq> {None} then 0 else Suc (Max (Option.these (set is)))]"
-
-value "reorder_inv [Some 0, Some 2, Some 1, None] x [a, c, b, x]"
-
+lemma card_these_helper: "card (Option.these (f ` {0..<n})) \<le> n"
+proof -
+  have "card (Option.these (f ` {0..<n})) \<le> card (f ` {0..<n})" by (rule card_these) blast
+  also have "... \<le> card {0..<n}" by (rule card_image_le) blast
+  also have "... \<le> n" by simp
+  finally show ?thesis .
+qed
 
 lemma reorder_inv:
-  assumes items_match: "Option.these (set is) = {0..<length xs}"
-  shows "reorder_inv is x (reorder is x xs) = xs"
+  assumes "ys \<noteq> []"
+    and items_match: "Option.these (p ` {0..<length xs}) = {0..<length ys}"
+  shows "reorder_inv p (reorder p xs ys) = ys"
 proof -
-  have *: "(if set is \<subseteq> {None} then 0 else Suc (Max (Option.these (set is)))) = length xs"
-  proof (rule ifI)
-    assume "set is \<subseteq> {None}"
-    then have *: "Option.these (set is) = {}" unfolding Option.these_def by blast
-    from items_match show "0 = length xs" unfolding * by simp
-  next
-    assume "\<not> set is \<subseteq> {None}"
-    then have "Option.these (set is) \<noteq> {}" unfolding subset_singleton_iff these_empty_eq .
-    then have "length xs > 0" unfolding items_match atLeastLessThan_upt by force
-    then show "Suc (Max (Option.these (set is))) = length xs"
-      unfolding items_match Max_atLeastLessThan_nat[OF \<open>length xs > 0\<close>] by auto
+  from \<open>ys \<noteq> []\<close> have "length ys > 0" by simp
+
+  define zs where "zs \<equiv> reorder p xs ys"
+  have lz: "length zs = length xs" unfolding zs_def reorder_length ..
+
+  from \<open>length ys > 0\<close>have *:
+    "Suc (Max (Option.these (p ` {0..<length xs}))) = length ys"
+    unfolding items_match Max_atLeastLessThan_nat[OF \<open>length ys > 0\<close>] by auto
+
+  have "length ys = card (Option.these (p ` {0..<length xs}))" unfolding items_match by simp
+  also have "... \<le> length xs" by (rule card_these_helper)
+  finally have ls: "length xs \<ge> length ys" .
+  then have mls: "min (length [0..<length ys]) (length xs) = length ys" by simp
+
+  have "reorder_inv p (reorder p xs ys) = map ((!) ys) [0..<length ys]"
+    unfolding reorder_inv_def zs_def[symmetric] lz *
+  proof (intro list.map_cong0)
+    fix n assume "n \<in> set [0..<length ys]"
+    then have [simp]: "n < length ys" by simp
+    then have *: "[0..<length ys] ! n = n" by simp
+
+    define i where "i = (LEAST i. i < length xs \<and> p i = Some n)"
+
+    from \<open>n < length ys\<close> have "n \<in> Option.these (p ` {0..<length xs})" unfolding items_match by simp
+    then have "Some n \<in> p ` {0..<length xs}" unfolding these_altdef by force
+    then have [simp]: "\<exists>i. i < length xs \<and> p i = Some n" unfolding image_iff by fastforce
+
+    then have "i < length xs \<and> p i = Some n" unfolding i_def by (rule LeastI_ex)
+    then have [simp]: "i < length xs" and [simp]: "p i = Some n" by blast+
+    then have [simp]: "[0..<length xs] ! i = i" by simp
+
+    have **: "nth_or i x (map2 (\<lambda>x y. case p x of None \<Rightarrow> y | Some i' \<Rightarrow> nth_or i' y ys) [0..<length xs] xs)
+        = ys ! n" for x by simp
+
+    show "zs ! (LEAST i'. i' < length xs \<and> p i' = Some n) = ys ! n"
+      unfolding i_def[symmetric] zs_def reorder_def by simp
   qed
-
-  show ?thesis unfolding reorder_def unfolding reorder_inv_def *
-  proof (intro map_nthI)
-    fix n assume "n < length xs"
-
-    define i where "i = (LEAST i. i < length is \<and> is ! i = Some n)"
-
-    from \<open>n < length xs\<close> have "n \<in> Option.these (set is)" unfolding items_match by simp
-    then have "Some n \<in> set is" unfolding Option.these_def by force
-    then have "\<exists>i<length is. is ! i = Some n" unfolding in_set_conv_nth .
-
-    then have "i < length is \<and> is ! i = Some n" unfolding i_def by (rule LeastI_ex)
-    then have "i < length is" and "is ! i = Some n" by blast+
-
-    have *: "find (\<lambda>(i', x). x = Some n) (List.enumerate 0 is) = Some (i, Some n)"
-      unfolding find_Some_iff
-    proof (intro exI conjI allI impI)
-      from \<open>i < length is\<close> show "i < length (List.enumerate 0 is)" by simp
-      show *[symmetric]: "(i, Some n) = List.enumerate 0 is ! i"
-        unfolding nth_enumerate_eq[OF \<open>i < length is\<close>] \<open>is ! i = Some n\<close> by simp
-      show "case List.enumerate 0 is ! i of (i', x) \<Rightarrow> x = Some n" unfolding * by blast
-      fix j assume "j < i"
-      with \<open>i < length is\<close> have "j < length is" by simp
-
-      from \<open>j < i\<close> have "\<not> (j < length is \<and> is ! j = Some n)" unfolding i_def by (rule not_less_Least)
-      with \<open>j < length is\<close> have "is ! j \<noteq> Some n" by blast
-
-      then show "\<not> (case List.enumerate 0 is ! j of (i', x) \<Rightarrow> x = Some n)"
-        unfolding nth_enumerate_eq[OF \<open>j < length is\<close>] by blast
-    qed
-
-    have "(case find (\<lambda>(i', x). x = Some n) (List.enumerate 0 is) of None \<Rightarrow> x
-          | Some i' \<Rightarrow> nth_or (fst i') x (map (case_option x (\<lambda>i. nth_or i x xs)) is)) =
-         nth_or i x (map (case_option x (\<lambda>i. nth_or i x xs)) is)"
-      unfolding * option.case(2) fst_conv ..
-    also have "... = map (case_option x (\<lambda>i. nth_or i x xs)) is ! i"
-      using \<open>i < length is\<close> by (subst nth_or_val) auto
-    also have "... = nth_or n x xs"
-      unfolding nth_map[OF \<open>i < length is\<close>] \<open>is ! i = Some n\<close> option.case(2) ..
-    also have "... = xs ! n" using \<open>n < length xs\<close> by (rule nth_or_val)
-    finally show "(case find (\<lambda>(i', x). x = Some n) (List.enumerate 0 is) of None \<Rightarrow> x
-      | Some i' \<Rightarrow> nth_or (fst i') x (map (case_option x (\<lambda>i. nth_or i x xs)) is)) = xs ! n" .
-  qed
+  then show ?thesis unfolding map_nth .
 qed
 
 (* definition reorder_fun *)
   (* where "reorder_fun f k l = map (\<lambda>i. if i \<in> f ` {0..<l} then Some (inv_into {0..<l} f i) else None) [0..<k]" *)
 
+definition reorder_config :: "(nat \<Rightarrow> nat option) \<Rightarrow> 's tape list \<Rightarrow> ('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
+  where "reorder_config p tps c = \<lparr> state = state c, tapes = reorder p tps (tapes c) \<rparr>"
 
-
-
-definition reorder_config :: "(nat option list) \<Rightarrow> ('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
-  where "reorder_config is c = \<lparr> state = state c, tapes = reorder is empty_tape (tapes c) \<rparr>"
-
-lemma reorder_config_length[simp]: "length (tapes (reorder_config is c)) = length is"
+lemma reorder_config_length[simp]: "length (tapes (reorder_config p tps c)) = length tps"
   unfolding reorder_config_def TM_config.simps reorder_length ..
 
 lemma reorder_config_simps[simp]:
-  shows reorder_config_state: "state (reorder_config is c) = state c"
-    and reorder_config_tapes: "tapes (reorder_config is c) = reorder is empty_tape (tapes c)"
+  shows reorder_config_state: "state (reorder_config p tps c) = state c"
+    and reorder_config_tapes: "tapes (reorder_config p tps c) = reorder p tps (tapes c)"
   unfolding reorder_config_def by simp_all
-
 
 
 locale reorder_tapes =
   fixes M :: "('q, 's::finite) TM"
-    and "is" :: "nat option list"
-  assumes min_len: "length is \<ge> TM.tape_count M"
-    and items_match: "Option.these (set is) = {0..<TM.tape_count M}"
+    and p :: "nat \<Rightarrow> nat option"
+    and k' :: nat
+  assumes items_match: "Option.these (p ` {0..<k'}) = {0..<TM.tape_count M}"
 begin
 sublocale TM .
 
+lemma k_k': "k \<le> k'"
+proof -
+  have "k = card {0..<k}" by simp
+  also have "... = card (Option.these (p ` {0..<k'}))" unfolding items_match ..
+  also have "... \<le> card (p ` {0..<k'})" by (rule card_these) blast
+  also have "... \<le> card {0..<k'}" by (rule card_image_le) blast
+  also have "... = k'" by simp
+  finally show "k \<le> k'" .
+qed
+
 definition reorder_tapes_rec :: "('q, 's) TM_record"
   where "reorder_tapes_rec \<equiv>
-    let h = reorder_inv is Bk in
+    let h = reorder_inv p in
     M_rec \<lparr>
-      tape_count := length is,
+      tape_count := k',
       next_state := \<lambda>q hds. \<delta>\<^sub>q q (h hds),
-      next_write := \<lambda>q hds i. case nth_or i None is of Some i \<Rightarrow> (\<delta>\<^sub>w q (h hds) i) | None \<Rightarrow> hds ! i,
-      next_move  := \<lambda>q hds i. case nth_or i None is of Some i \<Rightarrow> (\<delta>\<^sub>m q (h hds) i) | None \<Rightarrow> No_Shift
+      next_write := \<lambda>q hds i. case p i of Some i \<Rightarrow> (\<delta>\<^sub>w q (h hds) i) | None \<Rightarrow> hds ! i,
+      next_move  := \<lambda>q hds i. case p i of Some i \<Rightarrow> (\<delta>\<^sub>m q (h hds) i) | None \<Rightarrow> No_Shift
     \<rparr>"
 
 lemma reorder_tapes_rec_simps: "reorder_tapes_rec = \<lparr>
-  TM_record.tape_count = length is,
+  TM_record.tape_count = k',
   states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
-  next_state = \<lambda>q hds. \<delta>\<^sub>q q (reorder_inv is Bk hds),
-  next_write = \<lambda>q hds i. case nth_or i None is of Some i \<Rightarrow> (\<delta>\<^sub>w q (reorder_inv is Bk hds) i) | None \<Rightarrow> hds ! i,
-  next_move  = \<lambda>q hds i. case nth_or i None is of Some i \<Rightarrow> (\<delta>\<^sub>m q (reorder_inv is Bk hds) i) | None \<Rightarrow> No_Shift
+  next_state = \<lambda>q hds. \<delta>\<^sub>q q (reorder_inv p hds),
+  next_write = \<lambda>q hds i. case p i of Some i \<Rightarrow> (\<delta>\<^sub>w q (reorder_inv p hds) i) | None \<Rightarrow> hds ! i,
+  next_move  = \<lambda>q hds i. case p i of Some i \<Rightarrow> (\<delta>\<^sub>m q (reorder_inv p hds) i) | None \<Rightarrow> No_Shift
 \<rparr>" unfolding reorder_tapes_rec_def Let_def by simp
 
 definition [simp]: "M' \<equiv> Abs_TM reorder_tapes_rec"
@@ -666,10 +660,8 @@ definition [simp]: "M' \<equiv> Abs_TM reorder_tapes_rec"
 lemma M'_valid: "is_valid_TM reorder_tapes_rec"
   unfolding reorder_tapes_rec_simps
 proof (unfold_locales, unfold TM_record.simps)
-  from min_len at_least_one_tape show "length is \<ge> 1" by simp
+  from at_least_one_tape and k_k' show "1 \<le> k'" by simp
 qed (fact state_axioms)+
-
-(* corollary M'_valid2[intro, simp]: "reorder_tapes_rec \<in> {M. is_valid_TM M}" using M'_valid .. *)
 
 sublocale M': TM M' .
 
@@ -677,13 +669,12 @@ lemma M'_rec: "M'.M_rec = reorder_tapes_rec" using Abs_TM_inverse M'_valid by au
 lemmas M'_simps = M'.TM_fields_defs M'_rec reorder_tapes_rec_simps TM_record.simps
 
 lemma M'_F: "M'.F = F" unfolding M'_simps ..
-lemma M'_k: "M'.k = length is" unfolding M'_simps ..
-
-lemma r_len: "length (reorder is x xs) = M'.k" unfolding M'_k by (fact reorder_length)
+lemma M'_k: "M'.k = k'" unfolding M'_simps ..
 
 lemma reorder_steps:
   assumes "wf_config c"
-  shows "M'.step (reorder_config is c) = reorder_config is (step c)"
+    and "M'.wf_config c'"
+  shows "M'.step (reorder_config p (tapes c') c) = reorder_config p (tapes c') (step c)"
     (is "M'.step (?rc c) = ?rc (step c)")
 proof (cases "is_final c")
   assume "is_final c"
@@ -696,14 +687,19 @@ next
   let ?q = "state c" and ?q' = "state ?c'"
   let ?tps = "tapes c" and ?hds = "heads c"
 
-  let ?r = "reorder is"
-  let ?hds' = "?r Bk ?hds" and ?tps' = "?r \<langle>\<rangle> ?tps"
+  let ?r = "reorder p"
+  let ?hds' = "?r (heads c') ?hds" and ?tps' = "?r (tapes c') ?tps"
 
   from \<open>wf_config c\<close> have l_tps: "length (tapes c) = k" by simp
   then have l_hds: "length (heads c) = k" by simp
-  have "Option.these (set is) = {0..<length (heads c)}"
-    unfolding \<open>length (heads c) = k\<close> by (fact items_match)
-  note r_inv_hds[simp] = reorder_inv[OF this]
+  from \<open>M'.wf_config c'\<close> have l_tps': "length (tapes c') = k'" unfolding TM.wf_config_def M'_k .
+  then have l_hds': "length (heads c') = k'" by simp
+
+  (* have l_hds'': "length ?hds' = k'" unfolding reorder_length l_hds' M'_k .. *)
+  from at_least_one_tape have "?hds \<noteq> []" unfolding length_0_conv[symmetric] l_hds by simp
+  moreover have "Option.these (p ` {0..<length (heads c')}) = {0..<length ?hds}"
+    unfolding l_hds l_hds' unfolding items_match ..
+  ultimately have r_inv_hds[simp]: "reorder_inv p (reorder p (heads c') ?hds) = ?hds" by (rule reorder_inv)
 
   assume "\<not> is_final c"
   then have "\<not> M'.is_final ?c'" unfolding M'_F by simp
@@ -717,43 +713,49 @@ next
       unfolding step_not_final_def Let_def by simp
     finally show "state (M'.step_not_final ?c') = state (?rc (step_not_final c))" .
 
-    have "M'.k \<ge> k" unfolding M'_k by (rule min_len)
-    then have min_k_k': "min k M'.k = k" by simp
-    have l_tps': "length ?tps' = M'.k" unfolding M'_k reorder_config_def TM_config.simps reorder_length ..
+    from k_k' have min_k_k': "min k M'.k = k" unfolding M'_k by simp
+    have lr: "length (reorder p (tapes c') x) = M'.k" for x unfolding reorder_length l_tps' M'_k ..
 
     have "tapes (M'.step_not_final ?c') = map2 tape_action (M'.\<delta>\<^sub>a ?q ?hds') ?tps'"
       unfolding M'.step_not_final_def by (simp add: Let_def)
-    also have "... = ?r \<langle>\<rangle> (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps)"
-    proof (rule TM.step_not_final_eqI)
-      let ?k' = M'.k and ?r = "reorder is"
-      let ?rt = "?r \<langle>\<rangle>" and ?hds'' = "?r None ?hds" let ?tps'' = "?rt ?tps"
-      fix i assume "i < ?k'"
-      then have "i < length is" unfolding M'_k .
-      then have [simp]: "nth_or i x is = is ! i" for x by simp
+    also have "... = ?r (tapes c') (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps)"
+    proof (rule M'.step_not_final_eqI)
+      thm reorder_length
+      let ?r = "reorder p"
+      let ?rt = "?r (tapes c')"
+      fix i assume "i < M'.k"
+      then have [simp]: "i < k'" unfolding M'_k .
+      (* then have [simp]: "nth_or i x is = is ! i" for x by simp *)
 
       show "tape_action (M'.\<delta>\<^sub>w ?q ?hds' i, M'.\<delta>\<^sub>m ?q ?hds' i) (?tps' ! i) =
-        ?r \<langle>\<rangle> (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps) ! i"
-      proof (induction "is ! i")
+        ?rt (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps) ! i"
+      proof (induction "p i")
         case None
-        then have [simp]: "is ! i = None" ..
-        have [simp]: "reorder is x xs ! i = x" for x :: 'x and xs
-          unfolding reorder_nth[OF \<open>i < length is\<close>] by simp
-        then show ?case unfolding M'_simps by (simp add: tape_action_def)
+        then have [simp]: "p i = None" ..
+        from \<open>i < k'\<close> have "reorder p xs ys ! i = xs ! i" if "length xs = k'" for xs ys :: "'x list"
+          using that by simp
+        note * = this[OF l_tps'] this[OF l_hds']
+        from \<open>i < k'\<close> have [simp]: "map head (tapes c') ! i = head (tapes c' ! i)"
+          by (intro nth_map) (unfold l_tps')
+        show ?case unfolding M'_simps * by simp
       next
         case (Some i')
-        then have [simp]: "is ! i = Some i'" ..
+        then have [simp]: "p i = Some i'" ..
 
-        from \<open>i < length is\<close> have "Some i' \<in> set is" unfolding \<open>Some i' = is ! i\<close> by (fact nth_mem)
+
+        from \<open>i < k'\<close> have "i \<in> {0..<k'}" by simp
+        then have "Some i' \<in> p ` {0..<k'}" unfolding \<open>Some i' = p i\<close> by blast
         then have "i' \<in> {0..<k}" unfolding items_match[symmetric] in_these_eq .
         then have [simp]: "i' < k" by simp
 
         then have nth_i': "nth_or i' x xs = xs ! i'" if "length xs = k" for x :: 'x and xs
           unfolding nth_or_def \<open>length xs = k\<close> by (rule if_P)
-        have r_nth_or: "reorder is x xs ! i = nth_or i' x xs" for x :: 'x and xs
-          unfolding reorder_nth[OF \<open>i < length is\<close>] by simp
+        from \<open>i < k'\<close> have "i < length (tapes c')" unfolding l_tps' .
+        have r_nth_or: "reorder p (tapes c') tps ! i = nth_or i' (tapes c' ! i) tps" for tps
+          unfolding reorder_nth[OF \<open>i < length (tapes c')\<close>] by simp
 
-        have \<delta>\<^sub>w': "M'.\<delta>\<^sub>w ?q ?hds'' i = \<delta>\<^sub>w (state c) (heads c) i'"
-         and \<delta>\<^sub>m': "M'.\<delta>\<^sub>m ?q ?hds'' i = \<delta>\<^sub>m (state c) (heads c) i'"
+        have \<delta>\<^sub>w': "M'.\<delta>\<^sub>w ?q ?hds' i = \<delta>\<^sub>w (state c) (heads c) i'"
+         and \<delta>\<^sub>m': "M'.\<delta>\<^sub>m ?q ?hds' i = \<delta>\<^sub>m (state c) (heads c) i'"
           unfolding M'_simps r_inv_hds by simp_all
 
         have "tape_action (M'.\<delta>\<^sub>w ?q ?hds' i, M'.\<delta>\<^sub>m ?q ?hds' i) (?tps' ! i) =
@@ -762,11 +764,11 @@ next
         also have "... = tape_action (\<delta>\<^sub>a ?q ?hds ! i') (?tps ! i')" by simp
         also have "... = map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps ! i'"
           by (subst nth_map2) (auto simp add: l_tps)
-        also have "... = ?r \<langle>\<rangle> (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps) ! i"
+        also have "... = ?rt (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps) ! i"
           unfolding r_nth_or by (rule nth_i'[symmetric]) (simp add: l_tps)
         finally show ?case .
       qed
-    qed (fact r_len)+
+    qed (fact lr)+
     also have "... = tapes (?rc (step_not_final c))"
       unfolding M'.step_not_final_def by (simp add: Let_def)
     finally show "tapes (M'.step_not_final ?c') = tapes (?rc (step_not_final c))" .

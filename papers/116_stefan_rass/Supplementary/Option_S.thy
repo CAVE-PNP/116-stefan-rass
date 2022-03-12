@@ -42,4 +42,19 @@ lemma these_altdef: "Option.these A = \<Union> (set_option ` A)" unfolding Optio
 lemma card_set_option[simp]: "card (set_option x) \<le> 1" by (induction x) auto
 lemma finite_set_option[simp]: "finite (set_option x)" by (induction x) auto
 
+lemma card_these:
+  assumes "finite A"
+  shows "card (Option.these A) \<le> card A"
+proof -
+  from assms have "card (Option.these A) \<le> (\<Sum>a\<in>A. card (set_option a))"
+    unfolding these_altdef by (rule card_UN_le)
+  also have "... \<le> (\<Sum>a\<in>A. 1)" using card_set_option by (rule sum_mono)
+  also have "... \<le> card A" by simp
+  finally show ?thesis .
+qed
+
+lemma case_option_same[simp]: "(case x of None \<Rightarrow> a | Some y \<Rightarrow> a) = a"
+  by (simp add: option.case_eq_if)
+
+
 end

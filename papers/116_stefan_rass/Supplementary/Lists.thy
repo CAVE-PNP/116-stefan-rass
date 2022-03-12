@@ -42,7 +42,56 @@ lemma nth_map2:
 
 lemma map2_same: "map2 f xs xs = map (\<lambda>x. f x x) xs" unfolding zip_same_conv_map by simp
 
+lemma map2_eqI:
+  assumes "zip xs' ys' = zip xs ys"
+  shows "map2 f xs' ys' = map2 f xs ys"
+  using assms by (rule arg_cong)
+
 lemma take_eq[simp]: "take (length xs) xs = xs" by simp
+
+lemma zip_eqI:
+  fixes xs xs' :: "'a list" and ys ys' :: "'b list"
+  defines l:  "l \<equiv> min (length xs) (length ys)"
+  assumes l': "l = min (length xs') (length ys')"
+    and lx: "take l xs' = take l xs"
+    and ly: "take l ys' = take l ys"
+  shows "zip xs' ys' = zip xs ys"
+proof -
+  have "zip xs' ys' = take l (zip xs' ys')" unfolding l' by simp
+  also have "... = take l (zip xs ys)" unfolding take_zip lx ly ..
+  also have "... = zip xs ys" unfolding l by simp
+  finally show ?thesis .
+qed
+
+
+lemma map2_cong:
+  assumes "\<And>x y. (x, y) \<in> set (zip xs ys) \<Longrightarrow> f x y = g x y"
+  shows "map2 f xs ys = map2 g xs ys"
+proof (rule list.map_cong0)
+  fix xy
+  assume "xy \<in> set (zip xs ys)"
+  thus "(case xy of (x, y) \<Rightarrow> f x y) = (case xy of (x, y) \<Rightarrow> g x y)"
+  proof (induction xy)
+    case (Pair x y)
+    with assms show ?case by fast
+  qed
+qed
+
+lemma map2_cong':
+  assumes "\<And>n. n < min (length xs) (length ys) \<Longrightarrow> f (xs ! n) (ys ! n) = g (xs ! n) (ys ! n)"
+  shows "map2 f xs ys = map2 g xs ys"
+proof (rule map2_cong)
+  fix x y
+  assume "(x, y) \<in> set (zip xs ys)"
+  then obtain n where "zip xs ys ! n = (x, y)" and n_len: "n < min (length xs) (length ys)"
+    unfolding in_set_conv_nth length_zip by blast
+  then have x: "x = xs ! n" and y: "y = ys ! n" unfolding min_less_iff_conj by auto
+
+  from n_len show "f x y = g x y" unfolding x y by (rule assms)
+qed
+
+
+
 
 lemma len_tl_Cons: "xs \<noteq> [] \<Longrightarrow> length (x # tl xs) = length xs"
   by simp
