@@ -356,8 +356,8 @@ abbreviation (in TM_abbrevs) "map_conf \<equiv> map_TM_config"
 abbreviation (in TM_abbrevs) "map_conf_state \<equiv> \<lambda>fq. map_conf fq (\<lambda>s. s)"
 abbreviation (in TM_abbrevs) "map_conf_tapes \<equiv> map_conf (\<lambda>q. q)"
 
-definition heads :: "('q, 's) TM_config \<Rightarrow> 's tp_symbol list" \<comment> \<open>The vector of symbols currently under the TM-heads\<close>
-  where [simp]: "heads c = map head (tapes c)"
+abbreviation heads :: "('q, 's) TM_config \<Rightarrow> 's tp_symbol list" \<comment> \<open>The vector of symbols currently under the TM-heads\<close>
+  where "heads c \<equiv> map head (tapes c)"
 
 
 context TM
@@ -465,12 +465,13 @@ proof (rule nth_equalityI, unfold length_map length_zip next_actions_length l l'
   then have [simp]: "[0..<k] ! i = i" by simp
 
   from \<open>i < k\<close> have "map2 tape_action (\<delta>\<^sub>a q hds) tps ! i = tape_action (\<delta>\<^sub>a q hds ! i) (tps ! i)"
-    by (subst nth_map2, unfold next_actions_length l l') auto
+    by (intro nth_map2) (auto simp add: l)
   also have "... = tape_action (\<delta>\<^sub>w q hds i, \<delta>\<^sub>m q hds i) (tps ! i)"
     unfolding next_actions_altdef using \<open>i < k\<close> by (subst nth_map) auto
   also from assms(3) and \<open>i < k\<close> have "... = tps' ! i" .
   finally show "map2 tape_action (\<delta>\<^sub>a q hds) tps ! i = tps' ! i" .
 qed (rule refl)
+
 
 definition step :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
   where "step c = (if state c \<in> F then c else step_not_final c)"
@@ -629,9 +630,6 @@ proof -
   then show ?thesis unfolding map_nth .
 qed
 
-(* definition reorder_fun *)
-  (* where "reorder_fun f k l = map (\<lambda>i. if i \<in> f ` {0..<l} then Some (inv_into {0..<l} f i) else None) [0..<k]" *)
-
 definition reorder_config :: "(nat option list) \<Rightarrow> 's tape list \<Rightarrow> ('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
   where "reorder_config is tps c = TM_config (state c) (reorder is tps (tapes c))"
 
@@ -691,10 +689,8 @@ qed (fact state_axioms)+
 sublocale M': TM M' .
 
 lemma M'_rec: "M'.M_rec = reorder_tapes_rec" using Abs_TM_inverse M'_valid by (auto simp add: M'_def)
-lemmas M'_simps = M'.TM_fields_defs M'_rec reorder_tapes_rec_simps TM_record.simps
-
-lemma M'_F: "M'.F = F" unfolding M'_simps ..
-lemma M'_k[simp]: "M'.k = k'" unfolding M'_simps ..
+lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec reorder_tapes_rec_simps TM_record.simps]
+lemmas [simp] = M'_fields(1-6)
 
 lemma reorder_step:
   assumes "wf_config c"
@@ -703,7 +699,7 @@ lemma reorder_step:
     (is "M'.step (?rc c) = ?rc (step c)")
 proof (cases "is_final c")
   assume "is_final c"
-  then have "M'.is_final (?rc c)" unfolding M'_F by simp
+  then have "M'.is_final (?rc c)" by simp
   then have "M'.step (?rc c) = (?rc c)" by fast
   also from \<open>is_final c\<close> have "... = ?rc (step c)" by simp
   finally show ?thesis .
@@ -712,41 +708,36 @@ next
   let ?q = "state c" and ?q' = "state ?c'"
   let ?tps = "tapes c" and ?hds = "heads c"
 
-  let ?r = "reorder is"
-  let ?hds' = "?r (heads c') ?hds" and ?tps' = "?r (tapes c') ?tps"
+  let ?r = "reorder is" let ?rt = "?r (tapes c')"
+  let ?hds' = "?r (heads c') ?hds" and ?tps' = "?rt ?tps"
 
   from \<open>wf_config c\<close> have l_tps: "length (tapes c) = k" by simp
   then have l_hds: "length (heads c) = k" by simp
   from \<open>M'.wf_config c'\<close> have l_tps': "length (tapes c') = k'" by simp
   then have l_hds': "length (heads c') = k'" by simp
 
-  moreover have "Option.these (set is) = {0..<length ?hds}" unfolding l_hds unfolding items_match ..
+  moreover have "Option.these (set is) = {0..<length ?hds}" unfolding l_hds items_match ..
   ultimately have r_inv_hds[simp]: "reorder_inv is (reorder is (heads c') ?hds) = ?hds" by (rule reorder_inv)
 
   assume "\<not> is_final c"
-  then have "\<not> M'.is_final ?c'" unfolding M'_F by simp
-  then have "M'.step ?c' = M'.step_not_final ?c'" by blast
+  then have "M'.step ?c' = M'.step_not_final ?c'" by simp
   also have "... = ?rc (step_not_final c)"
   proof (intro TM_config.expand conjI)
     have "state (M'.step_not_final ?c') = M'.\<delta>\<^sub>q ?q ?hds'"
       unfolding M'.step_not_final_def by (simp add: Let_def)
-    also have "... = \<delta>\<^sub>q ?q ?hds" unfolding M'_simps r_inv_hds ..
-    also have "... = state (?rc (step_not_final c))" unfolding reorder_config_state
-      unfolding step_not_final_def Let_def by simp
+    also have "... = \<delta>\<^sub>q ?q ?hds" unfolding M'_fields by simp
+    also have "... = state (?rc (step_not_final c))" by simp
     finally show "state (M'.step_not_final ?c') = state (?rc (step_not_final c))" .
 
     from k_k' have min_k_k': "min k M'.k = k" by simp
-    have lr: "length (reorder is (tapes c') x) = M'.k" for x unfolding reorder_length l_tps' M'_k ..
+    have lr: "length (reorder is (tapes c') x) = M'.k" for x by (simp add: l_tps')
 
     have "tapes (M'.step_not_final ?c') = map2 tape_action (M'.\<delta>\<^sub>a ?q ?hds') ?tps'"
       unfolding M'.step_not_final_def by (simp add: Let_def)
     also have "... = ?r (tapes c') (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps)"
     proof (rule M'.step_not_final_eqI)
-      thm reorder_length
-      let ?r = "reorder is"
-      let ?rt = "?r (tapes c')"
       fix i assume "i < M'.k"
-      then have [simp]: "i < k'" unfolding M'_k .
+      then have [simp]: "i < k'" by simp
 
       show "tape_action (M'.\<delta>\<^sub>w ?q ?hds' i, M'.\<delta>\<^sub>m ?q ?hds' i) (?tps' ! i) =
         ?rt (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps) ! i"
@@ -758,7 +749,7 @@ next
         note * = this[OF l_tps'] this[OF l_hds']
         from \<open>i < k'\<close> have [simp]: "map head (tapes c') ! i = head (tapes c' ! i)"
           by (intro nth_map) (unfold l_tps')
-        show ?case unfolding M'_simps * by simp
+        show ?case unfolding M'_fields * by simp
       next
         case (Some i')
         then have [simp]: "is ! i = Some i'" ..
@@ -771,29 +762,27 @@ next
         then have nth_i': "nth_or i' x xs = xs ! i'" if "length xs = k" for x :: 'x and xs
           unfolding nth_or_def \<open>length xs = k\<close> by (rule if_P)
         from \<open>i < k'\<close> have "i < length (tapes c')" unfolding l_tps' .
-        have r_nth_or: "reorder is (tapes c') tps ! i = nth_or i' (tapes c' ! i) tps" for tps
-          unfolding reorder_nth[OF \<open>i < length (tapes c')\<close>] by simp
+        then have r_nth_or: "reorder is (tapes c') tps ! i = nth_or i' (tapes c' ! i) tps" for tps
+          by simp
 
         have \<delta>\<^sub>w': "M'.\<delta>\<^sub>w ?q ?hds' i = \<delta>\<^sub>w (state c) (heads c) i'"
          and \<delta>\<^sub>m': "M'.\<delta>\<^sub>m ?q ?hds' i = \<delta>\<^sub>m (state c) (heads c) i'"
-          unfolding M'_simps r_inv_hds by simp_all
+          unfolding M'_fields by simp_all
 
         have "tape_action (M'.\<delta>\<^sub>w ?q ?hds' i, M'.\<delta>\<^sub>m ?q ?hds' i) (?tps' ! i) =
               tape_action (   \<delta>\<^sub>w ?q ?hds i',    \<delta>\<^sub>m ?q ?hds i') (?tps ! i')"
           unfolding \<delta>\<^sub>w' \<delta>\<^sub>m' unfolding r_nth_or nth_i'[OF l_tps] ..
         also have "... = tape_action (\<delta>\<^sub>a ?q ?hds ! i') (?tps ! i')" by simp
-        also have "... = map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps ! i'"
-          by (subst nth_map2) (auto simp add: l_tps)
+        also have "... = map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps ! i'" by (auto simp add: l_tps)
         also have "... = ?rt (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps) ! i"
           unfolding r_nth_or by (rule nth_i'[symmetric]) (simp add: l_tps)
         finally show ?case .
       qed
     qed (fact lr)+
-    also have "... = tapes (?rc (step_not_final c))"
-      unfolding M'.step_not_final_def by (simp add: Let_def)
+    also have "... = tapes (?rc (step_not_final c))" by (simp add: Let_def)
     finally show "tapes (M'.step_not_final ?c') = tapes (?rc (step_not_final c))" .
   qed
-  also have "... = ?rc (step c)" unfolding step_not_final[OF \<open>\<not> is_final c\<close>] ..
+  also from \<open>\<not> is_final c\<close> have "... = ?rc (step c)" by simp
   finally show ?thesis .
 qed
 
