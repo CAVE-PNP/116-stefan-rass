@@ -147,6 +147,13 @@ locale TM = TM_abbrevs +
 begin
 
 abbreviation "M_rec \<equiv> Rep_TM M"
+
+text\<open>Note: The following definitions ``overwrite'' the \<open>TM_record\<close> field names (such as \<^const>\<open>TM_record.states\<close>).
+  This is not detrimental as in \<^locale>\<open>TM\<close> contexts these shortcuts are more convenient.
+  One mildly annoying consequence is, however, that when defining a TM using the record constructor
+  inside \<^locale>\<open>TM\<close> contexts, \<^const>\<open>TM_record.tape_count\<close> must be specified explicitly with its full name. (see below for an example)
+  Interestingly, this only applies to the first field (\<^const>\<open>TM_record.tape_count\<close>) and not any of the other ones.\<close>
+
 definition tape_count where "tape_count \<equiv> TM_record.tape_count M_rec"
 definition states where "states \<equiv> TM_record.states M_rec"
 definition initial_state where "initial_state \<equiv> TM_record.initial_state M_rec"
@@ -192,7 +199,8 @@ lemma next_actions_altdef: "\<delta>\<^sub>a q hds = map (\<lambda>i. (\<delta>\
 
 
 (* TODO consider removing [simp] here, as it would only be useful for low-level stuff *)
-lemma M_rec[simp]: "M_rec = \<lparr> TM_record.tape_count = k,
+lemma M_rec[simp]: "M_rec = \<lparr> TM_record.tape_count = k, \<comment> \<open>as \<^const>\<open>TM.tape_count\<close> overwrites \<^const>\<open>TM_record.tape_count\<close>
+        in \<^locale>\<open>TM\<close> contexts, it must be specified explicitly here.\<close>
     states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
     next_state = \<delta>\<^sub>q, next_write = \<delta>\<^sub>w, next_move  = \<delta>\<^sub>m \<rparr>"
     unfolding TM_fields_defs by simp
@@ -334,13 +342,19 @@ end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
 
 subsubsection\<open>Configuration\<close>
 
-text\<open>We define a TM \<^emph>\<open>configuration\<close> as a record of:\<close>
+text\<open>We define a TM \<^emph>\<open>configuration\<close> as a datatype of:\<close>
 
-record ('q, 's) TM_config =
-  state :: 'q \<comment> \<open>the current state\<close>
-  tapes :: "'s tape list" \<comment> \<open>a vector of tapes\<close>
+datatype ('q, 's) TM_config = TM_config
+  (state: 'q) \<comment> \<open>the current state\<close>
+  (tapes: "'s tape list") \<comment> \<open>current contents of the tapes\<close>
 
 text\<open>Combined with the \<^typ>\<open>('q, 's) TM\<close> definition, it completely describes a TM at any time during its execution.\<close>
+
+type_synonym (in TM_abbrevs) ('q, 's) conf = "('q, 's) TM_config"
+abbreviation (in TM_abbrevs) "conf \<equiv> TM_config"
+abbreviation (in TM_abbrevs) "map_conf \<equiv> map_TM_config"
+abbreviation (in TM_abbrevs) "map_conf_state \<equiv> \<lambda>fq. map_conf fq (\<lambda>s. s)"
+abbreviation (in TM_abbrevs) "map_conf_tapes \<equiv> map_conf (\<lambda>q. q)"
 
 definition heads :: "('q, 's) TM_config \<Rightarrow> 's tp_symbol list" \<comment> \<open>The vector of symbols currently under the TM-heads\<close>
   where [simp]: "heads c = map head (tapes c)"
@@ -432,11 +446,14 @@ text\<open>If the current state is not final,
   Otherwise, do not execute any action.\<close>
 
 definition step_not_final :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
-  where [simp]:
-    "step_not_final c = (let q=state c; hds=heads c in \<lparr>
-      state = next_state q hds,
-      tapes = map2 tape_action (next_actions q hds) (tapes c)
-    \<rparr>)"
+  where "step_not_final c = (let q=state c; hds=heads c in conf
+      (next_state q hds)
+      (map2 tape_action (next_actions q hds) (tapes c)))"
+
+lemma step_not_final_simps[simp]:
+  shows "state (step_not_final c) = \<delta>\<^sub>q (state c) (heads c)"
+    and "tapes (step_not_final c) = map2 tape_action (\<delta>\<^sub>a (state c) (heads c)) (tapes c)"
+  unfolding step_not_final_def by (simp_all add: Let_def)
 
 lemma step_not_final_eqI:
   assumes l: "length tps = k"
@@ -456,7 +473,7 @@ proof (rule nth_equalityI, unfold length_map length_zip next_actions_length l l'
 qed (rule refl)
 
 definition step :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
-  where [simp]: "step c = (if state c \<in> F then c else step_not_final c)"
+  where "step c = (if state c \<in> F then c else step_not_final c)"
 
 abbreviation "steps n \<equiv> step ^^ n"
 
@@ -616,10 +633,10 @@ qed
   (* where "reorder_fun f k l = map (\<lambda>i. if i \<in> f ` {0..<l} then Some (inv_into {0..<l} f i) else None) [0..<k]" *)
 
 definition reorder_config :: "(nat option list) \<Rightarrow> 's tape list \<Rightarrow> ('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
-  where "reorder_config is tps c = \<lparr> state = state c, tapes = reorder is tps (tapes c) \<rparr>"
+  where "reorder_config is tps c = TM_config (state c) (reorder is tps (tapes c))"
 
 lemma reorder_config_length[simp]: "length (tapes (reorder_config p tps c)) = length tps"
-  unfolding reorder_config_def TM_config.simps reorder_length ..
+  unfolding reorder_config_def by simp
 
 lemma reorder_config_simps[simp]:
   shows reorder_config_state: "state (reorder_config is tps c) = state c"
@@ -710,7 +727,7 @@ next
   then have "\<not> M'.is_final ?c'" unfolding M'_F by simp
   then have "M'.step ?c' = M'.step_not_final ?c'" by blast
   also have "... = ?rc (step_not_final c)"
-  proof (intro TM_config.equality)
+  proof (intro TM_config.expand conjI)
     have "state (M'.step_not_final ?c') = M'.\<delta>\<^sub>q ?q ?hds'"
       unfolding M'.step_not_final_def by (simp add: Let_def)
     also have "... = \<delta>\<^sub>q ?q ?hds" unfolding M'_simps r_inv_hds ..
@@ -775,7 +792,7 @@ next
     also have "... = tapes (?rc (step_not_final c))"
       unfolding M'.step_not_final_def by (simp add: Let_def)
     finally show "tapes (M'.step_not_final ?c') = tapes (?rc (step_not_final c))" .
-  qed simp
+  qed
   also have "... = ?rc (step c)" unfolding step_not_final[OF \<open>\<not> is_final c\<close>] ..
   finally show ?thesis .
 qed
@@ -872,7 +889,7 @@ lemma input_tape_size: "w \<noteq> [] \<Longrightarrow> tape_size <w>\<^sub>t\<^
 
 
 definition initial_config :: "'s list \<Rightarrow> ('q, 's) TM_config"
-  where [simp]: "initial_config w = \<lparr> state = q\<^sub>0, tapes = <w>\<^sub>t\<^sub>p # empty_tape \<up> (k - 1) \<rparr>"
+  where [simp]: "initial_config w = conf q\<^sub>0 (<w>\<^sub>t\<^sub>p # empty_tape \<up> (k - 1))"
 
 definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
   where [simp]: "run n w \<equiv> steps n (initial_config w)"
