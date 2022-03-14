@@ -120,6 +120,7 @@ locale is_valid_TM =
   assumes at_least_one_tape: "1 \<le> tape_count M" (* TODO motivate this assm. "why is this necessary?" edit: initial_config would have to be defined differently *)
     and state_axioms: "finite (states M)" "initial_state M \<in> states M"
       "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
+    and next_state_valid: "\<And>q hds. q \<in> states M \<Longrightarrow> next_state M q hds \<in> states M"
 
 text\<open>To define a type, we must prove that it is inhabited (there exist elements that have this type).
   For this we define the trivial ``rejecting TM'', and prove it to be valid.\<close>
@@ -131,7 +132,7 @@ definition "rejecting_TM_rec a \<equiv> \<lparr>
 \<rparr>"
 
 lemma rejecting_TM_valid: "is_valid_TM (rejecting_TM_rec a)"
-    by (unfold_locales, unfold rejecting_TM_rec_def TM_record.simps) blast+
+  by (unfold_locales, unfold rejecting_TM_rec_def TM_record.simps) blast+
 
 text\<open>The type \<open>TM\<close> is then defined as the set of valid \<open>TM_record\<close>s.\<close>
 (* TODO elaborate on the implications of this *)
@@ -212,7 +213,8 @@ sublocale is_valid_TM M_rec using Rep_TM .. \<comment> \<open>The axioms of \<^l
 
 lemmas at_least_one_tape = at_least_one_tape[folded TM_fields_defs]
 lemmas state_axioms = state_axioms[folded TM_fields_defs]
-lemmas TM_axioms = at_least_one_tape state_axioms
+lemmas next_state_valid = next_state_valid[folded TM_fields_defs]
+lemmas TM_axioms[intro, simp] = at_least_one_tape state_axioms next_state_valid
 
 lemma next_actions_length[simp]: "length (next_actions q hds) = k" by simp
 
@@ -374,7 +376,10 @@ text\<open>A \<^typ>\<open>('q, 's) TM_config\<close> \<open>c\<close> is consid
   iff the number of \<^const>\<open>tapes\<close> of \<open>c\<close> matches the number of tapes of \<open>M\<close>.\<close>
 
 definition wf_config :: "('q, 's) TM_config \<Rightarrow> bool"
-  where [simp]: "wf_config c \<equiv> length (tapes c) = k"
+  where [simp]: "wf_config c \<equiv> state c \<in> Q \<and> length (tapes c) = k"
+
+(* TODO consider marking the intro as [simp] as well *)
+mk_ide wf_config_def |intro wf_configI[intro]| |elim wf_configE[elim]| |dest wf_configD[dest]|
 
 
 abbreviation is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
@@ -684,7 +689,7 @@ lemma M'_valid: "is_valid_TM reorder_tapes_rec"
   unfolding reorder_tapes_rec_simps
 proof (unfold_locales, unfold TM_record.simps)
   from at_least_one_tape and k_k' show "1 \<le> k'" by simp
-qed (fact state_axioms)+
+qed (fact TM_axioms)+
 
 sublocale M': TM M' .
 
@@ -694,7 +699,7 @@ lemmas [simp] = M'_fields(1-6)
 
 lemma reorder_step:
   assumes "wf_config c"
-    and "M'.wf_config c'"
+    and l_tps': "length (tapes c') = k'"
   shows "M'.step (reorder_config is (tapes c') c) = reorder_config is (tapes c') (step c)"
     (is "M'.step (?rc c) = ?rc (step c)")
 proof (cases "is_final c")
@@ -713,8 +718,7 @@ next
 
   from \<open>wf_config c\<close> have l_tps: "length (tapes c) = k" by simp
   then have l_hds: "length (heads c) = k" by simp
-  from \<open>M'.wf_config c'\<close> have l_tps': "length (tapes c') = k'" by simp
-  then have l_hds': "length (heads c') = k'" by simp
+  from l_tps' have l_hds': "length (heads c') = k'" by simp
 
   moreover have "Option.these (set is) = {0..<length ?hds}" unfolding l_hds items_match ..
   ultimately have r_inv_hds[simp]: "reorder_inv is (reorder is (heads c') ?hds) = ?hds" by (rule reorder_inv)
