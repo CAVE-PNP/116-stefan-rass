@@ -127,7 +127,13 @@ lemma fold_max_triv: "fold max xs x \<ge> x" for x :: "'a :: linorder" and xs
   by (fold Max.set_eq_fold) simp
 
 (* Suppl_Nat.thy ? *)
-lemma funpow_fixpoint: "f x = x \<Longrightarrow> (f^^n) x = x"
-  by (induction n) simp_all
+lemma funpow_induct: "P x \<Longrightarrow> (\<And>x. P x \<Longrightarrow> P (f x)) \<Longrightarrow> P ((f^^n) x)" by (induction n) auto
+
+lemma funpow_fixpoint: "f x = x \<Longrightarrow> (f^^n) x = x" by (rule funpow_induct) auto
+
+
+lemma isl_not_def: "\<not> isl x \<longleftrightarrow> (\<exists>x2. x = Inr x2)" \<comment> \<open>analogous to\<close> thm isl_def
+  by (induction x) auto
+
 
 end

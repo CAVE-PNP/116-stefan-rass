@@ -268,6 +268,8 @@ text\<open>For both \<^const>\<open>left\<close> and \<^const>\<open>right\<clos
   The use of datatype (as compared to record, for instance) grants the predefined
   \<^const>\<open>map_tape\<close> and \<^const>\<open>set_tape\<close>, including useful lemmas.\<close>
 
+lemma tape_map_ident0[simp]: "map_tape (\<lambda>x. x) = (\<lambda>x. x)" by (rule ext) (rule tape.map_ident)
+
 abbreviation empty_tape where "empty_tape \<equiv> Tape [] blank_symbol []"
 
 context TM_abbrevs
@@ -358,8 +360,15 @@ abbreviation (in TM_abbrevs) "map_conf \<equiv> map_TM_config"
 abbreviation (in TM_abbrevs) "map_conf_state \<equiv> \<lambda>fq. map_conf fq (\<lambda>s. s)"
 abbreviation (in TM_abbrevs) "map_conf_tapes \<equiv> map_conf (\<lambda>q. q)"
 
+declare TM_config.map_sel[simp]
+
 abbreviation heads :: "('q, 's) TM_config \<Rightarrow> 's tp_symbol list" \<comment> \<open>The vector of symbols currently under the TM-heads\<close>
   where "heads c \<equiv> map head (tapes c)"
+
+lemma map_head_tapes[simp]: "map head (map (map_tape f) tps) = map (map_option f) (map head tps)"
+  unfolding map_map comp_def tape.map_sel ..
+
+lemmas TM_config_eq = TM_config.expand[OF conjI] (* sadly, \<open>datatype\<close> does not provide this directly (cf. \<open>some_record.equality\<close> defined by \<open>record\<close> *)
 
 
 context TM
@@ -407,7 +416,17 @@ fun tape_shift :: "head_move \<Rightarrow> 's tape \<Rightarrow> 's tape" where
 | "tape_shift R   \<langle>ls|h|r#rs\<rangle> = \<langle>h#ls|r |rs\<rangle>"
 | "tape_shift N tp = tp"
 
-lemma tape_shift_set: "set_tape (tape_shift m tp) = set_tape tp"
+lemma tape_shift_set: "set_tape (tape_shift m tp) = set_tape tp" (* TODO consider removing *)
+proof (induction tp)
+  case (Tape l h r)
+  show ?case
+  proof (induction m)
+    case Shift_Left show ?case by (induction l) auto next
+    case Shift_Right show ?case by (induction r) auto
+  qed simp
+qed
+
+lemma tape_shift_map[simp]: "map_tape f (tape_shift m tp) = tape_shift m (map_tape f tp)"
 proof (induction tp)
   case (Tape l h r)
   show ?case
@@ -418,6 +437,7 @@ proof (induction tp)
 qed
 
 
+
 text\<open>Write a symbol to the current position of the TM tape head.\<close>
 
 definition tape_write :: "'s tp_symbol \<Rightarrow> 's tape \<Rightarrow> 's tape"
@@ -425,6 +445,10 @@ definition tape_write :: "'s tp_symbol \<Rightarrow> 's tape \<Rightarrow> 's ta
 
 corollary tape_write_simps[simp]: "tape_write s \<langle>l|h|r\<rangle> = \<langle>l|s|r\<rangle>" unfolding tape_write_def by simp
 corollary tape_write_id[simp]: "tape_write (head tp) tp = tp" by (induction tp) simp
+
+lemma tape_write_map[simp]:
+  "tape_write (map_option f s) (map_tape f tp) = map_tape f (tape_write s tp)"
+  by (induction tp) simp
 
 
 text\<open>Write a symbol, then move the head.\<close>
@@ -437,6 +461,10 @@ corollary tape_action_altdef: "tape_action (s, m) = tape_shift m \<circ> tape_wr
 
 lemma tape_action_id[simp]: "tape_action (head tp, No_Shift) tp = tp"
   unfolding tape_action_altdef by simp
+
+lemma tape_action_map[simp]:
+  "tape_action (map_option f s, m) (map_tape f tp) = map_tape f (tape_action (s, m) tp)"
+  unfolding tape_action_def by simp
 
 end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
 
@@ -511,24 +539,27 @@ corollary final_mono[elim]:
   shows "is_final (steps m c)"
   unfolding final_le_steps[OF assms] by (fact \<open>is_final (steps n c)\<close>)
 
-corollary final_mono': "mono (\<lambda>n. is_final ((step^^n) c))"
+corollary final_mono': "mono (\<lambda>n. is_final (steps n c))"
   using final_mono by (intro monoI le_boolI)
+
+lemma not_final_back: "\<not> is_final (step c) \<Longrightarrow> \<not> is_final c" by force
 
 
 paragraph\<open>Well-Formed Steps\<close>
 
-lemma wf_step_not_final: "wf_config c \<Longrightarrow> wf_config (step_not_final c)"
-  unfolding wf_config_def step_not_final_def Let_def TM_config.simps
-  unfolding length_map length_zip next_actions_length by simp
+lemma step_nf_l_tps: "length (tapes c) = k \<Longrightarrow> length (tapes (step_not_final c)) = k" by simp
+lemma step_nf_valid_state: "state c \<in> Q \<Longrightarrow> state (step_not_final c) \<in> Q" by simp
+lemma wf_step_not_final[intro]: "wf_config c \<Longrightarrow> wf_config (step_not_final c)"
+  using step_nf_l_tps step_nf_valid_state by blast
 
+lemma step_l_tps: "length (tapes c) = k \<Longrightarrow> length (tapes (step c)) = k" by (cases "is_final c") auto
+lemma step_valid_state: "state c \<in> Q \<Longrightarrow> state (step c) \<in> Q" by (cases "is_final c") auto
 lemma wf_step[intro]: "wf_config c \<Longrightarrow> wf_config (step c)"
-  unfolding step_def using wf_step_not_final by presburger
+  using step_l_tps step_valid_state by blast
 
-lemma funpow_induct: "P x \<Longrightarrow> (\<And>x. P x \<Longrightarrow> P (f x)) \<Longrightarrow> P ((f^^n) x)"
-  by (induction n) auto
-
-corollary wf_steps[intro]: "wf_config c \<Longrightarrow> wf_config (steps n c)"
-  using wf_step by (elim funpow_induct)
+lemma steps_l_tps: "length (tapes c) = k \<Longrightarrow> length (tapes (steps n c)) = k" using step_l_tps by (elim funpow_induct)
+lemma steps_valid_state: "state c \<in> Q \<Longrightarrow> state (steps n c) \<in> Q" using step_valid_state by (elim funpow_induct)
+lemma wf_steps[intro]: "wf_config c \<Longrightarrow> wf_config (steps n c)" using wf_step by (elim funpow_induct)
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
@@ -790,13 +821,6 @@ next
   finally show ?thesis .
 qed
 
-corollary reorder_step':
-  fixes c c' :: "('q, 's) TM_config"
-  assumes "wf_config c"
-    and "length (tapes c') = k'"
-  shows "M'.step (reorder_config is (tapes c') c) = reorder_config is (tapes c') (step c)"
-  using \<open>wf_config c\<close> by (rule reorder_step) (simp add: \<open>length (tapes c') = k'\<close>)
-
 corollary reorder_steps:
   fixes c c' :: "('q, 's) TM_config"
   assumes wfc: "wf_config c"
@@ -806,16 +830,14 @@ corollary reorder_steps:
 proof (induction n)
   case (Suc n)
   from \<open>wf_config c\<close> have wfcs: "wf_config (steps n c)" by blast
-  show ?case unfolding funpow.simps comp_def Suc.IH reorder_step'[OF wfcs wfc'] ..
+  show ?case unfolding funpow.simps comp_def Suc.IH reorder_step[OF wfcs wfc'] ..
 qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
-
-
 
 end \<comment> \<open>\<^locale>\<open>TM_reorder_tapes\<close>\<close>
 
+
 context TM
 begin
-
 
 definition reorder_tapes :: "nat option list \<Rightarrow> ('q, 's::finite) TM"
   where "reorder_tapes is \<equiv> TM_reorder_tapes.M' M is"
@@ -854,6 +876,350 @@ lemma tape_offset_steps:
   shows "TM.steps (reorder_tapes is) n (reorder_config is (tapes c') c) = reorder_config is (tapes c') (steps n c)"
   using assms tape_offset_valid unfolding reorder_tapes_def is_def
   by (intro TM_reorder_tapes.reorder_steps) (unfold_locales)
+
+end
+
+
+subsubsection\<open>Change Alphabet\<close>
+
+locale TM_map_alphabet =
+  fixes M :: "('q, 's1::finite) TM"
+    and f :: "'s1 \<Rightarrow> 's2::finite" \<comment> \<open>Specifying the inverse instead of defining it using \<^const>\<open>inv\<close>
+          leaves no unspecified cases.\<close>
+  assumes inj_f: "inj f"
+begin
+sublocale TM .
+
+abbreviation f' where "f' \<equiv> map_option f"
+definition f_inv ("f\<inverse>") where "f_inv \<equiv> inv f"
+abbreviation f'_inv ("f''\<inverse>") where "f'_inv \<equiv> map_option f_inv"
+
+lemma inv_f_f[simp]: "f_inv (f x) = x" "f_inv \<circ> f = (\<lambda>x. x)"
+  unfolding comp_def f_inv_def using inj_f by simp_all
+lemma inv_f'_f'[simp]: "f'_inv (f' x) = x" "f'_inv \<circ> f' = (\<lambda>x. x)"
+  by (simp_all add: comp_def option.map_comp option.map_ident)
+lemma map_f'_inv[simp]: "map f'_inv (map f' xs) = xs" by simp (* useless *)
+
+lemma surj_f_inv: "surj f_inv" unfolding f_inv_def using inj_f by (rule inj_imp_surj_inv)
+
+
+definition fc where "fc \<equiv> map_conf_tapes f"
+
+lemma fc_simps[simp]:
+  shows "state (fc c) = state c"
+    and "tapes (fc c) = map (map_tape f) (tapes c)"
+  unfolding fc_def TM_config.map_sel by (rule refl)+
+
+definition map_alph_rec :: "('q, 's2) TM_record"
+  where "map_alph_rec \<equiv> \<lparr>
+    TM_record.tape_count = k,
+    states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
+    next_state = \<lambda>q hds. if set hds \<subseteq> range f' then \<delta>\<^sub>q q (map f'_inv hds) else q,
+    next_write = \<lambda>q hds i. if set hds \<subseteq> range f' then f' (\<delta>\<^sub>w q (map f'_inv hds) i) else hds ! i,
+    next_move  = \<lambda>q hds i. if set hds \<subseteq> range f' then \<delta>\<^sub>m q (map f'_inv hds) i else N
+  \<rparr>"
+
+lemma M'_valid: "is_valid_TM map_alph_rec"
+  unfolding map_alph_rec_def
+proof (unfold_locales, unfold TM_record.simps)
+  fix q hds assume "q \<in> Q"
+  then show "(if set hds \<subseteq> range f' then \<delta>\<^sub>q q (map f'\<inverse> hds) else q) \<in> Q" by simp
+qed (fact TM_axioms)+
+
+definition "M' \<equiv> Abs_TM map_alph_rec"
+sublocale M': TM M' .
+
+lemma M'_rec: "M'.M_rec = map_alph_rec" using Abs_TM_inverse M'_valid by (auto simp add: M'_def)
+lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec map_alph_rec_def TM_record.simps]
+lemmas [simp] = M'_fields(1-6)
+
+lemma map_step:
+  assumes [simp]: "length (tapes c) = k"
+  shows "M'.step (fc c) = fc (step c)"
+proof (cases "is_final c") (* TODO extract this pattern as lemma *)
+  assume "is_final c"
+  then show ?thesis by simp
+next
+  let ?c' = "fc c"
+  let ?q = "state c" and ?q' = "state ?c'"
+  let ?tps = "tapes c" and ?hds = "heads c"
+
+  let ?ft = "map (map_tape f)"
+  let ?hds' = "map f' ?hds" and ?tps' = "?ft ?tps"
+
+  assume "\<not> is_final c"
+  then have "M'.step ?c' = M'.step_not_final ?c'" by simp
+  also have "... = fc (step_not_final c)"
+  proof (rule TM_config_eq)
+    have set_hds'[intro]: "set ?hds' \<subseteq> range f'" by blast
+    then show "state (M'.step_not_final ?c') = state (fc (step_not_final c))"
+      unfolding fc_simps TM.step_not_final_simps M'_fields by (simp add: comp_def tape.map_sel)
+
+    show "tapes (M'.step_not_final ?c') = tapes (fc (step_not_final c))"
+      unfolding TM.step_not_final_simps
+    proof (intro TM.step_not_final_eqI, unfold fc_simps map_head_tapes)
+      fix i assume "i < M'.k"
+      then have [simp]: "i < k" by simp
+
+      then have **: "?tps' ! i = map_tape f (tapes c ! i)" by simp
+      have *: "(if set ?hds' \<subseteq> range f' then a else b) = a" for a b :: 'x by (blast intro: if_P)
+
+      have "tape_action (M'.\<delta>\<^sub>w ?q ?hds' i, M'.\<delta>\<^sub>m ?q ?hds' i) (?tps' ! i)
+          = tape_action (f' (\<delta>\<^sub>w ?q ?hds i), \<delta>\<^sub>m ?q ?hds i) (?tps' ! i)"
+        unfolding M'_fields * map_f'_inv ..
+      also have "... = tape_action (f' (\<delta>\<^sub>w ?q ?hds i), \<delta>\<^sub>m ?q ?hds i) (map_tape f (?tps ! i))"
+        by (subst nth_map) auto
+      also have "... = map_tape f (tape_action (\<delta>\<^sub>w ?q ?hds i, \<delta>\<^sub>m ?q ?hds i) (?tps ! i))" by simp
+      also have "... = ?ft (tapes (step_not_final c)) ! i" by simp
+      finally show "tape_action (M'.\<delta>\<^sub>w ?q ?hds' i, M'.\<delta>\<^sub>m ?q ?hds' i) (?tps' ! i) =
+         ?ft (tapes (step_not_final c)) ! i" .
+    qed simp_all
+  qed
+  also from \<open>\<not> is_final c\<close> have "... = fc (step c)" by simp
+  finally show ?thesis .
+qed
+
+corollary map_steps:
+  assumes l_tps: "length (tapes c) = k"
+  shows "M'.steps n (fc c) = fc (steps n c)"
+  using assms
+proof (induction n)
+  case (Suc n)
+  then have IH: "M'.steps n (fc c) = fc (steps n c)" by blast
+  from \<open>length (tapes c) = k\<close> have l_tpss: "length (tapes (steps n c)) = k" by (rule steps_l_tps)
+
+  show ?case unfolding funpow.simps comp_def IH map_step[OF l_tpss] ..
+qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
+
+end \<comment> \<open>\<^locale>\<open>TM_map_alphabet\<close>\<close>
+
+context TM
+begin
+
+
+definition map_alphabet :: "('s \<Rightarrow> 's2::finite) \<Rightarrow> ('q, 's2) TM"
+  where "map_alphabet f \<equiv> TM_map_alphabet.M' M f"
+
+lemma map_alphabet_steps:
+  fixes f :: "'s \<Rightarrow> 's2::finite"
+  assumes "length (tapes c) = k"
+    and "inj f"
+  shows "TM.steps (map_alphabet f) n (map_conf_tapes f c) = map_conf_tapes f (steps n c)"
+proof -
+  interpret TM_map_alphabet M f using \<open>inj f\<close> by (unfold_locales)
+  from \<open>length (tapes c) = k\<close> have "M'.steps n (fc c) = fc (steps n c)" by (rule map_steps)
+  then show ?thesis unfolding map_alphabet_def fc_def .
+qed
+
+end
+
+
+subsubsection\<open>Simple Composition\<close>
+
+locale TM_comp = TM_abbrevs +
+  fixes M1 :: "('q1, 's::finite) TM"
+    and M2 :: "('q2, 's::finite) TM"
+  assumes k: "TM.tape_count M1 = TM.tape_count M2"
+begin
+sublocale M1: TM M1 .
+sublocale M2: TM M2 .
+
+definition comp_rec :: "('q1 + 'q2, 's) TM_record"
+  where "comp_rec \<equiv> \<lparr>
+    TM_record.tape_count = M1.k,
+    states = Inl ` M1.Q \<union> Inr ` M2.Q,
+    initial_state = Inl M1.q\<^sub>0,
+    final_states = Inr ` M2.F,
+    accepting_states = Inr ` M2.F\<^sub>A,
+    next_state = \<lambda>q hds. case q of Inl q1 \<Rightarrow> let q1' = M1.\<delta>\<^sub>q q1 hds in
+                                             if q1' \<in> M1.F then Inr M2.q\<^sub>0 else Inl q1'
+                                 | Inr q2 \<Rightarrow> Inr (M2.\<delta>\<^sub>q q2 hds),
+    next_write = \<lambda>q hds i. case q of Inl q1 \<Rightarrow> M1.\<delta>\<^sub>w q1 hds i | Inr q2 \<Rightarrow> M2.\<delta>\<^sub>w q2 hds i,
+    next_move  = \<lambda>q hds i. case q of Inl q1 \<Rightarrow> M1.\<delta>\<^sub>m q1 hds i | Inr q2 \<Rightarrow> M2.\<delta>\<^sub>m q2 hds i
+  \<rparr>"
+
+lemma M_valid: "is_valid_TM comp_rec" unfolding comp_rec_def
+proof (unfold_locales, unfold TM.simps)
+  fix q hds
+  assume "q \<in> Inl ` M1.Q \<union> Inr ` M2.Q"
+  then show "(case q of Inl q1 \<Rightarrow> let q1' = M1.\<delta>\<^sub>q q1 hds in if q1' \<in> M1.F then Inr M2.q\<^sub>0 else Inl q1'
+        | Inr q2 \<Rightarrow> Inr (M2.\<delta>\<^sub>q q2 hds))
+       \<in> Inl ` M1.Q \<union> Inr ` M2.Q" (is "(case q of Inl q1 \<Rightarrow> ?l q1 | Inr q2 \<Rightarrow> ?r q2) \<in> ?Q")
+  proof (induction q)
+    case (Inl q1)
+    show ?case unfolding sum.case Let_def by (rule if_cases) (use Inl in blast)+
+  next
+    case (Inr q2)
+    then show ?case unfolding sum.case by blast
+  qed
+qed (use M2.TM_axioms(4-5) in blast)+
+
+definition "M \<equiv> Abs_TM comp_rec"
+
+sublocale TM M .
+
+lemma M_rec: "M_rec = comp_rec" unfolding M_def using M_valid by (intro Abs_TM_inverse CollectI)
+lemmas M_fields = TM_fields_defs[unfolded M_rec comp_rec_def TM_record.simps Let_def]
+lemmas [simp] = M_fields(1-6)
+
+lemma next_state_simps[simp]:
+  shows "M1.\<delta>\<^sub>q q1 hds \<in> M1.F \<Longrightarrow> \<delta>\<^sub>q (Inl q1) hds = Inr M2.q\<^sub>0"
+    and "M1.\<delta>\<^sub>q q1 hds \<notin> M1.F \<Longrightarrow> \<delta>\<^sub>q (Inl q1) hds = Inl (M1.\<delta>\<^sub>q q1 hds)"
+    and "\<delta>\<^sub>q (Inr q2) hds = Inr (M2.\<delta>\<^sub>q q2 hds)"
+  unfolding M_fields by auto
+
+definition cl :: "('q1, 's) TM_config \<Rightarrow> ('q1 + 'q2, 's) TM_config"
+  where "cl \<equiv> map_conf_state Inl"
+definition cl' :: "('q1 + 'q2, 's) TM_config \<Rightarrow> ('q1, 's) TM_config"
+  where "cl' \<equiv> map_conf_state projl"
+
+lemma cl_state[simp]: "state (cl c) = Inl (state c)" unfolding cl_def by simp
+lemma cl'_tapes[simp]: "tapes (cl' c) = tapes c" unfolding cl'_def by simp
+
+lemma cl'_cl[simp]: "cl' (cl c) = c" unfolding cl_def cl'_def TM_config.map_comp comp_def sum.sel TM_config.map_ident ..
+
+lemma cl_cl'[simp]: "isl (state c) \<Longrightarrow> cl (cl' c) = c"
+proof (induction c)
+  case (TM_config q tps)
+  then obtain q1 where q1: "q = Inl q1" by (induction q) auto
+  show ?case unfolding cl_def cl'_def TM_config.map_comp comp_def q1
+    unfolding TM_config.map sum.sel tape.map_ident by simp
+qed
+
+lemma comp_step1_not_final:
+  assumes "isl (state c)" (* TODO there may be a more streamlined way to word this assumption *)
+    and step_nf: "\<not> M1.is_final (M1.step (cl' c))"
+  shows "step c = cl (M1.step (cl' c))"
+proof -
+  from step_nf have nf': "\<not> M1.is_final (cl' c)" by auto
+  with \<open>isl (state c)\<close> have nf: "\<not> is_final c" by auto
+
+  then have "step c = step_not_final c" by blast
+  also have "... = cl (M1.step_not_final (cl' c))"
+  proof (rule TM_config_eq)
+    from \<open>isl (state c)\<close> obtain q1 where [simp]: "state c = Inl q1" unfolding isl_def ..
+    then have [simp]: "state (cl' c) = q1" unfolding cl'_def by simp
+    from step_nf have *: "M1.\<delta>\<^sub>q q1 (heads c) \<notin> M1.F" using nf' by simp
+
+    show "state (step_not_final c) = state (cl (M1.step_not_final (cl' c)))" using * by simp
+    show "tapes (step_not_final c) = tapes (cl (M1.step_not_final (cl' c)))"
+      unfolding cl_def by (simp add: M_fields(8-9))
+  qed
+  also from nf' have "... = cl (M1.step (cl' c))" by simp
+  finally show ?thesis .
+qed
+
+lemma comp_step1_next_final:
+  assumes "isl (state c)"
+    and nf': "\<not> M1.is_final (cl' c)"
+    and step_final: "M1.is_final (M1.step (cl' c))"
+  shows "step c = conf (Inr M2.q\<^sub>0) (tapes (M1.step (cl' c)))"
+proof -
+  from assms(1-2) have nf: "\<not> is_final c" by auto
+
+  then have "step c = step_not_final c" by blast
+  also have "... = conf (Inr M2.q\<^sub>0) (tapes (M1.step_not_final (cl' c)))"
+  proof (rule TM_config_eq, unfold TM_config.sel)
+    from \<open>isl (state c)\<close> obtain q1 where [simp]: "state c = Inl q1" unfolding isl_def ..
+    then have [simp]: "state (cl' c) = q1" unfolding cl'_def by simp
+    from step_final have *: "M1.\<delta>\<^sub>q q1 (heads c) \<in> M1.F" using nf' by simp
+
+    show "state (step_not_final c) = Inr M2.q\<^sub>0" using * by simp
+    show "tapes (step_not_final c) = tapes (M1.step_not_final (cl' c))" by (simp add: M_fields(8-9))
+  qed
+  also from nf' have "... = conf (Inr M2.q\<^sub>0) (tapes (M1.step (cl' c)))"
+    by (subst M1.step_simps(2)) blast+
+  finally show ?thesis .
+qed
+
+lemma comp_step2: "step (map_conf_state Inr c) = map_conf_state Inr (M2.step c)"
+  (is "step (?cr c) = ?cr (M2.step c)")
+proof (cases "M2.is_final c")
+  assume nf: "\<not> M2.is_final c"
+  then have "\<not> is_final (?cr c)" by force
+
+  then have "step (?cr c) = step_not_final (?cr c)" by blast
+  also have "... = ?cr (M2.step_not_final c)"
+  proof (rule TM_config_eq)
+    show "state (step_not_final (?cr c)) = state (?cr (M2.step_not_final c))" by simp
+    show "tapes (step_not_final (?cr c)) = tapes (?cr (M2.step_not_final c))" by (simp add: k M_fields(8-9))
+  qed
+  also from nf have "... = ?cr (M2.step c)" by simp
+  finally show ?thesis .
+qed \<comment> \<open>case \<^term>\<open>M2.is_final c\<close> by\<close> simp
+
+
+lemma comp_steps:
+  fixes c_init1 n1 n2
+  defines "c_fin1 \<equiv> M1.steps n1 c_init1"
+  defines "c_init2 \<equiv> conf M2.q\<^sub>0 (tapes c_fin1)"
+  defines "c_fin2 \<equiv> M2.steps n2 c_init2"
+  assumes ci1_nf: "\<not> M1.is_final c_init1"
+    and cf1: "M1.is_final c_fin1"
+    and cf2: "M2.is_final c_fin2"
+  shows "steps (n1+n2) (map_conf_state Inl c_init1) = map_conf_state Inr c_fin2"
+    (is "steps ?n ?c0 = ?c_fin")
+proof -
+  let ?cl = "map_conf_state Inl" and ?cr = "map_conf_state Inr"
+  let ?fs1 = "\<lambda>n. M1.is_final (M1.steps n c_init1)"
+
+  from ci1_nf cf1 have "\<exists>n1'<n1. (\<forall>i\<le>n1'. \<not> ?fs1 i) \<and> ?fs1 (Suc n1')"
+    unfolding c_fin1_def by (intro ex_least_nat_less) auto
+  then obtain n1' where "n1' < n1" and nfs1: "\<And>i. i \<le> n1' \<Longrightarrow> \<not>?fs1 i" and "?fs1 (Suc n1')" by blast
+  then have "\<not>?fs1 n1'" by blast
+
+  have "0 \<le> n1'" by (rule le0)
+  then have steps_n1': "steps n1' ?c0 = cl (M1.steps n1' c_init1)"
+    and isl_n1': "isl (state (steps n1' ?c0))"
+  proof (induction n1' rule: dec_induct)
+    case base
+    show "steps 0 ?c0 = cl (M1.steps 0 c_init1)" and "isl (state (steps 0 ?c0))"
+      unfolding funpow_0 cl_def[symmetric] by auto
+  next
+    case (step n)
+    have "steps (Suc n) ?c0 = step (steps n ?c0)" unfolding funpow.simps comp_def ..
+    also have "... = step (cl (M1.steps n c_init1))" unfolding step.IH ..
+    also have "... = cl (M1.step (cl' (cl (M1.steps n c_init1))))"
+    proof (rule comp_step1_not_final)
+      show "isl (state (cl (M1.steps n c_init1)))" by simp
+      from \<open>n < n1'\<close> have "\<not>?fs1 (Suc n)" by (intro nfs1 Suc_leI)
+      then show "\<not> M1.is_final (M1.step (cl' (cl (M1.steps n c_init1))))"
+        unfolding cl'_cl funpow.simps comp_def .
+    qed
+    also have "... = cl (M1.steps (Suc n) c_init1)" by simp
+    finally show *: "steps (Suc n) ?c0 = cl (M1.steps (Suc n) c_init1)" .
+
+    show "isl (state (steps (Suc n) ?c0))" unfolding * by simp
+  qed
+
+
+  from \<open>?fs1 (Suc n1')\<close> and \<open>n1' < n1\<close> have c_fin1_alt: "c_fin1 = M1.steps (Suc n1') c_init1"
+    unfolding c_fin1_def by (intro M1.final_le_steps Suc_leI)
+
+  from isl_n1' have "steps (Suc n1') ?c0 = conf (Inr M2.q\<^sub>0) (tapes (M1.step (cl' (cl (M1.steps n1' c_init1)))))"
+    using \<open>\<not>?fs1 n1'\<close> and \<open>?fs1 (Suc n1')\<close> unfolding funpow.simps comp_def steps_n1'
+    by (intro comp_step1_next_final; (unfold cl'_cl)?) blast+ (* TODO Isar-ify this proof *)
+
+  also have "... = conf (Inr M2.q\<^sub>0) (tapes c_fin1)" unfolding c_fin1_alt cl'_cl funpow.simps comp_def ..
+  also have "... = ?cr c_init2" unfolding c_init2_def by simp
+  finally have steps_Sn1': "steps (Suc n1') ?c0 = ?cr c_init2" .
+
+  have "0 \<le> n2" by (rule le0)
+  then have steps_n2: "steps n2 (?cr c_init2) = ?cr (M2.steps n2 c_init2)"
+  proof (induction n2 rule: dec_induct)
+    case (step n2)
+    show ?case unfolding funpow.simps comp_def unfolding step.IH comp_step2 ..
+  qed simp
+
+  from cf2 have "is_final (steps (n2 + Suc n1') ?c0)"
+    unfolding funpow_add comp_def steps_Sn1' steps_n2 c_fin2_def by simp
+  moreover from \<open>n1' < n1\<close> have "n2 + Suc n1' \<le> ?n" by auto
+  ultimately have "steps ?n ?c0 = steps (n2 + Suc n1') ?c0" by (rule final_le_steps)
+
+  also have "... = steps n2 (?cr c_init2)" unfolding funpow_add comp_def steps_Sn1' ..
+  also have "... = ?c_fin" unfolding c_fin2_def steps_n2 ..
+  finally show ?thesis .
+qed
 
 end
 
