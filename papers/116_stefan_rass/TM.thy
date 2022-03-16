@@ -431,11 +431,10 @@ proof (induction tp)
   case (Tape l h r)
   show ?case
   proof (induction m)
-    case Shift_Left show ?case by (induction l) auto next
+    case Shift_Left  show ?case by (induction l) auto next
     case Shift_Right show ?case by (induction r) auto
   qed simp
 qed
-
 
 
 text\<open>Write a symbol to the current position of the TM tape head.\<close>
@@ -522,6 +521,9 @@ paragraph\<open>Final Steps\<close>
 lemma final_steps[simp, intro]: "is_final c \<Longrightarrow> steps n c = c"
   by (rule funpow_fixpoint) (rule step_final)
 
+corollary final_step_final[intro]: "is_final c \<Longrightarrow> is_final (step c)" by simp
+corollary final_steps_final[intro]: "is_final c \<Longrightarrow> is_final (steps n c)" by simp
+
 lemma final_le_steps:
   assumes "is_final (steps n c)"
     and "n \<le> m"
@@ -542,7 +544,23 @@ corollary final_mono[elim]:
 corollary final_mono': "mono (\<lambda>n. is_final (steps n c))"
   using final_mono by (intro monoI le_boolI)
 
-lemma not_final_back: "\<not> is_final (step c) \<Longrightarrow> \<not> is_final c" by force
+lemma final_steps_rev:
+  assumes "is_final (steps a c)"
+    and "is_final (steps b c)"
+  shows "steps a c = steps b c"
+proof (cases a b rule: le_cases)
+  case le with assms show ?thesis by (intro final_le_steps[symmetric]) next
+  case ge with assms show ?thesis by (intro final_le_steps)
+qed
+
+lemma Least_final_step[intro, simp]:
+  assumes "is_final (steps n c)"
+  shows "steps (LEAST n. is_final (steps n c)) c = steps n c"
+    (is "steps ?n' c = steps n c")
+proof -
+  from assms have "is_final (steps ?n' c)" by (rule LeastI)
+  then show ?thesis using assms by (rule final_steps_rev)
+qed
 
 
 paragraph\<open>Well-Formed Steps\<close>
@@ -621,7 +639,6 @@ lemma reorder_inv:
     and items_match: "Option.these (set is) = {0..<length ys}"
   shows "reorder_inv is (reorder is xs ys) = ys"
 proof -
-
   define zs where "zs \<equiv> reorder is xs ys"
   have lz: "length zs = length xs" unfolding zs_def reorder_length ..
 
@@ -867,7 +884,7 @@ proof -
   show "Option.these (set ?o) = {0..<k}" by simp
 qed
 
-lemma tape_offset_steps:
+theorem tape_offset_steps:
   fixes c c' :: "('q, 's) TM_config"
     and a b :: nat
   defines "is \<equiv> tape_offset a b"
@@ -1000,7 +1017,7 @@ begin
 definition map_alphabet :: "('s \<Rightarrow> 's2::finite) \<Rightarrow> ('q, 's2) TM"
   where "map_alphabet f \<equiv> TM_map_alphabet.M' M f"
 
-lemma map_alphabet_steps:
+theorem map_alphabet_steps:
   fixes f :: "'s \<Rightarrow> 's2::finite"
   assumes "length (tapes c) = k"
     and "inj f"
@@ -1016,7 +1033,7 @@ end
 
 subsubsection\<open>Simple Composition\<close>
 
-locale TM_comp = TM_abbrevs +
+locale simple_TM_comp = TM_abbrevs +
   fixes M1 :: "('q1, 's::finite) TM"
     and M2 :: "('q2, 's::finite) TM"
   assumes k: "TM.tape_count M1 = TM.tape_count M2"
@@ -1149,7 +1166,7 @@ proof (cases "M2.is_final c")
 qed \<comment> \<open>case \<^term>\<open>M2.is_final c\<close> by\<close> simp
 
 
-lemma comp_steps:
+lemma comp_steps_final: (* TODO split into steps up to n1' (not final) and the rest *)
   fixes c_init1 n1 n2
   defines "c_fin1 \<equiv> M1.steps n1 c_init1"
   defines "c_init2 \<equiv> conf M2.q\<^sub>0 (tapes c_fin1)"
@@ -1192,7 +1209,6 @@ proof -
     show "isl (state (steps (Suc n) ?c0))" unfolding * by simp
   qed
 
-
   from \<open>?fs1 (Suc n1')\<close> and \<open>n1' < n1\<close> have c_fin1_alt: "c_fin1 = M1.steps (Suc n1') c_init1"
     unfolding c_fin1_def by (intro M1.final_le_steps Suc_leI)
 
@@ -1224,12 +1240,42 @@ qed
 end
 
 
-subsubsection\<open>Running a TM Program\<close>
+definition TM_comp :: "('q1, 's::finite) TM \<Rightarrow> ('q2, 's) TM \<Rightarrow> ('q1 + 'q2, 's) TM"
+  where "TM_comp M1 M2 \<equiv> simple_TM_comp.M M1 M2"
+
+theorem TM_comp_steps_final:
+  fixes M1 :: "('q1, 's::finite) TM" and M2 :: "('q2, 's) TM"
+    and c_init1 :: "('q1, 's) TM_config"
+    and n1 n2 :: nat
+  assumes k: "TM.tape_count M1 = TM.tape_count M2"
+  defines "c_fin1 \<equiv> TM.steps M1 n1 c_init1"
+  assumes c_init2_def: "c_init2 \<equiv> TM_config (TM.q\<^sub>0 M2) (tapes c_fin1)" \<comment> \<open>Assumed, not defined, to reduce the term size of the overall lemma.\<close>
+  defines "c_fin2 \<equiv> TM.steps M2 n2 c_init2"
+  assumes ci1_nf: "\<not> TM.is_final M1 c_init1"
+    and cf1: "TM.is_final M1 c_fin1"
+    and cf2: "TM.is_final M2 c_fin2"
+  shows "TM.steps (TM_comp M1 M2) (n1+n2) (map_TM_config Inl (\<lambda>x. x) c_init1) = map_TM_config Inr (\<lambda>x. x) c_fin2"
+    (is "TM.steps ?M ?n ?c0 = ?c_fin")
+  using k ci1_nf cf1 cf2
+  unfolding c_fin1_def c_init2_def c_fin2_def TM_comp_def simple_TM_comp_def[symmetric]
+  by (rule simple_TM_comp.comp_steps_final)
+
+
+subsection\<open>Computation on TMs\<close>
 
 context TM
 begin
 
-text\<open>TM execution begins with the head at the start of the input word.\<close>
+text\<open>We follow the convention that TMs read their input from the first tape
+  and write their output to the last tape.\<close>
+  (* TODO is this *the* standard convention? what about output on the first tape? *)
+
+
+subsubsection\<open>Input\<close>
+
+text\<open>TM execution begins with the head at the start of the input word.
+  The remaining symbols of the word can be reached by shifting the tape head to the right.
+  The end of the word is reached when the tape head first encounters \<^const>\<open>blank_symbol\<close>.\<close>
 
 fun input_tape :: "'s word \<Rightarrow> 's tape" ("<_>\<^sub>t\<^sub>p") where
   "<[]>\<^sub>t\<^sub>p = \<langle>\<rangle>"
@@ -1247,16 +1293,52 @@ lemma input_tape_size: "w \<noteq> [] \<Longrightarrow> tape_size <w>\<^sub>t\<^
   unfolding tape_size_def by (induction w) auto
 
 
+text\<open>By convention, the initial configuration has the input word on the first tape
+  with all other tapes being empty.\<close>
+
 definition initial_config :: "'s list \<Rightarrow> ('q, 's) TM_config"
   where [simp]: "initial_config w = conf q\<^sub>0 (<w>\<^sub>t\<^sub>p # empty_tape \<up> (k - 1))"
 
-definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
-  where [simp]: "run n w \<equiv> steps n (initial_config w)"
-
-
 lemma wf_initial_config[intro]: "wf_config (initial_config w)" using at_least_one_tape by simp
 
+
+subsubsection\<open>Output\<close>
+
+text\<open>By convention, the \<^emph>\<open>output\<close> of a TM is found on its last tape
+  when the computation has reached its end.
+  The tape head is positioned over the first symbol of the word,
+  and the \<open>n\<close>-th symbol of the word is reached by moving the tape head \<open>n\<close> cells to the right.
+  As with input, the \<^const>\<open>blank_symbol\<close> is not part of the output,
+  so only the symbols up to the first blank will be considered output.\<close> (* TODO does this make sense *)
+
+definition output_config :: "('q, 's) TM_config \<Rightarrow> 's list"
+  where "output_config c = (let o_tp = last (tapes c) in
+    case head o_tp of Bk \<Rightarrow> [] | Some h \<Rightarrow> h # the (those (takeWhile (\<lambda>s. s \<noteq> Bk) (right o_tp))))"
+
+lemma out_config_simps[simp]: "last (tapes c) = <w>\<^sub>t\<^sub>p \<Longrightarrow> output_config c = w"
+  unfolding output_config_def by (induction w) (auto simp add: takeWhile_map)
+
+
+subsubsection\<open>Running a TM Program\<close>
+
+definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
+  where "run n w \<equiv> steps n (initial_config w)"
+
 corollary wf_config_run: "wf_config (run n w)" unfolding run_def by blast
+
+
+definition compute :: "'s list \<Rightarrow> 's list option"
+  where "compute w \<equiv> if \<exists>n. is_final (run n w)
+    then Some (output_config (run (LEAST n. is_final (run n w)) w))
+    else None"
+
+lemma compute_eqI:
+  assumes "is_final (run n w)"
+  shows "compute w = Some (output_config (run n w))"
+proof -
+  from assms have *: "run (LEAST n. is_final (run n w)) w = run n w" unfolding run_def by blast
+  from assms show ?thesis unfolding compute_def * by presburger
+qed
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 

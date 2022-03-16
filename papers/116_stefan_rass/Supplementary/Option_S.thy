@@ -55,9 +55,13 @@ qed
 lemma case_option_same[simp]: "(case x of None \<Rightarrow> a | Some y \<Rightarrow> a) = a"
   by (simp add: option.case_eq_if)
 
-lemma if_Some_P[elim, elim_format]: "(if P then Some x else None) = Some y \<Longrightarrow> P" by (cases P) auto
-lemma if_None_notP[elim, elim_format]: "(if P then Some x else None) = None \<Longrightarrow> \<not>P" by (cases P) auto
-lemma if_Some_notP[elim, elim_format]: "(if P then None else Some x) = Some y \<Longrightarrow> \<not>P" by (cases P) auto
-lemma if_None_P[elim, elim_format]: "(if P then None else Some x) = None \<Longrightarrow> P" by (cases P) auto
+lemma if_Some_P[elim_format]: "(if P then Some x else None) = Some y \<Longrightarrow> P" by (cases P) auto
+lemma if_None_notP[elim_format]: "(if P then Some x else None) = None \<Longrightarrow> \<not>P" by (cases P) auto
+lemma if_Some_notP[elim_format]: "(if P then None else Some x) = Some y \<Longrightarrow> \<not>P" by (cases P) auto
+lemma if_None_P[elim_format]: "(if P then None else Some x) = None \<Longrightarrow> P" by (cases P) auto
+
+
+lemma those_map_Some[simp]: "those (map Some xs) = Some xs" by (induction xs) auto
+
 
 end

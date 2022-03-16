@@ -6,6 +6,9 @@ begin
 
 text\<open>Extends \<^theory>\<open>HOL.List\<close>.\<close>
 
+lemma takeWhile_True[simp]: "takeWhile (\<lambda>x. True) = (\<lambda>x. x)" by fastforce
+
+
 \<comment> \<open>From \<^session>\<open>Universal_Turing_Machine\<close>.\<close>
 abbreviation replicate_exponent :: "'a \<Rightarrow> nat \<Rightarrow> 'a list" ("_ \<up> _" [100, 99] 100)
   where "x \<up> n \<equiv> replicate n x"
