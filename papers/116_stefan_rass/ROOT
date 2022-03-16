@@ -16,6 +16,7 @@ session "116_stefan_rass" = "HOL-Library" +
     Goedel_Numbering
     Language_Density
     TM
+    Composition
     (* A Hard Language with a Known Density Bound *)
     SQ
     (* broken:
