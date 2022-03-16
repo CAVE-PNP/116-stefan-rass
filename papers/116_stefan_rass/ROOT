@@ -18,9 +18,9 @@ session "116_stefan_rass" = "HOL-Library" +
     TM
     (* A Hard Language with a Known Density Bound *)
     SQ
+    (* broken:
     TM_Encoding
     Complexity
-    (* broken:
     L0
     LD_Issues
     *)
