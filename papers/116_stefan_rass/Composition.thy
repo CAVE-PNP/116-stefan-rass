@@ -321,8 +321,7 @@ subsubsection\<open>Change Alphabet\<close>
 
 locale TM_map_alphabet =
   fixes M :: "('q, 's1::finite) TM"
-    and f :: "'s1 \<Rightarrow> 's2::finite" \<comment> \<open>Specifying the inverse instead of defining it using \<^const>\<open>inv\<close>
-          leaves no unspecified cases.\<close>
+    and f :: "'s1 \<Rightarrow> 's2::finite"
   assumes inj_f: "inj f"
 begin
 sublocale TM .
@@ -335,9 +334,7 @@ lemma inv_f_f[simp]: "f_inv (f x) = x" "f_inv \<circ> f = (\<lambda>x. x)"
   unfolding comp_def f_inv_def using inj_f by simp_all
 lemma inv_f'_f'[simp]: "f'_inv (f' x) = x" "f'_inv \<circ> f' = (\<lambda>x. x)"
   by (simp_all add: comp_def option.map_comp option.map_ident)
-lemma map_f'_inv[simp]: "map f'_inv (map f' xs) = xs" by simp (* useless *)
-
-lemma surj_f_inv: "surj f_inv" unfolding f_inv_def using inj_f by (rule inj_imp_surj_inv)
+lemma map_f'_inv: "map f'_inv (map f' xs) = xs" by simp
 
 
 definition fc where "fc \<equiv> map_conf_tapes f"
@@ -461,11 +458,26 @@ begin
 sublocale M1: TM M1 .
 sublocale M2: TM M2 .
 
+text\<open>Note: the current definition will not work correctly when execution starts from one of
+  \<^term>\<open>M1\<close>' final states (\<^term>\<open>state c \<in> Inl ` M1.F\<close>).
+  In this case, it would just execute the actions specified by \<^const>\<open>M1.\<delta>\<^sub>a\<close>,
+  even though it should (immediately) proceed to \<^const>\<open>M2.q\<^sub>0\<close>.
+
+  However, the behavior for \<^const>\<open>TM.run\<close> (starting in the \<^const>\<open>TM.initial_state\<close>) is as expected.
+  If \<^term>\<open>M1.q\<^sub>0 \<in> M1.F\<close> then the resulting TM will start directly with \<^const>\<open>M2.q\<^sub>0\<close>.
+
+  While it is possible to patch the behavior for arbitrary execution with unchanged ``normal'' behavior
+  (by checking if the current state is final in the transition function),
+  this adds complexity and the annoying property that the resulting TM will
+  perform one additional step to transition to \<^const>\<open>M2.q\<^sub>0\<close>.
+  This would cause the running time to be greater than the running time of \<^term>\<open>M1\<close> and \<^term>\<open>M2\<close> combined.\<close>
+  (* this "bug" is also present in \<open>tm_comp\<close> for the old TM defs *)
+
 definition comp_rec :: "('q1 + 'q2, 's) TM_record"
   where "comp_rec \<equiv> \<lparr>
     TM_record.tape_count = M1.k,
     states = Inl ` M1.Q \<union> Inr ` M2.Q,
-    initial_state = Inl M1.q\<^sub>0,
+    initial_state = if M1.q\<^sub>0 \<in> M1.F then Inr M2.q\<^sub>0 else Inl M1.q\<^sub>0,
     final_states = Inr ` M2.F,
     accepting_states = Inr ` M2.F\<^sub>A,
     next_state = \<lambda>q hds. case q of Inl q1 \<Rightarrow> let q1' = M1.\<delta>\<^sub>q q1 hds in
@@ -477,6 +489,9 @@ definition comp_rec :: "('q1 + 'q2, 's) TM_record"
 
 lemma M_valid: "is_valid_TM comp_rec" unfolding comp_rec_def
 proof (unfold_locales, unfold TM.simps)
+  show "(if M1.q\<^sub>0 \<in> M1.F then Inr M2.q\<^sub>0 else Inl M1.q\<^sub>0) \<in> Inl ` M1.Q \<union> Inr ` M2.Q"
+    by (rule if_cases) blast+
+
   fix q hds
   assume "q \<in> Inl ` M1.Q \<union> Inr ` M2.Q"
   then show "(case q of Inl q1 \<Rightarrow> let q1' = M1.\<delta>\<^sub>q q1 hds in if q1' \<in> M1.F then Inr M2.q\<^sub>0 else Inl q1'
@@ -528,7 +543,7 @@ lemma comp_step1_not_final:
     and step_nf: "\<not> M1.is_final (M1.step (cl' c))"
   shows "step c = cl (M1.step (cl' c))"
 proof -
-  from step_nf have nf': "\<not> M1.is_final (cl' c)" by auto
+  from step_nf have nf': "\<not> M1.is_final (cl' c)" by blast
   with \<open>isl (state c)\<close> have nf: "\<not> is_final c" by auto
 
   then have "step c = step_not_final c" by blast
@@ -537,8 +552,9 @@ proof -
     from \<open>isl (state c)\<close> obtain q1 where [simp]: "state c = Inl q1" unfolding isl_def ..
     then have [simp]: "state (cl' c) = q1" unfolding cl'_def by simp
     from step_nf have *: "M1.\<delta>\<^sub>q q1 (heads c) \<notin> M1.F" using nf' by simp
+    from nf' have [simp]: "q1 \<notin> M1.F" by simp
 
-    show "state (step_not_final c) = state (cl (M1.step_not_final (cl' c)))" using * by simp
+    show "state (step_not_final c) = state (cl (M1.step_not_final (cl' c)))" using * by force
     show "tapes (step_not_final c) = tapes (cl (M1.step_not_final (cl' c)))"
       unfolding cl_def by (simp add: M_fields(8-9))
   qed
@@ -560,8 +576,9 @@ proof -
     from \<open>isl (state c)\<close> obtain q1 where [simp]: "state c = Inl q1" unfolding isl_def ..
     then have [simp]: "state (cl' c) = q1" unfolding cl'_def by simp
     from step_final have *: "M1.\<delta>\<^sub>q q1 (heads c) \<in> M1.F" using nf' by simp
+    from nf' have [simp]: "q1 \<notin> M1.F" by simp
 
-    show "state (step_not_final c) = Inr M2.q\<^sub>0" using * by simp
+    show "state (step_not_final c) = Inr M2.q\<^sub>0" using * by force
     show "tapes (step_not_final c) = tapes (M1.step_not_final (cl' c))" by (simp add: M_fields(8-9))
   qed
   also from nf' have "... = conf (Inr M2.q\<^sub>0) (tapes (M1.step (cl' c)))"
