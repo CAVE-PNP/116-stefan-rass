@@ -1,7 +1,7 @@
 subsection\<open>TM Composition\<close>
 
 theory Composition
-  imports TM
+  imports TM TM_Hoare
 begin
 
 subsubsection\<open>Reordering Tapes\<close>

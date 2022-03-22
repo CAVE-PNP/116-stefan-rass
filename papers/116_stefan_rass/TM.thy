@@ -388,7 +388,7 @@ definition wf_config :: "('q, 's) TM_config \<Rightarrow> bool"
   where [simp]: "wf_config c \<equiv> state c \<in> Q \<and> length (tapes c) = k"
 
 (* TODO consider marking the intro as [simp] as well *)
-mk_ide wf_config_def |intro wf_configI[intro]| |elim wf_configE[elim]| |dest wf_configD[dest]|
+mk_ide wf_config_def |intro wf_configI[intro]| |elim wf_configE[elim]| |dest wf_configD[dest, intro]|
 
 
 abbreviation is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
@@ -524,7 +524,7 @@ lemma final_steps[simp, intro]: "is_final c \<Longrightarrow> steps n c = c"
 corollary final_step_final[intro]: "is_final c \<Longrightarrow> is_final (step c)" by simp
 corollary final_steps_final[intro]: "is_final c \<Longrightarrow> is_final (steps n c)" by simp
 
-lemma final_le_steps:
+lemma final_le_steps[elim]:
   assumes "is_final (steps n c)"
     and "n \<le> m"
   shows "steps m c = steps n c"
@@ -582,85 +582,5 @@ lemma wf_steps[intro]: "wf_config c \<Longrightarrow> wf_config (steps n c)" usi
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
 
-subsection\<open>Computation on TMs\<close>
-
-context TM
-begin
-
-text\<open>We follow the convention that TMs read their input from the first tape
-  and write their output to the last tape.\<close>
-  (* TODO is this *the* standard convention? what about output on the first tape? *)
-
-
-subsubsection\<open>Input\<close>
-
-text\<open>TM execution begins with the head at the start of the input word.
-  The remaining symbols of the word can be reached by shifting the tape head to the right.
-  The end of the word is reached when the tape head first encounters \<^const>\<open>blank_symbol\<close>.\<close>
-
-fun input_tape :: "'s word \<Rightarrow> 's tape" ("<_>\<^sub>t\<^sub>p") where
-  "<[]>\<^sub>t\<^sub>p = \<langle>\<rangle>"
-| "<x # xs>\<^sub>t\<^sub>p = \<langle>|Some x|map Some xs\<rangle>"
-
-lemma input_tape_map: "map_tape f <w>\<^sub>t\<^sub>p = <map f w>\<^sub>t\<^sub>p" by (induction w) auto
-
-lemma input_tape_left[simp]: "left <w>\<^sub>t\<^sub>p = []" by (induction w) auto
-lemma input_tape_right: "w \<noteq> [] \<longleftrightarrow> head <w>\<^sub>t\<^sub>p # right <w>\<^sub>t\<^sub>p = map Some w" by (induction w) auto
-
-lemma input_tape_def: "<w>\<^sub>t\<^sub>p = (if w = [] then \<langle>\<rangle> else \<langle>|Some (hd w)|map Some (tl w)\<rangle>)"
-  by (induction w) auto
-
-lemma input_tape_size: "w \<noteq> [] \<Longrightarrow> tape_size <w>\<^sub>t\<^sub>p = length w"
-  unfolding tape_size_def by (induction w) auto
-
-
-text\<open>By convention, the initial configuration has the input word on the first tape
-  with all other tapes being empty.\<close>
-
-definition initial_config :: "'s list \<Rightarrow> ('q, 's) TM_config"
-  where [simp]: "initial_config w = conf q\<^sub>0 (<w>\<^sub>t\<^sub>p # empty_tape \<up> (k - 1))"
-
-lemma wf_initial_config[intro]: "wf_config (initial_config w)" using at_least_one_tape by simp
-
-
-subsubsection\<open>Output\<close>
-
-text\<open>By convention, the \<^emph>\<open>output\<close> of a TM is found on its last tape
-  when the computation has reached its end.
-  The tape head is positioned over the first symbol of the word,
-  and the \<open>n\<close>-th symbol of the word is reached by moving the tape head \<open>n\<close> cells to the right.
-  As with input, the \<^const>\<open>blank_symbol\<close> is not part of the output,
-  so only the symbols up to the first blank will be considered output.\<close> (* TODO does this make sense *)
-
-definition output_config :: "('q, 's) TM_config \<Rightarrow> 's list"
-  where "output_config c = (let o_tp = last (tapes c) in
-    case head o_tp of Bk \<Rightarrow> [] | Some h \<Rightarrow> h # the (those (takeWhile (\<lambda>s. s \<noteq> Bk) (right o_tp))))"
-
-lemma out_config_simps[simp]: "last (tapes c) = <w>\<^sub>t\<^sub>p \<Longrightarrow> output_config c = w"
-  unfolding output_config_def by (induction w) (auto simp add: takeWhile_map)
-
-
-subsubsection\<open>Running a TM Program\<close>
-
-definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
-  where "run n w \<equiv> steps n (initial_config w)"
-
-corollary wf_config_run: "wf_config (run n w)" unfolding run_def by blast
-
-
-definition compute :: "'s list \<Rightarrow> 's list option"
-  where "compute w \<equiv> if \<exists>n. is_final (run n w)
-    then Some (output_config (run (LEAST n. is_final (run n w)) w))
-    else None"
-
-lemma compute_eqI:
-  assumes "is_final (run n w)"
-  shows "compute w = Some (output_config (run n w))"
-proof -
-  from assms have *: "run (LEAST n. is_final (run n w)) w = run n w" unfolding run_def by blast
-  from assms show ?thesis unfolding compute_def * by presburger
-qed
-
-end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
 end

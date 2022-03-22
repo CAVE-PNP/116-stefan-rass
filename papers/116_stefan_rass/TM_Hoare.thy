@@ -1,100 +1,225 @@
-theory TM_Hoare
+theory TM_Hoare (* TODO find better name. maybe "TM_Computation" *)
   imports TM
 begin
+
+subsection\<open>Computation on TMs\<close>
+
+text\<open>We follow the convention that TMs read their input from the first tape
+  and write their output to the last tape.\<close>
+  (* TODO is this *the* standard convention? what about output on the first tape? *)
+
+context TM_abbrevs
+begin
+
+subsubsection\<open>Input\<close>
+
+text\<open>TM execution begins with the head at the start of the input word.
+  The remaining symbols of the word can be reached by shifting the tape head to the right.
+  The end of the word is reached when the tape head first encounters \<^const>\<open>blank_symbol\<close>.\<close>
+
+fun input_tape :: "'s word \<Rightarrow> 's tape" ("<_>\<^sub>t\<^sub>p") where
+  "<[]>\<^sub>t\<^sub>p = \<langle>\<rangle>"
+| "<x # xs>\<^sub>t\<^sub>p = \<langle>|Some x|map Some xs\<rangle>"
+
+lemma input_tape_map[simp]: "map_tape f <w>\<^sub>t\<^sub>p = <map f w>\<^sub>t\<^sub>p" by (induction w) auto
+
+lemma input_tape_left[simp]: "left <w>\<^sub>t\<^sub>p = []" by (induction w) auto
+lemma input_tape_right: "w \<noteq> [] \<longleftrightarrow> head <w>\<^sub>t\<^sub>p # right <w>\<^sub>t\<^sub>p = map Some w" by (induction w) auto
+
+lemma input_tape_def: "<w>\<^sub>t\<^sub>p = (if w = [] then \<langle>\<rangle> else \<langle>|Some (hd w)|map Some (tl w)\<rangle>)"
+  by (induction w) auto
+
+lemma input_tape_size: "w \<noteq> [] \<Longrightarrow> tape_size <w>\<^sub>t\<^sub>p = length w"
+  unfolding tape_size_def by (induction w) auto
+
+end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
+
+context TM
+begin
+
+text\<open>By convention, the initial configuration has the input word on the first tape
+  with all other tapes being empty.\<close>
+
+definition initial_config :: "'s list \<Rightarrow> ('q, 's) TM_config"
+  where "initial_config w = conf q\<^sub>0 (<w>\<^sub>t\<^sub>p # empty_tape \<up> (k - 1))"
+
+lemma wf_initial_config[intro]: "wf_config (initial_config w)"
+  unfolding initial_config_def using at_least_one_tape by simp
+
+lemma init_conf_len[simp]: "length (tapes (initial_config w)) = k" by blast
+lemma init_conf_state[simp]: "state (initial_config w) = q\<^sub>0" unfolding initial_config_def by simp
+
+
+subsubsection\<open>Running a TM Program\<close>
+
+definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
+  where "run n w \<equiv> steps n (initial_config w)"
+
+corollary wf_config_run: "wf_config (run n w)" unfolding run_def by blast
+
+end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
+
 
 subsection \<open>Hoare Rules\<close>
 
 type_synonym ('q, 's) assert = "('q, 's) TM_config \<Rightarrow> bool"
 
-definition (in TM) hoare_halt :: "('q, 's) assert \<Rightarrow> ('q, 's) assert \<Rightarrow> bool" where
-  "hoare_halt P Q \<longleftrightarrow> (\<forall>c. wf_config c \<longrightarrow> P c \<longrightarrow>
-    (\<exists>n. let cn = (step^^n) c in is_final cn \<and> Q cn))"
+definition hoare_halt :: "('q, 's::finite) assert \<Rightarrow> ('q, 's) TM \<Rightarrow> ('q, 's) assert \<Rightarrow> bool"
+  where "hoare_halt P M Q \<equiv>
+    (\<forall>c. P c \<longrightarrow> (\<exists>n. let cn = TM.steps M n c in TM.is_final M cn \<and> Q cn))"
 
-context TM begin
 lemma hoare_haltI[intro]:
   fixes P Q
-  assumes "\<And>c. wf_config c \<Longrightarrow> P c \<Longrightarrow>
-             \<exists>n. let cn = (step^^n) c in is_final cn \<and> Q cn"
-  shows "hoare_halt P Q"
-  unfolding hoare_halt_def using assms by blast
+  assumes "\<And>c. P c \<Longrightarrow> \<exists>n. TM.is_final M (TM.steps M n c) \<and> Q (TM.steps M n c)"
+  shows "hoare_halt P M Q"
+  unfolding hoare_halt_def Let_def using assms by blast
 
 lemma hoare_haltE[elim]:
   fixes c
-  assumes "wf_config c" "P c"
-      and "hoare_halt P Q"
-    obtains n where "is_final ((step^^n) c)" and "Q ((step^^n) c)"
+  assumes "hoare_halt P M Q"
+    and "P c"
+  obtains n where "TM.is_final M (TM.steps M n c)" and "Q (TM.steps M n c)"
   using assms
-  unfolding hoare_halt_def by meson
+  unfolding hoare_halt_def Let_def by blast
+
+lemma hoare_haltE2[elim]:
+  fixes c
+  assumes "hoare_halt P M Q"
+    and "P c"
+  shows "\<exists>n. TM.is_final M (TM.steps M n c) \<and> Q (TM.steps M n c)"
+  using assms unfolding hoare_halt_def Let_def by blast
 
 lemma hoare_contr:
-  fixes P and c
-  assumes "wf_config c" "P c" "hoare_halt P (\<lambda>_. False)"
+  assumes "hoare_halt P M (\<lambda>_. False)" and "P c"
   shows "False"
-using assms by (rule hoare_haltE)
+  using assms by (rule hoare_haltE)
 
-lemma hoare_true: "hoare_halt P Q \<Longrightarrow> hoare_halt P (\<lambda>_. True)"
-  unfolding hoare_halt_def by metis
+lemma hoare_imp[elim]:
+  assumes "hoare_halt P M Q"
+    and P': "\<And>c. P' c \<Longrightarrow> P c"
+    and Q': "\<And>c. Q c \<Longrightarrow> Q' c"
+  shows "hoare_halt P' M Q'"
+proof (intro hoare_haltI)
+  fix c assume "P' c"
+  with P' and \<open>hoare_halt P M Q\<close> obtain n
+    where f: "TM.is_final M (TM.steps M n c)" and Q: "Q (TM.steps M n c)" by blast
+  with Q' show "\<exists>n. TM.is_final M (TM.steps M n c) \<and> Q' (TM.steps M n c)" by blast
+qed
+
+
+lemma hoare_true: "hoare_halt P M Q \<Longrightarrow> hoare_halt P M (\<lambda>_. True)" by fast
 
 lemma hoare_and[intro]:
-  assumes h1: "hoare_halt P Q1"
-    and h2: "hoare_halt P Q2"
-  shows "hoare_halt P (\<lambda>c. Q1 c \<and> Q2 c)"
+  assumes h1: "hoare_halt P M Q1"
+    and h2: "hoare_halt P M Q2"
+  shows "hoare_halt P M (\<lambda>c. Q1 c \<and> Q2 c)"
 proof
-  fix c assume "P c" and wf: "wf_config c"
-  from wf \<open>P c\<close> h1 obtain n1 where fn1: "is_final ((step^^n1) c)" and q1: "Q1 ((step^^n1) c)"
-    by (rule hoare_haltE)
-  from wf \<open>P c\<close> h2 obtain n2 where fn2: "is_final ((step^^n2) c)" and q2: "Q2 ((step^^n2) c)"
-    by (rule hoare_haltE)
+  fix c assume "P c"
+  from h1 and \<open>P c\<close> obtain n1
+    where fn1: "TM.is_final M (TM.steps M n1 c)" and q1: "Q1 (TM.steps M n1 c)" by (rule hoare_haltE)
+  from h2 and \<open>P c\<close> obtain n2
+    where fn2: "TM.is_final M (TM.steps M n2 c)" and q2: "Q2 (TM.steps M n2 c)" by (rule hoare_haltE)
 
   define n::nat where "n \<equiv> max n1 n2"
   hence "n1 \<le> n" "n2 \<le> n" by simp+
-
-  from wf \<open>n1 \<le> n\<close> fn1 have steps1: "((step^^n) c) = ((step^^n1) c)" by (fact final_le_steps)
-  from wf \<open>n2 \<le> n\<close> fn2 have steps2: "((step^^n) c) = ((step^^n2) c)" by (fact final_le_steps)
-  from fn1 q1 q2 have "let qn=(step^^n) c in is_final qn \<and> Q1 qn \<and> Q2 qn"
-    by (fold steps1 steps2) simp
-  thus "\<exists>n. let cn = (step ^^ n) c in is_final cn \<and> Q1 cn \<and> Q2 cn" ..
+  let ?cn = "TM.steps M n c"
+  from fn1 and \<open>n1 \<le> n\<close> have steps1: "?cn = TM.steps M n1 c" by (fact TM.final_le_steps)
+  from fn2 and \<open>n2 \<le> n\<close> have steps2: "?cn = TM.steps M n2 c" by (fact TM.final_le_steps)
+  from fn1 q1 q2 have "TM.is_final M ?cn \<and> Q1 ?cn \<and> Q2 ?cn" by (fold steps1 steps2) blast
+  then show "\<exists>n. TM.is_final M (TM.steps M n c) \<and> Q1 (TM.steps M n c) \<and> Q2 (TM.steps M n c)" ..
 qed
 
-abbreviation (input) init where "init w \<equiv> (\<lambda>c. c = initial_config w)"
 
-definition halts :: "'s list \<Rightarrow> bool"
-  where "halts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>_. True)"
+definition (in TM) "on_input w \<equiv> (\<lambda>c. c = initial_config w)"
 
-lemma halts_I[intro]: "wf_word w \<Longrightarrow> \<exists>n. is_final (run n w) \<Longrightarrow> halts w"
-  unfolding halts_def hoare_halt_def by simp
+lemma on_inputI[intro, simp]: "TM.on_input M w (TM.initial_config M w)"
+  unfolding TM.on_input_def by blast
 
-lemma halts_D[dest]:
-  assumes "halts w"
-  shows "wf_word w"
-    and "\<exists>n. is_final (run n w)"
-  using assms hoare_halt_def wf_initial_config
-  unfolding halts_def by fastforce+
 
-lemma halts_altdef: "halts w \<longleftrightarrow> wf_word w \<and> (\<exists>n. is_final (run n w))" by blast
+definition (in TM) halts :: "'s::finite list \<Rightarrow> bool"
+  where "halts w \<equiv> hoare_halt (on_input w) M (\<lambda>_. True)"
+
+lemma haltsI[intro]:
+  assumes "\<exists>n. TM.is_final M (TM.run M n w)"
+  shows "TM.halts M w"
+  unfolding TM.halts_def
+proof (intro hoare_haltI)
+  fix c assume "TM.on_input M w c"
+  then have c: "c = TM.initial_config M w" unfolding TM.on_input_def .
+  from assms show "\<exists>n. TM.is_final M (TM.steps M n c) \<and> True" unfolding c TM.run_def by blast
+qed
+
+lemma haltsD[dest]: "TM.halts M w \<Longrightarrow> \<exists>n. TM.is_final M (TM.run M n w)"
+  unfolding TM.halts_def TM.run_def by blast
+
+lemma halts_altdef: "TM.halts M w \<longleftrightarrow> (\<exists>n. TM.is_final M (TM.run M n w))" by blast
+
 
 lemma hoare_halt_neg:
-  assumes "\<not> hoare_halt (init w) Q"
-    and "halts w"
-  shows "hoare_halt (init w) (\<lambda>tp. \<not> Q tp)"
-  using assms unfolding hoare_halt_def halts_def Let_def unfolding wf_config_def by fast
+  assumes "\<not> hoare_halt (TM.on_input M w) M Q"
+    and "TM.halts M w"
+  shows "hoare_halt (TM.on_input M w) M (\<lambda>tp. \<not> Q tp)"
+  using assms unfolding hoare_halt_def TM.halts_def Let_def TM.on_input_def by fast
 
 lemma halt_inj:
-  assumes "wf_word w"
-      and "hoare_halt (init w) (\<lambda>c. f c = x)"
-      and "hoare_halt (init w) (\<lambda>c. f c = y)"
+  assumes "hoare_halt (TM.on_input M w) M (\<lambda>c. f c = x)"
+      and "hoare_halt (TM.on_input M w) M (\<lambda>c. f c = y)"
     shows "x = y"
 proof (rule ccontr)
   assume "x \<noteq> y"
   then have *: "a = x \<and> a = y \<longleftrightarrow> False" for a by blast
 
-  from hoare_and assms(2-3) have "hoare_halt (init w) (\<lambda>c. f c = x \<and> f c = y)".
-  then have "hoare_halt (init w) (\<lambda>_. False)" unfolding * .
-  thus False using hoare_contr wf_initial_config[OF assms(1)] by fastforce
+  from hoare_and assms have "hoare_halt (TM.on_input M w) M (\<lambda>c. f c = x \<and> f c = y)".
+  then have "hoare_halt (TM.on_input M w) M (\<lambda>_. False)" unfolding * .
+  then show False by blast
 qed
 
-end
 
+subsubsection\<open>Output\<close>
+
+context TM
+begin
+
+text\<open>By convention, the \<^emph>\<open>output\<close> of a TM is found on its last tape
+  when the computation has reached its end.
+  The tape head is positioned over the first symbol of the word,
+  and the \<open>n\<close>-th symbol of the word is reached by moving the tape head \<open>n\<close> cells to the right.
+  As with input, the \<^const>\<open>blank_symbol\<close> is not part of the output,
+  so only the symbols up to the first blank will be considered output.\<close> (* TODO does this make sense *)
+
+definition output_config :: "('q, 's) TM_config \<Rightarrow> 's list"
+  where "output_config c = (let o_tp = last (tapes c) in
+    case head o_tp of Bk \<Rightarrow> [] | Some h \<Rightarrow> h # the (those (takeWhile (\<lambda>s. s \<noteq> Bk) (right o_tp))))"
+
+lemma out_config_simps[simp]: "last (tapes c) = <w>\<^sub>t\<^sub>p \<Longrightarrow> output_config c = w"
+  unfolding output_config_def by (induction w) (auto simp add: takeWhile_map)
+
+text\<open>The requirement that the output conforms to the input standard should simplify some parts.
+  It is possible to construct a TM that produces clean output, simply by adding another tape.\<close>
+
+definition "clean_output c \<equiv> \<exists>w. last (tapes c) = <w>\<^sub>t\<^sub>p"
+
+
+(* TODO document, clean up *)
+
+definition (in -) "hoare_run w M P \<equiv> hoare_halt (TM.on_input M w) M P"
+
+definition "computes_word w w' \<equiv> hoare_run w M (\<lambda>c. clean_output c \<and> output_config c = w')"
+
+definition "computes f \<equiv> \<forall>w. computes_word w (f w)"
+
+lemma computes_halts[elim]: "computes f \<Longrightarrow> halts w"
+  unfolding computes_def computes_word_def hoare_run_def run_def halts_altdef by blast
+
+
+definition "time w \<equiv> LEAST n. is_final (run n w)"
+
+lemma time_leI: "is_final (run n w) \<Longrightarrow> time w \<le> n" unfolding time_def by (fact Least_le)
+
+end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
+
+
+(*
 definition "input_assert (P::'s list \<Rightarrow> bool) \<equiv> \<lambda>c::('q, 's::finite) TM_config.
               let tp = hd (tapes c) in P (head tp # right tp) \<and> left tp = []"
 
@@ -291,18 +416,5 @@ lemma TM_lang_unique: "\<exists>\<^sub>\<le>\<^sub>1L. wf_lang L \<and> decides 
   using decidesE by (intro Uniq_I) metis
 
 end
-
-
-subsection\<open>Computation of Functions\<close>
-
-context TM begin
-
-definition computes_word :: "('s list \<Rightarrow> 's list) \<Rightarrow> 's list \<Rightarrow> bool"
-  where computes_def[simp]: "computes_word f w \<equiv> hoare_halt (input w) (input (f w))"
-
-abbreviation computes :: "('s list \<Rightarrow> 's list) \<Rightarrow> bool"
-  where "computes f \<equiv> \<forall>w. computes_word f w"
-
-end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
-
+*)
 end
