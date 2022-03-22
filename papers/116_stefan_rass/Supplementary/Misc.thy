@@ -11,9 +11,9 @@ begin
 
 text\<open>Extends \<^theory>\<open>HOL.Fun\<close>, \<^theory>\<open>HOL.Set\<close>, and \<^theory>\<open>HOL.Orderings\<close>.\<close>
 
-lemma if_cases: "P a \<Longrightarrow> P b \<Longrightarrow> P (If c a b)" by presburger
+lemma if_cases[case_names True False]: "P a \<Longrightarrow> P b \<Longrightarrow> P (If c a b)" by presburger
 
-lemma ifI:
+lemma ifI[case_names True False]:
   assumes "c \<Longrightarrow> P a"
     and "\<not>c \<Longrightarrow> P b"
   shows "P (If c a b)"

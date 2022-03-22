@@ -8,6 +8,7 @@ subsubsection\<open>Reordering Tapes\<close>
 
 (* TODO document this section *)
 
+(* TODO consider renaming \<open>is\<close>. it stands for indices, but is a somewhat bad name since it is also an Isabelle keyword *)
 definition reorder :: "(nat option list) \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> 'a list"
   where "reorder is xs ys = map2 (\<lambda>i x. case is ! i of None \<Rightarrow> x | Some i' \<Rightarrow> nth_or i' x ys) [0..<length xs] xs"
 
@@ -40,7 +41,6 @@ proof -
 qed
 
 
-(* TODO are both xs and ys needed here? in practice they seem always be identical *)
 definition reorder_inv :: "(nat option list) \<Rightarrow> 'a list \<Rightarrow> 'a list"
   where "reorder_inv is ys = map
     (\<lambda>i. ys ! (LEAST i'. i'<length is \<and> is ! i' = Some i))
@@ -270,6 +270,83 @@ proof (induction n)
   show ?case unfolding funpow.simps comp_def Suc.IH reorder_step[OF wfcs wfc'] ..
 qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
+corollary reorder_run':
+  fixes c' :: "('q, 's) TM_config"
+  assumes "length (tapes c') = k'"
+  shows "M'.steps n (reorder_config is (tapes c') (initial_config w)) = reorder_config is (tapes c') (run n w)"
+  unfolding run_def reorder_steps[OF wf_initial_config assms] ..
+
+lemma init_conf_eq:
+  assumes "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
+  shows "M'.initial_config w = reorder_config is (\<langle>\<rangle> \<up> k') (initial_config w)"
+  (is "?c0' = reorder_config is (\<langle>\<rangle> \<up> k') ?c0")
+proof (rule TM_config_eq)
+  let ?r = "reorder is (\<langle>\<rangle> \<up> k')" and ?cr = "reorder_config is (\<langle>\<rangle> \<up> k')"
+  let ?t0 = "\<lambda>k. <w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1)"
+
+  show "tapes ?c0' = tapes (?cr ?c0)"
+  proof (rule nth_equalityI)
+    fix i assume "i < length (tapes ?c0')"
+    then have "i < k'" by simp
+
+    then have "(<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (M'.k - 1)) ! i = ?r (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1)) ! i" unfolding M'_fields
+    proof (induction i)
+      case 0
+      with assms have [simp]: "is ! 0 = Some 0" by blast
+      from \<open>0 < k'\<close> show ?case by (subst reorder_nth) auto
+    next
+      case (Suc i)
+      with assms have "is ! Suc i \<noteq> Some 0" by blast
+
+      have h1: "k' = Suc (k' - 1)" using M'.at_least_one_tape
+        unfolding M'_fields by (intro Suc_pred') linarith
+      have h2: "\<langle>\<rangle> \<up> k' = \<langle>\<rangle> # \<langle>\<rangle> \<up> (k' - 1)" by (subst h1) simp
+
+      from \<open>Suc i < k'\<close> have h3: "(\<langle>\<rangle> \<up> k') ! Suc i = \<langle>\<rangle>" by simp
+      then have h4: "(\<langle>\<rangle> \<up> (k' - 1)) ! i = \<langle>\<rangle>" unfolding h2 unfolding nth_Cons_Suc .
+
+      from \<open>Suc i < k'\<close> have "Suc i < length (\<langle>\<rangle> \<up> k')" by simp
+      note reorder_i = reorder_nth[OF this]
+
+      show ?case unfolding nth_Cons_Suc unfolding reorder_i h3 h4
+      proof (induction "is ! Suc i")
+        case None thus ?case by simp
+      next
+        case (Some i')
+        then have i': "is ! Suc i = Some i'" ..
+        from \<open>is ! Suc i \<noteq> Some 0\<close> have "i' > 0" unfolding i' by simp
+        then obtain i'' where i'': "i' = Suc i''" by (rule lessE)
+
+        from items_match and \<open>Suc i < k'\<close> have "i' < k" using i'
+          by (metis atLeastLessThan_iff in_these_eq nth_mem)
+
+        then have "i' < length (?t0 k)" by simp
+        then show ?case unfolding i' i'' by simp
+      qed
+    qed
+    then show "tapes ?c0' ! i = tapes (?cr ?c0) ! i"
+      unfolding TM.initial_config_def reorder_config_def TM_config.sel .
+  qed simp
+qed simp
+
+corollary reorder_run:
+  fixes c' :: "('q, 's) TM_config"
+  assumes "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
+  shows "M'.run n w = reorder_config is (\<langle>\<rangle> \<up> k') (run n w)"
+proof -
+  let ?cr = "reorder_config is (tapes (conf q\<^sub>0 (\<langle>\<rangle> \<up> k')))"
+  have "M'.run n w = M'.steps n (?cr (initial_config w))"
+    unfolding M'.run_def init_conf_eq[OF assms] by simp
+  also have "... = ?cr (run n w)" by (subst reorder_run') auto
+  finally show ?thesis by simp
+qed
+
+corollary reorder_time:
+  fixes c' :: "('q, 's) TM_config"
+  assumes "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
+  shows "M'.time w = time w"
+  unfolding TM.time_def reorder_run[OF assms] by simp
+
 end \<comment> \<open>\<^locale>\<open>TM_reorder_tapes\<close>\<close>
 
 
@@ -287,7 +364,6 @@ corollary reorder_tapes_steps:
   shows "TM.steps (reorder_tapes is) n (reorder_config is (tapes c') c) = reorder_config is (tapes c') (steps n c)"
   unfolding reorder_tapes_def using assms
   by (intro TM_reorder_tapes.reorder_steps) (unfold_locales)
-
 
 definition tape_offset :: "nat \<Rightarrow> nat \<Rightarrow> nat option list"
   where "tape_offset a b \<equiv> None\<up>a @ (map Some [0..<k]) @ None\<up>b"
@@ -314,7 +390,44 @@ theorem tape_offset_steps:
   using assms tape_offset_valid unfolding reorder_tapes_def is_def
   by (intro TM_reorder_tapes.reorder_steps) (unfold_locales)
 
-end
+end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
+
+
+locale TM_tape_offset =
+  fixes M :: "('q, 's::finite) TM"
+    and a b :: nat
+begin
+sublocale TM M .
+
+abbreviation "is \<equiv> tape_offset a b"
+
+sublocale TM_reorder_tapes M "is" using tape_offset_valid by unfold_locales
+
+lemma tape_offset_helper[intro]:
+  assumes "a = 0"
+  shows "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
+proof (intro allI impI)
+  fix i assume "i < k'"
+  show "(i = 0) = (is ! i = Some 0)"
+  proof (cases "i < k")
+    assume "i < k"
+    have "is ! i = (map Some [0..<k] @ None \<up> b) ! i" unfolding \<open>a = 0\<close> TM.tape_offset_def by simp
+    also from \<open>i < k\<close> have "... = map Some [0..<k] ! i" by (subst nth_append, intro if_P) simp
+    also from \<open>i < k\<close> have "... = Some i" by force
+    finally show ?thesis by simp
+  next
+    assume "\<not> i < k"
+    with \<open>i < k'\<close> have "i - k < b" unfolding tape_offset_length \<open>a = 0\<close> by (subst less_diff_conv2) presburger+
+    have "is ! i = (map Some [0..<k] @ None \<up> b) ! i" unfolding \<open>a = 0\<close> TM.tape_offset_def by simp
+    also from \<open>\<not> i < k\<close> have "... = (None \<up> b) ! (i - k)" by (subst nth_append) fastforce
+    also from \<open>i - k < b\<close> have "... = None" by (rule nth_replicate)
+    finally have "is ! i \<noteq> Some 0" by simp
+    moreover from \<open>\<not> i < k\<close> and at_least_one_tape have "i \<noteq> 0" by simp
+    ultimately show ?thesis by blast
+  qed
+qed
+
+end \<comment> \<open>\<^locale>\<open>TM_tape_offset\<close>\<close>
 
 
 subsubsection\<open>Change Alphabet\<close>
@@ -425,6 +538,16 @@ proof (induction n)
   show ?case unfolding funpow.simps comp_def IH map_step[OF l_tpss] ..
 qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
+corollary map_run[simp]: "M'.run n (map f w) = fc (run n w)"
+proof -
+  have *: "M'.initial_config (map f w) = fc (initial_config w)"
+    unfolding TM.initial_config_def by (rule TM_config_eq) auto
+  show "M'.run n (map f w) = fc (run n w)" unfolding TM.run_def * map_steps[OF init_conf_len] ..
+qed
+
+corollary map_time[simp]: "M'.time (map f w) = time w" unfolding TM.time_def map_run by simp
+
+
 end \<comment> \<open>\<^locale>\<open>TM_map_alphabet\<close>\<close>
 
 context TM
@@ -453,7 +576,7 @@ subsubsection\<open>Simple Composition\<close>
 locale simple_TM_comp = TM_abbrevs +
   fixes M1 :: "('q1, 's::finite) TM"
     and M2 :: "('q2, 's::finite) TM"
-  assumes k: "TM.tape_count M1 = TM.tape_count M2"
+  assumes k[simp]: "TM.tape_count M1 = TM.tape_count M2"
 begin
 sublocale M1: TM M1 .
 sublocale M2: TM M2 .
@@ -596,14 +719,20 @@ proof (cases "M2.is_final c")
   also have "... = ?cr (M2.step_not_final c)"
   proof (rule TM_config_eq)
     show "state (step_not_final (?cr c)) = state (?cr (M2.step_not_final c))" by simp
-    show "tapes (step_not_final (?cr c)) = tapes (?cr (M2.step_not_final c))" by (simp add: k M_fields(8-9))
+    show "tapes (step_not_final (?cr c)) = tapes (?cr (M2.step_not_final c))" by (simp add: M_fields(8-9))
   qed
   also from nf have "... = ?cr (M2.step c)" by simp
   finally show ?thesis .
 qed \<comment> \<open>case \<^term>\<open>M2.is_final c\<close> by\<close> simp
 
+lemma comp_steps2: "steps n2 (map_conf_state Inr c_init2) = map_conf_state Inr (M2.steps n2 c_init2)"
+  using le0
+proof (induction n2 rule: dec_induct)
+  case (step n2)
+  show ?case unfolding funpow.simps comp_def unfolding step.IH comp_step2 ..
+qed simp
 
-lemma comp_steps_final: (* TODO split into steps up to n1' (not final) and the rest *)
+lemma comp_steps_final:
   fixes c_init1 n1 n2
   defines "c_fin1 \<equiv> M1.steps n1 c_init1"
   defines "c_init2 \<equiv> conf M2.q\<^sub>0 (tapes c_fin1)"
@@ -657,21 +786,46 @@ proof -
   also have "... = ?cr c_init2" unfolding c_init2_def by simp
   finally have steps_Sn1': "steps (Suc n1') ?c0 = ?cr c_init2" .
 
-  have "0 \<le> n2" by (rule le0)
-  then have steps_n2: "steps n2 (?cr c_init2) = ?cr (M2.steps n2 c_init2)"
-  proof (induction n2 rule: dec_induct)
-    case (step n2)
-    show ?case unfolding funpow.simps comp_def unfolding step.IH comp_step2 ..
-  qed simp
-
   from cf2 have "is_final (steps (n2 + Suc n1') ?c0)"
-    unfolding funpow_add comp_def steps_Sn1' steps_n2 c_fin2_def by simp
+    unfolding funpow_add comp_def steps_Sn1' comp_steps2 c_fin2_def by simp
   moreover from \<open>n1' < n1\<close> have "n2 + Suc n1' \<le> ?n" by auto
   ultimately have "steps ?n ?c0 = steps (n2 + Suc n1') ?c0" by (rule final_le_steps)
 
   also have "... = steps n2 (?cr c_init2)" unfolding funpow_add comp_def steps_Sn1' ..
-  also have "... = ?c_fin" unfolding c_fin2_def steps_n2 ..
+  also have "... = ?c_fin" unfolding c_fin2_def comp_steps2 ..
   finally show ?thesis .
+qed
+
+
+lemma comp_run:
+  fixes w n1 n2
+  defines "c_fin1 \<equiv> M1.run n1 w"
+  defines "c_init2 \<equiv> conf M2.q\<^sub>0 (tapes c_fin1)"
+  defines "c_fin2 \<equiv> M2.steps n2 c_init2"
+  assumes cf1: "M1.is_final c_fin1"
+    and cf2: "M2.is_final c_fin2"
+  shows "run (n1+n2) w = map_conf_state Inr c_fin2"
+    (is "run ?n w = ?cr c_fin2")
+proof (cases "M1.q\<^sub>0 \<in> M1.F")
+  assume q0f: "M1.q\<^sub>0 \<in> M1.F"
+  then have "initial_config w = ?cr (M2.initial_config w)" unfolding TM.initial_config_def by simp
+  then have "run ?n w = steps ?n (?cr (M2.initial_config w))" unfolding run_def by presburger
+  also have "... = ?cr (M2.steps ?n (M2.initial_config w))" unfolding comp_steps2 ..
+  also have "... = ?cr (M2.steps ?n c_init2)"
+  proof -
+    from q0f have [simp]: "c_fin1 = M1.initial_config w" unfolding c_fin1_def M1.run_def by simp
+    have "M2.initial_config w = c_init2" unfolding c_init2_def by (simp add: TM.initial_config_def)
+    then show ?thesis by (rule arg_cong)
+  qed
+  also from cf2 have "... = ?cr c_fin2" unfolding c_fin2_def
+    by (intro arg_cong[where f="?cr"], elim M2.final_le_steps) simp
+  finally show ?thesis .
+next
+  assume "M1.q\<^sub>0 \<notin> M1.F"
+  then have *: "run n w = steps n (cl (M1.initial_config w))" for n w
+    unfolding cl_def run_def by (simp add: TM.initial_config_def)
+  from \<open>M1.q\<^sub>0 \<notin> M1.F\<close> have "\<not> M1.is_final (M1.initial_config w)" by simp
+  with cf1 cf2 show ?thesis unfolding assms * cl_def M1.run_def by (intro comp_steps_final)
 qed
 
 end
@@ -697,5 +851,38 @@ theorem TM_comp_steps_final:
   unfolding c_fin1_def c_init2_def c_fin2_def TM_comp_def simple_TM_comp_def[symmetric]
   by (rule simple_TM_comp.comp_steps_final)
 
+
+(* here be dragons *)
+
+subsubsection\<open>Composition of Arbitrary TMs\<close>
+
+text\<open>This is designed to allow composition of TMs that we do not know anything about.
+  As it is common practise in complexity theoretic proofs to obtain TMs from existence
+  (``from \<open>L \<in> DTIME(T)\<close> we obtain \<open>M\<close> where ...'').\<close>
+
+
+locale arb_TM_comp =
+  fixes M1 :: "('q1, 's1::finite) TM"
+    and M2 :: "('q2, 's2::finite) TM"
+    and f1 :: "('s1 \<Rightarrow> 's::finite)"
+    and f2 :: "('s2 \<Rightarrow> 's)"
+  assumes inj_f1: "inj f1"
+    and inj_f2: "inj f2"
+begin
+sublocale M1: TM_map_alphabet M1 f1 using inj_f1 by (unfold_locales)
+sublocale M2: TM_map_alphabet M2 f2 using inj_f2 by (unfold_locales)
+
+abbreviation "M1' \<equiv> M1.M'"
+abbreviation "M2' \<equiv> M2.M'"
+sublocale M1': TM_tape_offset M1' 0 "M2.k - 1" .
+sublocale M2': TM_tape_offset M2' "M1.k - 1" 0 .
+
+sublocale simple_TM_comp M1'.M' M2'.M'
+proof unfold_locales
+  show "M1'.M'.k = M2'.M'.k" unfolding M1'.M'_fields(1) M2'.M'_fields(1)
+    using M1.at_least_one_tape M2.at_least_one_tape by simp
+qed
+
+end \<comment> \<open>\<^locale>\<open>arb_TM_comp\<close>\<close>
 
 end
