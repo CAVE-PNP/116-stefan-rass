@@ -347,7 +347,7 @@ corollary reorder_time:
   fixes c' :: "('q, 's) TM_config"
   assumes "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
   shows "M'.time w = time w"
-  unfolding TM.time_def reorder_run[OF assms] by simp
+  unfolding TM.time_altdef reorder_run[OF assms] by simp
 
 end \<comment> \<open>\<^locale>\<open>TM_reorder_tapes\<close>\<close>
 
@@ -404,6 +404,7 @@ sublocale TM M .
 abbreviation "is \<equiv> tape_offset a b"
 
 sublocale TM_reorder_tapes M "is" using tape_offset_valid by unfold_locales
+
 
 lemma tape_offset_helper[intro]:
   assumes "a = 0"
@@ -547,7 +548,7 @@ proof -
   show "M'.run n (map f w) = fc (run n w)" unfolding TM.run_def * map_steps[OF init_conf_len] ..
 qed
 
-corollary map_time[simp]: "M'.time (map f w) = time w" unfolding TM.time_def map_run by simp
+corollary map_time[simp]: "M'.time (map f w) = time w" unfolding TM.time_altdef map_run by simp
 
 
 end \<comment> \<open>\<^locale>\<open>TM_map_alphabet\<close>\<close>

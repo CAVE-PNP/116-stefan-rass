@@ -54,8 +54,9 @@ subsubsection\<open>Running a TM Program\<close>
 
 definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
   where "run n w \<equiv> steps n (initial_config w)"
+declare (in -) TM.run_def[simp]
 
-corollary wf_config_run: "wf_config (run n w)" unfolding run_def by blast
+corollary wf_config_run: "wf_config (run n w)" by auto
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
@@ -136,23 +137,33 @@ lemma on_inputI[intro, simp]: "TM.on_input M w (TM.initial_config M w)"
   unfolding TM.on_input_def by blast
 
 
+definition (in TM) halts_config :: "('q, 's) TM_config \<Rightarrow> bool"
+  where "halts_config c \<equiv> hoare_halt (\<lambda>x. x = c) M (\<lambda>_. True)"
+
+lemma halts_config_altdef: "TM.halts_config M c \<longleftrightarrow> (\<exists>n. TM.is_final M (TM.steps M n c))"
+  unfolding TM.halts_config_def by fast
+
+mk_ide halts_config_altdef |intro halts_confI[intro]| |dest halts_confD[dest]|
+
+
 definition (in TM) halts :: "'s::finite list \<Rightarrow> bool"
-  where "halts w \<equiv> hoare_halt (on_input w) M (\<lambda>_. True)"
+  where "halts w \<equiv> halts_config (initial_config w)"
+declare TM.halts_def[simp]
+
+lemma halts_altdef: "TM.halts M w \<longleftrightarrow> hoare_halt (TM.on_input M w) M (\<lambda>_. True)"
+  unfolding TM.halts_def TM.halts_config_def TM.on_input_def ..
+
+lemma halts_altdef2: "TM.halts M w \<longleftrightarrow> (\<exists>n. TM.is_final M (TM.run M n w))"
+  by (simp add: halts_config_altdef)
+
 
 lemma haltsI[intro]:
   assumes "\<exists>n. TM.is_final M (TM.run M n w)"
   shows "TM.halts M w"
-  unfolding TM.halts_def
-proof (intro hoare_haltI)
-  fix c assume "TM.on_input M w c"
-  then have c: "c = TM.initial_config M w" unfolding TM.on_input_def .
-  from assms show "\<exists>n. TM.is_final M (TM.steps M n c) \<and> True" unfolding c TM.run_def by blast
-qed
+  using assms by (simp add: halts_config_altdef)
 
 lemma haltsD[dest]: "TM.halts M w \<Longrightarrow> \<exists>n. TM.is_final M (TM.run M n w)"
   unfolding TM.halts_def TM.run_def by blast
-
-lemma halts_altdef: "TM.halts M w \<longleftrightarrow> (\<exists>n. TM.is_final M (TM.run M n w))" by blast
 
 
 lemma hoare_halt_neg:
@@ -202,19 +213,51 @@ definition "clean_output c \<equiv> \<exists>w. last (tapes c) = <w>\<^sub>t\<^s
 
 (* TODO document, clean up *)
 
-definition (in -) "hoare_run w M P \<equiv> hoare_halt (TM.on_input M w) M P"
+definition (in -) [simp]: "hoare_run w M P \<equiv> hoare_halt (TM.on_input M w) M P"
 
 definition "computes_word w w' \<equiv> hoare_run w M (\<lambda>c. clean_output c \<and> output_config c = w')"
 
 definition "computes f \<equiv> \<forall>w. computes_word w (f w)"
+declare (in -) TM.computes_def[simp]
 
 lemma computes_halts[elim]: "computes f \<Longrightarrow> halts w"
-  unfolding computes_def computes_word_def hoare_run_def run_def halts_altdef by blast
+  unfolding halts_altdef2 by (auto simp add: computes_word_def)
 
 
-definition "time w \<equiv> LEAST n. is_final (run n w)"
+definition "config_time c \<equiv> LEAST n. is_final (steps n c)"
 
-lemma time_leI: "is_final (run n w) \<Longrightarrow> time w \<le> n" unfolding time_def by (fact Least_le)
+lemma steps_conf_time[intro, simp]:
+  assumes "is_final (steps n c)"
+  shows "steps (config_time c) c = steps n c"
+    (is "steps ?n' c = steps n c")
+proof -
+  from assms have "is_final (steps ?n' c)" unfolding config_time_def by (rule LeastI)
+  then show ?thesis using assms by (rule final_steps_rev)
+qed
+
+lemma conf_time_lessD[dest, elim]: "n < config_time c \<Longrightarrow> \<not> is_final (steps n c)"
+  unfolding config_time_def by (rule not_less_Least)
+
+lemma conf_time_geD[dest, elim]:
+  assumes "n \<ge> config_time c"
+    and "halts_config c"
+  shows "is_final (steps n c)"
+proof -
+  from assms(2) have "is_final (steps (LEAST n. is_final (steps n c)) c)"
+    unfolding halts_config_altdef by (rule LeastI_ex)
+  with assms(1) show ?thesis unfolding config_time_def by fast
+qed
+
+lemma conf_time_geI[intro]: "is_final (steps n c) \<Longrightarrow> config_time c \<le> n"
+  unfolding config_time_def run_def by (fact Least_le)
+
+lemma conf_time_ge_iff: "halts_config c \<Longrightarrow> is_final (steps n c) \<longleftrightarrow> n \<ge> config_time c" by blast
+
+
+definition "time w \<equiv> config_time (initial_config w)"
+declare (in -) TM.time_def[simp]
+
+lemma time_altdef: "time w = (LEAST n. is_final (run n w))" using config_time_def by simp
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 

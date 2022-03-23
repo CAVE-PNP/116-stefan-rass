@@ -553,15 +553,6 @@ proof (cases a b rule: le_cases)
   case ge with assms show ?thesis by (intro final_le_steps)
 qed
 
-lemma Least_final_step[intro, simp]:
-  assumes "is_final (steps n c)"
-  shows "steps (LEAST n. is_final (steps n c)) c = steps n c"
-    (is "steps ?n' c = steps n c")
-proof -
-  from assms have "is_final (steps ?n' c)" by (rule LeastI)
-  then show ?thesis using assms by (rule final_steps_rev)
-qed
-
 
 paragraph\<open>Well-Formed Steps\<close>
 
