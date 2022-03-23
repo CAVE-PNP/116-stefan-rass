@@ -882,6 +882,33 @@ theorem TM_comp_steps_final:
   by (rule simple_TM_comp.comp_steps_final)
 
 
+subsubsection\<open>Composition with Offset\<close> (* TODO find better title *)
+
+text\<open>Combine \<^locale>\<open>simple_TM_comp\<close> and \<^locale>\<open>TM_tape_offset\<close> to define a composition
+  where the output of the first TM becomes the input for the second one.\<close>
+
+locale IO_TM_comp =
+  fixes M1 :: "('q1, 's::finite) TM"
+    and M2 :: "('q2, 's) TM"
+begin
+
+abbreviation "k1 \<equiv> TM.tape_count M1"
+abbreviation "k2 \<equiv> TM.tape_count M2"
+sublocale M1: TM_tape_offset M1 0 "k2 - 1" .
+sublocale M2: TM_tape_offset M2 "k1 - 1" 0 .
+
+abbreviation "M1' \<equiv> M1.M'"
+abbreviation "M2' \<equiv> M2.M'"
+
+sublocale simple_TM_comp M1' M2'
+proof unfold_locales
+  show "M1.M'.k = M2.M'.k" unfolding M1.M'_fields(1) M2.M'_fields(1)
+    using M1.at_least_one_tape M2.at_least_one_tape by simp
+qed
+
+end \<comment> \<open>\<^locale>\<open>IO_TM_comp\<close>\<close>
+
+
 (* here be dragons *)
 
 subsubsection\<open>Composition of Arbitrary TMs\<close>
