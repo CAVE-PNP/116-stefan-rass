@@ -712,6 +712,32 @@ proof -
   finally show ?thesis .
 qed
 
+lemma comp_steps1:
+  assumes "n < M1.config_time c"
+  shows "steps n (cl c) = cl (M1.steps n c)"
+proof -
+  have "0 \<le> n" by (rule le0)
+  then show "steps n (cl c) = cl (M1.steps n c)"
+  proof (induction n rule: dec_induct)
+    case base
+    show "steps 0 (cl c) = cl (M1.steps 0 c)" unfolding funpow_0 cl_def[symmetric] ..
+  next
+    case (step n')
+    have "steps (Suc n') (cl c) = step (steps n' (cl c))" unfolding funpow.simps comp_def ..
+    also have "... = step (cl (M1.steps n' c))" unfolding step.IH ..
+    also have "... = cl (M1.step (cl' (cl (M1.steps n' c))))"
+    proof (rule comp_step1_not_final)
+      show "isl (state (cl (M1.steps n' c)))" by simp
+      from \<open>n' < n\<close> and assms have "Suc n' < M1.config_time c" by (rule less_trans_Suc)
+      then have "\<not> M1.is_final (M1.steps (Suc n') c)" unfolding M1.config_time_def by (rule not_less_Least)
+      then show "\<not> M1.is_final (M1.step (cl' (cl (M1.steps n' c))))"
+        unfolding cl'_cl funpow.simps comp_def .
+    qed
+    also have "... = cl (M1.steps (Suc n') c)" by simp
+    finally show *: "steps (Suc n') (cl c) = cl (M1.steps (Suc n') c)" .
+  qed
+qed
+
 lemma comp_step2: "step (map_conf_state Inr c) = map_conf_state Inr (M2.step c)"
   (is "step (?cr c) = ?cr (M2.step c)")
 proof (cases "M2.is_final c")
@@ -754,6 +780,7 @@ proof -
   then obtain n1' where "n1' < n1" and nfs1: "\<And>i. i \<le> n1' \<Longrightarrow> \<not>?fs1 i" and "?fs1 (Suc n1')" by blast
   then have "\<not>?fs1 n1'" by blast
 
+  (* TODO use comp_steps1 here instead*)
   have "0 \<le> n1'" by (rule le0)
   then have steps_n1': "steps n1' ?c0 = cl (M1.steps n1' c_init1)"
     and isl_n1': "isl (state (steps n1' ?c0))"
