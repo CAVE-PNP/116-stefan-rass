@@ -124,6 +124,10 @@ sublocale TM .
 
 abbreviation "k' \<equiv> length is"
 
+abbreviation "r \<equiv> reorder is"
+abbreviation "rc \<equiv> reorder_config is"
+abbreviation r_inv ("r\<inverse>") where "r_inv \<equiv> reorder_inv is"
+
 lemma k_k': "k \<le> k'"
 proof -
   have "k = card {0..<k}" by simp
@@ -135,21 +139,20 @@ qed
 
 definition reorder_tapes_rec :: "('q, 's) TM_record"
   where "reorder_tapes_rec \<equiv>
-    let h = reorder_inv is in
     M_rec \<lparr>
       tape_count := k',
-      next_state := \<lambda>q hds. \<delta>\<^sub>q q (h hds),
-      next_write := \<lambda>q hds i. case is ! i of Some i \<Rightarrow> (\<delta>\<^sub>w q (h hds) i) | None \<Rightarrow> hds ! i,
-      next_move  := \<lambda>q hds i. case is ! i of Some i \<Rightarrow> (\<delta>\<^sub>m q (h hds) i) | None \<Rightarrow> No_Shift
+      next_state := \<lambda>q hds. \<delta>\<^sub>q q (r\<inverse> hds),
+      next_write := \<lambda>q hds i. case is ! i of Some i \<Rightarrow> (\<delta>\<^sub>w q (r\<inverse> hds) i) | None \<Rightarrow> hds ! i,
+      next_move  := \<lambda>q hds i. case is ! i of Some i \<Rightarrow> (\<delta>\<^sub>m q (r\<inverse> hds) i) | None \<Rightarrow> No_Shift
     \<rparr>"
 
 lemma reorder_tapes_rec_simps: "reorder_tapes_rec = \<lparr>
   TM_record.tape_count = k',
   states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
-  next_state = \<lambda>q hds. \<delta>\<^sub>q q (reorder_inv is hds),
-  next_write = \<lambda>q hds i. case is ! i of Some i \<Rightarrow> (\<delta>\<^sub>w q (reorder_inv is hds) i) | None \<Rightarrow> hds ! i,
-  next_move  = \<lambda>q hds i. case is ! i of Some i \<Rightarrow> (\<delta>\<^sub>m q (reorder_inv is hds) i) | None \<Rightarrow> No_Shift
-\<rparr>" unfolding reorder_tapes_rec_def Let_def by simp
+  next_state = \<lambda>q hds. \<delta>\<^sub>q q (r\<inverse> hds),
+  next_write = \<lambda>q hds i. case is ! i of Some i \<Rightarrow> (\<delta>\<^sub>w q (r\<inverse> hds) i) | None \<Rightarrow> hds ! i,
+  next_move  = \<lambda>q hds i. case is ! i of Some i \<Rightarrow> (\<delta>\<^sub>m q (r\<inverse> hds) i) | None \<Rightarrow> No_Shift
+\<rparr>" unfolding reorder_tapes_rec_def by simp
 
 definition "M' \<equiv> Abs_TM reorder_tapes_rec"
 
@@ -168,7 +171,7 @@ lemmas [simp] = M'_fields(1-6)
 lemma reorder_step:
   assumes "wf_config c"
     and l_tps': "length (tapes c') = k'"
-  shows "M'.step (reorder_config is (tapes c') c) = reorder_config is (tapes c') (step c)"
+  shows "M'.step (rc (tapes c') c) = rc (tapes c') (step c)"
     (is "M'.step (?rc c) = ?rc (step c)")
 proof (cases "is_final c")
   assume "is_final c"
@@ -181,8 +184,8 @@ next
   let ?q = "state c" and ?q' = "state ?c'"
   let ?tps = "tapes c" and ?hds = "heads c"
 
-  let ?r = "reorder is" let ?rt = "?r (tapes c')"
-  let ?hds' = "?r (heads c') ?hds" and ?tps' = "?rt ?tps"
+  let ?rt = "r (tapes c')"
+  let ?hds' = "r (heads c') ?hds" and ?tps' = "?rt ?tps"
 
   from \<open>wf_config c\<close> have l_tps: "length (tapes c) = k" by simp
   then have l_hds: "length (heads c) = k" by simp
@@ -206,7 +209,7 @@ next
 
     have "tapes (M'.step_not_final ?c') = map2 tape_action (M'.\<delta>\<^sub>a ?q ?hds') ?tps'"
       unfolding M'.step_not_final_def by (simp add: Let_def)
-    also have "... = ?r (tapes c') (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps)"
+    also have "... = r (tapes c') (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps)"
     proof (rule M'.step_not_final_eqI)
       fix i assume "i < M'.k"
       then have [simp]: "i < k'" by simp
@@ -262,8 +265,7 @@ corollary reorder_steps:
   fixes c c' :: "('q, 's) TM_config"
   assumes wfc: "wf_config c"
     and wfc': "length (tapes c') = k'"
-  shows "M'.steps n (reorder_config is (tapes c') c) = reorder_config is (tapes c') (steps n c)"
-    (is "M'.steps n (?rc c) = ?rc (steps n c)")
+  shows "M'.steps n (rc (tapes c') c) = rc (tapes c') (steps n c)"
 proof (induction n)
   case (Suc n)
   from \<open>wf_config c\<close> have wfcs: "wf_config (steps n c)" by blast
@@ -273,18 +275,18 @@ qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 corollary reorder_run':
   fixes c' :: "('q, 's) TM_config"
   assumes "length (tapes c') = k'"
-  shows "M'.steps n (reorder_config is (tapes c') (initial_config w)) = reorder_config is (tapes c') (run n w)"
+  shows "M'.steps n (rc (tapes c') (initial_config w)) = rc (tapes c') (run n w)"
   unfolding run_def reorder_steps[OF wf_initial_config assms] ..
 
 lemma init_conf_eq:
   assumes "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
-  shows "M'.initial_config w = reorder_config is (\<langle>\<rangle> \<up> k') (initial_config w)"
-  (is "?c0' = reorder_config is (\<langle>\<rangle> \<up> k') ?c0")
+  shows "M'.initial_config w = rc (\<langle>\<rangle> \<up> k') (initial_config w)"
+  (is "?c0' = rc (\<langle>\<rangle> \<up> k') ?c0")
 proof (rule TM_config_eq)
-  let ?r = "reorder is (\<langle>\<rangle> \<up> k')" and ?cr = "reorder_config is (\<langle>\<rangle> \<up> k')"
+  let ?r = "reorder is (\<langle>\<rangle> \<up> k')" and ?rc = "reorder_config is (\<langle>\<rangle> \<up> k')"
   let ?t0 = "\<lambda>k. <w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1)"
 
-  show "tapes ?c0' = tapes (?cr ?c0)"
+  show "tapes ?c0' = tapes (?rc ?c0)"
   proof (rule nth_equalityI)
     fix i assume "i < length (tapes ?c0')"
     then have "i < k'" by simp
@@ -324,7 +326,7 @@ proof (rule TM_config_eq)
         then show ?case unfolding i' i'' by simp
       qed
     qed
-    then show "tapes ?c0' ! i = tapes (?cr ?c0) ! i"
+    then show "tapes ?c0' ! i = tapes (?rc ?c0) ! i"
       unfolding TM.initial_config_def reorder_config_def TM_config.sel .
   qed simp
 qed simp
@@ -332,12 +334,12 @@ qed simp
 corollary reorder_run:
   fixes c' :: "('q, 's) TM_config"
   assumes "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
-  shows "M'.run n w = reorder_config is (\<langle>\<rangle> \<up> k') (run n w)"
+  shows "M'.run n w = rc (\<langle>\<rangle> \<up> k') (run n w)"
 proof -
-  let ?cr = "reorder_config is (tapes (conf q\<^sub>0 (\<langle>\<rangle> \<up> k')))"
-  have "M'.run n w = M'.steps n (?cr (initial_config w))"
+  let ?rc = "rc (tapes (conf q\<^sub>0 (\<langle>\<rangle> \<up> k')))"
+  have "M'.run n w = M'.steps n (?rc (initial_config w))"
     unfolding M'.run_def init_conf_eq[OF assms] by simp
-  also have "... = ?cr (run n w)" by (subst reorder_run') auto
+  also have "... = ?rc (run n w)" by (subst reorder_run') auto
   finally show ?thesis by simp
 qed
 
