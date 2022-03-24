@@ -253,6 +253,12 @@ lemma conf_time_geI[intro]: "is_final (steps n c) \<Longrightarrow> config_time 
 
 lemma conf_time_ge_iff: "halts_config c \<Longrightarrow> is_final (steps n c) \<longleftrightarrow> n \<ge> config_time c" by blast
 
+lemma conf_time_less_rev[intro]: "halts_config c \<Longrightarrow> \<not> is_final (steps n c) \<Longrightarrow> n < config_time c"
+  by (subst (asm) conf_time_ge_iff) auto
+
+lemma conf_time_finalI[intro]: "halts_config c \<Longrightarrow> is_final (steps (config_time c) c)"
+  using conf_time_ge_iff by blast
+
 
 definition "time w \<equiv> config_time (initial_config w)"
 declare (in -) TM.time_def[simp]

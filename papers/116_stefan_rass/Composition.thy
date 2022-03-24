@@ -646,120 +646,118 @@ lemma next_state_simps[simp]:
     and "\<delta>\<^sub>q (Inr q2) hds = Inr (M2.\<delta>\<^sub>q q2 hds)"
   unfolding M_fields by auto
 
-definition cl :: "('q1, 's) TM_config \<Rightarrow> ('q1 + 'q2, 's) TM_config"
-  where "cl \<equiv> map_conf_state Inl"
-definition cl' :: "('q1 + 'q2, 's) TM_config \<Rightarrow> ('q1, 's) TM_config"
-  where "cl' \<equiv> map_conf_state projl"
-
-lemma cl_state[simp]: "state (cl c) = Inl (state c)" unfolding cl_def by simp
-lemma cl'_tapes[simp]: "tapes (cl' c) = tapes c" unfolding cl'_def by simp
-
-lemma cl'_cl[simp]: "cl' (cl c) = c" unfolding cl_def cl'_def TM_config.map_comp comp_def sum.sel TM_config.map_ident ..
-
-lemma cl_cl'[simp]: "isl (state c) \<Longrightarrow> cl (cl' c) = c"
-proof (induction c)
-  case (TM_config q tps)
-  then obtain q1 where q1: "q = Inl q1" by (induction q) auto
-  show ?case unfolding cl_def cl'_def TM_config.map_comp comp_def q1
-    unfolding TM_config.map sum.sel tape.map_ident by simp
-qed
+definition "cl \<equiv> map_conf_state Inl"
+definition "cr \<equiv> map_conf_state Inr"
+lemma cl_simps[simp]: "state (cl c) = Inl (state c)" "tapes (cl c) = tapes c" unfolding cl_def by auto
+lemma cr_simps[simp]: "state (cr c) = Inr (state c)" "tapes (cr c) = tapes c" unfolding cr_def by auto
 
 lemma comp_step1_not_final:
-  assumes "isl (state c)" (* TODO there may be a more streamlined way to word this assumption *)
-    and step_nf: "\<not> M1.is_final (M1.step (cl' c))"
-  shows "step c = cl (M1.step (cl' c))"
+  assumes step_nf: "\<not> M1.is_final (M1.step c)"
+  shows "step (cl c) = cl (M1.step c)" (is "step ?c = cl (M1.step c)")
 proof -
-  from step_nf have nf': "\<not> M1.is_final (cl' c)" by blast
-  with \<open>isl (state c)\<close> have nf: "\<not> is_final c" by auto
+  from step_nf have nf': "\<not> M1.is_final c" by blast
+  then have "\<not> is_final ?c" by auto
 
-  then have "step c = step_not_final c" by blast
-  also have "... = cl (M1.step_not_final (cl' c))"
+  then have "step ?c = step_not_final ?c" by blast
+  also have "... = cl (M1.step_not_final c)"
   proof (rule TM_config_eq)
-    from \<open>isl (state c)\<close> obtain q1 where [simp]: "state c = Inl q1" unfolding isl_def ..
-    then have [simp]: "state (cl' c) = q1" unfolding cl'_def by simp
-    from step_nf have *: "M1.\<delta>\<^sub>q q1 (heads c) \<notin> M1.F" using nf' by simp
-    from nf' have [simp]: "q1 \<notin> M1.F" by simp
-
-    show "state (step_not_final c) = state (cl (M1.step_not_final (cl' c)))" using * by force
-    show "tapes (step_not_final c) = tapes (cl (M1.step_not_final (cl' c)))"
-      unfolding cl_def by (simp add: M_fields(8-9))
+    from step_nf have "M1.\<delta>\<^sub>q (state c) (heads c) \<notin> M1.F" using nf' by simp
+    then show "state (step_not_final ?c) = state (cl (M1.step_not_final c))" by simp
+    show "tapes (step_not_final ?c) = tapes (cl (M1.step_not_final c))" by (simp add: M_fields(8-9))
   qed
-  also from nf' have "... = cl (M1.step (cl' c))" by simp
+  also from nf' have "... = cl (M1.step c)" by simp
   finally show ?thesis .
 qed
 
-lemma comp_step1_next_final:
-  assumes "isl (state c)"
-    and nf': "\<not> M1.is_final (cl' c)"
-    and step_final: "M1.is_final (M1.step (cl' c))"
-  shows "step c = conf (Inr M2.q\<^sub>0) (tapes (M1.step (cl' c)))"
-proof -
-  from assms(1-2) have nf: "\<not> is_final c" by auto
-
-  then have "step c = step_not_final c" by blast
-  also have "... = conf (Inr M2.q\<^sub>0) (tapes (M1.step_not_final (cl' c)))"
-  proof (rule TM_config_eq, unfold TM_config.sel)
-    from \<open>isl (state c)\<close> obtain q1 where [simp]: "state c = Inl q1" unfolding isl_def ..
-    then have [simp]: "state (cl' c) = q1" unfolding cl'_def by simp
-    from step_final have *: "M1.\<delta>\<^sub>q q1 (heads c) \<in> M1.F" using nf' by simp
-    from nf' have [simp]: "q1 \<notin> M1.F" by simp
-
-    show "state (step_not_final c) = Inr M2.q\<^sub>0" using * by force
-    show "tapes (step_not_final c) = tapes (M1.step_not_final (cl' c))" by (simp add: M_fields(8-9))
-  qed
-  also from nf' have "... = conf (Inr M2.q\<^sub>0) (tapes (M1.step (cl' c)))"
-    by (subst M1.step_simps(2)) blast+
-  finally show ?thesis .
-qed
-
-lemma comp_steps1:
-  assumes "n < M1.config_time c"
+lemma comp_steps1_non_final:
+  assumes "\<not> M1.is_final (M1.steps n c)"
   shows "steps n (cl c) = cl (M1.steps n c)"
 proof -
   have "0 \<le> n" by (rule le0)
   then show "steps n (cl c) = cl (M1.steps n c)"
   proof (induction n rule: dec_induct)
-    case base
-    show "steps 0 (cl c) = cl (M1.steps 0 c)" unfolding funpow_0 cl_def[symmetric] ..
-  next
     case (step n')
     have "steps (Suc n') (cl c) = step (steps n' (cl c))" unfolding funpow.simps comp_def ..
     also have "... = step (cl (M1.steps n' c))" unfolding step.IH ..
-    also have "... = cl (M1.step (cl' (cl (M1.steps n' c))))"
+    also have "... = cl (M1.step (M1.steps n' c))"
     proof (rule comp_step1_not_final)
-      show "isl (state (cl (M1.steps n' c)))" by simp
-      from \<open>n' < n\<close> and assms have "Suc n' < M1.config_time c" by (rule less_trans_Suc)
-      then have "\<not> M1.is_final (M1.steps (Suc n') c)" unfolding M1.config_time_def by (rule not_less_Least)
-      then show "\<not> M1.is_final (M1.step (cl' (cl (M1.steps n' c))))"
-        unfolding cl'_cl funpow.simps comp_def .
+      from \<open>n' < n\<close> have "Suc n' \<le> n" by (rule Suc_leI)
+      with assms have "\<not> M1.is_final (M1.steps (Suc n') c)" using M1.final_mono by blast
+      then show "\<not> M1.is_final (M1.step (M1.steps n' c))" unfolding funpow.simps comp_def .
     qed
     also have "... = cl (M1.steps (Suc n') c)" by simp
     finally show *: "steps (Suc n') (cl c) = cl (M1.steps (Suc n') c)" .
+  qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
+qed
+
+corollary comp_steps1_non_final': "n < M1.config_time c \<Longrightarrow> steps n (cl c) = cl (M1.steps n c)"
+  using comp_steps1_non_final by fast
+
+lemma comp_step1_next_final:
+  assumes nf': "\<not> M1.is_final c"
+    and step_final: "M1.is_final (M1.step c)"
+  shows "step (cl c) = conf (Inr M2.q\<^sub>0) (tapes (M1.step c))"
+  (is "step ?c = ?c\<^sub>0 (M1.step c)")
+proof -
+  from assms(1-2) have "\<not> is_final ?c" by auto
+
+  then have "step ?c = step_not_final ?c" by blast
+  also have "... = ?c\<^sub>0 (M1.step_not_final c)"
+  proof (rule TM_config_eq, unfold TM_config.sel)
+    from step_final have "M1.\<delta>\<^sub>q (state c) (heads c) \<in> M1.F" using nf' by simp
+    then show "state (step_not_final ?c) = Inr M2.q\<^sub>0" by simp
+    show "tapes (step_not_final ?c) = tapes (M1.step_not_final c)" by (simp add: M_fields(8-9))
+  qed
+  also from nf' have "... = ?c\<^sub>0 (M1.step c)" by simp
+  finally show ?thesis .
+qed
+
+lemma comp_steps1_final:
+  assumes "\<not> M1.is_final c"
+    and "M1.halts_config c"
+  defines "n \<equiv> M1.config_time c"
+  shows "steps n (cl c) = conf (Inr M2.q\<^sub>0) (tapes (M1.steps n c))"
+proof -
+  from \<open>\<not> M1.is_final c\<close> have "\<not> M1.is_final (M1.steps 0 c)" by simp
+  with \<open>M1.halts_config c\<close> have "n > 0" unfolding n_def by blast
+  then obtain n' where "n = Suc n'" by (rule lessE)
+  then have "n' < n" by blast
+
+  have *: "TM.steps M n c = TM.step M (TM.steps M n' c)" for M :: "('x, 'y::finite) TM" and c
+    unfolding \<open>n = Suc n'\<close> funpow.simps comp_def ..
+  from \<open>n' < n\<close> have **: "steps n' (cl c) = cl (M1.steps n' c)"
+    unfolding n_def by (rule comp_steps1_non_final')
+
+  show ?thesis unfolding * **
+  proof (intro comp_step1_next_final)
+    from \<open>n' < n\<close> show "\<not> M1.is_final (M1.steps n' c)" unfolding n_def by blast
+    from \<open>M1.halts_config c\<close> show "M1.is_final (M1.step (M1.steps n' c))"
+      unfolding *[symmetric] n_def by blast
   qed
 qed
 
-lemma comp_step2: "step (map_conf_state Inr c) = map_conf_state Inr (M2.step c)"
-  (is "step (?cr c) = ?cr (M2.step c)")
+
+lemma comp_step2: "step (cr c) = cr (M2.step c)"
 proof (cases "M2.is_final c")
   assume nf: "\<not> M2.is_final c"
-  then have "\<not> is_final (?cr c)" by force
+  then have "\<not> is_final (cr c)" by force
 
-  then have "step (?cr c) = step_not_final (?cr c)" by blast
-  also have "... = ?cr (M2.step_not_final c)"
+  then have "step (cr c) = step_not_final (cr c)" by blast
+  also have "... = cr (M2.step_not_final c)"
   proof (rule TM_config_eq)
-    show "state (step_not_final (?cr c)) = state (?cr (M2.step_not_final c))" by simp
-    show "tapes (step_not_final (?cr c)) = tapes (?cr (M2.step_not_final c))" by (simp add: M_fields(8-9))
+    show "state (step_not_final (cr c)) = state (cr (M2.step_not_final c))" by simp
+    show "tapes (step_not_final (cr c)) = tapes (cr (M2.step_not_final c))" by (simp add: M_fields(8-9))
   qed
-  also from nf have "... = ?cr (M2.step c)" by simp
+  also from nf have "... = cr (M2.step c)" by simp
   finally show ?thesis .
 qed \<comment> \<open>case \<^term>\<open>M2.is_final c\<close> by\<close> simp
 
-lemma comp_steps2: "steps n2 (map_conf_state Inr c_init2) = map_conf_state Inr (M2.steps n2 c_init2)"
-  using le0
+lemma comp_steps2: "steps n2 (cr c_init2) = cr (M2.steps n2 c_init2)" using le0
 proof (induction n2 rule: dec_induct)
   case (step n2)
   show ?case unfolding funpow.simps comp_def unfolding step.IH comp_step2 ..
-qed simp
+qed \<comment> \<open>case \<open>n2 = 0\<close> by\<close> simp
+
 
 lemma comp_steps_final:
   fixes c_init1 n1 n2
@@ -769,60 +767,23 @@ lemma comp_steps_final:
   assumes ci1_nf: "\<not> M1.is_final c_init1"
     and cf1: "M1.is_final c_fin1"
     and cf2: "M2.is_final c_fin2"
-  shows "steps (n1+n2) (map_conf_state Inl c_init1) = map_conf_state Inr c_fin2"
-    (is "steps ?n ?c0 = ?c_fin")
+  shows "steps (n1+n2) (cl c_init1) = cr c_fin2" (is "steps ?n ?c0 = _")
 proof -
-  let ?cl = "map_conf_state Inl" and ?cr = "map_conf_state Inr"
-  let ?fs1 = "\<lambda>n. M1.is_final (M1.steps n c_init1)"
+  let ?n1' = "M1.config_time c_init1"
+  from cf1 have "?n1' \<le> n1" unfolding c_fin1_def by blast
 
-  from ci1_nf cf1 have "\<exists>n1'<n1. (\<forall>i\<le>n1'. \<not> ?fs1 i) \<and> ?fs1 (Suc n1')"
-    unfolding c_fin1_def by (intro ex_least_nat_less) auto
-  then obtain n1' where "n1' < n1" and nfs1: "\<And>i. i \<le> n1' \<Longrightarrow> \<not>?fs1 i" and "?fs1 (Suc n1')" by blast
-  then have "\<not>?fs1 n1'" by blast
+  from ci1_nf cf1 have "steps ?n1' ?c0 = conf (Inr M2.q\<^sub>0) (tapes (M1.steps ?n1' c_init1))"
+    unfolding c_fin1_def by (intro comp_steps1_final) fast+
+  also from cf1 have "... = cr c_init2" unfolding c_init2_def c_fin1_def cr_def by auto
+  finally have steps_n1': "steps ?n1' ?c0 = cr c_init2" .
 
-  (* TODO use comp_steps1 here instead*)
-  have "0 \<le> n1'" by (rule le0)
-  then have steps_n1': "steps n1' ?c0 = cl (M1.steps n1' c_init1)"
-    and isl_n1': "isl (state (steps n1' ?c0))"
-  proof (induction n1' rule: dec_induct)
-    case base
-    show "steps 0 ?c0 = cl (M1.steps 0 c_init1)" and "isl (state (steps 0 ?c0))"
-      unfolding funpow_0 cl_def[symmetric] by auto
-  next
-    case (step n)
-    have "steps (Suc n) ?c0 = step (steps n ?c0)" unfolding funpow.simps comp_def ..
-    also have "... = step (cl (M1.steps n c_init1))" unfolding step.IH ..
-    also have "... = cl (M1.step (cl' (cl (M1.steps n c_init1))))"
-    proof (rule comp_step1_not_final)
-      show "isl (state (cl (M1.steps n c_init1)))" by simp
-      from \<open>n < n1'\<close> have "\<not>?fs1 (Suc n)" by (intro nfs1 Suc_leI)
-      then show "\<not> M1.is_final (M1.step (cl' (cl (M1.steps n c_init1))))"
-        unfolding cl'_cl funpow.simps comp_def .
-    qed
-    also have "... = cl (M1.steps (Suc n) c_init1)" by simp
-    finally show *: "steps (Suc n) ?c0 = cl (M1.steps (Suc n) c_init1)" .
+  from cf2 have "is_final (steps (n2 + ?n1') ?c0)"
+    unfolding funpow_add comp_def unfolding steps_n1' comp_steps2 c_fin2_def by simp
+  moreover from \<open>?n1' \<le> n1\<close> have "n2 + ?n1' \<le> ?n" by simp
+  ultimately have "steps ?n ?c0 = steps (n2 + ?n1') ?c0" by (rule final_le_steps)
 
-    show "isl (state (steps (Suc n) ?c0))" unfolding * by simp
-  qed
-
-  from \<open>?fs1 (Suc n1')\<close> and \<open>n1' < n1\<close> have c_fin1_alt: "c_fin1 = M1.steps (Suc n1') c_init1"
-    unfolding c_fin1_def by (intro M1.final_le_steps Suc_leI)
-
-  from isl_n1' have "steps (Suc n1') ?c0 = conf (Inr M2.q\<^sub>0) (tapes (M1.step (cl' (cl (M1.steps n1' c_init1)))))"
-    using \<open>\<not>?fs1 n1'\<close> and \<open>?fs1 (Suc n1')\<close> unfolding funpow.simps comp_def steps_n1'
-    by (intro comp_step1_next_final; (unfold cl'_cl)?) blast+ (* TODO Isar-ify this proof *)
-
-  also have "... = conf (Inr M2.q\<^sub>0) (tapes c_fin1)" unfolding c_fin1_alt cl'_cl funpow.simps comp_def ..
-  also have "... = ?cr c_init2" unfolding c_init2_def by simp
-  finally have steps_Sn1': "steps (Suc n1') ?c0 = ?cr c_init2" .
-
-  from cf2 have "is_final (steps (n2 + Suc n1') ?c0)"
-    unfolding funpow_add comp_def steps_Sn1' comp_steps2 c_fin2_def by simp
-  moreover from \<open>n1' < n1\<close> have "n2 + Suc n1' \<le> ?n" by auto
-  ultimately have "steps ?n ?c0 = steps (n2 + Suc n1') ?c0" by (rule final_le_steps)
-
-  also have "... = steps n2 (?cr c_init2)" unfolding funpow_add comp_def steps_Sn1' ..
-  also have "... = ?c_fin" unfolding c_fin2_def comp_steps2 ..
+  also have "... = steps n2 (cr c_init2)" unfolding funpow_add comp_def steps_n1' ..
+  also have "... = cr c_fin2" unfolding c_fin2_def comp_steps2 ..
   finally show ?thesis .
 qed
 
@@ -834,28 +795,28 @@ lemma comp_run:
   defines "c_fin2 \<equiv> M2.steps n2 c_init2"
   assumes cf1: "M1.is_final c_fin1"
     and cf2: "M2.is_final c_fin2"
-  shows "run (n1+n2) w = map_conf_state Inr c_fin2"
-    (is "run ?n w = ?cr c_fin2")
+  shows "run (n1+n2) w = cr c_fin2"
+    (is "run ?n w = _")
 proof (cases "M1.q\<^sub>0 \<in> M1.F")
   assume q0f: "M1.q\<^sub>0 \<in> M1.F"
-  then have "initial_config w = ?cr (M2.initial_config w)" unfolding TM.initial_config_def by simp
-  then have "run ?n w = steps ?n (?cr (M2.initial_config w))" unfolding run_def by presburger
-  also have "... = ?cr (M2.steps ?n (M2.initial_config w))" unfolding comp_steps2 ..
-  also have "... = ?cr (M2.steps ?n c_init2)"
+  then have "initial_config w = cr (M2.initial_config w)" unfolding TM.initial_config_def cr_def by simp
+  then have "run ?n w = steps ?n (cr (M2.initial_config w))" unfolding run_def by presburger
+  also have "... = cr (M2.steps ?n (M2.initial_config w))" unfolding comp_steps2 ..
+  also have "... = cr (M2.steps ?n c_init2)"
   proof -
     from q0f have [simp]: "c_fin1 = M1.initial_config w" unfolding c_fin1_def M1.run_def by simp
     have "M2.initial_config w = c_init2" unfolding c_init2_def by (simp add: TM.initial_config_def)
     then show ?thesis by (rule arg_cong)
   qed
-  also from cf2 have "... = ?cr c_fin2" unfolding c_fin2_def
-    by (intro arg_cong[where f="?cr"], elim M2.final_le_steps) simp
+  also from cf2 have "... = cr c_fin2" unfolding c_fin2_def
+    by (intro arg_cong[where f=cr], elim M2.final_le_steps) simp
   finally show ?thesis .
 next
   assume "M1.q\<^sub>0 \<notin> M1.F"
   then have *: "run n w = steps n (cl (M1.initial_config w))" for n w
     unfolding cl_def run_def by (simp add: TM.initial_config_def)
   from \<open>M1.q\<^sub>0 \<notin> M1.F\<close> have "\<not> M1.is_final (M1.initial_config w)" by simp
-  with cf1 cf2 show ?thesis unfolding assms * cl_def M1.run_def by (intro comp_steps_final)
+  with cf1 cf2 show ?thesis unfolding assms * M1.run_def by (intro comp_steps_final)
 qed
 
 end
@@ -870,12 +831,12 @@ theorem TM_comp_steps_final:
     and n1 n2 :: nat
   assumes k: "TM.tape_count M1 = TM.tape_count M2"
   defines "c_fin1 \<equiv> TM.steps M1 n1 c_init1"
-  assumes c_init2_def: "c_init2 \<equiv> TM_config (TM.q\<^sub>0 M2) (tapes c_fin1)" \<comment> \<open>Assumed, not defined, to reduce the term size of the overall lemma.\<close>
+  assumes c_init2_def: "c_init2 = TM_config (TM.q\<^sub>0 M2) (tapes c_fin1)" \<comment> \<open>Assumed, not defined, to reduce the term size of the overall lemma.\<close>
   defines "c_fin2 \<equiv> TM.steps M2 n2 c_init2"
   assumes ci1_nf: "\<not> TM.is_final M1 c_init1"
     and cf1: "TM.is_final M1 c_fin1"
     and cf2: "TM.is_final M2 c_fin2"
-  shows "TM.steps (TM_comp M1 M2) (n1+n2) (map_TM_config Inl (\<lambda>x. x) c_init1) = map_TM_config Inr (\<lambda>x. x) c_fin2"
+  shows "TM.steps (TM_comp M1 M2) (n1+n2) (simple_TM_comp.cl c_init1) = simple_TM_comp.cr c_fin2"
     (is "TM.steps ?M ?n ?c0 = ?c_fin")
   using k ci1_nf cf1 cf2
   unfolding c_fin1_def c_init2_def c_fin2_def TM_comp_def simple_TM_comp_def[symmetric]
