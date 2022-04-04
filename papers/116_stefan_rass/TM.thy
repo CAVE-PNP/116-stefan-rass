@@ -500,7 +500,7 @@ qed
 lemma (in TM) sw_Nop_k: "symbol_of_write ` set (Nop \<up> n) \<subseteq> symbols M"
   using symbol_axioms(2) set_replicate_subset by force
 
-lemma wf_tm_comp:
+lemma wf_tm_comp[intro]:
   fixes M1 :: "('a1, 'b::blank) TM" and M2 :: "('a2, 'b) TM"
   assumes wf: "TM M1" "TM M2"
     and symbols_eq[simp]: "symbols M1 = symbols M2"
@@ -802,10 +802,17 @@ end
 lemma hoare_comp:
   fixes M1 :: "('a1, 'b::blank) TM" and M2 :: "('a2, 'b) TM"
     and Q :: "'b list \<Rightarrow> bool"
-  assumes "TM.hoare_halt M1 P Q"
-      and "TM.hoare_halt M2 Q S"
+  assumes "TM M1" and "TM M2" and symbols_eq: "symbols M1 = symbols M2"
+      and h1: "TM.hoare_halt M1 P Q"
+      and h2: "TM.hoare_halt M2 Q S"
     shows "TM.hoare_halt (M1 |+| M2) P S"
-sorry
+proof (intro TM.hoare_haltI)
+  from \<open>TM M1\<close> \<open>TM M2\<close> symbols_eq show "TM (M1 |+| M2)" by rule
+  then interpret TM "M1 |+| M2" .
+
+  fix w assume wwf: "wf_word w" and "P w"
+oops
+  
 
 subsection\<open>Deciding Languages\<close>
 
@@ -936,7 +943,6 @@ lemma decides_altdef4: "decides_word L w \<longleftrightarrow> (if w \<in> L the
   unfolding decides_def using acc_not_rej by (cases "w \<in> L") auto
 
 end
-
 
 subsection\<open>TM Languages\<close>
 

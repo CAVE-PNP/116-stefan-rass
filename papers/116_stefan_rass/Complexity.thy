@@ -536,15 +536,20 @@ subsection\<open>Reductions\<close>
 
 lemma reduce_decides:
   fixes A B :: "'b::blank lang"
-    and M\<^sub>R :: "('a1, 'b) TM" and M\<^sub>B :: "('a2, 'b) TM"
-    and f\<^sub>R :: "'b list \<Rightarrow> 'b list" and w :: "'b list"
-  assumes "TM.decides_word M\<^sub>B B (f\<^sub>R w)"
-    and f\<^sub>R: "f\<^sub>R w \<in> B \<longleftrightarrow> w \<in> A"
-    and M\<^sub>R_f\<^sub>R: "TM.computes_word M\<^sub>R f\<^sub>R w"
-    and "TM M\<^sub>R"
-  defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
-  shows "TM.decides_word M A w"
-  sorry (* likely inconsistent: see hoare_comp *)
+    and MR :: "('a1, 'b) TM" and MB :: "('a2, 'b) TM"
+    and fR :: "'b list \<Rightarrow> 'b list" and w :: "'b list"
+  assumes "TM MR" and "TM MB" and symbols_eq: "symbols MR = symbols MB"
+    and wwf: "pre_TM.wf_word MR w"
+    and "TM.decides_word MB B (fR w)"
+    and "fR w \<in> B \<longleftrightarrow> w \<in> A"
+    and "TM.computes_word MR fR w"
+  shows "TM.decides_word (MR |+| MB) A w"
+proof (subst TM.decides_altdef)
+  from \<open>TM MR\<close> \<open>TM MB\<close> symbols_eq show "TM (MR |+| MB)" ..
+  then interpret TM "MR |+| MB" .
+
+  have "halts w" oops
+  
 
 lemma reduce_time_bounded:
   fixes T\<^sub>B T\<^sub>R :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling"
