@@ -34,6 +34,7 @@ lemma input_tape_size: "w \<noteq> [] \<Longrightarrow> tape_size <w>\<^sub>t\<^
 
 end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
 
+
 context TM
 begin
 
@@ -43,11 +44,14 @@ text\<open>By convention, the initial configuration has the input word on the fi
 definition initial_config :: "'s list \<Rightarrow> ('q, 's) TM_config"
   where "initial_config w = conf q\<^sub>0 (<w>\<^sub>t\<^sub>p # empty_tape \<up> (k - 1))"
 
+abbreviation "c\<^sub>0 \<equiv> initial_config"
+
 lemma wf_initial_config[intro]: "wf_config (initial_config w)"
   unfolding initial_config_def using at_least_one_tape by simp
 
-lemma init_conf_len[simp]: "length (tapes (initial_config w)) = k" by blast
-lemma init_conf_state[simp]: "state (initial_config w) = q\<^sub>0" unfolding initial_config_def by simp
+lemma init_conf_len: "length (tapes (initial_config w)) = k" by blast
+lemma init_conf_state: "state (initial_config w) = q\<^sub>0" unfolding initial_config_def by simp
+lemmas init_conf_simps[simp] = init_conf_len init_conf_state
 
 
 subsubsection\<open>Running a TM Program\<close>
@@ -202,7 +206,7 @@ definition output_config :: "('q, 's) TM_config \<Rightarrow> 's list"
   where "output_config c = (let o_tp = last (tapes c) in
     case head o_tp of Bk \<Rightarrow> [] | Some h \<Rightarrow> h # the (those (takeWhile (\<lambda>s. s \<noteq> Bk) (right o_tp))))"
 
-lemma out_config_simps[simp]: "last (tapes c) = <w>\<^sub>t\<^sub>p \<Longrightarrow> output_config c = w"
+lemma out_config_simps[simp, intro]: "last (tapes c) = <w>\<^sub>t\<^sub>p \<Longrightarrow> output_config c = w"
   unfolding output_config_def by (induction w) (auto simp add: takeWhile_map)
 
 text\<open>The requirement that the output conforms to the input standard should simplify some parts.
@@ -267,6 +271,11 @@ lemma time_altdef: "time w = (LEAST n. is_final (run n w))" using config_time_de
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
+
+(* Note: having this much code commented out leads to errors when importing this theory sometimes.
+         (Isabelle reports this theory as broken)
+         My guess is that Isabelle tries to verify the theory, but does not look ahead far enough
+         to find the end-comment, and therefore concludes that the theory is broken. *)
 
 (*
 definition "input_assert (P::'s list \<Rightarrow> bool) \<equiv> \<lambda>c::('q, 's::finite) TM_config.

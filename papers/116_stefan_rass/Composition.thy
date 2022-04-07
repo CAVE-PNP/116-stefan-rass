@@ -170,8 +170,8 @@ lemmas [simp] = M'_fields(1-6)
 
 lemma reorder_step:
   assumes "wf_config c"
-    and l_tps': "length (tapes c') = k'"
-  shows "M'.step (rc (tapes c') c) = rc (tapes c') (step c)"
+    and l_tps': "length tps' = k'"
+  shows "M'.step (rc tps' c) = rc tps' (step c)"
     (is "M'.step (?rc c) = ?rc (step c)")
 proof (cases "is_final c")
   assume "is_final c"
@@ -184,15 +184,15 @@ next
   let ?q = "state c" and ?q' = "state ?c'"
   let ?tps = "tapes c" and ?hds = "heads c"
 
-  let ?rt = "r (tapes c')"
-  let ?hds' = "r (heads c') ?hds" and ?tps' = "?rt ?tps"
+  let ?rt = "r tps'" and ?rh = "r (map head tps')"
+  let ?tps' = "?rt ?tps" and ?hds' = "?rh ?hds" 
 
   from \<open>wf_config c\<close> have l_tps: "length (tapes c) = k" by simp
   then have l_hds: "length (heads c) = k" by simp
-  from l_tps' have l_hds': "length (heads c') = k'" by simp
+  from l_tps' have l_hds': "length (map head tps') = k'" by simp
 
   moreover have "Option.these (set is) = {0..<length ?hds}" unfolding l_hds items_match ..
-  ultimately have r_inv_hds[simp]: "reorder_inv is (reorder is (heads c') ?hds) = ?hds" by (rule reorder_inv)
+  ultimately have r_inv_hds[simp]: "reorder_inv is ?hds' = ?hds" by (rule reorder_inv)
 
   assume "\<not> is_final c"
   then have "M'.step ?c' = M'.step_not_final ?c'" by simp
@@ -205,11 +205,11 @@ next
     finally show "state (M'.step_not_final ?c') = state (?rc (step_not_final c))" .
 
     from k_k' have min_k_k': "min k M'.k = k" by simp
-    have lr: "length (reorder is (tapes c') x) = M'.k" for x by (simp add: l_tps')
+    have lr: "length (r tps' x) = M'.k" for x by (simp add: l_tps')
 
     have "tapes (M'.step_not_final ?c') = map2 tape_action (M'.\<delta>\<^sub>a ?q ?hds') ?tps'"
       unfolding M'.step_not_final_def by (simp add: Let_def)
-    also have "... = r (tapes c') (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps)"
+    also have "... = r tps' (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps)"
     proof (rule M'.step_not_final_eqI)
       fix i assume "i < M'.k"
       then have [simp]: "i < k'" by simp
@@ -222,7 +222,7 @@ next
         from \<open>i < k'\<close> have "reorder is xs ys ! i = xs ! i" if "length xs = k'" for xs ys :: "'x list"
           using that by simp
         note * = this[OF l_tps'] this[OF l_hds']
-        from \<open>i < k'\<close> have [simp]: "map head (tapes c') ! i = head (tapes c' ! i)"
+        from \<open>i < k'\<close> have [simp]: "map head tps' ! i = head (tps' ! i)"
           by (intro nth_map) (unfold l_tps')
         show ?case unfolding M'_fields * by simp
       next
@@ -236,8 +236,8 @@ next
 
         then have nth_i': "nth_or i' x xs = xs ! i'" if "length xs = k" for x :: 'x and xs
           unfolding nth_or_def \<open>length xs = k\<close> by (rule if_P)
-        from \<open>i < k'\<close> have "i < length (tapes c')" unfolding l_tps' .
-        then have r_nth_or: "reorder is (tapes c') tps ! i = nth_or i' (tapes c' ! i) tps" for tps
+        from \<open>i < k'\<close> have "i < length tps'" unfolding l_tps' .
+        then have r_nth_or: "?rt tps ! i = nth_or i' (tps' ! i) tps" for tps
           by simp
 
         have \<delta>\<^sub>w': "M'.\<delta>\<^sub>w ?q ?hds' i = \<delta>\<^sub>w (state c) (heads c) i'"
@@ -262,10 +262,9 @@ next
 qed
 
 corollary reorder_steps:
-  fixes c c' :: "('q, 's) TM_config"
   assumes wfc: "wf_config c"
-    and wfc': "length (tapes c') = k'"
-  shows "M'.steps n (rc (tapes c') c) = rc (tapes c') (steps n c)"
+    and wfc': "length tps' = k'"
+  shows "M'.steps n (rc tps' c) = rc tps' (steps n c)"
 proof (induction n)
   case (Suc n)
   from \<open>wf_config c\<close> have wfcs: "wf_config (steps n c)" by blast
@@ -648,8 +647,8 @@ lemma next_state_simps[simp]:
 
 definition "cl \<equiv> map_conf_state Inl"
 definition "cr \<equiv> map_conf_state Inr"
-lemma cl_simps[simp]: "state (cl c) = Inl (state c)" "tapes (cl c) = tapes c" unfolding cl_def by auto
-lemma cr_simps[simp]: "state (cr c) = Inr (state c)" "tapes (cr c) = tapes c" unfolding cr_def by auto
+lemma cl_simps[simp]: "state (cl c) = Inl (state c)" "tapes (cl c) = tapes c" "cl (conf q tps) = conf (Inl q) tps" unfolding cl_def by auto
+lemma cr_simps[simp]: "state (cr c) = Inr (state c)" "tapes (cr c) = tapes c" "cr (conf q tps) = conf (Inr q) tps" unfolding cr_def by auto
 
 lemma comp_step1_not_final:
   assumes step_nf: "\<not> M1.is_final (M1.step c)"
@@ -848,7 +847,7 @@ subsubsection\<open>Composition with Offset\<close> (* TODO find better title *)
 text\<open>Combine \<^locale>\<open>simple_TM_comp\<close> and \<^locale>\<open>TM_tape_offset\<close> to define a composition
   where the output of the first TM becomes the input for the second one.\<close>
 
-locale IO_TM_comp =
+locale IO_TM_comp = TM_abbrevs +
   fixes M1 :: "('q1, 's::finite) TM"
     and M2 :: "('q2, 's) TM"
 begin

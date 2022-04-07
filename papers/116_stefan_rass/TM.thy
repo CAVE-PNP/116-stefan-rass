@@ -70,7 +70,7 @@ text\<open>We model a (deterministic \<open>k\<close>-tape) TM over the type \<^
 record ('q, 's::finite) TM_record =
   tape_count :: nat \<comment> \<open>\<open>k\<close>, the number of tapes\<close>
   states :: "'q set" \<comment> \<open>\<open>Q\<close>, the set of states\<close>
-  initial_state  :: 'q \<comment> \<open>\<open>q\<^sub>0 \<in> Q\<close>, the initial state; computation will start on \<open>k\<close> blank tapes in this state\<close>
+  initial_state :: 'q \<comment> \<open>\<open>q\<^sub>0 \<in> Q\<close>, the initial state; computation will start on \<open>k\<close> blank tapes in this state\<close>
   final_states :: "'q set" \<comment> \<open>\<open>F \<subseteq> Q\<close>, the set of final states; if a TM is in a final state,
     its computation is considered finished (the TM has halted) and no further steps will be executed\<close>
   accepting_states :: "'q set" \<comment> \<open>\<open>F\<^sup>+ \<subseteq> F\<close>, the set of accepting states; if a TM halts in an accepting state,

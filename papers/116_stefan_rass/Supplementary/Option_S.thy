@@ -63,5 +63,4 @@ lemma if_None_P[elim_format]: "(if P then None else Some x) = None \<Longrightar
 
 lemma those_map_Some[simp]: "those (map Some xs) = Some xs" by (induction xs) auto
 
-
 end
