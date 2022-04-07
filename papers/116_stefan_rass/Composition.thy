@@ -9,6 +9,7 @@ subsubsection\<open>Reordering Tapes\<close>
 (* TODO document this section *)
 
 (* TODO consider renaming \<open>is\<close>. it stands for indices, but is a somewhat bad name since it is also an Isabelle keyword *)
+(* TODO consider extracting the function and general lemmas *)
 definition reorder :: "(nat option list) \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> 'a list"
   where "reorder is xs ys = map2 (\<lambda>i x. case is ! i of None \<Rightarrow> x | Some i' \<Rightarrow> nth_or i' x ys) [0..<length xs] xs"
 
@@ -46,14 +47,6 @@ definition reorder_inv :: "(nat option list) \<Rightarrow> 'a list \<Rightarrow>
     (\<lambda>i. ys ! (LEAST i'. i'<length is \<and> is ! i' = Some i))
     [0..<if set is \<subseteq> {None} then 0 else Suc (Max (Option.these (set is)))]"
 
-
-lemma card_these_helper: "card (Option.these (set xs)) \<le> length xs"
-proof -
-  have "card (Option.these (set xs)) \<le> card (set xs)" by (rule card_these) blast
-  also have "... \<le> length xs" by (rule card_length)
-  finally show ?thesis .
-qed
-
 lemma reorder_inv:
   assumes [simp]: "length xs = length is"
     and items_match: "Option.these (set is) = {0..<length ys}"
@@ -77,7 +70,7 @@ proof -
   qed
 
   have "length ys = card (Option.these (set is))" unfolding items_match by simp
-  also have "... \<le> length is" by (rule card_these_helper)
+  also have "... \<le> length is" by (rule card_these_length)
   finally have ls: "length is \<ge> length ys" .
 
   have "reorder_inv is (reorder is xs ys) = map ((!) ys) [0..<length ys]"
@@ -187,7 +180,7 @@ next
   let ?rt = "r tps'" and ?rh = "r (map head tps')"
   let ?tps' = "?rt ?tps" and ?hds' = "?rh ?hds" 
 
-  from \<open>wf_config c\<close> have l_tps: "length (tapes c) = k" by simp
+  from \<open>wf_config c\<close> have l_tps: "length (tapes c) = k" by blast
   then have l_hds: "length (heads c) = k" by simp
   from l_tps' have l_hds': "length (map head tps') = k'" by simp
 

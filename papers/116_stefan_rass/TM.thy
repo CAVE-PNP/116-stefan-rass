@@ -385,7 +385,7 @@ text\<open>A \<^typ>\<open>('q, 's) TM_config\<close> \<open>c\<close> is consid
   iff the number of \<^const>\<open>tapes\<close> of \<open>c\<close> matches the number of tapes of \<open>M\<close>.\<close>
 
 definition wf_config :: "('q, 's) TM_config \<Rightarrow> bool"
-  where [simp]: "wf_config c \<equiv> state c \<in> Q \<and> length (tapes c) = k"
+  where "wf_config c \<equiv> state c \<in> Q \<and> length (tapes c) = k"
 
 (* TODO consider marking the intro as [simp] as well *)
 mk_ide wf_config_def |intro wf_configI[intro]| |elim wf_configE[elim]| |dest wf_configD[dest, intro]|

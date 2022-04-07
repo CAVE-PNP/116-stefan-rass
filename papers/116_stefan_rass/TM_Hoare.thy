@@ -73,7 +73,7 @@ definition initial_config :: "'s list \<Rightarrow> ('q, 's) TM_config"
 abbreviation "c\<^sub>0 \<equiv> initial_config"
 
 lemma wf_initial_config[intro]: "wf_config (initial_config w)"
-  unfolding initial_config_def using at_least_one_tape by simp
+  unfolding initial_config_def using at_least_one_tape by fastforce
 
 lemma init_conf_len: "length (tapes (initial_config w)) = k" by blast
 lemma init_conf_state: "state (initial_config w) = q\<^sub>0" unfolding initial_config_def by simp
@@ -84,9 +84,10 @@ subsubsection\<open>Running a TM Program\<close>
 
 definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
   where "run n w \<equiv> steps n (initial_config w)"
-declare (in -) TM.run_def[simp]
 
-corollary wf_config_run: "wf_config (run n w)" by auto
+corollary wf_config_run[intro!, simp]: "wf_config (run n w)" unfolding run_def by auto
+
+corollary run_tapes_len[simp]: "length (tapes (run n w)) = k" by auto
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
@@ -184,13 +185,13 @@ lemma halts_altdef: "TM.halts M w \<longleftrightarrow> hoare_halt (TM.on_input 
   unfolding TM.halts_def TM.halts_config_def TM.on_input_def ..
 
 lemma halts_altdef2: "TM.halts M w \<longleftrightarrow> (\<exists>n. TM.is_final M (TM.run M n w))"
-  by (simp add: halts_config_altdef)
+  by (simp add: TM.run_def halts_config_altdef)
 
 
 lemma haltsI[intro]:
   assumes "\<exists>n. TM.is_final M (TM.run M n w)"
   shows "TM.halts M w"
-  using assms by (simp add: halts_config_altdef)
+  using assms by (simp add: TM.run_def halts_config_altdef)
 
 lemma haltsD[dest]: "TM.halts M w \<Longrightarrow> \<exists>n. TM.is_final M (TM.run M n w)"
   unfolding TM.halts_def TM.run_def by blast
@@ -251,7 +252,7 @@ definition "computes f \<equiv> \<forall>w. computes_word w (f w)"
 declare (in -) TM.computes_def[simp]
 
 lemma computes_halts[elim]: "computes f \<Longrightarrow> halts w"
-  unfolding halts_altdef2 by (auto simp add: computes_word_def)
+  unfolding halts_altdef2 by (auto simp add: TM.run_def computes_word_def)
 
 
 definition "config_time c \<equiv> LEAST n. is_final (steps n c)"
@@ -293,10 +294,11 @@ lemma conf_time_finalI[intro]: "halts_config c \<Longrightarrow> is_final (steps
 definition "time w \<equiv> config_time (initial_config w)"
 declare (in -) TM.time_def[simp]
 
-lemma time_altdef: "time w = (LEAST n. is_final (run n w))" using config_time_def by simp
+lemma time_altdef: "time w = (LEAST n. is_final (run n w))"
+  unfolding TM.run_def using config_time_def by simp
 
 
-lemma hoare_run_run[dest]: "hoare_run w M P \<Longrightarrow> P (run (time w) w)" by fastforce
+lemma hoare_run_run[dest]: "hoare_run w M P \<Longrightarrow> P (run (time w) w)" unfolding TM.run_def by fastforce
 
 lemma hoare_config_run: 
   assumes "computes_word w w'"

@@ -63,4 +63,11 @@ lemma if_None_P[elim_format]: "(if P then None else Some x) = None \<Longrightar
 
 lemma those_map_Some[simp]: "those (map Some xs) = Some xs" by (induction xs) auto
 
+lemma card_these_length: "card (Option.these (set xs)) \<le> length xs"
+proof -
+  have "card (Option.these (set xs)) \<le> card (set xs)" by (rule card_these) blast
+  also have "... \<le> length xs" by (rule card_length)
+  finally show ?thesis .
+qed
+
 end
