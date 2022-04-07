@@ -32,6 +32,32 @@ lemma input_tape_def: "<w>\<^sub>t\<^sub>p = (if w = [] then \<langle>\<rangle> 
 lemma input_tape_size: "w \<noteq> [] \<Longrightarrow> tape_size <w>\<^sub>t\<^sub>p = length w"
   unfolding tape_size_def by (induction w) auto
 
+
+lemma input_tape_cong[dest]: "<w>\<^sub>t\<^sub>p = <w'>\<^sub>t\<^sub>p \<Longrightarrow> w = w'"
+proof (cases "w = []"; cases "w' = []")
+  show "w = [] \<Longrightarrow> w' = [] \<Longrightarrow> w = w'" by blast
+
+  have *: False if "<w>\<^sub>t\<^sub>p = <w'>\<^sub>t\<^sub>p" and "w = []" and "w' \<noteq> []" for w w' :: "'x list"
+  proof -
+    from \<open><w>\<^sub>t\<^sub>p = <w'>\<^sub>t\<^sub>p\<close> have "<w'>\<^sub>t\<^sub>p = \<langle>\<rangle>" unfolding \<open>w = []\<close> by simp
+    with \<open>w' \<noteq> []\<close> show False unfolding input_tape_def by auto
+  qed
+
+  assume "<w>\<^sub>t\<^sub>p = <w'>\<^sub>t\<^sub>p"
+  from \<open><w>\<^sub>t\<^sub>p = <w'>\<^sub>t\<^sub>p\<close> show "w = [] \<Longrightarrow> w' \<noteq> [] \<Longrightarrow> w = w'" using * by blast
+  from \<open><w>\<^sub>t\<^sub>p = <w'>\<^sub>t\<^sub>p\<close>[symmetric] show "w \<noteq> [] \<Longrightarrow> w' = [] \<Longrightarrow> w = w'" using * by blast
+
+  assume "w \<noteq> []" and "w' \<noteq> []"
+
+  with \<open><w>\<^sub>t\<^sub>p = <w'>\<^sub>t\<^sub>p\<close> have "\<langle>|Some (hd w)|map Some (tl w)\<rangle> = \<langle>|Some (hd w')|map Some (tl w')\<rangle>"
+    unfolding input_tape_def by argo
+  then have "hd w = hd w'" and "tl w = tl w'"
+    unfolding tape.inject option.inject inj_map_eq_map[OF inj_Some] by blast+
+  with \<open>w \<noteq> []\<close> and \<open>w' \<noteq> []\<close> show "w = w'" by (intro list.expand) blast+
+qed
+
+corollary input_tape_cong'[simp]: "<w>\<^sub>t\<^sub>p = <w'>\<^sub>t\<^sub>p \<longleftrightarrow> w = w'" by blast
+
 end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
 
 
@@ -268,6 +294,24 @@ definition "time w \<equiv> config_time (initial_config w)"
 declare (in -) TM.time_def[simp]
 
 lemma time_altdef: "time w = (LEAST n. is_final (run n w))" using config_time_def by simp
+
+
+lemma hoare_run_run[dest]: "hoare_run w M P \<Longrightarrow> P (run (time w) w)" by fastforce
+
+lemma hoare_config_run: 
+  assumes "computes_word w w'"
+  shows "last (tapes (run (time w) w)) = <w'>\<^sub>t\<^sub>p"
+proof -
+  let ?c = "run (time w) w"
+  from assms have "clean_output ?c" and "output_config ?c = w'" unfolding computes_word_def by blast+
+  then obtain x where "last (tapes ?c) = <x>\<^sub>t\<^sub>p" unfolding clean_output_def by blast
+  then have "output_config ?c = x" by blast
+  with \<open>output_config ?c = w'\<close> have "x = w'" by blast
+  with \<open>last (tapes ?c) = <x>\<^sub>t\<^sub>p\<close> show ?thesis by blast
+qed
+
+lemma computes_output: "computes f \<Longrightarrow> last (tapes (run (time w) w)) = <f w>\<^sub>t\<^sub>p"
+  by (intro hoare_config_run) simp
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 

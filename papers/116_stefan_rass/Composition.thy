@@ -271,6 +271,25 @@ proof (induction n)
   show ?case unfolding funpow.simps comp_def Suc.IH reorder_step[OF wfcs wfc'] ..
 qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
+corollary reorder_final_iff:
+  assumes wfc: "wf_config c"
+    and wfc': "length tps' = k'"
+  shows "M'.is_final (M'.steps n (rc tps' c)) = is_final (steps n c)"
+  unfolding reorder_steps[OF wfc wfc'] by simp
+
+corollary reorder_halts:
+  assumes wfc: "wf_config c"
+    and wfc': "length tps' = k'"
+  shows "M'.halts_config (rc tps' c) \<longleftrightarrow> halts_config c"
+  using reorder_final_iff[OF assms] by fast
+
+corollary reorder_config_time:
+  fixes c c' :: "('q, 's) TM_config"
+  assumes wfc: "wf_config c"
+    and wfc': "length (tapes c') = k'"
+  shows "M'.config_time (rc (tapes c') c) = config_time c"
+  unfolding TM.config_time_def reorder_final_iff[OF wfc wfc'] ..
+
 corollary reorder_run':
   fixes c' :: "('q, 's) TM_config"
   assumes "length (tapes c') = k'"
@@ -372,6 +391,79 @@ definition tape_offset :: "nat \<Rightarrow> nat \<Rightarrow> nat option list"
 lemma tape_offset_length[simp]: "length (tape_offset a b) = a + k + b"
   unfolding tape_offset_def by simp
 
+lemma tape_offset_nth:
+  assumes "i < a + k + b"
+  shows "tape_offset a b ! i = (if a \<le> i \<and> i < a + k then Some (i - a) else None)"
+  (is "?lhs = ?rhs")
+proof (cases "a \<le> i", cases "i < a + k")
+  assume "a \<le> i" and "i < a + k"
+  then have "i - a < k" by (subst less_diff_conv2) presburger+
+
+  from \<open>a \<le> i\<close> have "?lhs = (map Some [0..<k] @ None \<up> b) ! (i - a)"
+    unfolding tape_offset_def by (subst nth_append) force
+  also from \<open>i - a < k\<close> have "... = Some (i - a)" by (subst nth_append) simp
+  also from \<open>a \<le> i\<close> and \<open>i < a + k\<close> have "... = ?rhs" by argo
+  finally show ?thesis .
+next
+  assume "\<not> i < a + k"
+  then have "i \<ge> a + k" by (rule leI)
+  then have "i - a \<ge> k" by (subst le_diff_conv2) presburger+
+
+  have "?lhs = ((None \<up> a @ map Some [0..<k]) @ None \<up> b) ! i" unfolding tape_offset_def by simp
+  also from \<open>\<not> i < a + k\<close> have "... = (None \<up> b) ! (i - (a + k))" by (subst nth_append) simp
+  also from \<open>i < a + k + b\<close> and \<open>a + k \<le> i\<close> have "... = None"
+    using less_diff_conv2 by (subst nth_replicate) presburger+
+  also from \<open>\<not> i < a + k\<close> have "... = ?rhs" by presburger
+  finally show ?thesis .
+next
+  assume "\<not> a \<le> i"
+  then show ?thesis unfolding tape_offset_def by (subst nth_append) simp
+qed
+
+lemma tape_offset_simps:
+  assumes [simp]: "length xs = a + k + b"
+    and [simp]: "length ys = k"
+  shows "reorder (tape_offset a b) xs ys = take a xs @ ys @ take b (drop (a + length ys) xs)"
+  (is "?lhs = ?rhs")
+proof (rule nth_equalityI, unfold reorder_length tape_offset_length)
+  from assms show "length xs = length ?rhs" by simp
+
+  fix i assume "i < length xs"
+  with assms have "i < a + k + b" by simp
+
+  note * = reorder_nth[OF \<open>i < length xs\<close>] tape_offset_nth[OF \<open>i < a + k + b\<close>]
+
+  show "?lhs ! i = ?rhs ! i"
+  proof (cases "a \<le> i", cases "i < a + k")
+    assume "a \<le> i" and "i < a + k"
+    then have "i - a < k" by (subst less_diff_conv2) presburger+
+    from \<open>a \<le> i\<close> have "\<not> i < a" by simp
+
+    from \<open>a \<le> i\<close> and \<open>i < a + k\<close> have "a \<le> i \<and> i < a + k" by blast
+    then have "?lhs ! i = nth_or (i - a) (xs ! i) ys" unfolding * by simp
+    also from \<open>i - a < k\<close> have "... = ys ! (i - a)" unfolding nth_or_def \<open>length ys = k\<close> by simp
+    also from \<open>i - a < k\<close> have "... = (ys @ take b (drop (a + k) xs)) ! (i - a)" by (subst nth_append) simp
+    also from \<open>\<not> i < a\<close> have "... = ?rhs ! i" by (subst (2) nth_append) simp
+    finally show ?thesis .
+  next
+    assume "\<not> i < a + k"
+    then have "\<not> i - a < k" by (subst less_diff_conv2) presburger+
+    from \<open>\<not> i < a + k\<close> have "\<not> i < a" by linarith
+
+    from \<open>\<not> i < a + k\<close> have "?lhs ! i = xs ! i" unfolding * by simp
+    also from \<open>\<not> i < a + k\<close> have "... = (drop (a + k) xs) ! (i - a - length ys)" by (subst nth_drop) auto
+    also have "... = (take b (drop (a + k) xs)) ! (i - a - length ys)" by simp
+    also from \<open>\<not> i - a < k\<close> have "... = (ys @ take b (drop (a + k) xs)) ! (i - a)"
+      by (subst nth_append, subst if_not_P) force+
+    also from \<open>\<not> i < a\<close> have "... = ?rhs ! i" by (subst (2) nth_append, subst if_not_P) auto
+    finally show ?thesis .
+  next 
+    assume "\<not> a \<le> i"
+    then show ?thesis unfolding * by (subst nth_append) simp    
+  qed
+qed
+
+
 lemma tape_offset_valid: "Option.these (set (tape_offset a b)) = {0..<k}"
 proof -
   let ?o = "tape_offset a b"
@@ -428,6 +520,12 @@ proof (intro allI impI)
     ultimately show ?thesis by blast
   qed
 qed
+
+corollary init_conf_offset_eq: "a = 0 \<Longrightarrow> M'.c\<^sub>0 w = rc (\<langle>\<rangle> \<up> length is) (c\<^sub>0 w)"
+  by (intro init_conf_eq tape_offset_helper)
+
+corollary offset_time: "a = 0 \<Longrightarrow> M'.time w = time w"
+  by (intro reorder_time tape_offset_helper)
 
 end \<comment> \<open>\<^locale>\<open>TM_tape_offset\<close>\<close>
 
@@ -860,11 +958,50 @@ sublocale M2: TM_tape_offset M2 "k1 - 1" 0 .
 abbreviation "M1' \<equiv> M1.M'"
 abbreviation "M2' \<equiv> M2.M'"
 
-sublocale simple_TM_comp M1' M2'
-proof unfold_locales
-  show "M1.M'.k = M2.M'.k" unfolding M1.M'_fields(1) M2.M'_fields(1)
-    using M1.at_least_one_tape M2.at_least_one_tape by simp
+lemma M1'_M2'_k: "M1.M'.k = M2.M'.k" unfolding M1.M'_fields(1) M2.M'_fields(1)
+  using M1.at_least_one_tape M2.at_least_one_tape by simp
+
+sublocale simple_TM_comp M1' M2' using M1'_M2'_k by unfold_locales
+
+lemma k_def: "k = k1 + k2 - 1"
+  unfolding M_fields(1) M1.M'_fields(1) using M2.at_least_one_tape by simp
+
+lemma M1'_k[simp]: "M1.M'.k = k" unfolding k_def M1.M'_fields M1.tape_offset_length
+  using M2.at_least_one_tape by simp
+lemma M2'_k[simp]: "M2.M'.k = k" using M1'_k unfolding M1'_M2'_k .
+
+lemma M1_is_len[simp]: "length M1.is = k" using M1'_k unfolding M1.M'_fields .
+lemma M2_is_len[simp]: "length M2.is = k" using M2'_k unfolding M2.M'_fields .
+
+lemma init_conf1:
+  assumes "M1.q\<^sub>0 \<notin> M1.F"
+  shows "c\<^sub>0 w = cl (M1.M'.c\<^sub>0 w)"
+proof -
+  from \<open>M1.q\<^sub>0 \<notin> M1.F\<close> have q0: "q\<^sub>0 = Inl M1.q\<^sub>0" unfolding M_fields M1.M'_fields by (rule if_not_P)
+
+  have "c\<^sub>0 w = conf (Inl M1.q\<^sub>0) (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1))" unfolding initial_config_def q0 ..
+  also have "... = cl (conf M1.q\<^sub>0 (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1)))" unfolding cl_simps ..
+  also have "... = cl (M1.M'.c\<^sub>0 w)" unfolding reorder_config_def
+  proof (rule TM_config_eq, unfold cl_simps TM_config.sel)
+    show "Inl M1.q\<^sub>0 = Inl (state (M1.M'.c\<^sub>0 w))" unfolding M1.M'.init_conf_state M1.M'_fields(3) ..
+
+    have "tapes (M1.M'.c\<^sub>0 w) = tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.c\<^sub>0 w))"
+      by (subst M1.init_conf_offset_eq, unfold M1_is_len) blast+
+    also have "... = M1.r (\<langle>\<rangle> \<up> k) (tapes (M1.c\<^sub>0 w))" by simp
+    also have "M1.r (\<langle>\<rangle> \<up> k) (tapes (M1.c\<^sub>0 w)) = tapes (M1.c\<^sub>0 w) @ take (M2.k - 1) (drop M1.k (\<langle>\<rangle> \<up> k))"
+      using M2.at_least_one_tape unfolding k_def by (subst M1.tape_offset_simps) auto
+    also have "... = tapes (M1.c\<^sub>0 w) @ (\<langle>\<rangle> \<up> (M2.k - 1))" unfolding k_def by simp
+    also have "... = (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (M1.k - 1)) @ (\<langle>\<rangle> \<up> (M2.k - 1))"
+      unfolding append_same_eq M1.initial_config_def by simp
+    also have "... = <w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1)" unfolding k_def append_Cons replicate_add[symmetric]
+      using M1.at_least_one_tape M2.at_least_one_tape by simp
+    finally show "<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1) = tapes (M1.M'.c\<^sub>0 w)" ..
+  qed
+  finally show ?thesis .
 qed
+
+corollary init_conf1': "M1.M'.c\<^sub>0 w = M1.rc (\<langle>\<rangle> \<up> k) (M1.c\<^sub>0 w)"
+  by (subst M1.init_conf_offset_eq, unfold M1_is_len) blast+
 
 end \<comment> \<open>\<^locale>\<open>IO_TM_comp\<close>\<close>
 
