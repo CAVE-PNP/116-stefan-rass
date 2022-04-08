@@ -89,6 +89,9 @@ corollary wf_config_run[intro!, simp]: "wf_config (run n w)" unfolding run_def b
 
 corollary run_tapes_len[simp]: "length (tapes (run n w)) = k" by blast
 
+corollary steps_run[simp]: "steps n (run m w) = run (m + n) w" 
+  unfolding run_def add_ac[of m n] funpow_add comp_def ..
+
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
 
