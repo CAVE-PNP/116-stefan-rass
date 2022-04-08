@@ -966,6 +966,12 @@ lemma M2'_k[simp]: "M2.M'.k = k" using M1'_k unfolding M1'_M2'_k .
 lemma M1_is_len[simp]: "length M1.is = k" using M1'_k unfolding M1.M'_fields .
 lemma M2_is_len[simp]: "length M2.is = k" using M2'_k unfolding M2.M'_fields .
 
+lemma k_simps[simp]: 
+  shows "k1 + (k2 - Suc 0) = k1 + k2 - Suc 0"
+    and "k - k1 = k2 - (Suc 0)"
+    and "k1 - (Suc 0) + k2 = k"
+  unfolding k_def using M1.at_least_one_tape M2.at_least_one_tape by auto
+
 lemma init_conf1:
   assumes "M1.q\<^sub>0 \<notin> M1.F"
   shows "c\<^sub>0 w = cl (M1.M'.c\<^sub>0 w)"
@@ -986,7 +992,7 @@ proof -
     also have "... = tapes (M1.c\<^sub>0 w) @ (\<langle>\<rangle> \<up> (M2.k - 1))" unfolding k_def by simp
     also have "... = (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (M1.k - 1)) @ (\<langle>\<rangle> \<up> (M2.k - 1))"
       unfolding append_same_eq M1.initial_config_def by simp
-    also have "... = <w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1)" unfolding k_def append_Cons replicate_add[symmetric]
+    also have "... = <w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1)" unfolding append_Cons replicate_add[symmetric]
       using M1.at_least_one_tape M2.at_least_one_tape by simp
     finally show "<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1) = tapes (M1.M'.c\<^sub>0 w)" ..
   qed
@@ -995,6 +1001,128 @@ qed
 
 corollary init_conf1': "M1.M'.c\<^sub>0 w = M1.rc (\<langle>\<rangle> \<up> k) (M1.c\<^sub>0 w)"
   by (subst M1.init_conf_offset_eq, unfold M1_is_len) blast+
+
+lemma comp_run1:
+  assumes "M1.computes_word w w'"
+  shows "run (M1.time w) w = cr (M2.rc (tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.run (M1.time w) w))) (M2.c\<^sub>0 w'))"
+proof (cases "M1.q\<^sub>0 \<in> M1.F")
+  assume q0_f: "M1.q\<^sub>0 \<in> M1.F"
+  then have "M1.time w = 0" unfolding M1.time_altdef M1.run_def by auto
+  then have *: "TM.run M (M1.time w) w = TM.c\<^sub>0 M w" for M :: "('x, 's::finite) TM"
+    unfolding TM.run_def by simp
+
+  from q0_f have q0: "q\<^sub>0 = Inr M2.q\<^sub>0" unfolding M_fields(3) M1.M'_fields(3-4) M2.M'_fields(3) by simp
+
+  show ?thesis unfolding * init_conf1'[symmetric]
+  proof (cases "k1 = 1")
+    assume "k1 = 1"
+    then have "<w>\<^sub>t\<^sub>p = last (tapes (M1.run (M1.time w) w))" unfolding * M1.initial_config_def by simp
+    also from assms have "... = <w'>\<^sub>t\<^sub>p" by (rule M1.computes_word_output)
+    finally have "w' = w" by simp
+
+    have "cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w')) = 
+            conf (Inr M2.q\<^sub>0) (M2.r (tapes (M1.M'.c\<^sub>0 w)) (tapes (M2.c\<^sub>0 w')))"
+      unfolding reorder_config_def by simp
+    also have "... = conf (Inr M2.q\<^sub>0) (tapes (M2.c\<^sub>0 w'))"
+      by (subst M2.tape_offset_simps) (unfold TM.init_conf_len M1'_k k_def, unfold \<open>k1 = 1\<close>, auto)
+    also have "... = c\<^sub>0 w" unfolding \<open>w' = w\<close> TM.initial_config_def TM_config.sel TM_config.inject
+    proof (intro conjI)
+      from q0_f show "Inr M2.q\<^sub>0 = q\<^sub>0" unfolding M_fields M1.M'_fields M2.M'_fields by simp
+
+      have "k2 = k" unfolding k_def unfolding \<open>k1 = 1\<close> using M2.at_least_one_tape by simp
+      then show "<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k2 - 1) = <w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1)" by (rule arg_cong)
+    qed
+    finally show "c\<^sub>0 w = cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w'))" ..
+  next
+    assume "k1 \<noteq> 1"
+    with M1.at_least_one_tape have "k1 > 1" by simp
+    then have "k1 - 1 \<noteq> 0" by simp
+
+    note input_tape.simps(1)
+    also from \<open>k1 > 1\<close> have "\<langle>\<rangle> = last (tapes (M1.run (M1.time w) w))" unfolding * M1.initial_config_def by simp
+    also from assms have "... = <w'>\<^sub>t\<^sub>p" ..
+    finally have "w' = []" by fastforce
+    have *: "tapes (M2.c\<^sub>0 w') = \<langle>\<rangle> \<up> k2" unfolding TM.initial_config_def TM_config.sel \<open>w' = []\<close>
+      unfolding input_tape.simps replicate_Suc[symmetric] using M2.at_least_one_tape by simp
+
+    have "min (k1 - 1 - 1) (M1.M'.k - 1) = k1 - 1 - 1"
+      unfolding M1'_k k_def by (intro min_absorb1) simp
+    then have **: "take (k1 - 1) (tapes (M1.M'.c\<^sub>0 w)) = <w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k1 - 1 - 1)"
+      unfolding TM.initial_config_def TM_config.sel take_Cons' if_not_P[OF \<open>k1 - 1 \<noteq> 0\<close>]
+      unfolding take_replicate by argo
+
+    have ***: "k1 - 1 - 1 + k2 = k - 1" unfolding k_def using \<open>1 < M1.k\<close> by simp
+
+    have "cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w')) = 
+            conf (Inr M2.q\<^sub>0) (M2.r (tapes (M1.M'.c\<^sub>0 w)) (tapes (M2.c\<^sub>0 w')))"
+      unfolding reorder_config_def by simp
+    also have "... = conf (Inr M2.q\<^sub>0) (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k1 - 1 - 1) @ \<langle>\<rangle> \<up> k2)"
+      by (subst M2.tape_offset_simps, unfold TM.init_conf_len M1'_k * **) fastforce+
+    also have "... = conf (Inr M2.q\<^sub>0) (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1))" unfolding replicate_add[symmetric] *** ..
+    also have "... = c\<^sub>0 w" unfolding initial_config_def q0 ..
+    finally show "c\<^sub>0 w = cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w'))" ..
+  qed
+next
+  assume q0_nf: "M1.q\<^sub>0 \<notin> M1.F"
+  then have q0: "q\<^sub>0 = Inl M1.q\<^sub>0" unfolding M_fields(3) M1.M'_fields(3-4) M2.M'_fields(3) by simp
+  have time1: "M1.time w = M1.M'.time w" using M1.offset_time by presburger
+
+  let ?c1 = "M1.run (M1.time w) w" let ?r1 = "M1.r (\<langle>\<rangle> \<up> k) (tapes ?c1)"
+
+  have "run (M1.time w) w = run (M1.M'.time w) w" unfolding time1 ..
+  also have "... = steps (M1.M'.config_time (M1.M'.c\<^sub>0 w)) (c\<^sub>0 w)" unfolding run_def by simp
+  also have "... = conf (Inr M2.M'.q\<^sub>0) (tapes (M1.M'.run (M1.time w) w))"
+    unfolding init_conf1[OF q0_nf]
+  proof (subst comp_steps1_final, fold M1.M'.time_def time1 TM.run_def)
+    from q0_nf show "\<not> M1.M'.is_final (M1.M'.c\<^sub>0 w)"
+      unfolding M1.M'.initial_config_def M1.M'_fields by simp
+
+    from \<open>M1.computes_word w w'\<close> have "M1.halts w" by (rule M1.computes_word_halts)
+    then have "M1.halts_config (M1.c\<^sub>0 w)" by simp
+    then have "M1.M'.halts_config (M1.rc (\<langle>\<rangle> \<up> k) (M1.c\<^sub>0 w))"
+      by (subst M1.reorder_halts, unfold M1_is_len) auto
+    then show "M1.M'.halts_config (M1.M'.c\<^sub>0 w)" 
+      by (subst M1.init_conf_offset_eq, unfold M1_is_len) blast+
+  qed blast
+  also have "... = conf (Inr M2.M'.q\<^sub>0) (tapes (M1.rc (\<langle>\<rangle> \<up> k) ?c1))"
+    unfolding init_conf1' TM.run_def unfolding M2.M'_fields(3)
+  proof (subst M1.reorder_steps)
+    show "M1.wf_config (M1.c\<^sub>0 w)" by (fact TM.wf_initial_config)
+    show "length (\<langle>\<rangle> \<up> k) = length M1.is" unfolding M1_is_len length_replicate ..
+  qed blast
+  also have "... = cr (M2.rc (tapes (M1.rc (\<langle>\<rangle> \<up> k) ?c1)) (M2.c\<^sub>0 w'))"
+  proof (rule TM_config_eq, unfold TM_config.sel cr_simps reorder_config_simps)
+    show "Inr M2.M'.q\<^sub>0 = Inr (state (M2.c\<^sub>0 w'))" unfolding TM.init_conf_simps M2.M'_fields(3) ..
+
+    have "k - k1 = M2.k - 1" unfolding k_def by simp
+
+    have "?r1 = tapes ?c1 @ (\<langle>\<rangle> \<up> (k2 - 1))" using M2.at_least_one_tape unfolding k_def
+      by (subst TM.tape_offset_simps) auto
+    also have "... = (butlast (tapes ?c1)) @ [last (tapes ?c1)] @ (\<langle>\<rangle> \<up> (k2 - 1))"
+      unfolding append_assoc[symmetric]
+    proof (subst append_butlast_last_id)
+      from M1.at_least_one_tape show "tapes (M1.run (M1.time w) w) \<noteq> []"
+        unfolding length_greater_0_conv[symmetric] by simp
+    qed blast
+    also have "... = (take (k1 - 1) ?r1) @ [last (tapes ?c1)] @ (\<langle>\<rangle> \<up> (k2 - 1))"
+      unfolding append_same_eq butlast_conv_take
+    proof -
+      have "length (tapes ?c1) = k1" by simp
+      then have *: "length (tapes ?c1) - 1 = k1 - 1" by (fact arg_cong)
+
+      have "take (k1 - 1) ?r1 = take (k1 - 1) (tapes ?c1 @ take (k2 - 1) (drop k1 (\<langle>\<rangle> \<up> k)))"
+        unfolding k_def by (subst M1.tape_offset_simps) auto
+      also have "... = take (k1 - 1) (tapes ?c1)" unfolding drop_replicate k_simps by simp
+      finally show "take (length (tapes ?c1) - 1) (tapes ?c1) = take (k1 - 1) ?r1"
+        unfolding * ..
+    qed
+    also from \<open>M1.computes_word w w'\<close> have "... = (take (k1 - 1) ?r1) @ tapes (M2.c\<^sub>0 w')"
+      unfolding same_append_eq M2.initial_config_def TM_config.sel by (subst M1.computes_word_output) auto
+    also have "... = M2.r ?r1 (tapes (M2.c\<^sub>0 w'))" by (subst M2.tape_offset_simps) force+
+    finally show "?r1 = ..." .
+  qed
+  finally show ?thesis .
+qed
 
 end \<comment> \<open>\<^locale>\<open>IO_TM_comp\<close>\<close>
 

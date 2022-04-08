@@ -87,7 +87,7 @@ definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
 
 corollary wf_config_run[intro!, simp]: "wf_config (run n w)" unfolding run_def by auto
 
-corollary run_tapes_len[simp]: "length (tapes (run n w)) = k" by auto
+corollary run_tapes_len[simp]: "length (tapes (run n w)) = k" by blast
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
@@ -241,6 +241,12 @@ text\<open>The requirement that the output conforms to the input standard should
 
 definition "clean_output c \<equiv> \<exists>w. last (tapes c) = <w>\<^sub>t\<^sub>p"
 
+lemma "clean_output c \<Longrightarrow> output_config c = w \<Longrightarrow> last (tapes c) = <w>\<^sub>t\<^sub>p"
+  unfolding clean_output_def by force
+
+lemma clean_output_alt: "clean_output c \<and> output_config c = w \<longleftrightarrow> last (tapes c) = <w>\<^sub>t\<^sub>p"
+  unfolding clean_output_def by force
+
 
 (* TODO document, clean up *)
 
@@ -250,6 +256,12 @@ definition "computes_word w w' \<equiv> hoare_run w M (\<lambda>c. clean_output 
 
 definition "computes f \<equiv> \<forall>w. computes_word w (f w)"
 declare (in -) TM.computes_def[simp]
+
+lemma hoare_run_halts: "hoare_run w M P \<Longrightarrow> halts w"
+  unfolding halts_altdef hoare_run_def by (rule hoare_true)
+
+lemma computes_word_halts: "computes_word w w' \<Longrightarrow> halts w"
+  unfolding computes_word_def by (rule hoare_run_halts)
 
 lemma computes_halts[elim]: "computes f \<Longrightarrow> halts w"
   unfolding halts_altdef2 by (auto simp add: TM.run_def computes_word_def)
@@ -300,7 +312,7 @@ lemma time_altdef: "time w = (LEAST n. is_final (run n w))"
 
 lemma hoare_run_run[dest]: "hoare_run w M P \<Longrightarrow> P (run (time w) w)" unfolding TM.run_def by fastforce
 
-lemma hoare_config_run: 
+lemma computes_word_output[dest]: 
   assumes "computes_word w w'"
   shows "last (tapes (run (time w) w)) = <w'>\<^sub>t\<^sub>p"
 proof -
@@ -313,7 +325,7 @@ proof -
 qed
 
 lemma computes_output: "computes f \<Longrightarrow> last (tapes (run (time w) w)) = <f w>\<^sub>t\<^sub>p"
-  by (intro hoare_config_run) simp
+  by (intro computes_word_output) simp
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 

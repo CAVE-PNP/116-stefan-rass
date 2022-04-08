@@ -214,7 +214,9 @@ sublocale is_valid_TM M_rec using Rep_TM .. \<comment> \<open>The axioms of \<^l
 lemmas at_least_one_tape = at_least_one_tape[folded TM_fields_defs]
 lemmas state_axioms = state_axioms[folded TM_fields_defs]
 lemmas next_state_valid = next_state_valid[folded TM_fields_defs]
-lemmas TM_axioms[intro, simp] = at_least_one_tape state_axioms next_state_valid
+
+lemmas TM_axioms = at_least_one_tape state_axioms next_state_valid
+lemmas (in -) TM_axioms[simp, intro] = TM.TM_axioms
 
 lemma next_actions_length[simp]: "length (next_actions q hds) = k" by simp
 
