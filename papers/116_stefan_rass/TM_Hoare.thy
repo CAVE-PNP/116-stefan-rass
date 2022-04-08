@@ -217,7 +217,7 @@ proof (rule ccontr)
 qed
 
 
-subsubsection\<open>Output\<close>
+subsection\<open>Output\<close>
 
 context TM
 begin
@@ -306,15 +306,17 @@ lemma conf_time_finalI[intro]: "halts_config c \<Longrightarrow> is_final (steps
 definition "time w \<equiv> config_time (initial_config w)"
 declare (in -) TM.time_def[simp]
 
+abbreviation "compute w \<equiv> run (time w) w"
+
+
 lemma time_altdef: "time w = (LEAST n. is_final (run n w))"
   unfolding TM.run_def using config_time_def by simp
 
-
-lemma hoare_run_run[dest]: "hoare_run w M P \<Longrightarrow> P (run (time w) w)" unfolding TM.run_def by fastforce
+lemma hoare_run_run[dest]: "hoare_run w M P \<Longrightarrow> P (compute w)" unfolding TM.run_def by fastforce
 
 lemma computes_word_output[dest]: 
   assumes "computes_word w w'"
-  shows "last (tapes (run (time w) w)) = <w'>\<^sub>t\<^sub>p"
+  shows "last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p"
 proof -
   let ?c = "run (time w) w"
   from assms have "clean_output ?c" and "output_config ?c = w'" unfolding computes_word_def by blast+
@@ -324,7 +326,7 @@ proof -
   with \<open>last (tapes ?c) = <x>\<^sub>t\<^sub>p\<close> show ?thesis by blast
 qed
 
-lemma computes_output: "computes f \<Longrightarrow> last (tapes (run (time w) w)) = <f w>\<^sub>t\<^sub>p"
+lemma computes_output: "computes f \<Longrightarrow> last (tapes (compute w)) = <f w>\<^sub>t\<^sub>p"
   by (intro computes_word_output) simp
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>

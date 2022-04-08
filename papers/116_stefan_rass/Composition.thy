@@ -457,6 +457,19 @@ proof (rule nth_equalityI, unfold reorder_length tape_offset_length)
 qed
 
 
+lemma tape_offset_simps1:
+  assumes "length xs = k + b"
+    and "length ys = k"
+  shows "reorder (tape_offset 0 b) xs ys = ys @ take b (drop (length ys) xs)"
+  using assms by (subst tape_offset_simps) auto
+
+lemma tape_offset_simps2:
+  assumes "length xs = k + a"
+    and "length ys = k"
+  shows "reorder (tape_offset a 0) xs ys = take a xs @ ys"
+  using assms by (subst tape_offset_simps) auto
+
+
 lemma tape_offset_valid: "Option.these (set (tape_offset a b)) = {0..<k}"
 proof -
   let ?o = "tape_offset a b"
@@ -968,8 +981,9 @@ lemma M2_is_len[simp]: "length M2.is = k" using M2'_k unfolding M2.M'_fields .
 
 lemma k_simps[simp]: 
   shows "k1 + (k2 - Suc 0) = k1 + k2 - Suc 0"
-    and "k - k1 = k2 - (Suc 0)"
-    and "k1 - (Suc 0) + k2 = k"
+    and "k - k1 = k2 - Suc 0"
+    and "k1 - Suc 0 + k2 = k"
+    and "k2 + (k1 - Suc 0) = k"
   unfolding k_def using M1.at_least_one_tape M2.at_least_one_tape by auto
 
 lemma init_conf1:
@@ -988,7 +1002,7 @@ proof -
       by (subst M1.init_conf_offset_eq, unfold M1_is_len) blast+
     also have "... = M1.r (\<langle>\<rangle> \<up> k) (tapes (M1.c\<^sub>0 w))" by simp
     also have "M1.r (\<langle>\<rangle> \<up> k) (tapes (M1.c\<^sub>0 w)) = tapes (M1.c\<^sub>0 w) @ take (M2.k - 1) (drop M1.k (\<langle>\<rangle> \<up> k))"
-      using M2.at_least_one_tape unfolding k_def by (subst M1.tape_offset_simps) auto
+      using M2.at_least_one_tape unfolding k_def by (subst M1.tape_offset_simps1) auto
     also have "... = tapes (M1.c\<^sub>0 w) @ (\<langle>\<rangle> \<up> (M2.k - 1))" unfolding k_def by simp
     also have "... = (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (M1.k - 1)) @ (\<langle>\<rangle> \<up> (M2.k - 1))"
       unfolding append_same_eq M1.initial_config_def by simp
@@ -1002,9 +1016,20 @@ qed
 corollary init_conf1': "M1.M'.c\<^sub>0 w = M1.rc (\<langle>\<rangle> \<up> k) (M1.c\<^sub>0 w)"
   by (subst M1.init_conf_offset_eq, unfold M1_is_len) blast+
 
+lemma take_reorder_le_helper:
+  "take (k1 - 1) (M1.r (\<langle>\<rangle> \<up> k) (tapes (M1.run n w))) = butlast (tapes (M1.run n w))"
+  (is "take (k1 - 1) ?r1 = butlast (tapes ?c1)")
+proof -
+  have "take (k1 - 1) ?r1 = take (k1 - 1) (tapes ?c1 @ take (k2 - 1) (drop k1 (\<langle>\<rangle> \<up> k)))"
+    unfolding k_def by (subst M1.tape_offset_simps1) auto
+  also have "... = take (k1 - 1) (tapes ?c1)" unfolding drop_replicate k_simps by simp
+  also have "... = butlast (tapes ?c1)" unfolding butlast_conv_take unfolding TM.run_tapes_len ..
+  finally show ?thesis .
+qed
+
 lemma comp_run1:
   assumes "M1.computes_word w w'"
-  shows "run (M1.time w) w = cr (M2.rc (tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.run (M1.time w) w))) (M2.c\<^sub>0 w'))"
+  shows "run (M1.time w) w = cr (M2.rc (tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.compute w))) (M2.c\<^sub>0 w'))"
 proof (cases "M1.q\<^sub>0 \<in> M1.F")
   assume q0_f: "M1.q\<^sub>0 \<in> M1.F"
   then have "M1.time w = 0" unfolding M1.time_altdef M1.run_def by auto
@@ -1016,7 +1041,7 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
   show ?thesis unfolding * init_conf1'[symmetric]
   proof (cases "k1 = 1")
     assume "k1 = 1"
-    then have "<w>\<^sub>t\<^sub>p = last (tapes (M1.run (M1.time w) w))" unfolding * M1.initial_config_def by simp
+    then have "<w>\<^sub>t\<^sub>p = last (tapes (M1.compute w))" unfolding * M1.initial_config_def by simp
     also from assms have "... = <w'>\<^sub>t\<^sub>p" by (rule M1.computes_word_output)
     finally have "w' = w" by simp
 
@@ -1024,7 +1049,7 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
             conf (Inr M2.q\<^sub>0) (M2.r (tapes (M1.M'.c\<^sub>0 w)) (tapes (M2.c\<^sub>0 w')))"
       unfolding reorder_config_def by simp
     also have "... = conf (Inr M2.q\<^sub>0) (tapes (M2.c\<^sub>0 w'))"
-      by (subst M2.tape_offset_simps) (unfold TM.init_conf_len M1'_k k_def, unfold \<open>k1 = 1\<close>, auto)
+      by (subst M2.tape_offset_simps2) (unfold TM.init_conf_len M1'_k k_def, unfold \<open>k1 = 1\<close>, auto)
     also have "... = c\<^sub>0 w" unfolding \<open>w' = w\<close> TM.initial_config_def TM_config.sel TM_config.inject
     proof (intro conjI)
       from q0_f show "Inr M2.q\<^sub>0 = q\<^sub>0" unfolding M_fields M1.M'_fields M2.M'_fields by simp
@@ -1039,7 +1064,7 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
     then have "k1 - 1 \<noteq> 0" by simp
 
     note input_tape.simps(1)
-    also from \<open>k1 > 1\<close> have "\<langle>\<rangle> = last (tapes (M1.run (M1.time w) w))" unfolding * M1.initial_config_def by simp
+    also from \<open>k1 > 1\<close> have "\<langle>\<rangle> = last (tapes (M1.compute w))" unfolding * M1.initial_config_def by simp
     also from assms have "... = <w'>\<^sub>t\<^sub>p" ..
     finally have "w' = []" by fastforce
     have *: "tapes (M2.c\<^sub>0 w') = \<langle>\<rangle> \<up> k2" unfolding TM.initial_config_def TM_config.sel \<open>w' = []\<close>
@@ -1057,7 +1082,7 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
             conf (Inr M2.q\<^sub>0) (M2.r (tapes (M1.M'.c\<^sub>0 w)) (tapes (M2.c\<^sub>0 w')))"
       unfolding reorder_config_def by simp
     also have "... = conf (Inr M2.q\<^sub>0) (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k1 - 1 - 1) @ \<langle>\<rangle> \<up> k2)"
-      by (subst M2.tape_offset_simps, unfold TM.init_conf_len M1'_k * **) fastforce+
+      by (subst M2.tape_offset_simps2, unfold TM.init_conf_len M1'_k * **) auto
     also have "... = conf (Inr M2.q\<^sub>0) (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1))" unfolding replicate_add[symmetric] *** ..
     also have "... = c\<^sub>0 w" unfolding initial_config_def q0 ..
     finally show "c\<^sub>0 w = cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w'))" ..
@@ -1067,7 +1092,7 @@ next
   then have q0: "q\<^sub>0 = Inl M1.q\<^sub>0" unfolding M_fields(3) M1.M'_fields(3-4) M2.M'_fields(3) by simp
   have time1: "M1.time w = M1.M'.time w" using M1.offset_time by presburger
 
-  let ?c1 = "M1.run (M1.time w) w" let ?r1 = "M1.r (\<langle>\<rangle> \<up> k) (tapes ?c1)"
+  let ?c1 = "M1.compute w" let ?r1 = "M1.r (\<langle>\<rangle> \<up> k) (tapes ?c1)"
 
   have "run (M1.time w) w = run (M1.M'.time w) w" unfolding time1 ..
   also have "... = steps (M1.M'.config_time (M1.M'.c\<^sub>0 w)) (c\<^sub>0 w)" unfolding run_def by simp
@@ -1097,28 +1122,18 @@ next
     have "k - k1 = M2.k - 1" unfolding k_def by simp
 
     have "?r1 = tapes ?c1 @ (\<langle>\<rangle> \<up> (k2 - 1))" using M2.at_least_one_tape unfolding k_def
-      by (subst TM.tape_offset_simps) auto
+      by (subst M1.tape_offset_simps1) auto
     also have "... = (butlast (tapes ?c1)) @ [last (tapes ?c1)] @ (\<langle>\<rangle> \<up> (k2 - 1))"
       unfolding append_assoc[symmetric]
     proof (subst append_butlast_last_id)
-      from M1.at_least_one_tape show "tapes (M1.run (M1.time w) w) \<noteq> []"
+      from M1.at_least_one_tape show "tapes (M1.compute w) \<noteq> []"
         unfolding length_greater_0_conv[symmetric] by simp
     qed blast
     also have "... = (take (k1 - 1) ?r1) @ [last (tapes ?c1)] @ (\<langle>\<rangle> \<up> (k2 - 1))"
-      unfolding append_same_eq butlast_conv_take
-    proof -
-      have "length (tapes ?c1) = k1" by simp
-      then have *: "length (tapes ?c1) - 1 = k1 - 1" by (fact arg_cong)
-
-      have "take (k1 - 1) ?r1 = take (k1 - 1) (tapes ?c1 @ take (k2 - 1) (drop k1 (\<langle>\<rangle> \<up> k)))"
-        unfolding k_def by (subst M1.tape_offset_simps) auto
-      also have "... = take (k1 - 1) (tapes ?c1)" unfolding drop_replicate k_simps by simp
-      finally show "take (length (tapes ?c1) - 1) (tapes ?c1) = take (k1 - 1) ?r1"
-        unfolding * ..
-    qed
+      unfolding append_same_eq take_reorder_le_helper ..
     also from \<open>M1.computes_word w w'\<close> have "... = (take (k1 - 1) ?r1) @ tapes (M2.c\<^sub>0 w')"
       unfolding same_append_eq M2.initial_config_def TM_config.sel by (subst M1.computes_word_output) auto
-    also have "... = M2.r ?r1 (tapes (M2.c\<^sub>0 w'))" by (subst M2.tape_offset_simps) force+
+    also have "... = M2.r ?r1 (tapes (M2.c\<^sub>0 w'))" by (subst M2.tape_offset_simps2) (simp, blast+)
     finally show "?r1 = ..." .
   qed
   finally show ?thesis .
