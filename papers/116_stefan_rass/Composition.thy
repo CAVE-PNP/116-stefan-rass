@@ -11,7 +11,7 @@ subsubsection\<open>Reordering Tapes\<close>
 (* TODO consider renaming \<open>is\<close>. it stands for indices, but is a somewhat bad name since it is also an Isabelle keyword *)
 (* TODO consider extracting the function and general lemmas *)
 definition reorder :: "(nat option list) \<Rightarrow> 'a list \<Rightarrow> 'a list \<Rightarrow> 'a list"
-  where "reorder is xs ys = map2 (\<lambda>i x. case is ! i of None \<Rightarrow> x | Some i' \<Rightarrow> nth_or i' x ys) [0..<length xs] xs"
+  where "reorder is xs ys = map2 (\<lambda>i x. case is ! i of None \<Rightarrow> x | Some j \<Rightarrow> nth_or x j ys) [0..<length xs] xs"
 
 value "reorder [Some 0, Some 2, Some 1, None] [w,x,y,z] [a,b,c]"
 
@@ -22,15 +22,15 @@ lemma reorder_Nil[simp]: "reorder is xs [] = xs"
 
 lemma reorder_nth[simp]:
   assumes "i < length xs"
-  shows "reorder is xs ys ! i = (case is ! i of None \<Rightarrow> xs ! i | Some i' \<Rightarrow> nth_or i' (xs ! i) ys)"
+  shows "reorder is xs ys ! i = (case is ! i of None \<Rightarrow> xs ! i | Some j \<Rightarrow> nth_or (xs ! i) j ys)"
   using assms unfolding reorder_def by (subst nth_map2) auto
 
 lemma reorder_map[simp]: "map f (reorder is xs ys) = reorder is (map f xs) (map f ys)"
 proof -
-  let ?m = "\<lambda>d i x. case is ! i of None \<Rightarrow> d x | Some i' \<Rightarrow> nth_or i' (d x) (map f ys)"
+  let ?m = "\<lambda>d i x. case is ! i of None \<Rightarrow> d x | Some j \<Rightarrow> nth_or (d x) j (map f ys)"
   let ?m' = "\<lambda>d (i, x). ?m d i x" and ?id = "\<lambda>x. x"
   have "map f (reorder is xs ys) =
-    map (\<lambda>(i, x). f (case is ! i of None \<Rightarrow> x | Some i' \<Rightarrow> nth_or i' x ys)) (zip [0..<length xs] xs)"
+    map (\<lambda>(i, x). f (case is ! i of None \<Rightarrow> x | Some j \<Rightarrow> nth_or x j ys)) (zip [0..<length xs] xs)"
     unfolding reorder_def map_map comp_def by force
   also have "... = map2 (?m f) [0..<length xs] xs" unfolding option.case_distrib nth_or_map ..
   also have "... = map ((?m' ?id) \<circ> (\<lambda>(i, x). (i, f x))) (zip [0..<length xs] xs)" by fastforce

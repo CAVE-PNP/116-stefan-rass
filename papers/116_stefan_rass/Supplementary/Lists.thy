@@ -300,16 +300,16 @@ qed
 text\<open>A version of \<^const>\<open>nth\<close> with a default value; if the requested element is not in the list,
   the default value is returned instead.\<close>
 
-definition nth_or :: "nat \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a"
-  where "nth_or n x xs \<equiv> if n < length xs then xs ! n else x"
+definition nth_or :: "'a \<Rightarrow> nat \<Rightarrow> 'a list \<Rightarrow> 'a"
+  where "nth_or x n xs \<equiv> if n < length xs then xs ! n else x"
 
 lemma nth_or_simps[simp]:
-  shows nth_or_Nil: "nth_or n x [] = x"
-    and nth_or_val: "n < length xs \<Longrightarrow> nth_or n x xs = xs ! n"
-    and nth_or_other: "\<not> n < length xs \<Longrightarrow> nth_or n x xs = x"
+  shows nth_or_Nil: "nth_or x n [] = x"
+    and nth_or_val: "n < length xs \<Longrightarrow> nth_or x n xs = xs ! n"
+    and nth_or_other: "\<not> n < length xs \<Longrightarrow> nth_or x n xs = x"
   unfolding nth_or_def by auto
 
-lemma nth_or_map: "f (nth_or n x xs) = nth_or n (f x) (map f xs)" by (cases "n < length xs") auto
+lemma nth_or_map: "f (nth_or x n xs) = nth_or (f x) n (map f xs)" by (cases "n < length xs") auto
 
 
 text\<open>Force a list to a given length; truncate if too long, and pad with the default value if too short.\<close>
