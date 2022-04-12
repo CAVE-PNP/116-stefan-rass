@@ -518,6 +518,8 @@ corollary step_simps[intro, simp]:
     and step_not_final: "\<not> is_final c \<Longrightarrow> step c = step_not_final c"
   unfolding step_def by auto
 
+corollary steps_plus[simp]: "steps n2 (steps n1 c) = steps (n1 + n2) c"
+  unfolding add.commute[of n1 n2] funpow_add comp_def ..
 
 paragraph\<open>Final Steps\<close>
 
@@ -555,6 +557,12 @@ proof (cases a b rule: le_cases)
   case le with assms show ?thesis by (intro final_le_steps[symmetric]) next
   case ge with assms show ?thesis by (intro final_le_steps)
 qed
+
+lemma final_steps_le[dest]:
+  assumes "\<not> is_final (steps n1 c)"
+    and "is_final (steps n2 c)"
+  shows "n1 < n2"
+  using assms and TM.final_mono linorder_le_less_linear by blast
 
 
 paragraph\<open>Well-Formed Steps\<close>

@@ -267,7 +267,7 @@ lemma computes_word_halts: "computes_word w w' \<Longrightarrow> halts w"
   unfolding computes_word_def by (rule hoare_run_halts)
 
 lemma computes_halts[elim]: "computes f \<Longrightarrow> halts w"
-  unfolding halts_altdef2 by (auto simp add: TM.run_def computes_word_def)
+  unfolding halts_altdef2 by (auto 0 3 simp add: TM.run_def computes_word_def) (* TODO TUNE *)
 
 
 definition "config_time c \<equiv> LEAST n. is_final (steps n c)"
@@ -275,9 +275,8 @@ definition "config_time c \<equiv> LEAST n. is_final (steps n c)"
 lemma steps_conf_time[intro, simp]:
   assumes "is_final (steps n c)"
   shows "steps (config_time c) c = steps n c"
-    (is "steps ?n' c = steps n c")
 proof -
-  from assms have "is_final (steps ?n' c)" unfolding config_time_def by (rule LeastI)
+  from assms have "is_final (steps (config_time c) c)" unfolding config_time_def by (rule LeastI)
   then show ?thesis using assms by (rule final_steps_rev)
 qed
 
@@ -297,13 +296,16 @@ qed
 lemma conf_time_geI[intro]: "is_final (steps n c) \<Longrightarrow> config_time c \<le> n"
   unfolding config_time_def run_def by (fact Least_le)
 
-lemma conf_time_ge_iff: "halts_config c \<Longrightarrow> is_final (steps n c) \<longleftrightarrow> n \<ge> config_time c" by blast
+lemma conf_time_ge_iff[intro]: "halts_config c \<Longrightarrow> is_final (steps n c) \<longleftrightarrow> n \<ge> config_time c"
+  by blast
 
 lemma conf_time_less_rev[intro]: "halts_config c \<Longrightarrow> \<not> is_final (steps n c) \<Longrightarrow> n < config_time c"
   by (subst (asm) conf_time_ge_iff) auto
 
 lemma conf_time_finalI[intro]: "halts_config c \<Longrightarrow> is_final (steps (config_time c) c)"
   using conf_time_ge_iff by blast
+
+lemma conf_time0[simp, intro]: "is_final c \<Longrightarrow> config_time c = 0" unfolding config_time_def by simp
 
 
 definition "time w \<equiv> config_time (initial_config w)"
@@ -332,7 +334,66 @@ qed
 lemma computes_output: "computes f \<Longrightarrow> last (tapes (compute w)) = <f w>\<^sub>t\<^sub>p"
   by (intro computes_word_output) simp
 
+
+lemma config_time_offset:
+  fixes c0
+  defines "n \<equiv> config_time c0"
+  assumes "halts_config c0"
+  shows "config_time (steps n1 c0) = n - n1"
+proof (cases "is_final (steps n1 c0)")
+  assume "is_final (steps n1 c0)"
+  moreover then have "n1 \<ge> n" unfolding n_def by blast
+  ultimately show ?thesis unfolding n_def by simp
+next
+  assume nf: "\<not> is_final (steps n1 c0)"
+
+  let ?N = "{n2. is_final (steps n2 (steps n1 c0))}"
+
+  have "{n. is_final (steps n c0)} = {n. \<exists>n2. n = n1 + n2 \<and> is_final (steps n2 (steps n1 c0))}"
+    (is "{n. ?lhs n} = {n. ?rhs n}")
+  proof (rule sym, intro Collect_eqI iffI)
+    fix n assume "?lhs n"
+    with nf have "n > n1" by blast
+    then have "\<exists>n2. n = n1 + n2" by (intro le_Suc_ex less_imp_le_nat)
+    then obtain n2 where "n = n1 + n2" ..
+    from \<open>?lhs n\<close> have "is_final (steps n2 (steps n1 c0))" unfolding \<open>n = n1 + n2\<close> by simp
+    with \<open>n = n1 + n2\<close> show "?rhs n" by blast
+  next
+    fix n assume "?rhs n"
+    then obtain n2 where "n = n1 + n2" and "is_final (steps n2 (steps n1 c0))" by blast
+    then show "?lhs n" by simp
+  qed
+  then have *: "{n. is_final (steps n c0)} = (\<lambda>n2. n1 + n2) ` ?N" unfolding image_Collect .
+
+  have "n = (LEAST n. is_final (steps n c0))" unfolding n_def config_time_def ..
+  also have "... = (LEAST n. n \<in> {n. is_final (steps n c0)})" by simp
+  also have "... = n1 + (LEAST n. is_final (steps n (steps n1 c0)))" unfolding *
+  proof (subst Least_mono, unfold mem_Collect_eq)
+    show "mono (\<lambda>n2. n1 + n2)" by (intro monoI add_left_mono)
+
+    let ?n = "config_time c0" let ?n2 = "?n - n1"
+    have *: "x \<in> ?N \<longleftrightarrow> x \<ge> ?n2" for x
+      unfolding mem_Collect_eq steps_plus le_diff_conv add.commute[of x n1]
+      using \<open>halts_config c0\<close> by (fact conf_time_ge_iff)
+    then show "\<exists>n\<in>?N. \<forall>n'\<in>?N. n \<le> n'" by blast
+  qed blast
+  also have "... = n1 + config_time (steps n1 c0)" unfolding config_time_def ..
+  finally show ?thesis by presburger
+qed
+
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
+
+
+lemma config_time_eqI[intro]:
+  assumes "TM.halts_config M1 c1"
+    and "\<And>n. TM.is_final M1 (TM.steps M1 (n1 + n) c1) \<longleftrightarrow> TM.is_final M2 (TM.steps M2 n c2)"
+  shows "TM.config_time M1 c1 - n1 = TM.config_time M2 c2"
+proof -
+  from \<open>TM.halts_config M1 c1\<close> have "TM.config_time M1 c1 - n1 = TM.config_time M1 (TM.steps M1 n1 c1)"
+    by (subst TM.config_time_offset) auto
+  also have "... = TM.config_time M2 c2" unfolding TM.config_time_def TM.steps_plus unfolding assms ..
+  finally show ?thesis .
+qed
 
 
 (* Note: having this much code commented out leads to errors when importing this theory sometimes.
