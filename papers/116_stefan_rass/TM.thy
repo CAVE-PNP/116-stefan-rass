@@ -261,8 +261,8 @@ text\<open>For both \<^const>\<open>left\<close> and \<^const>\<open>right\<clos
 
   We chose this approach as compared to letting the symbol under the head
   be the first element of \<open>right\<close>@{cite xuIsabelleTM2013}, as it allows symmetry for move-actions.
-  Our definition of tapes allows no completely empty tape (containing zero symbols),
-  as the \<^const>\<open>head\<close> symbol is always set.
+  Our definition of tapes allows no completely empty tape (with size zero; containing zero symbols),
+  as the \<^const>\<open>head\<close> symbol is always set, such that even the empty tape has size \<open>1\<close>.
   However, this makes sense concerning space-complexity,
   as a TM (depending on the exact definition) always reads at least one cell
   (and thus matches the requirement for space-complexity-functions to be at least \<open>1\<close> from @{cite hopcroftAutomata1979}).
@@ -270,9 +270,10 @@ text\<open>For both \<^const>\<open>left\<close> and \<^const>\<open>right\<clos
   The use of datatype (as compared to record, for instance) grants the predefined
   \<^const>\<open>map_tape\<close> and \<^const>\<open>set_tape\<close>, including useful lemmas.\<close>
 
+abbreviation empty_tape where "empty_tape \<equiv> Tape [] blank_symbol []"
+
 lemma tape_map_ident0[simp]: "map_tape (\<lambda>x. x) = (\<lambda>x. x)" by (rule ext) (rule tape.map_ident)
 
-abbreviation empty_tape where "empty_tape \<equiv> Tape [] blank_symbol []"
 
 context TM_abbrevs
 begin
