@@ -475,10 +475,6 @@ subsubsection\<open>Steps\<close>
 context TM
 begin
 
-text\<open>If the current state is not final,
-  apply the action determined by \<^const>\<open>\<delta>\<close> for the current configuration.
-  Otherwise, do not execute any action.\<close>
-
 definition step_not_final :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
   where "step_not_final c = (let q=state c; hds=heads c in conf
       (next_state q hds)
@@ -506,7 +502,9 @@ proof (rule nth_equalityI, unfold length_map length_zip next_actions_length l l'
   finally show "map2 tape_action (\<delta>\<^sub>a q hds) tps ! i = tps' ! i" .
 qed (rule refl)
 
-
+text\<open>If the current state is not final,
+  apply the action determined by \<^const>\<open>\<delta>\<close> for the current configuration.
+  Otherwise, do not execute any action.\<close>
 definition step :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
   where "step c = (if state c \<in> F then c else step_not_final c)"
 
@@ -547,14 +545,13 @@ corollary final_mono': "mono (\<lambda>n. is_final (steps n c))"
   using final_mono by (intro monoI le_boolI)
 
 lemma final_steps_rev:
-  assumes "is_final (steps a c)"
-    and "is_final (steps b c)"
-  shows "steps a c = steps b c"
-proof (cases a b rule: le_cases)
+  assumes "is_final (steps n c)"
+    and "is_final (steps m c)"
+  shows "steps n c = steps m c"
+proof (cases n m rule: le_cases)
   case le with assms show ?thesis by (intro final_le_steps[symmetric]) next
   case ge with assms show ?thesis by (intro final_le_steps)
 qed
-
 
 paragraph\<open>Well-Formed Steps\<close>
 
@@ -573,7 +570,5 @@ lemma steps_valid_state: "state c \<in> Q \<Longrightarrow> state (steps n c) \<
 lemma wf_steps[intro]: "wf_config c \<Longrightarrow> wf_config (steps n c)" using wf_step by (elim funpow_induct)
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
-
-
 
 end
