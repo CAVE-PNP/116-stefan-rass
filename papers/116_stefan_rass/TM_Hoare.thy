@@ -395,6 +395,12 @@ proof -
   finally show ?thesis .
 qed
 
+lemma time_eqI[intro]:
+  assumes "TM.halts M1 w1"
+    and "\<And>n. TM.is_final M1 (TM.run M1 (n1 + n) w1) \<longleftrightarrow> TM.is_final M2 (TM.run M2 n w2)"
+  shows "TM.time M1 w1 - n1 = TM.time M2 w2"
+  using assms unfolding TM.time_def TM.run_def TM.halts_def by (fact config_time_eqI)
+
 
 (* Note: having this much code commented out leads to errors when importing this theory sometimes.
          (Isabelle reports this theory as broken)

@@ -99,7 +99,7 @@ qed
 definition reorder_config :: "(nat option list) \<Rightarrow> 's tape list \<Rightarrow> ('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
   where "reorder_config is tps c = TM_config (state c) (reorder is tps (tapes c))"
 
-lemma reorder_config_length[simp]: "length (tapes (reorder_config p tps c)) = length tps"
+lemma reorder_config_length[simp]: "length (tapes (reorder_config is tps c)) = length tps"
   unfolding reorder_config_def by simp
 
 lemma reorder_config_simps[simp]:
@@ -1142,10 +1142,11 @@ qed
 lemma comp_steps2:
   assumes "M2.halts w"
     and "length tps = k"
-  shows "steps (M2.time w) (cr (M2.rc tps (M2.c\<^sub>0 w))) = cr (M2.rc tps (M2.compute w))"
-  (is "steps ?t2 (cr ?c\<^sub>0') = cr (M2.rc tps ?c)")
+  shows "steps t2 (cr (M2.rc tps (M2.c\<^sub>0 w))) = cr (M2.rc tps (M2.run t2 w))" 
+  (is "steps t2 (cr ?c\<^sub>0') = cr (M2.rc tps ?c)")
 proof -
-  have "steps ?t2 (cr ?c\<^sub>0') = cr (M2.M'.steps ?t2 ?c\<^sub>0')" unfolding comp_steps2 ..
+  have "steps t2 (cr ?c\<^sub>0') = cr (M2.M'.steps t2 ?c\<^sub>0')" unfolding comp_steps2 ..
+  have "steps t2 (cr ?c\<^sub>0') = cr (M2.M'.steps t2 ?c\<^sub>0')" unfolding comp_steps2 ..
   also have "... = cr (M2.rc tps ?c)" unfolding M2.run_def using \<open>length tps = k\<close>
     by (subst M2.reorder_steps, unfold M2_is_len) blast+
   finally show ?thesis .
@@ -1154,26 +1155,27 @@ qed
 theorem comp_run:
   assumes "M1.computes_word w w'"
     and "M2.halts w'"
-  shows "run (M1.time w + M2.time w') w =
-    cr (M2.rc (tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.compute w))) (M2.compute w'))"
-    (is "run (?t1 + ?t2) w = cr (M2.rc ?tps ?c2)")
+  shows "run (M1.time w + t2) w =
+    cr (M2.rc (tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.compute w))) (M2.run t2 w'))"
+    (is "run (?t1 + t2) w = cr (M2.rc ?tps ?c2)")
 proof -
-  have "run (?t1 + ?t2) w = steps ?t2 (run ?t1 w)" using steps_run ..
-  also from assms(1) have "... = steps ?t2 (cr (M2.rc ?tps (M2.c\<^sub>0 w')))" by (subst comp_run1) blast+
+  have "run (?t1 + t2) w = steps t2 (run ?t1 w)" using steps_run ..
+  also from assms(1) have "... = steps t2 (cr (M2.rc ?tps (M2.c\<^sub>0 w')))" by (subst comp_run1) blast+
   also from assms(2) have "... = cr (M2.rc ?tps ?c2)" by (subst comp_steps2) auto
   finally show ?thesis .
 qed
 
-corollary comp_run2:
+corollary comp_run':
+  fixes t2 :: nat
   assumes "M1.computes_word w w'"
     and "M2.halts w'"
   defines "c1 \<equiv> M1.compute w"
-  defines "c2 \<equiv> M2.compute w'"
-  shows "run (M1.time w + M2.time w') w = conf (Inr (state c2)) (butlast (tapes c1) @ (tapes c2))"
-    (is "run (?t1 + ?t2) w = conf ?q2 (butlast ?tps1 @ ?tps2)")
+  defines "c2 \<equiv> M2.run t2 w'"
+  shows "run (M1.time w + t2) w = conf (Inr (state c2)) (butlast (tapes c1) @ (tapes c2))"
+    (is "run (?t1 + t2) w = conf ?q2 (butlast ?tps1 @ ?tps2)")
 proof -
   let ?tps = "tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.compute w))"
-  have "run (?t1 + ?t2) w = cr (M2.rc ?tps (M2.compute w'))" unfolding comp_run[OF assms(1-2)] ..
+  have "run (?t1 + t2) w = cr (M2.rc ?tps (M2.run t2 w'))" unfolding comp_run[OF assms(1-2)] ..
   also have "... = conf ?q2 ((take (M1.k - 1) ?tps) @ ?tps2)"
     unfolding reorder_config_def cr_simps TM_config.sel c2_def
     by (subst M2.tape_offset_simps2) (simp, blast+)
