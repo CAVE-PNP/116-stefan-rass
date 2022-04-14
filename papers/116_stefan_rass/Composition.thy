@@ -227,10 +227,10 @@ next
         then have "i' \<in> {0..<k}" unfolding items_match[symmetric] in_these_eq .
         then have [simp]: "i' < k" by simp
 
-        then have nth_i': "nth_or i' x xs = xs ! i'" if "length xs = k" for x :: 'x and xs
+        then have nth_i': "nth_or x i' xs = xs ! i'" if "length xs = k" for x :: 'x and xs
           unfolding nth_or_def \<open>length xs = k\<close> by (rule if_P)
         from \<open>i < k'\<close> have "i < length tps'" unfolding l_tps' .
-        then have r_nth_or: "?rt tps ! i = nth_or i' (tps' ! i) tps" for tps
+        then have r_nth_or: "?rt tps ! i = nth_or (tps' ! i) i' tps" for tps
           by simp
 
         have \<delta>\<^sub>w': "M'.\<delta>\<^sub>w ?q ?hds' i = \<delta>\<^sub>w (state c) (heads c) i'"
@@ -433,7 +433,7 @@ proof (rule nth_equalityI, unfold reorder_length tape_offset_length)
     from \<open>a \<le> i\<close> have "\<not> i < a" by simp
 
     from \<open>a \<le> i\<close> and \<open>i < a + k\<close> have "a \<le> i \<and> i < a + k" by blast
-    then have "?lhs ! i = nth_or (i - a) (xs ! i) ys" unfolding * by simp
+    then have "?lhs ! i = nth_or (xs ! i) (i - a) ys" unfolding * by simp
     also from \<open>i - a < k\<close> have "... = ys ! (i - a)" unfolding nth_or_def \<open>length ys = k\<close> by simp
     also from \<open>i - a < k\<close> have "... = (ys @ take b (drop (a + k) xs)) ! (i - a)" by (subst nth_append) simp
     also from \<open>\<not> i < a\<close> have "... = ?rhs ! i" by (subst (2) nth_append) simp
