@@ -6,11 +6,11 @@ session "116_stefan_rass" = "HOL-Library" +
     Supplementary
   theories [quick_and_dirty] (* allow `sorry` *)
     (* Supplementary theories *)
-    Misc
-    Lists
-    Sublists
-    Discrete_Log
-    Discrete_Sqrt
+    "Supplementary/Misc"
+    "Supplementary/Lists"
+    "Supplementary/Sublists"
+    "Supplementary/Discrete_Log"
+    "Supplementary/Discrete_Sqrt"
     (* Definitions and Preliminaries *)
     Binary
     Goedel_Numbering

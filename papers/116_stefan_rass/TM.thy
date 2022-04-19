@@ -358,10 +358,9 @@ datatype ('q, 's) TM_config = TM_config
 text\<open>Combined with the \<^typ>\<open>('q, 's) TM\<close> definition, it completely describes a TM at any time during its execution.\<close>
 
 type_synonym (in TM_abbrevs) ('q, 's) conf = "('q, 's) TM_config"
-abbreviation (in TM_abbrevs) "conf \<equiv> TM_config"
-abbreviation (in TM_abbrevs) "map_conf \<equiv> map_TM_config"
-abbreviation (in TM_abbrevs) "map_conf_state \<equiv> \<lambda>fq. map_conf fq (\<lambda>s. s)"
-abbreviation (in TM_abbrevs) "map_conf_tapes \<equiv> map_conf (\<lambda>q. q)"
+(* abbreviation (in TM_abbrevs) "config \<equiv> TM_config" *)
+abbreviation (in TM_abbrevs) "map_conf_state \<equiv> \<lambda>fq. map_TM_config fq (\<lambda>s. s)"
+abbreviation (in TM_abbrevs) "map_conf_tapes \<equiv> map_TM_config (\<lambda>q. q)"
 
 declare TM_config.map_sel[simp]
 
@@ -477,7 +476,7 @@ context TM
 begin
 
 definition step_not_final :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
-  where "step_not_final c = (let q=state c; hds=heads c in conf
+  where "step_not_final c = (let q=state c; hds=heads c in TM_config
       (next_state q hds)
       (map2 tape_action (next_actions q hds) (tapes c)))"
 

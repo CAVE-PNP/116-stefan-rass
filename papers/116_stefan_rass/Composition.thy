@@ -347,7 +347,7 @@ corollary reorder_run:
   assumes "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
   shows "M'.run n w = rc (\<langle>\<rangle> \<up> k') (run n w)"
 proof -
-  let ?rc = "rc (tapes (conf q\<^sub>0 (\<langle>\<rangle> \<up> k')))"
+  let ?rc = "rc (tapes (TM_config q\<^sub>0 (\<langle>\<rangle> \<up> k')))"
   have "M'.run n w = M'.steps n (?rc (initial_config w))"
     unfolding M'.run_def init_conf_eq[OF assms] by simp
   also have "... = ?rc (run n w)" by (subst reorder_run') auto
@@ -751,8 +751,8 @@ lemma next_state_simps[simp]:
 
 definition "cl \<equiv> map_conf_state Inl"
 definition "cr \<equiv> map_conf_state Inr"
-lemma cl_simps[simp]: "state (cl c) = Inl (state c)" "tapes (cl c) = tapes c" "cl (conf q tps) = conf (Inl q) tps" unfolding cl_def by auto
-lemma cr_simps[simp]: "state (cr c) = Inr (state c)" "tapes (cr c) = tapes c" "cr (conf q tps) = conf (Inr q) tps" unfolding cr_def by auto
+lemma cl_simps[simp]: "state (cl c) = Inl (state c)" "tapes (cl c) = tapes c" "cl (TM_config q tps) = TM_config (Inl q) tps" unfolding cl_def by auto
+lemma cr_simps[simp]: "state (cr c) = Inr (state c)" "tapes (cr c) = tapes c" "cr (TM_config q tps) = TM_config (Inr q) tps" unfolding cr_def by auto
 
 lemma comp_step1_not_final:
   assumes step_nf: "\<not> M1.is_final (M1.step c)"
@@ -799,7 +799,7 @@ corollary comp_steps1_non_final': "n < M1.config_time c \<Longrightarrow> steps 
 lemma comp_step1_next_final:
   assumes nf': "\<not> M1.is_final c"
     and step_final: "M1.is_final (M1.step c)"
-  shows "step (cl c) = conf (Inr M2.q\<^sub>0) (tapes (M1.step c))"
+  shows "step (cl c) = TM_config (Inr M2.q\<^sub>0) (tapes (M1.step c))"
   (is "step ?c = ?c\<^sub>0 (M1.step c)")
 proof -
   from assms(1-2) have "\<not> is_final ?c" by auto
@@ -819,7 +819,7 @@ lemma comp_steps1_final:
   assumes "\<not> M1.is_final c"
     and "M1.halts_config c"
   defines "n \<equiv> M1.config_time c"
-  shows "steps n (cl c) = conf (Inr M2.q\<^sub>0) (tapes (M1.steps n c))"
+  shows "steps n (cl c) = TM_config (Inr M2.q\<^sub>0) (tapes (M1.steps n c))"
 proof -
   from \<open>\<not> M1.is_final c\<close> have "\<not> M1.is_final (M1.steps 0 c)" by simp
   with \<open>M1.halts_config c\<close> have "n > 0" unfolding n_def by blast
@@ -865,7 +865,7 @@ qed \<comment> \<open>case \<open>n2 = 0\<close> by\<close> simp
 lemma comp_steps_final:
   fixes c_init1 n1 n2
   defines "c_fin1 \<equiv> M1.steps n1 c_init1"
-  defines "c_init2 \<equiv> conf M2.q\<^sub>0 (tapes c_fin1)"
+  defines "c_init2 \<equiv> TM_config M2.q\<^sub>0 (tapes c_fin1)"
   defines "c_fin2 \<equiv> M2.steps n2 c_init2"
   assumes ci1_nf: "\<not> M1.is_final c_init1"
     and cf1: "M1.is_final c_fin1"
@@ -875,7 +875,7 @@ proof -
   let ?n1' = "M1.config_time c_init1"
   from cf1 have "?n1' \<le> n1" unfolding c_fin1_def by blast
 
-  from ci1_nf cf1 have "steps ?n1' ?c0 = conf (Inr M2.q\<^sub>0) (tapes (M1.steps ?n1' c_init1))"
+  from ci1_nf cf1 have "steps ?n1' ?c0 = TM_config (Inr M2.q\<^sub>0) (tapes (M1.steps ?n1' c_init1))"
     unfolding c_fin1_def by (intro comp_steps1_final) fast+
   also from cf1 have "... = cr c_init2" unfolding c_init2_def c_fin1_def cr_def by auto
   finally have steps_n1': "steps ?n1' ?c0 = cr c_init2" .
@@ -894,7 +894,7 @@ qed
 lemma comp_run:
   fixes w n1 n2
   defines "c_fin1 \<equiv> M1.run n1 w"
-  defines "c_init2 \<equiv> conf M2.q\<^sub>0 (tapes c_fin1)"
+  defines "c_init2 \<equiv> TM_config M2.q\<^sub>0 (tapes c_fin1)"
   defines "c_fin2 \<equiv> M2.steps n2 c_init2"
   assumes cf1: "M1.is_final c_fin1"
     and cf2: "M2.is_final c_fin2"
@@ -992,8 +992,8 @@ lemma init_conf1:
 proof -
   from \<open>M1.q\<^sub>0 \<notin> M1.F\<close> have q0: "q\<^sub>0 = Inl M1.q\<^sub>0" unfolding M_fields M1.M'_fields by (rule if_not_P)
 
-  have "c\<^sub>0 w = conf (Inl M1.q\<^sub>0) (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1))" unfolding initial_config_def q0 ..
-  also have "... = cl (conf M1.q\<^sub>0 (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1)))" unfolding cl_simps ..
+  have "c\<^sub>0 w = TM_config (Inl M1.q\<^sub>0) (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1))" unfolding initial_config_def q0 ..
+  also have "... = cl (TM_config M1.q\<^sub>0 (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1)))" unfolding cl_simps ..
   also have "... = cl (M1.M'.c\<^sub>0 w)" unfolding reorder_config_def
   proof (rule TM_config_eq, unfold cl_simps TM_config.sel)
     show "Inl M1.q\<^sub>0 = Inl (state (M1.M'.c\<^sub>0 w))" unfolding M1.M'.init_conf_state M1.M'_fields(3) ..
@@ -1046,9 +1046,9 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
     finally have "w' = w" by simp
 
     have "cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w')) = 
-            conf (Inr M2.q\<^sub>0) (M2.r (tapes (M1.M'.c\<^sub>0 w)) (tapes (M2.c\<^sub>0 w')))"
+            TM_config (Inr M2.q\<^sub>0) (M2.r (tapes (M1.M'.c\<^sub>0 w)) (tapes (M2.c\<^sub>0 w')))"
       unfolding reorder_config_def by simp
-    also have "... = conf (Inr M2.q\<^sub>0) (tapes (M2.c\<^sub>0 w'))"
+    also have "... = TM_config (Inr M2.q\<^sub>0) (tapes (M2.c\<^sub>0 w'))"
       by (subst M2.tape_offset_simps2) (unfold TM.init_conf_len M1'_k k_def, unfold \<open>k1 = 1\<close>, auto)
     also have "... = c\<^sub>0 w" unfolding \<open>w' = w\<close> TM.initial_config_def TM_config.sel TM_config.inject
     proof (intro conjI)
@@ -1079,11 +1079,11 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
     have ***: "k1 - 1 - 1 + k2 = k - 1" unfolding k_def using \<open>1 < M1.k\<close> by simp
 
     have "cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w')) = 
-            conf (Inr M2.q\<^sub>0) (M2.r (tapes (M1.M'.c\<^sub>0 w)) (tapes (M2.c\<^sub>0 w')))"
+            TM_config (Inr M2.q\<^sub>0) (M2.r (tapes (M1.M'.c\<^sub>0 w)) (tapes (M2.c\<^sub>0 w')))"
       unfolding reorder_config_def by simp
-    also have "... = conf (Inr M2.q\<^sub>0) (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k1 - 1 - 1) @ \<langle>\<rangle> \<up> k2)"
+    also have "... = TM_config (Inr M2.q\<^sub>0) (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k1 - 1 - 1) @ \<langle>\<rangle> \<up> k2)"
       by (subst M2.tape_offset_simps2, unfold TM.init_conf_len M1'_k * **) auto
-    also have "... = conf (Inr M2.q\<^sub>0) (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1))" unfolding replicate_add[symmetric] *** ..
+    also have "... = TM_config (Inr M2.q\<^sub>0) (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1))" unfolding replicate_add[symmetric] *** ..
     also have "... = c\<^sub>0 w" unfolding initial_config_def q0 ..
     finally show "c\<^sub>0 w = cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w'))" ..
   qed
@@ -1096,7 +1096,7 @@ next
 
   have "run (M1.time w) w = run (M1.M'.time w) w" unfolding time1 ..
   also have "... = steps (M1.M'.config_time (M1.M'.c\<^sub>0 w)) (c\<^sub>0 w)" unfolding run_def by simp
-  also have "... = conf (Inr M2.M'.q\<^sub>0) (tapes (M1.M'.run (M1.time w) w))"
+  also have "... = TM_config (Inr M2.M'.q\<^sub>0) (tapes (M1.M'.run (M1.time w) w))"
     unfolding init_conf1[OF q0_nf]
   proof (subst comp_steps1_final, fold M1.M'.time_def time1 TM.run_def)
     from q0_nf show "\<not> M1.M'.is_final (M1.M'.c\<^sub>0 w)"
@@ -1109,7 +1109,7 @@ next
     then show "M1.M'.halts_config (M1.M'.c\<^sub>0 w)" 
       by (subst M1.init_conf_offset_eq, unfold M1_is_len) blast+
   qed blast
-  also have "... = conf (Inr M2.M'.q\<^sub>0) (tapes (M1.rc (\<langle>\<rangle> \<up> k) ?c1))"
+  also have "... = TM_config (Inr M2.M'.q\<^sub>0) (tapes (M1.rc (\<langle>\<rangle> \<up> k) ?c1))"
     unfolding init_conf1' TM.run_def unfolding M2.M'_fields(3)
   proof (subst M1.reorder_steps)
     show "M1.wf_config (M1.c\<^sub>0 w)" by (fact TM.wf_initial_config)
@@ -1171,15 +1171,15 @@ corollary comp_run':
     and "M2.halts w'"
   defines "c1 \<equiv> M1.compute w"
   defines "c2 \<equiv> M2.run t2 w'"
-  shows "run (M1.time w + t2) w = conf (Inr (state c2)) (butlast (tapes c1) @ (tapes c2))"
-    (is "run (?t1 + t2) w = conf ?q2 (butlast ?tps1 @ ?tps2)")
+  shows "run (M1.time w + t2) w = TM_config (Inr (state c2)) (butlast (tapes c1) @ (tapes c2))"
+    (is "run (?t1 + t2) w = TM_config ?q2 (butlast ?tps1 @ ?tps2)")
 proof -
   let ?tps = "tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.compute w))"
   have "run (?t1 + t2) w = cr (M2.rc ?tps (M2.run t2 w'))" unfolding comp_run[OF assms(1-2)] ..
-  also have "... = conf ?q2 ((take (M1.k - 1) ?tps) @ ?tps2)"
+  also have "... = TM_config ?q2 ((take (M1.k - 1) ?tps) @ ?tps2)"
     unfolding reorder_config_def cr_simps TM_config.sel c2_def
     by (subst M2.tape_offset_simps2) (simp, blast+)
-  also have "... = conf ?q2 (butlast ?tps1 @ ?tps2)" 
+  also have "... = TM_config ?q2 (butlast ?tps1 @ ?tps2)" 
     unfolding reorder_config_tapes take_reorder_le_helper c1_def ..
   finally show ?thesis .
 qed

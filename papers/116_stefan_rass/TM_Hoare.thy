@@ -68,7 +68,7 @@ text\<open>By convention, the initial configuration has the input word on the fi
   with all other tapes being empty.\<close>
 
 definition initial_config :: "'s list \<Rightarrow> ('q, 's) TM_config"
-  where "initial_config w = conf q\<^sub>0 (<w>\<^sub>t\<^sub>p # empty_tape \<up> (k - 1))"
+  where "initial_config w = TM_config q\<^sub>0 (<w>\<^sub>t\<^sub>p # empty_tape \<up> (k - 1))"
 
 abbreviation "c\<^sub>0 \<equiv> initial_config"
 
