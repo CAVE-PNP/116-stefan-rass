@@ -85,12 +85,21 @@ subsubsection\<open>Running a TM Program\<close>
 definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
   where "run n w \<equiv> steps n (initial_config w)"
 
+lemma run_initial_config[simp]: "run 0 w = c\<^sub>0 w"
+  unfolding run_def by simp
+
 corollary wf_config_run[intro!, simp]: "wf_config (run n w)" unfolding run_def by auto
 
 corollary run_tapes_len[simp]: "length (tapes (run n w)) = k" by blast
 
 corollary steps_run[simp]: "steps n (run m w) = run (m + n) w" 
   unfolding run_def add_ac[of m n] funpow_add comp_def ..
+
+corollary run_final_mono[dest]:
+  assumes "is_final (run n w)"
+    and "n \<le> m"
+  shows "is_final (run m w)"
+using assms unfolding run_def by (fact final_mono)
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
@@ -290,7 +299,7 @@ lemma conf_time_geD[dest, elim]:
 proof -
   from assms(2) have "is_final (steps (LEAST n. is_final (steps n c)) c)"
     unfolding halts_config_altdef by (rule LeastI_ex)
-  with assms(1) show ?thesis unfolding config_time_def by fast
+  with assms(1) show ?thesis unfolding config_time_def by blast
 qed
 
 lemma conf_time_geI[intro]: "is_final (steps n c) \<Longrightarrow> config_time c \<le> n"
@@ -312,7 +321,6 @@ definition "time w \<equiv> config_time (initial_config w)"
 declare (in -) TM.time_def[simp]
 
 abbreviation "compute w \<equiv> run (time w) w"
-
 
 lemma time_altdef: "time w = (LEAST n. is_final (run n w))"
   unfolding TM.run_def using config_time_def by simp
@@ -383,7 +391,6 @@ qed
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
-
 lemma config_time_eqI[intro]:
   assumes "TM.halts_config M1 c1"
     and "\<And>n. TM.is_final M1 (TM.steps M1 (n1 + n) c1) \<longleftrightarrow> TM.is_final M2 (TM.steps M2 n c2)"
@@ -400,6 +407,21 @@ lemma time_eqI[intro]:
     and "\<And>n. TM.is_final M1 (TM.run M1 (n1 + n) w1) \<longleftrightarrow> TM.is_final M2 (TM.run M2 n w2)"
   shows "TM.time M1 w1 - n1 = TM.time M2 w2"
   using assms unfolding TM.time_def TM.run_def TM.halts_def by (fact config_time_eqI)
+
+
+locale Rej_TM =
+  fixes q0 :: 'q
+begin
+sublocale TM "rejecting_TM q0" .
+
+lemma rej_tm_time: "time w = 0"
+proof -
+  have 1: "final_states TYPE('s::finite) = {q0}" sorry
+  have 2: "initial_state TYPE('s::finite) = q0" sorry
+  from 1 2 have "is_final (run 0 w)" by auto
+  thus ?thesis by simp
+qed
+end
 
 
 (* Note: having this much code commented out leads to errors when importing this theory sometimes.

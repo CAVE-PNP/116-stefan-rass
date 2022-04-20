@@ -3,7 +3,7 @@ section\<open>Complexity\<close>
 text\<open>Definitions and lemmas from computational complexity theory.\<close>
 
 theory Complexity
-  imports TM Goedel_Numbering
+  imports TM_Hoare Goedel_Numbering
 begin
 
 subsubsection\<open>Time\<close>
@@ -92,17 +92,14 @@ abbreviation time_bounded :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \
 lemma time_boundedI: "is_final (run (tcomp\<^sub>w T w) w) \<Longrightarrow> time_bounded_word T w"
   unfolding time_bounded_def by blast
 
-lemma time_bounded_altdef:
-  assumes "wf_word w"
-  shows "time_bounded_word T w \<longleftrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
+lemma time_bounded_altdef: "time_bounded_word T w \<longleftrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
 proof
-  from \<open>wf_word w\<close> have wfc: "wf_config (start_config w)" ..
   assume "time_bounded_word T w"
-  then obtain n where "n \<le> tcomp\<^sub>w T w" "is_final (run n w)" unfolding time_bounded_def by blast
-  with wfc show "is_final (run (tcomp\<^sub>w T w) w)" by (fact final_mono)
+  then obtain n where "n \<le> tcomp\<^sub>w T w" and "is_final (run n w)" unfolding time_bounded_def by blast
+  then show "is_final (run (tcomp\<^sub>w T w) w)" by blast
 qed (* direction "\<Longleftarrow>" by *) (fact time_boundedI)
 
-lemma time_boundedE: "wf_word w \<Longrightarrow> time_bounded_word T w \<Longrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
+lemma time_boundedE: "time_bounded_word T w \<Longrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
   using time_bounded_altdef by blast
 
 lemma time_bounded_word_mono':
@@ -139,40 +136,7 @@ lemma time_bounded_mono:
   shows "time_bounded T"
   by (rule time_bounded_mono', rule tcomp_mono) fact+
 
-
-text\<open>\<open>time\<^sub>M(w)\<close> is the number of steps until the computation of \<open>M\<close> halts on input \<open>w\<close>,
-  or \<open>None\<close> if \<open>M\<close> does not halt on input \<open>w\<close>.\<close>
-
-definition time :: "'s list \<Rightarrow> nat option"
-  where "time w \<equiv> (
-    if \<exists>n. is_final (run n w)
-      then Some (LEAST n. is_final (run n w))
-      else None
-    )"
-
-lemma time_Some_D: "time w = Some n \<Longrightarrow> \<exists>n. is_final (run n w)"
-  by (metis option.discI time_def)
-
-lemma halts_time: "halts w \<Longrightarrow> \<exists>n. time w = Some n"
-  unfolding halts_def hoare_halt_def time_def start_config_def
-  using wf_config_run wf_start_config by fastforce
-
-lemma time_halts: "wf_word w \<Longrightarrow> time w = Some n \<Longrightarrow> halts w"
-  using TM_axioms by (intro halts_I TM.time_Some_D)
-
-lemma halts_altdef: "halts w \<longleftrightarrow> wf_word w \<and> (\<exists>n. time w = Some n)"
-  using halts_time time_halts TM.halts_def TM_axioms by blast
-
-lemma (in Rej_TM) rej_TM_time: "time w = Some 0"
-proof -
-  have "is_final (run 0 w)"
-    unfolding start_config_def unfolding Rejecting_TM_def by simp
-  thus ?thesis unfolding time_def
-    using Least_eq_0 by presburger
-qed
-
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
-
 
 text\<open>Notion of time-constructible from @{cite \<open>ch.~12.3\<close> hopcroftAutomata1979}:
   ``A function T(n) is said to be time constructible if there exists a T(n) time-

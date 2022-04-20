@@ -794,7 +794,7 @@ proof -
 qed
 
 corollary comp_steps1_non_final': "n < M1.config_time c \<Longrightarrow> steps n (cl c) = cl (M1.steps n c)"
-  using comp_steps1_non_final by fast
+  using comp_steps1_non_final by auto
 
 lemma comp_step1_next_final:
   assumes nf': "\<not> M1.is_final c"

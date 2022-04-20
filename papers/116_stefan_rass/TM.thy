@@ -125,13 +125,13 @@ locale is_valid_TM =
 text\<open>To define a type, we must prove that it is inhabited (there exist elements that have this type).
   For this we define the trivial ``rejecting TM'', and prove it to be valid.\<close>
 
-definition "rejecting_TM_rec a \<equiv> \<lparr>
+definition "rejecting_TM_rec q0 \<equiv> \<lparr>
   tape_count = 1,
-  states = {a}, initial_state = a, final_states = {a}, accepting_states = {},
-  next_state = (\<lambda>q hds. a), next_write = (\<lambda>q hds i. blank_symbol), next_move = (\<lambda>q hds i. No_Shift)
+  states = {q0}, initial_state = q0, final_states = {q0}, accepting_states = {},
+  next_state = (\<lambda>q hds. q0), next_write = (\<lambda>q hds i. blank_symbol), next_move = (\<lambda>q hds i. No_Shift)
 \<rparr>"
 
-lemma rejecting_TM_valid: "is_valid_TM (rejecting_TM_rec a)"
+lemma rejecting_TM_valid: "is_valid_TM (rejecting_TM_rec q0)"
   by (unfold_locales, unfold rejecting_TM_rec_def TM_record.simps) blast+
 
 text\<open>The type \<open>TM\<close> is then defined as the set of valid \<open>TM_record\<close>s.\<close>
@@ -139,6 +139,8 @@ text\<open>The type \<open>TM\<close> is then defined as the set of valid \<open
 
 typedef ('q, 's::finite) TM = "{M :: ('q, 's) TM_record. is_valid_TM M}"
   using rejecting_TM_valid by fast
+
+definition "rejecting_TM q0 \<equiv> Abs_TM (rejecting_TM_rec q0)"
 
 locale TM = TM_abbrevs +
   (* TODO find out what `(structure)` actually does. according to isar-ref.pdf,
@@ -392,7 +394,6 @@ definition wf_config :: "('q, 's) TM_config \<Rightarrow> bool"
 (* TODO consider marking the intro as [simp] as well *)
 mk_ide wf_config_def |intro wf_configI[intro]| |elim wf_configE[elim]| |dest wf_configD[dest, intro]|
 
-
 abbreviation is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
   "is_final c \<equiv> state c \<in> F"
 
@@ -526,18 +527,17 @@ lemma final_steps[simp, intro]: "is_final c \<Longrightarrow> steps n c = c"
 corollary final_step_final[intro]: "is_final c \<Longrightarrow> is_final (step c)" by simp
 corollary final_steps_final[intro]: "is_final c \<Longrightarrow> is_final (steps n c)" by simp
 
-lemma final_le_steps[elim]:
-  assumes "is_final (steps n c)"
-    and "n \<le> m"
+lemma final_le_steps[dest]:
+  assumes "is_final (steps n c)" and "n \<le> m"
   shows "steps m c = steps n c"
 proof -
-  from \<open>n\<le>m\<close> obtain x where "m = x + n" unfolding le_iff_add by force
+  from \<open>n \<le> m\<close> obtain x where "m = x + n" unfolding le_iff_add by force
   have "(step^^m) c = (step^^x) ((step^^n) c)" unfolding \<open>m = x + n\<close> funpow_add by simp
   also have "... = (step^^n) c" using \<open>is_final (steps n c)\<close> by blast
   finally show "steps m c = steps n c" .
 qed
 
-corollary final_mono[elim]:
+corollary final_mono[dest]:
   assumes "is_final (steps n c)"
     and "n \<le> m"
   shows "is_final (steps m c)"
