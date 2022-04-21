@@ -274,7 +274,7 @@ corollary reorder_halts:
   assumes wfc: "wf_config c"
     and wfc': "length tps' = k'"
   shows "M'.halts_config (rc tps' c) \<longleftrightarrow> halts_config c"
-  using reorder_final_iff[OF assms] by fast
+  unfolding halts_config_altdef reorder_final_iff[OF assms] ..
 
 corollary reorder_config_time:
   fixes c c' :: "('q, 's) TM_config"
@@ -653,6 +653,27 @@ qed
 
 corollary map_time[simp]: "M'.time (map f w) = time w" unfolding TM.time_altdef map_run by simp
 
+lemma map_init_conf[simp]: "M'.c\<^sub>0 (map f w) = fc (c\<^sub>0 w)"
+  unfolding TM.initial_config_def fc_def by simp
+
+corollary map_halts_conf:
+  assumes "length (tapes c) = k"
+  shows "M'.halts_config (fc c) = halts_config c"
+  unfolding halts_config_altdef map_steps[OF assms] by simp
+
+corollary map_halts[iff]: "M'.halts (map f w) \<longleftrightarrow> halts w" using map_halts_conf by simp
+
+lemma map_compute: "M'.computes_word (map f w) (map f w') \<longleftrightarrow> computes_word w w'"
+  unfolding TM.computes_word_altdef
+proof (intro conj_cong)
+  have "last (tapes (M'.compute (map f w))) = <map f w'>\<^sub>t\<^sub>p
+       \<longleftrightarrow> map_tape f (last (tapes (compute w))) = map_tape f <w'>\<^sub>t\<^sub>p"
+    unfolding map_run map_time fc_simps input_tape_map[symmetric] by (subst last_map) simp_all
+  also have "... \<longleftrightarrow> last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p"
+    using inj_f tape.inj_map by (intro inj_eq) blast
+  finally show "last (tapes (M'.compute (map f w))) = <map f w'>\<^sub>t\<^sub>p
+            \<longleftrightarrow> last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p" .
+qed (fact map_halts)
 
 end \<comment> \<open>\<^locale>\<open>TM_map_alphabet\<close>\<close>
 
@@ -876,7 +897,7 @@ proof -
   from cf1 have "?n1' \<le> n1" unfolding c_fin1_def by blast
 
   from ci1_nf cf1 have "steps ?n1' ?c0 = TM_config (Inr M2.q\<^sub>0) (tapes (M1.steps ?n1' c_init1))"
-    unfolding c_fin1_def by (intro comp_steps1_final) fast+
+    unfolding c_fin1_def by (intro comp_steps1_final) blast+
   also from cf1 have "... = cr c_init2" unfolding c_init2_def c_fin1_def cr_def by auto
   finally have steps_n1': "steps ?n1' ?c0 = cr c_init2" .
 
@@ -1027,7 +1048,7 @@ proof -
   finally show ?thesis .
 qed
 
-lemma comp_run1:
+lemma io_comp_run1:
   assumes "M1.computes_word w w'"
   shows "run (M1.time w) w = cr (M2.rc (tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.compute w))) (M2.c\<^sub>0 w'))"
 proof (cases "M1.q\<^sub>0 \<in> M1.F")
@@ -1139,7 +1160,7 @@ next
   finally show ?thesis .
 qed
 
-lemma comp_steps2:
+lemma io_comp_steps2:
   assumes "M2.halts w"
     and "length tps = k"
   shows "steps t2 (cr (M2.rc tps (M2.c\<^sub>0 w))) = cr (M2.rc tps (M2.run t2 w))" 
@@ -1152,7 +1173,7 @@ proof -
   finally show ?thesis .
 qed
 
-theorem comp_run:
+theorem io_comp_run:
   assumes "M1.computes_word w w'"
     and "M2.halts w'"
   shows "run (M1.time w + t2) w =
@@ -1160,12 +1181,12 @@ theorem comp_run:
     (is "run (?t1 + t2) w = cr (M2.rc ?tps ?c2)")
 proof -
   have "run (?t1 + t2) w = steps t2 (run ?t1 w)" using steps_run ..
-  also from assms(1) have "... = steps t2 (cr (M2.rc ?tps (M2.c\<^sub>0 w')))" by (subst comp_run1) blast+
-  also from assms(2) have "... = cr (M2.rc ?tps ?c2)" by (subst comp_steps2) auto
+  also from assms(1) have "... = steps t2 (cr (M2.rc ?tps (M2.c\<^sub>0 w')))" by (subst io_comp_run1) blast+
+  also from assms(2) have "... = cr (M2.rc ?tps ?c2)" by (subst io_comp_steps2) auto
   finally show ?thesis .
 qed
 
-corollary comp_run':
+corollary io_comp_run':
   fixes t2 :: nat
   assumes "M1.computes_word w w'"
     and "M2.halts w'"
@@ -1175,7 +1196,7 @@ corollary comp_run':
     (is "run (?t1 + t2) w = TM_config ?q2 (butlast ?tps1 @ ?tps2)")
 proof -
   let ?tps = "tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.compute w))"
-  have "run (?t1 + t2) w = cr (M2.rc ?tps (M2.run t2 w'))" unfolding comp_run[OF assms(1-2)] ..
+  have "run (?t1 + t2) w = cr (M2.rc ?tps (M2.run t2 w'))" unfolding io_comp_run[OF assms(1-2)] ..
   also have "... = TM_config ?q2 ((take (M1.k - 1) ?tps) @ ?tps2)"
     unfolding reorder_config_def cr_simps TM_config.sel c2_def
     by (subst M2.tape_offset_simps2) (simp, blast+)

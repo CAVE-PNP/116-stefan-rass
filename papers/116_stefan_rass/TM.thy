@@ -546,7 +546,7 @@ corollary final_mono[dest]:
 corollary final_mono': "mono (\<lambda>n. is_final (steps n c))"
   using final_mono by (intro monoI le_boolI)
 
-lemma final_steps_rev:
+lemma final_steps_rev[intro]:
   assumes "is_final (steps n c)"
     and "is_final (steps m c)"
   shows "steps n c = steps m c"

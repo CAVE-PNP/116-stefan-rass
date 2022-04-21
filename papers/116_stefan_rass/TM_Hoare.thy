@@ -91,6 +91,8 @@ lemma run_initial_config[simp]: "run 0 w = c\<^sub>0 w"
 corollary wf_config_run[intro!, simp]: "wf_config (run n w)" unfolding run_def by auto
 
 corollary run_tapes_len[simp]: "length (tapes (run n w)) = k" by blast
+corollary run_tapes_non_empty[simp, intro]: "tapes (run n w) \<noteq> []"
+  using at_least_one_tape by (fold length_0_conv) simp
 
 corollary steps_run[simp]: "steps n (run m w) = run (m + n) w" 
   unfolding run_def add_ac[of m n] funpow_add comp_def ..
@@ -186,7 +188,12 @@ definition (in TM) halts_config :: "('q, 's) TM_config \<Rightarrow> bool"
 lemma halts_config_altdef: "TM.halts_config M c \<longleftrightarrow> (\<exists>n. TM.is_final M (TM.steps M n c))"
   unfolding TM.halts_config_def by fast
 
-mk_ide halts_config_altdef |intro halts_confI[intro]| |dest halts_confD[dest]|
+mk_ide (in -) halts_config_altdef |intro halts_confI[intro]| |dest halts_confD[dest]|
+
+
+lemma (in TM) hoare_halt_init_conf:
+  "hoare_halt (TM.on_input M w) M P \<longleftrightarrow> (\<exists>n. let cn = run n w in is_final cn \<and> P cn)"
+  unfolding hoare_halt_def TM.on_input_def run_def by blast
 
 
 definition (in TM) halts :: "'s::finite list \<Rightarrow> bool"
@@ -223,7 +230,7 @@ proof (rule ccontr)
   assume "x \<noteq> y"
   then have *: "a = x \<and> a = y \<longleftrightarrow> False" for a by blast
 
-  from hoare_and assms have "hoare_halt (TM.on_input M w) M (\<lambda>c. f c = x \<and> f c = y)".
+  from assms have "hoare_halt (TM.on_input M w) M (\<lambda>c. f c = x \<and> f c = y)" by (rule hoare_and)
   then have "hoare_halt (TM.on_input M w) M (\<lambda>_. False)" unfolding * .
   then show False by blast
 qed
@@ -253,7 +260,7 @@ text\<open>The requirement that the output conforms to the input standard should
 
 definition "clean_output c \<equiv> \<exists>w. last (tapes c) = <w>\<^sub>t\<^sub>p"
 
-lemma "clean_output c \<Longrightarrow> output_config c = w \<Longrightarrow> last (tapes c) = <w>\<^sub>t\<^sub>p"
+lemma clean_outputD[dest]: "clean_output c \<Longrightarrow> output_config c = w \<Longrightarrow> last (tapes c) = <w>\<^sub>t\<^sub>p"
   unfolding clean_output_def by force
 
 lemma clean_output_alt: "clean_output c \<and> output_config c = w \<longleftrightarrow> last (tapes c) = <w>\<^sub>t\<^sub>p"
@@ -269,14 +276,14 @@ definition "computes_word w w' \<equiv> hoare_run w M (\<lambda>c. clean_output 
 definition "computes f \<equiv> \<forall>w. computes_word w (f w)"
 declare (in -) TM.computes_def[simp]
 
-lemma hoare_run_halts: "hoare_run w M P \<Longrightarrow> halts w"
+lemma hoare_run_halts[dest]: "hoare_run w M P \<Longrightarrow> halts w"
   unfolding halts_altdef hoare_run_def by (rule hoare_true)
 
-lemma computes_word_halts: "computes_word w w' \<Longrightarrow> halts w"
+lemma computes_word_halts[dest]: "computes_word w w' \<Longrightarrow> halts w"
   unfolding computes_word_def by (rule hoare_run_halts)
 
-lemma computes_halts[elim]: "computes f \<Longrightarrow> halts w"
-  unfolding halts_altdef2 by (auto 0 3 simp add: TM.run_def computes_word_def) (* TODO TUNE *)
+lemma computes_halts[dest]: "computes f \<Longrightarrow> halts w"
+  unfolding halts_altdef2 by auto
 
 
 definition "config_time c \<equiv> LEAST n. is_final (steps n c)"
@@ -325,7 +332,45 @@ abbreviation "compute w \<equiv> run (time w) w"
 lemma time_altdef: "time w = (LEAST n. is_final (run n w))"
   unfolding TM.run_def using config_time_def by simp
 
-lemma hoare_run_run[dest]: "hoare_run w M P \<Longrightarrow> P (compute w)" unfolding TM.run_def by fastforce
+lemma computeI:
+  assumes "\<exists>n. is_final (run n w) \<and> P (run n w)"
+  shows "P (compute w)"
+proof -
+  from assms have "halts w" by blast
+  then have "is_final (compute w)" unfolding run_def by auto
+  from assms obtain n where "is_final (run n w)" and "P (run n w)" by blast
+  with \<open>is_final (compute w)\<close> have "run n w = compute w" unfolding run_def by blast
+  with \<open>P (run n w)\<close> show ?thesis by argo
+qed
+
+
+lemma final_steps_config_time[dest]:
+  "is_final (steps n c) \<Longrightarrow> steps n c = steps (config_time c) c" by blast
+
+lemma final_run_time[intro]: "is_final (run n w) \<Longrightarrow> run n w = compute w"
+  unfolding time_def run_def by blast
+
+corollary halts_compute_final[intro]: "halts w \<Longrightarrow> is_final (compute w)"
+  unfolding run_def halts_def time_def by (fact conf_time_finalI)
+
+
+
+lemma hoare_run_altdef: "hoare_run w M P \<longleftrightarrow> halts w \<and> P (compute w)"
+proof (rule iffI)
+  assume "hoare_run w M P"
+  then have "\<exists>n. let cn = run n w in is_final cn \<and> P cn"
+    unfolding hoare_run_def hoare_halt_init_conf .
+  then obtain n where "is_final (run n w)" and "P (run n w)" unfolding Let_def by blast
+  then show "halts w \<and> P (compute w)" using computeI by blast
+next
+  assume "halts w \<and> P (compute w)"
+  then have "halts w" and "P (compute w)" by blast+
+  from \<open>halts w\<close> have "is_final (compute w)" by blast
+  with \<open>P (compute w)\<close> show "hoare_run w M P"
+    unfolding hoare_run_def hoare_halt_init_conf Let_def by blast
+qed
+
+lemma hoare_run_run[dest]: "hoare_run w M P \<Longrightarrow> P (compute w)" unfolding hoare_run_altdef by blast
 
 lemma computes_word_output[dest]: 
   assumes "computes_word w w'"
@@ -388,6 +433,10 @@ next
   also have "... = n1 + config_time (steps n1 c0)" unfolding config_time_def ..
   finally show ?thesis by presburger
 qed
+
+lemma computes_word_altdef: "computes_word w w' \<longleftrightarrow> halts w \<and> last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p"
+  unfolding computes_word_def
+  using TM.clean_output_alt TM.hoare_run_altdef  by blast
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
