@@ -143,34 +143,35 @@ text\<open>Notion of time-constructible from @{cite \<open>ch.~12.3\<close> hopc
   bounded multitape Turing machine M such that for each n there exists some input
   on which M actually makes T(n) moves.''\<close>
 
-definition tconstr :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "tconstr T \<equiv> \<exists>M::(nat, nat) TM. \<forall>n. \<exists>w. TM.time M w = Some (T n)"
+definition tconstr :: "('a::finite) itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "tconstr TYPE('a) T \<equiv> \<exists>M::(nat, 'a) TM. \<forall>n. \<exists>w. TM.time M w = T n"
 
 text\<open>Fully time-constructible, (@{cite \<open>ch.~12.3\<close> hopcroftAutomata1979}):
   ``We say that T(n) is fully time-constructible if there is a TM
   that uses T(n) time on all inputs of length n.''\<close>
 
-definition fully_tconstr :: "'q itself \<Rightarrow> 's itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
+definition fully_tconstr :: "'q itself \<Rightarrow> ('s::finite) itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
   where "fully_tconstr TYPE('q) TYPE('s) T \<equiv>
-    \<exists>M::('q, 's) TM. \<forall>n w. length w = n \<longrightarrow> TM.time M w = Some (T n)"
+    \<exists>M::('q, 's) TM. \<forall>n w. length w = n \<longrightarrow> TM.time M w = T n"
 
-lemma ftc_altdef: "fully_tconstr TYPE('q) TYPE('s) T \<longleftrightarrow>
-                   (\<exists>M::('q, 's) TM. \<forall>w. TM.time M w = Some (T (length w)))"
+lemma fully_tconstr_altdef: "fully_tconstr TYPE('q) TYPE('s::finite) T \<longleftrightarrow>
+                   (\<exists>M::('q, 's) TM. \<forall>w. TM.time M w = T (length w))"
   unfolding fully_tconstr_def by simp
 
 lemma (in TM) time_bounded_altdef2:
-  "time_bounded T \<longleftrightarrow> (\<forall>w. \<exists>n. time w = Some n \<and> n \<le> tcomp\<^sub>w T w)"
+  "time_bounded T \<longleftrightarrow> (\<forall>w. \<exists>n. time w = n \<and> n \<le> tcomp\<^sub>w T w)"
   unfolding time_bounded_def
 proof (intro iffI allI exI conjI)
   fix w
   let ?f = "\<lambda>n. is_final (run n w)" let ?lf = "LEAST n. ?f n"
+
+  show "time w = ?lf" unfolding time_altdef ..
 
   assume (* time_bounded T p *) "\<forall>w. \<exists>n \<le> tcomp\<^sub>w T w. is_final (run n w)"
   then have n_ex: "\<exists>n. n \<le> tcomp\<^sub>w T w \<and> ?f n" ..
   then obtain n where "n \<le> tcomp\<^sub>w T w" and "?f n" by blast
 
   from n_ex have "\<exists>n. ?f n" by blast
-  then show "time w = Some ?lf" unfolding time_def by (rule if_P)
   have "?lf \<le> n" using Least_le \<open>?f n\<close> .
   also note \<open>n \<le> tcomp\<^sub>w T w\<close>
   finally show "?lf \<le> tcomp\<^sub>w T w" .
@@ -178,12 +179,11 @@ next
   fix w
   let ?f = "\<lambda>n. is_final (run n w)" let ?lf = "LEAST n. ?f n"
 
-  assume "\<forall>w. \<exists>n. time w = Some n \<and> n \<le> tcomp\<^sub>w T w"
-  then obtain n where n_some: "time w = Some n" and n_le: "n \<le> tcomp\<^sub>w T w" by blast
+  assume "\<forall>w. \<exists>n. time w = n \<and> n \<le> tcomp\<^sub>w T w"
+  then obtain n where n_some: "time w = n" and n_le: "n \<le> tcomp\<^sub>w T w" by blast
 
-  from n_some have "time w \<noteq> None" by (rule option.discI)
-  then have n_ex: "\<exists>n. ?f n" unfolding time_def by argo
-  with n_some have "?lf = n" unfolding time_def by simp
+  from n_some have n_ex: "\<exists>n. ?f n" by (fact time_exn)
+  from n_some have "?lf = n" unfolding time_altdef .
 
   show "?f ?lf" using LeastI_ex n_ex .
   show "?lf \<le> tcomp\<^sub>w T w" unfolding \<open>?lf = n\<close> using n_le .

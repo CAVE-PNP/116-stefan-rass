@@ -332,6 +332,9 @@ abbreviation "compute w \<equiv> run (time w) w"
 lemma time_altdef: "time w = (LEAST n. is_final (run n w))"
   unfolding TM.run_def using config_time_def by simp
 
+lemma time_exn: "time w = n \<Longrightarrow> \<exists>n. is_final (run n w)"
+  unfolding time_altdef sorry
+
 lemma computeI:
   assumes "\<exists>n. is_final (run n w) \<and> P (run n w)"
   shows "P (compute w)"
