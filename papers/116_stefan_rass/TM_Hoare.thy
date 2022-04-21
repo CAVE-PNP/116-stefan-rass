@@ -94,7 +94,7 @@ corollary run_tapes_len[simp]: "length (tapes (run n w)) = k" by blast
 corollary run_tapes_non_empty[simp, intro]: "tapes (run n w) \<noteq> []"
   using at_least_one_tape by (fold length_0_conv) simp
 
-corollary steps_run[simp]: "steps n (run m w) = run (m + n) w" 
+corollary steps_run[simp]: "steps n (run m w) = run (m + n) w"
   unfolding run_def add_ac[of m n] funpow_add comp_def ..
 
 corollary run_final_mono[dest]:
@@ -372,7 +372,7 @@ qed
 
 lemma hoare_run_run[dest]: "hoare_run w M P \<Longrightarrow> P (compute w)" unfolding hoare_run_altdef by blast
 
-lemma computes_word_output[dest]: 
+lemma computes_word_output[dest]:
   assumes "computes_word w w'"
   shows "last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p"
 proof -
@@ -394,9 +394,9 @@ lemma config_time_offset:
   assumes "halts_config c0"
   shows "config_time (steps n1 c0) = n - n1"
 proof (cases "is_final (steps n1 c0)")
-  assume "is_final (steps n1 c0)"
-  moreover then have "n1 \<ge> n" unfolding n_def by blast
-  ultimately show ?thesis unfolding n_def by simp
+  assume f: "is_final (steps n1 c0)"
+  then have "n1 \<ge> n" unfolding n_def by blast
+  with f show ?thesis unfolding n_def by simp
 next
   assume nf: "\<not> is_final (steps n1 c0)"
 

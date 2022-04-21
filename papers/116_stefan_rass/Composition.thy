@@ -178,7 +178,7 @@ next
   let ?tps = "tapes c" and ?hds = "heads c"
 
   let ?rt = "r tps'" and ?rh = "r (map head tps')"
-  let ?tps' = "?rt ?tps" and ?hds' = "?rh ?hds" 
+  let ?tps' = "?rt ?tps" and ?hds' = "?rh ?hds"
 
   from \<open>wf_config c\<close> have l_tps: "length (tapes c) = k" by blast
   then have l_hds: "length (heads c) = k" by simp
@@ -450,9 +450,9 @@ proof (rule nth_equalityI, unfold reorder_length tape_offset_length)
       by (subst nth_append, subst if_not_P) force+
     also from \<open>\<not> i < a\<close> have "... = ?rhs ! i" by (subst (2) nth_append, subst if_not_P) auto
     finally show ?thesis .
-  next 
+  next
     assume "\<not> a \<le> i"
-    then show ?thesis unfolding * by (subst nth_append) simp    
+    then show ?thesis unfolding * by (subst nth_append) simp
   qed
 qed
 
@@ -1000,7 +1000,7 @@ lemma M2'_k[simp]: "M2.M'.k = k" using M1'_k unfolding M1'_M2'_k .
 lemma M1_is_len[simp]: "length M1.is = k" using M1'_k unfolding M1.M'_fields .
 lemma M2_is_len[simp]: "length M2.is = k" using M2'_k unfolding M2.M'_fields .
 
-lemma k_simps[simp]: 
+lemma k_simps[simp]:
   shows "k1 + (k2 - Suc 0) = k1 + k2 - Suc 0"
     and "k - k1 = k2 - Suc 0"
     and "k1 - Suc 0 + k2 = k"
@@ -1066,7 +1066,7 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
     also from assms have "... = <w'>\<^sub>t\<^sub>p" by (rule M1.computes_word_output)
     finally have "w' = w" by simp
 
-    have "cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w')) = 
+    have "cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w')) =
             TM_config (Inr M2.q\<^sub>0) (M2.r (tapes (M1.M'.c\<^sub>0 w)) (tapes (M2.c\<^sub>0 w')))"
       unfolding reorder_config_def by simp
     also have "... = TM_config (Inr M2.q\<^sub>0) (tapes (M2.c\<^sub>0 w'))"
@@ -1099,7 +1099,7 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
 
     have ***: "k1 - 1 - 1 + k2 = k - 1" unfolding k_def using \<open>1 < M1.k\<close> by simp
 
-    have "cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w')) = 
+    have "cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w')) =
             TM_config (Inr M2.q\<^sub>0) (M2.r (tapes (M1.M'.c\<^sub>0 w)) (tapes (M2.c\<^sub>0 w')))"
       unfolding reorder_config_def by simp
     also have "... = TM_config (Inr M2.q\<^sub>0) (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k1 - 1 - 1) @ \<langle>\<rangle> \<up> k2)"
@@ -1127,7 +1127,7 @@ next
     then have "M1.halts_config (M1.c\<^sub>0 w)" by simp
     then have "M1.M'.halts_config (M1.rc (\<langle>\<rangle> \<up> k) (M1.c\<^sub>0 w))"
       by (subst M1.reorder_halts, unfold M1_is_len) auto
-    then show "M1.M'.halts_config (M1.M'.c\<^sub>0 w)" 
+    then show "M1.M'.halts_config (M1.M'.c\<^sub>0 w)"
       by (subst M1.init_conf_offset_eq, unfold M1_is_len) blast+
   qed blast
   also have "... = TM_config (Inr M2.M'.q\<^sub>0) (tapes (M1.rc (\<langle>\<rangle> \<up> k) ?c1))"
@@ -1163,7 +1163,7 @@ qed
 lemma io_comp_steps2:
   assumes "M2.halts w"
     and "length tps = k"
-  shows "steps t2 (cr (M2.rc tps (M2.c\<^sub>0 w))) = cr (M2.rc tps (M2.run t2 w))" 
+  shows "steps t2 (cr (M2.rc tps (M2.c\<^sub>0 w))) = cr (M2.rc tps (M2.run t2 w))"
   (is "steps t2 (cr ?c\<^sub>0') = cr (M2.rc tps ?c)")
 proof -
   have "steps t2 (cr ?c\<^sub>0') = cr (M2.M'.steps t2 ?c\<^sub>0')" unfolding comp_steps2 ..
@@ -1200,7 +1200,7 @@ proof -
   also have "... = TM_config ?q2 ((take (M1.k - 1) ?tps) @ ?tps2)"
     unfolding reorder_config_def cr_simps TM_config.sel c2_def
     by (subst M2.tape_offset_simps2) (simp, blast+)
-  also have "... = TM_config ?q2 (butlast ?tps1 @ ?tps2)" 
+  also have "... = TM_config ?q2 (butlast ?tps1 @ ?tps2)"
     unfolding reorder_config_tapes take_reorder_le_helper c1_def ..
   finally show ?thesis .
 qed
