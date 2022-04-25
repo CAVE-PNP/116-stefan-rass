@@ -137,15 +137,7 @@ lemma time_bounded_mono:
 
 lemma time_bounded_altdef2:
   "time_bounded T \<longleftrightarrow> (\<forall>w. halts w \<and> time w \<le> tcomp\<^sub>w T w)"
-  unfolding time_bounded_def
-proof (intro iff_allI iffI conjI; (elim conjE)?)
-  fix w assume "\<exists>n\<le>tcomp T (length w). is_final (run n w)"
-  then obtain n where nle: "n \<le> tcomp T (length w)" and nfin: "is_final (run n w)" by blast
-
-  from nfin show "halts w" by blast
-  with nfin have "time w \<le> n" by (rule time_leI)
-  with nle show "time w \<le> tcomp T (length w)" by linarith
-qed blast
+  unfolding time_bounded_def by (intro iff_allI) blast
 
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
 
