@@ -332,6 +332,12 @@ abbreviation "compute w \<equiv> run (time w) w"
 lemma time_altdef: "time w = (LEAST n. is_final (run n w))"
   unfolding TM.run_def using config_time_def by simp
 
+lemma time_leI[intro]:
+  assumes "is_final (run n w)"
+      and "halts w"
+    shows "time w \<le> n"
+using assms unfolding run_def by auto
+
 lemma computeI:
   assumes "\<exists>n. is_final (run n w) \<and> P (run n w)"
   shows "P (compute w)"
@@ -456,7 +462,6 @@ lemma time_eqI[intro]:
     and "\<And>n. TM.is_final M1 (TM.run M1 (n1 + n) w1) \<longleftrightarrow> TM.is_final M2 (TM.run M2 n w2)"
   shows "TM.time M1 w1 - n1 = TM.time M2 w2"
   using assms unfolding TM.time_def TM.run_def TM.halts_def by (fact config_time_eqI)
-
 
 locale Rej_TM =
   fixes q0 :: 'q and M :: "('q, 's::finite) TM"

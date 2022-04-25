@@ -88,7 +88,6 @@ definition time_bounded_word :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling
 abbreviation time_bounded :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> bool"
   where "time_bounded T \<equiv> \<forall>w. time_bounded_word T w"
 
-
 lemma time_boundedI: "is_final (run (tcomp\<^sub>w T w) w) \<Longrightarrow> time_bounded_word T w"
   unfolding time_bounded_def by blast
 
@@ -136,6 +135,18 @@ lemma time_bounded_mono:
   shows "time_bounded T"
   by (rule time_bounded_mono', rule tcomp_mono) fact+
 
+lemma time_bounded_altdef2:
+  "time_bounded T \<longleftrightarrow> (\<forall>w. halts w \<and> time w \<le> tcomp\<^sub>w T w)"
+  unfolding time_bounded_def
+proof (intro iff_allI iffI conjI; (elim conjE)?)
+  fix w assume "\<exists>n\<le>tcomp T (length w). is_final (run n w)"
+  then obtain n where nle: "n \<le> tcomp T (length w)" and nfin: "is_final (run n w)" by blast
+
+  from nfin show "halts w" by blast
+  with nfin have "time w \<le> n" by (rule time_leI)
+  with nle show "time w \<le> tcomp T (length w)" by linarith
+qed blast
+
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
 
 text\<open>Notion of time-constructible from @{cite \<open>ch.~12.3\<close> hopcroftAutomata1979}:
@@ -158,36 +169,6 @@ lemma fully_tconstr_altdef: "fully_tconstr TYPE('q) TYPE('s::finite) T \<longlef
                    (\<exists>M::('q, 's) TM. \<forall>w. TM.time M w = T (length w))"
   unfolding fully_tconstr_def by simp
 
-lemma (in TM) time_bounded_altdef2:
-  "time_bounded T \<longleftrightarrow> (\<forall>w. \<exists>n. time w = n \<and> n \<le> tcomp\<^sub>w T w)"
-  unfolding time_bounded_def
-proof (intro iffI allI exI conjI)
-  fix w
-  let ?f = "\<lambda>n. is_final (run n w)" let ?lf = "LEAST n. ?f n"
-
-  show "time w = ?lf" unfolding time_altdef ..
-
-  assume (* time_bounded T p *) "\<forall>w. \<exists>n \<le> tcomp\<^sub>w T w. is_final (run n w)"
-  then have n_ex: "\<exists>n. n \<le> tcomp\<^sub>w T w \<and> ?f n" ..
-  then obtain n where "n \<le> tcomp\<^sub>w T w" and "?f n" by blast
-
-  from n_ex have "\<exists>n. ?f n" by blast
-  have "?lf \<le> n" using Least_le \<open>?f n\<close> .
-  also note \<open>n \<le> tcomp\<^sub>w T w\<close>
-  finally show "?lf \<le> tcomp\<^sub>w T w" .
-next
-  fix w
-  let ?f = "\<lambda>n. is_final (run n w)" let ?lf = "LEAST n. ?f n"
-
-  assume "\<forall>w. \<exists>n. time w = n \<and> n \<le> tcomp\<^sub>w T w"
-  then obtain n where n_some: "time w = n" and n_le: "n \<le> tcomp\<^sub>w T w" by blast
-
-  from n_some have n_ex: "\<exists>n. ?f n" by (fact time_exn)
-  from n_some have "?lf = n" unfolding time_altdef .
-
-  show "?f ?lf" using LeastI_ex n_ex .
-  show "?lf \<le> tcomp\<^sub>w T w" unfolding \<open>?lf = n\<close> using n_le .
-qed
 
 corollary (in TM) time_bounded_time: "time_bounded T \<Longrightarrow> the (time w) \<le> tcomp\<^sub>w T w"
   unfolding time_bounded_altdef2
