@@ -332,9 +332,6 @@ abbreviation "compute w \<equiv> run (time w) w"
 lemma time_altdef: "time w = (LEAST n. is_final (run n w))"
   unfolding TM.run_def using config_time_def by simp
 
-lemma time_exn: "time w = n \<Longrightarrow> \<exists>n. is_final (run n w)"
-  unfolding time_altdef sorry
-
 lemma computeI:
   assumes "\<exists>n. is_final (run n w) \<and> P (run n w)"
   shows "P (compute w)"
@@ -462,17 +459,17 @@ lemma time_eqI[intro]:
 
 
 locale Rej_TM =
-  fixes q0 :: 'q
+  fixes q0 :: 'q and M :: "('q, 's::finite) TM"
+  defines "M \<equiv> rejecting_TM q0"
 begin
-sublocale TM "rejecting_TM q0" .
+sublocale TM M .
 
-lemma rej_tm_time: "time w = 0"
-proof -
-  have 1: "final_states TYPE('s::finite) = {q0}" sorry
-  have 2: "initial_state TYPE('s::finite) = q0" sorry
-  from 1 2 have "is_final (run 0 w)" by auto
-  thus ?thesis by simp
-qed
+lemma M_rec: "M_rec = rejecting_TM_rec q0" using Abs_TM_inverse rejecting_TM_valid
+  unfolding rejecting_TM_def M_def by fast
+lemmas M_fields = TM_fields_defs[unfolded M_rec rejecting_TM_rec_def TM_record.simps]
+lemmas [simp] = M_fields(1-6)
+
+lemma rej_tm_time: "time w = 0" by simp
 end
 
 
