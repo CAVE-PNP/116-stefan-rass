@@ -553,6 +553,7 @@ lemma inv_f_f[simp]: "f_inv (f x) = x" "f_inv \<circ> f = (\<lambda>x. x)"
   unfolding comp_def f_inv_def using inj_f by simp_all
 lemma inv_f'_f'[simp]: "f'_inv (f' x) = x" "f'_inv \<circ> f' = (\<lambda>x. x)"
   by (simp_all add: comp_def option.map_comp option.map_ident)
+lemma map_f_inv: "map f_inv (map f x) = x" by simp
 lemma map_f'_inv: "map f'_inv (map f' xs) = xs" by simp
 
 
@@ -663,7 +664,9 @@ corollary map_halts_conf:
 
 corollary map_halts[iff]: "M'.halts (map f w) \<longleftrightarrow> halts w" using map_halts_conf by simp
 
-lemma map_compute: "M'.computes_word (map f w) (map f w') \<longleftrightarrow> computes_word w w'"
+lemma map_computes_word: "M'.computes_word (map f w) (map f w') \<longleftrightarrow> computes_word w w'"
+  \<comment> \<open>Note that the equivalence does not extend to \<^const>\<open>TM.computes\<close>,
+      as \<^term>\<open>f\<close> is not required to be \<^const>\<open>bij\<close>.\<close>
   unfolding TM.computes_word_altdef
 proof (intro conj_cong)
   have "last (tapes (M'.compute (map f w))) = <map f w'>\<^sub>t\<^sub>p
@@ -674,6 +677,8 @@ proof (intro conj_cong)
   finally show "last (tapes (M'.compute (map f w))) = <map f w'>\<^sub>t\<^sub>p
             \<longleftrightarrow> last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p" .
 qed (fact map_halts)
+
+corollary map_compute: "M'.compute (map f w) = fc (compute w)" unfolding map_run map_time ..
 
 end \<comment> \<open>\<^locale>\<open>TM_map_alphabet\<close>\<close>
 
@@ -1208,8 +1213,6 @@ qed
 end \<comment> \<open>\<^locale>\<open>IO_TM_comp\<close>\<close>
 
 
-(* here be dragons *)
-
 subsubsection\<open>Composition of Arbitrary TMs\<close>
 
 text\<open>This is designed to allow composition of TMs that we do not know anything about.
@@ -1225,18 +1228,43 @@ locale arb_TM_comp =
   assumes inj_f1: "inj f1"
     and inj_f2: "inj f2"
 begin
-sublocale M1: TM_map_alphabet M1 f1 using inj_f1 by (unfold_locales)
-sublocale M2: TM_map_alphabet M2 f2 using inj_f2 by (unfold_locales)
+sublocale M1a: TM_map_alphabet M1 f1 using inj_f1 by (unfold_locales)
+sublocale M2a: TM_map_alphabet M2 f2 using inj_f2 by (unfold_locales)
 
-abbreviation "M1' \<equiv> M1.M'"
-abbreviation "M2' \<equiv> M2.M'"
-sublocale M1': TM_tape_offset M1' 0 "M2.k - 1" .
-sublocale M2': TM_tape_offset M2' "M1.k - 1" 0 .
+abbreviation "M1a \<equiv> M1a.M'"
+abbreviation "M2a \<equiv> M2a.M'"
+sublocale IO_TM_comp M1a M2a .
 
-sublocale simple_TM_comp M1'.M' M2'.M'
-proof unfold_locales
-  show "M1'.M'.k = M2'.M'.k" unfolding M1'.M'_fields(1) M2'.M'_fields(1)
-    using M1.at_least_one_tape M2.at_least_one_tape by simp
+lemma arb_comp_run:
+  fixes t2 :: nat
+  assumes M1: "M1a.computes_word w_in w_out1"
+    and w_out_eq: "map f1 w_out1 = map f2 w_out2"
+    and M2: "M2a.halts w_out2"
+  defines "c1 \<equiv> M1a.compute w_in"
+  defines "c2 \<equiv> M2a.run t2 w_out2"
+  shows "run (M1a.time w_in + t2) (map f1 w_in) = TM_config (Inr (state c2)) (butlast (tapes (M1a.fc c1)) @ (tapes (M2a.fc c2)))"
+    (is "run (?t1 + t2) ?w_in = TM_config ?q2 (butlast ?tps1 @ ?tps2)")
+proof -
+  let ?w_out = "map f1 w_out1"
+
+  from M1 have M1': "M1a.M'.computes_word (map f1 w_in) ?w_out"
+    unfolding M1a.map_computes_word .
+  from M2 have M2': "M2a.M'.halts ?w_out" unfolding w_out_eq M2a.map_halts .
+
+  have "run (?t1 + t2) (map f1 w_in) = run (M1a.M'.time (map f1 w_in) + t2) (map f1 w_in)"
+    unfolding M1a.map_time ..
+  also from M1' M2' have "... = TM_config (Inr (state (M2a.M'.run t2 ?w_out)))
+     (butlast (tapes (M1a.M'.compute (map f1 w_in))) @ tapes (M2a.M'.run t2 ?w_out))"
+    by (subst io_comp_run') blast+
+  also have "... = TM_config ?q2 (butlast ?tps1 @ ?tps2)"
+  proof (rule TM_config_eq; unfold TM_config.sel)
+    show "Inr (state (M2a.M'.run t2 ?w_out)) = Inr (state c2)"
+      unfolding w_out_eq M2a.map_run M2a.fc_simps c2_def ..
+    show "butlast (tapes (M1a.M'.compute (map f1 w_in))) @ tapes (M2a.M'.run t2 ?w_out) =
+          butlast ?tps1 @ ?tps2"
+      unfolding w_out_eq M1a.map_compute M2a.map_run unfolding c1_def c2_def ..
+  qed
+  finally show ?thesis .
 qed
 
 end \<comment> \<open>\<^locale>\<open>arb_TM_comp\<close>\<close>

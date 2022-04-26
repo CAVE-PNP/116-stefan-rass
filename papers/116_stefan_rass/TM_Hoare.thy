@@ -324,6 +324,15 @@ lemma conf_time_finalI[intro]: "halts_config c \<Longrightarrow> is_final (steps
 lemma conf_time0[simp, intro]: "is_final c \<Longrightarrow> config_time c = 0" unfolding config_time_def by simp
 
 
+lemma conf_time_steps_finalI: "\<exists>n. is_final (steps n c) \<and> P (steps n c) \<Longrightarrow>
+  is_final (steps (config_time c) c) \<and> P (steps (config_time c) c)" by force
+
+lemma conf_time_steps_final_iff:
+  "(\<exists>n. is_final (steps n c) \<and> P (steps n c)) \<longleftrightarrow>
+  (is_final (steps (config_time c) c) \<and> P (steps (config_time c) c))"
+  by (intro iffI conf_time_steps_finalI) blast+
+
+
 definition "time w \<equiv> config_time (initial_config w)"
 declare (in -) TM.time_def[simp]
 
@@ -374,6 +383,10 @@ qed
 
 lemma hoare_run_run[dest]: "hoare_run w M P \<Longrightarrow> P (compute w)" unfolding hoare_run_altdef by blast
 
+lemma run_hoare_run[simp]: "halts w \<Longrightarrow> hoare_run w M P = P (compute w)"
+  unfolding hoare_run_altdef by blast
+
+
 lemma computes_word_output[dest]:
   assumes "computes_word w w'"
   shows "last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p"
@@ -388,6 +401,12 @@ qed
 
 lemma computes_output: "computes f \<Longrightarrow> last (tapes (compute w)) = <f w>\<^sub>t\<^sub>p"
   by (intro computes_word_output) simp
+
+lemma output_computes_word:
+  assumes "halts w"
+    and "last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p"
+  shows "computes_word w w'"
+  unfolding computes_word_def run_hoare_run[OF \<open>halts w\<close>] clean_output_alt by (fact assms(2))
 
 
 lemma config_time_offset:
