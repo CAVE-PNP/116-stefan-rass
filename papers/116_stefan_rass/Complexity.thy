@@ -177,29 +177,27 @@ subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
 definition typed_DTIME :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> 's::finite lang set"
-  where "typed_DTIME TYPE('q) T \<equiv> {L. \<exists>M::('q, 's) TM. TM M \<and> TM.decides M L \<and> TM.time_bounded M T}"
+  where "typed_DTIME TYPE('q) T \<equiv> {L. \<exists>M::('q, 's) TM. TM.decides M L \<and> TM.time_bounded M T}"
 
 abbreviation DTIME where
   "DTIME \<equiv> typed_DTIME TYPE(nat)"
-
 
 lemma (in TM) in_dtimeI[intro]:
   assumes "decides L"
     and "time_bounded T"
   shows "L \<in> typed_DTIME TYPE('q) T"
-  unfolding typed_DTIME_def using assms TM_axioms by blas t
+  unfolding typed_DTIME_def using assms TM_axioms by blast
 
 lemma in_dtimeE[elim]:
   assumes "L \<in> typed_DTIME TYPE('q) T"
-  obtains M::"('q, 's) TM"
+  obtains M::"('q, 's::finite) TM"
   where "TM.decides M L"
     and "TM.time_bounded M T"
-    and "TM M"
   using assms unfolding typed_DTIME_def by blast
 
 lemma in_dtimeE'[elim]:
   assumes "L \<in> typed_DTIME TYPE('q) T"
-  shows "\<exists>M::('q, 's) TM. TM M \<and> TM.decides M L \<and> TM.time_bounded M T"
+  shows "\<exists>M::('q, 's::finite) TM. TM.decides M L \<and> TM.time_bounded M T"
   using assms unfolding typed_DTIME_def ..
 
 corollary in_dtime_mono':
@@ -229,20 +227,20 @@ text\<open>@{cite \<open>ch.~12.2\<close> hopcroftAutomata1979} uses the finite 
   its negation may be true i.o.''\<close>
 
 context TM begin
-definition "alm_all P \<equiv> finite {w \<in> wf_words. \<not> P w}"
+definition "alm_all P \<equiv> finite {w. \<not> P w}"
 
-lemma alm_all_altdef: "alm_all P \<longleftrightarrow> (MOST w. w \<notin> wf_words \<or> P w)"
+lemma alm_all_altdef: "alm_all P \<longleftrightarrow> (MOST w. P w)"
   unfolding eventually_cofinite alm_all_def by simp
 
 lemma ae_word_length_iff[iff]:
   fixes P :: "'s list \<Rightarrow> bool"
-  shows "alm_all P \<longleftrightarrow> (\<exists>n. \<forall>w\<in>wf_words. length w \<ge> n \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
+  shows "alm_all P \<longleftrightarrow> (\<exists>n. \<forall>w. n \<le> length w \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
 proof
   assume ?rhs
-  then obtain n where "P w" if "length w \<ge> n" "w \<in> wf_words" for w by blast
-  then have "\<not> P w \<Longrightarrow> length w \<le> n \<or> w\<notin>wf_words" for w by auto
-  then have "{w\<in>wf_words. \<not> P w} \<subseteq> {w\<in>wf_words. length w \<le> n}" by auto
-  moreover have "finite {w\<in>wf_words. length w \<le> n}"
+  then obtain n where "P w" if "n \<le> length w" for w by blast
+  then have "\<not> P w \<Longrightarrow> length w \<le> n" for w by force
+  then have "{w. \<not> P w} \<subseteq> {w. length w \<le> n}" by auto
+  moreover have "finite {w. length w \<le> n}"
     using words_length_finite .
   ultimately show ?lhs unfolding alm_all_def by (rule finite_subset)
 next
@@ -354,6 +352,12 @@ subsubsection\<open>Linear Speed-Up\<close>
 
 text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
 
+lemma decides_altdef4: "decides_word L w \<longleftrightarrow> (if w \<in> L then accepts w else rejects w)"
+  unfolding decides_def using acc_not_rej by (cases "w \<in> L") auto
+
+lemma decides_altdef3: "decides_word L w \<longleftrightarrow> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M \<longleftrightarrow> w\<in>L)"
+  unfolding decides_altdef4 accepts_def rejects_def
+  by (cases "w\<in>L") (simp add: hoare_halt_def del: initial_config_def)+
  ``\<^bold>\<open>Theorem 12.3\<close>  If \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>T(n)\<close> time-bounded Turing machine
   \<open>M\<^sub>1\<close>, then \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>cT(n)\<close> time-bounded TM \<open>M\<^sub>2\<close> for any \<open>c > 0\<close>,
   provided that \<open>k > 1\<close> and \<open>inf\<^sub>n\<^sub>\<rightarrow>\<^sub>\<infinity> T(n)/n = \<infinity>\<close>.''\<close>
