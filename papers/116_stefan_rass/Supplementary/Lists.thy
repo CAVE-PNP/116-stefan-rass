@@ -93,9 +93,6 @@ proof (rule map2_cong)
   from n_len show "f x y = g x y" unfolding x y by (rule assms)
 qed
 
-
-
-
 lemma len_tl_Cons: "xs \<noteq> [] \<Longrightarrow> length (x # tl xs) = length xs"
   by simp
 
@@ -383,5 +380,10 @@ next
   thus "overwrite xs ys ! n = ys ! n" by (intro overwrite_nth2[OF assms]) (rule leI)
 qed
 
+lemma finite_type_lists_length_le: "finite {xs::('s::finite list). length xs \<le> n}"
+proof -
+  have "finite (UNIV :: 's set)" by (fact finite)
+  thus ?thesis using finite_lists_length_le[of UNIV] by fastforce
+qed
 
 end
