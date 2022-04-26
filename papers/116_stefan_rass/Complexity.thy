@@ -139,6 +139,10 @@ lemma time_bounded_altdef2:
   "time_bounded T \<longleftrightarrow> (\<forall>w. halts w \<and> time w \<le> tcomp\<^sub>w T w)"
   unfolding time_bounded_def by (intro iff_allI) blast
 
+corollary time_bounded_time: "time_bounded T \<Longrightarrow> time w \<le> tcomp\<^sub>w T w"
+  unfolding time_bounded_altdef2 by blast
+  
+
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
 
 text\<open>Notion of time-constructible from @{cite \<open>ch.~12.3\<close> hopcroftAutomata1979}:
@@ -161,27 +165,18 @@ lemma fully_tconstr_altdef: "fully_tconstr TYPE('q) TYPE('s::finite) T \<longlef
                    (\<exists>M::('q, 's) TM. \<forall>w. TM.time M w = T (length w))"
   unfolding fully_tconstr_def by simp
 
-
-corollary (in TM) time_bounded_time: "time_bounded T \<Longrightarrow> the (time w) \<le> tcomp\<^sub>w T w"
-  unfolding time_bounded_altdef2
-proof (elim allE exE conjE)
-  fix w n
-  assume some_n: "time w = Some n" and n_le: "n \<le> tcomp\<^sub>w T w"
-  from n_le show "the (time w) \<le> tcomp\<^sub>w T w" unfolding some_n option.sel .
-qed
-
-definition computable_in_time :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> ('s list \<Rightarrow> 's list) \<Rightarrow> bool"
-  where "computable_in_time TYPE('q) T f \<equiv> \<exists>M::('q, 's) TM. TM M \<and> TM.computes M f \<and> TM.time_bounded M T"
+definition computable_in_time :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> ('s::finite list \<Rightarrow> 's list) \<Rightarrow> bool"
+  where "computable_in_time TYPE('q) T f \<equiv> \<exists>M::('q, 's) TM. TM.computes M f \<and> TM.time_bounded M T"
 
 lemma computableE[elim]:
   assumes "computable_in_time TYPE('q) T f"
-  obtains M::"('q, 's) TM" where "TM.computes M f" and "TM.time_bounded M T" and "TM M"
+  obtains M::"('q, 's::finite) TM" where "TM.computes M f" and "TM.time_bounded M T"
 using assms that unfolding computable_in_time_def by blast
 
 subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
-definition typed_DTIME :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> ('s) lang set"
+definition typed_DTIME :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> 's::finite lang set"
   where "typed_DTIME TYPE('q) T \<equiv> {L. \<exists>M::('q, 's) TM. TM M \<and> TM.decides M L \<and> TM.time_bounded M T}"
 
 abbreviation DTIME where
@@ -192,7 +187,7 @@ lemma (in TM) in_dtimeI[intro]:
   assumes "decides L"
     and "time_bounded T"
   shows "L \<in> typed_DTIME TYPE('q) T"
-  unfolding typed_DTIME_def using assms TM_axioms by blast
+  unfolding typed_DTIME_def using assms TM_axioms by blas t
 
 lemma in_dtimeE[elim]:
   assumes "L \<in> typed_DTIME TYPE('q) T"

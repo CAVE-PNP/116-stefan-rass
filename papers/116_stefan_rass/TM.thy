@@ -40,20 +40,16 @@ text\<open>In the following, we will also refer to the type of symbols (\<open>'
 
 subsubsection\<open>Tape Head Movement\<close>
 
-text\<open>We define TM tape head moves as either shifting the TM head one cell (left \<open>L\<close>, right \<open>R\<close>),
-  or doing nothing (\<open>N\<close>).
-  \<open>N\<close> seems redundant, since for single-tape TMs it can be simulated by moving the head back-and-forth
-  or just leaving out any step that performs \<open>N\<close> (integrate into the preceding step).
+text\<open>We define TM tape head moves as either shifting the TM head one cell (\<open>Shift_Left\<close> or \<open>Shift_Right\<close>),
+  or doing nothing.
+  \<open>No_Shift\<close> seems redundant, since for single-tape TMs it can be simulated by moving the head back-and-forth
+  or just leaving out any step that performs \<open>No_Shift\<close> (integrate into the preceding step).
   However, for multi-tape TMs, these simple replacements do not work.
 
   \<^emph>\<open>Moving the TM head\<close> is equivalent to shifting the entire tape under the head.
   This is how we implement the head movement.\<close>
 
 datatype head_move = Shift_Left | Shift_Right | No_Shift
-
-abbreviation (in TM_abbrevs) "L \<equiv> Shift_Left"
-abbreviation (in TM_abbrevs) "R \<equiv> Shift_Right"
-abbreviation (in TM_abbrevs) "N \<equiv> No_Shift"
 
 (* consider introducing a type of actions:
  * type_synonym (in TM_abbrevs) ('s) action = "'s tp_symbol \<times> head_move" *)
@@ -397,6 +393,9 @@ mk_ide wf_config_def |intro wf_configI[intro]| |elim wf_configE[elim]| |dest wf_
 abbreviation is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
   "is_final c \<equiv> state c \<in> F"
 
+lemma is_final_altdef: "is_final c \<longleftrightarrow> state c \<in> F\<^sup>+ \<or> state c \<in> F\<^sup>-"
+  by (metis Diff_iff in_mono rejecting_states_def state_axioms(4))
+
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
 
@@ -413,11 +412,11 @@ text\<open>To execute a TM tape \<^typ>\<open>head_move\<close>, we shift the en
 
 (* TODO split into shiftL and shiftR (maybe use symmetry) *)
 fun tape_shift :: "head_move \<Rightarrow> 's tape \<Rightarrow> 's tape" where
-  "tape_shift L     \<langle>|h|rs\<rangle>   =     \<langle>|Bk|h#rs\<rangle>"
-| "tape_shift L \<langle>l#ls|h|rs\<rangle>   =   \<langle>ls|l |h#rs\<rangle>"
-| "tape_shift R   \<langle>ls|h|\<rangle>     = \<langle>h#ls|Bk|\<rangle>"
-| "tape_shift R   \<langle>ls|h|r#rs\<rangle> = \<langle>h#ls|r |rs\<rangle>"
-| "tape_shift N tp = tp"
+  "tape_shift Shift_Left  \<langle>|h|rs\<rangle>     = \<langle>|Bk|h#rs\<rangle>"
+| "tape_shift Shift_Left  \<langle>l#ls|h|rs\<rangle> = \<langle>ls|l |h#rs\<rangle>"
+| "tape_shift Shift_Right \<langle>ls|h|\<rangle>     = \<langle>h#ls|Bk|\<rangle>"
+| "tape_shift Shift_Right \<langle>ls|h|r#rs\<rangle> = \<langle>h#ls|r |rs\<rangle>"
+| "tape_shift No_Shift    tp = tp"
 
 lemma tape_shift_set: "set_tape (tape_shift m tp) = set_tape tp" (* TODO consider removing *)
 proof (induction tp)

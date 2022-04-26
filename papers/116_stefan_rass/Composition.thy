@@ -569,7 +569,7 @@ definition map_alph_rec :: "('q, 's2) TM_record"
     states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
     next_state = \<lambda>q hds. if set hds \<subseteq> range f' then \<delta>\<^sub>q q (map f'_inv hds) else q,
     next_write = \<lambda>q hds i. if set hds \<subseteq> range f' then f' (\<delta>\<^sub>w q (map f'_inv hds) i) else hds ! i,
-    next_move  = \<lambda>q hds i. if set hds \<subseteq> range f' then \<delta>\<^sub>m q (map f'_inv hds) i else N
+    next_move  = \<lambda>q hds i. if set hds \<subseteq> range f' then \<delta>\<^sub>m q (map f'_inv hds) i else No_Shift
   \<rparr>"
 
 lemma M'_valid: "is_valid_TM map_alph_rec"

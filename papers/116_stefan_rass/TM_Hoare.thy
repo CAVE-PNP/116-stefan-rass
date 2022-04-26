@@ -33,7 +33,7 @@ lemma input_tape_size: "w \<noteq> [] \<Longrightarrow> tape_size <w>\<^sub>t\<^
   unfolding tape_size_def by (induction w) auto
 
 
-lemma input_tape_cong[dest]: "<w>\<^sub>t\<^sub>p = <w'>\<^sub>t\<^sub>p \<Longrightarrow> w = w'"
+lemma input_tape_inj[dest]: "<w>\<^sub>t\<^sub>p = <w'>\<^sub>t\<^sub>p \<Longrightarrow> w = w'"
 proof (cases "w = []"; cases "w' = []")
   show "w = [] \<Longrightarrow> w' = [] \<Longrightarrow> w = w'" by blast
 
@@ -56,7 +56,7 @@ proof (cases "w = []"; cases "w' = []")
   with \<open>w \<noteq> []\<close> and \<open>w' \<noteq> []\<close> show "w = w'" by (intro list.expand) blast+
 qed
 
-corollary input_tape_cong'[simp]: "<w>\<^sub>t\<^sub>p = <w'>\<^sub>t\<^sub>p \<longleftrightarrow> w = w'" by blast
+corollary input_tape_cong[cong]: "<w>\<^sub>t\<^sub>p = <w'>\<^sub>t\<^sub>p \<longleftrightarrow> w = w'" by blast
 
 end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
 
@@ -248,22 +248,22 @@ text\<open>By convention, the \<^emph>\<open>output\<close> of a TM is found on 
   As with input, the \<^const>\<open>blank_symbol\<close> is not part of the output,
   so only the symbols up to the first blank will be considered output.\<close> (* TODO does this make sense *)
 
-definition output_config :: "('q, 's) TM_config \<Rightarrow> 's list"
-  where "output_config c = (let o_tp = last (tapes c) in
+definition output_of :: "('q, 's) TM_config \<Rightarrow> 's list"
+  where "output_of c = (let o_tp = last (tapes c) in
     case head o_tp of Bk \<Rightarrow> [] | Some h \<Rightarrow> h # the (those (takeWhile (\<lambda>s. s \<noteq> Bk) (right o_tp))))"
 
-lemma out_config_simps[simp, intro]: "last (tapes c) = <w>\<^sub>t\<^sub>p \<Longrightarrow> output_config c = w"
-  unfolding output_config_def by (induction w) (auto simp add: takeWhile_map)
+lemma out_config_simps[simp, intro]: "last (tapes c) = <w>\<^sub>t\<^sub>p \<Longrightarrow> output_of c = w"
+  unfolding output_of_def by (induction w) (auto simp add: takeWhile_map)
 
 text\<open>The requirement that the output conforms to the input standard should simplify some parts.
   It is possible to construct a TM that produces clean output, simply by adding another tape.\<close>
 
 definition "clean_output c \<equiv> \<exists>w. last (tapes c) = <w>\<^sub>t\<^sub>p"
 
-lemma clean_outputD[dest]: "clean_output c \<Longrightarrow> output_config c = w \<Longrightarrow> last (tapes c) = <w>\<^sub>t\<^sub>p"
+lemma clean_outputD[dest]: "clean_output c \<Longrightarrow> output_of c = w \<Longrightarrow> last (tapes c) = <w>\<^sub>t\<^sub>p"
   unfolding clean_output_def by force
 
-lemma clean_output_alt: "clean_output c \<and> output_config c = w \<longleftrightarrow> last (tapes c) = <w>\<^sub>t\<^sub>p"
+lemma clean_output_alt: "clean_output c \<and> output_of c = w \<longleftrightarrow> last (tapes c) = <w>\<^sub>t\<^sub>p"
   unfolding clean_output_def by force
 
 
@@ -271,7 +271,7 @@ lemma clean_output_alt: "clean_output c \<and> output_config c = w \<longleftrig
 
 definition (in -) [simp]: "hoare_run w M P \<equiv> hoare_halt (TM.on_input M w) M P"
 
-definition "computes_word w w' \<equiv> hoare_run w M (\<lambda>c. clean_output c \<and> output_config c = w')"
+definition "computes_word w w' \<equiv> hoare_run w M (\<lambda>c. clean_output c \<and> output_of c = w')"
 
 definition "computes f \<equiv> \<forall>w. computes_word w (f w)"
 declare (in -) TM.computes_def[simp]
@@ -357,8 +357,6 @@ lemma final_run_time[intro]: "is_final (run n w) \<Longrightarrow> run n w = com
 corollary halts_compute_final[intro]: "halts w \<Longrightarrow> is_final (compute w)"
   unfolding run_def halts_def time_def by (fact conf_time_finalI)
 
-
-
 lemma hoare_run_altdef: "hoare_run w M P \<longleftrightarrow> halts w \<and> P (compute w)"
 proof (rule iffI)
   assume "hoare_run w M P"
@@ -381,10 +379,10 @@ lemma computes_word_output[dest]:
   shows "last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p"
 proof -
   let ?c = "run (time w) w"
-  from assms have "clean_output ?c" and "output_config ?c = w'" unfolding computes_word_def by blast+
+  from assms have "clean_output ?c" and "output_of ?c = w'" unfolding computes_word_def by blast+
   then obtain x where "last (tapes ?c) = <x>\<^sub>t\<^sub>p" unfolding clean_output_def by blast
-  then have "output_config ?c = x" by blast
-  with \<open>output_config ?c = w'\<close> have "x = w'" by blast
+  then have "output_of ?c = x" by blast
+  with \<open>output_of ?c = w'\<close> have "x = w'" by blast
   with \<open>last (tapes ?c) = <x>\<^sub>t\<^sub>p\<close> show ?thesis by blast
 qed
 
@@ -475,6 +473,55 @@ lemmas [simp] = M_fields(1-6)
 lemma rej_tm_time: "time w = 0" by simp
 end
 
+subsection\<open>Deciding Languages\<close>
+context TM begin
+
+definition accepts :: "'s list \<Rightarrow> bool"
+  where "accepts w \<equiv> state (compute w) \<in> accepting_states"
+
+definition rejects :: "'s list \<Rightarrow> bool"
+  where "rejects w \<equiv> state (compute w) \<in> rejecting_states"
+
+lemma halts_iff: "halts w \<longleftrightarrow> accepts w \<or> rejects w"
+  unfolding accepts_def rejects_def
+  using is_final_altdef by blast
+
+lemma acc_not_rej: "accepts w \<Longrightarrow> \<not> rejects w"
+  unfolding accepts_def rejects_def rejecting_states_def by simp
+
+lemma rejects_altdef:
+  "rejects w = (halts w \<and> \<not> accepts w)"
+  using acc_not_rej halts_iff by blast
+
+definition decides_word :: "'s lang \<Rightarrow> 's list \<Rightarrow> bool"
+  where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
+
+lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
+  using halts_iff by auto
+
+abbreviation decides :: "'s lang \<Rightarrow> bool"
+  where "decides L \<equiv> \<forall>w. decides_word L w"
+
+corollary decides_halts_all: "decides L \<Longrightarrow> \<forall>w. halts w"
+  using decides_halts by blast
+
+lemma decides_altdef:
+  "decides_word L w \<longleftrightarrow> halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
+proof (intro iffI)
+  fix w
+  assume "decides_word L w"
+  hence "halts w" by (rule decides_halts)
+  moreover have "w \<in> L \<longleftrightarrow> accepts w" using \<open>decides_word L w\<close> by simp
+  ultimately show "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)" ..
+next
+  assume "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
+  then show "decides_word L w" by (simp add: rejects_altdef)
+qed
+
+lemma decides_altdef4: "decides_word L w \<longleftrightarrow> (if w \<in> L then accepts w else rejects w)"
+  unfolding decides_def using acc_not_rej by (cases "w \<in> L") auto
+
+end
 
 (* Note: having this much code commented out leads to errors when importing this theory sometimes.
          (Isabelle reports this theory as broken)
@@ -493,7 +540,6 @@ lemma hoare_comp:
     shows "TM.hoare_halt (M1 |+| M2) (input_assert P) (input_assert S)"
 sorry
 
-subsection\<open>Deciding Languages\<close>
 
 abbreviation input where "input w \<equiv> (\<lambda>c. hd (tapes c) = <w>\<^sub>t\<^sub>p)"
 
@@ -529,114 +575,7 @@ lemma init_input: "init w c \<Longrightarrow> input w c"
 lemma init_state_initial_state: "init w c \<Longrightarrow> state c = initial_state M"
   unfolding initial_config_def by simp
 
-definition accepts :: "'s list \<Rightarrow> bool"
-  where "accepts w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
-
-lemma acceptsI[intro]:
-  assumes "wf_word w"
-    and "state (run n w) \<in> accepting_states M"
-  shows "accepts w"
-  using assms unfolding accepts_def hoare_halt_def
-  by (meson state_axioms(4) subsetD)
-
-lemma acceptsE[elim]:
-  assumes "accepts w"
-  obtains n where "state (run n w) \<in> accepting_states M"
-using accepts_def assms hoare_halt_def wf_initial_config by fastforce
-
-definition rejects :: "'s list \<Rightarrow> bool"
-  where "rejects w \<equiv> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> rejecting_states M)"
-
-lemma rejectsI[intro]:
-  assumes "wf_word w"
-    and "is_final (run n w)"
-    and "state (run n w) \<in> rejecting_states M"
-  shows "rejects w"
-  using assms unfolding rejects_def hoare_halt_def
-  by meson
-
-lemma rejectsE[elim]:
-  assumes "rejects w"
-  obtains n where "is_final (run n w)"
-    and "state (run n w) \<in> rejecting_states M"
-by (smt (verit, ccfv_SIG) assms hoare_halt_def rejects_def wf_initial_config)
-
-lemma halts_iff: "halts w \<longleftrightarrow> accepts w \<or> rejects w"
-proof (intro iffI)
-  assume "halts w"
-  then obtain n where fin: "is_final (run n w)" and wf: "wf_word w" by blast
-  thus "accepts w \<or> rejects w"
-  proof (cases "state (run n w) \<in> accepting_states M")
-    case True hence "accepts w"
-      using fin wf acceptsI by blast
-  next
-    case False hence "rejects w"
-      using fin wf rejectsI by blast
-  qed blast+
-next
-  assume "accepts w \<or> rejects w" thus "halts w"
-  unfolding accepts_def rejects_def halts_def using hoare_true by blast
-qed
-
-lemma acc_not_rej:
-  assumes "accepts w"
-  shows "\<not> rejects w"
-proof (intro notI)
-  assume "rejects w"
-
-  have "hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M)"
-    using \<open>accepts w\<close> unfolding accepts_def by (rule conjunct2)
-  moreover have "hoare_halt (init w) (\<lambda>c. state c \<in> rejecting_states M)"
-    using \<open>rejects w\<close> unfolding rejects_def by (rule conjunct2)
-  ultimately have "hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M
-                                          \<and> state c \<in> rejecting_states M)"
-    by (fact hoare_and)
-  then have "hoare_halt (init w) (\<lambda>c. False)" by auto
-
-  moreover from assms have "wf_config (initial_config w)"
-    unfolding accepts_def by (intro wf_initial_config) blast
-  moreover have "init w (initial_config w)" ..
-  ultimately show False by (intro hoare_contr)
-qed
-
-lemma rejects_altdef:
-  "rejects w = (halts w \<and> \<not> accepts w)"
-  using acc_not_rej halts_iff by blast
-
-definition decides_word :: "'s lang \<Rightarrow> 's list \<Rightarrow> bool"
-  where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
-
-abbreviation decides :: "'s lang \<Rightarrow> bool"
-  where "decides L \<equiv> wf_lang L \<and> (\<forall>w\<in>wf_words. decides_word L w)"
-
-lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
-  by (cases "w \<in> L") (simp add: halts_iff)+
-
-corollary decides_halts_all: "decides L \<Longrightarrow> \<forall>w\<in>wf_words. halts w"
-  using decides_halts by blast
-
-lemma decides_altdef:
-  "decides_word L w \<longleftrightarrow> halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
-proof (intro iffI)
-  fix w
-  assume "decides_word L w"
-  hence "halts w" by (rule decides_halts)
-  moreover have "w \<in> L \<longleftrightarrow> accepts w" using \<open>decides_word L w\<close> by simp
-  ultimately show "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)" ..
-next
-  assume "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
-  then show "decides_word L w" by (simp add: rejects_altdef)
-qed
-
-lemma decides_altdef4: "decides_word L w \<longleftrightarrow> (if w \<in> L then accepts w else rejects w)"
-  unfolding decides_def using acc_not_rej by (cases "w \<in> L") auto
-
-lemma decides_altdef3: "decides_word L w \<longleftrightarrow> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M \<longleftrightarrow> w\<in>L)"
-  unfolding decides_altdef4 accepts_def rejects_def
-  by (cases "w\<in>L") (simp add: hoare_halt_def del: initial_config_def)+
-
 end
-
 
 subsection\<open>TM Languages\<close>
 
