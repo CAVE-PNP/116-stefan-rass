@@ -381,9 +381,6 @@ next
 qed
 
 lemma finite_type_lists_length_le: "finite {xs::('s::finite list). length xs \<le> n}"
-proof -
-  have "finite (UNIV :: 's set)" by (fact finite)
-  thus ?thesis using finite_lists_length_le[of UNIV] by fastforce
-qed
+  using finite_lists_length_le[OF finite, of UNIV] by simp
 
 end

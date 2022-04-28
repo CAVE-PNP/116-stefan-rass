@@ -226,67 +226,58 @@ text\<open>@{cite \<open>ch.~12.2\<close> hopcroftAutomata1979} uses the finite 
   often (i.o.) if it is true for an infinite number of \<open>n\<close>'s. Note that both a statement and
   its negation may be true i.o.''\<close>
 
-context TM begin
-definition "alm_all P \<equiv> finite {w. \<not> P w}"
-
-lemma alm_all_altdef: "alm_all P \<longleftrightarrow> (MOST w. P w)"
-  unfolding eventually_cofinite alm_all_def by simp
-
 lemma ae_word_length_iff[iff]:
-  fixes P :: "'s list \<Rightarrow> bool"
-  shows "alm_all P \<longleftrightarrow> (\<exists>n. \<forall>w. n \<le> length w \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
+  fixes P :: "'s::finite list \<Rightarrow> bool"
+  shows "Alm_all P \<longleftrightarrow> (\<exists>n. \<forall>w. n \<le> length w \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
 proof
   assume ?rhs
   then obtain n where "P w" if "n \<le> length w" for w by blast
   then have "\<not> P w \<Longrightarrow> length w \<le> n" for w by force
   then have "{w. \<not> P w} \<subseteq> {w. length w \<le> n}" by auto
-  moreover have "finite {w. length w \<le> n}"
-    using words_length_finite .
-  ultimately show ?lhs unfolding alm_all_def by (rule finite_subset)
+  moreover have "finite {w::'s list. length w \<le> n}"
+    using finite_type_lists_length_le .
+  ultimately show ?lhs unfolding eventually_cofinite by (rule finite_subset)
 next
   assume ?lhs
-  then have "finite {w\<in>wf_words. \<not> P w}" unfolding alm_all_def .
-  show ?rhs proof (cases "{x\<in>wf_words. \<not> P x} = {}")
-    assume "{x\<in>wf_words. \<not> P x} \<noteq> {}"
-    define n where "n = Suc (Max (length ` {x\<in>wf_words. \<not> P x}))"
+  then have "finite {w. \<not> P w}" unfolding eventually_cofinite .
+  show ?rhs proof (cases "{x. \<not> P x} = {}")
+    assume "{x. \<not> P x} \<noteq> {}"
+    define n where "n = Suc (Max (length ` {x. \<not> P x}))"
 
-    have "P x" if "length x \<ge> n" "x\<in>wf_words" for x
+    have "P x" if "length x \<ge> n" for x
     proof -
-      from \<open>length x \<ge> n\<close> have "length x > Max (length ` {x\<in>wf_words. \<not> P x})"
+      from \<open>length x \<ge> n\<close> have "length x > Max (length ` {x. \<not> P x})"
         unfolding n_def by (fact Suc_le_lessD)
-      then have "length x \<notin> length ` {x\<in>wf_words. \<not> P x}"
-        using \<open>{x\<in>wf_words. \<not> P x} \<noteq> {}\<close> \<open>finite {x\<in>wf_words. \<not> P x}\<close> by (subst (asm) Max_less_iff) blast+
-      then show "P x" using that(2) by blast
+      then have "length x \<notin> length ` {x. \<not> P x}"
+        using \<open>{x. \<not> P x} \<noteq> {}\<close> and \<open>finite {x. \<not> P x}\<close> by (subst (asm) Max_less_iff) blast+
+      with that show "P x" by blast
     qed
     then show ?rhs by blast
   qed blast
 qed
 
 lemma ae_word_lengthI:
-  fixes P :: "'s list \<Rightarrow> bool"
-  assumes "\<exists>n. \<forall>w\<in>wf_words. length w \<ge> n \<longrightarrow> P w"
-  shows "alm_all P"
-  unfolding ae_word_length_iff using assms by simp
+  fixes P :: "'s::finite list \<Rightarrow> bool"
+  assumes "\<exists>n. \<forall>w. n \<le> length w \<longrightarrow> P w"
+  shows "Alm_all P"
+unfolding ae_word_length_iff using assms .
 
 lemma ae_word_lengthE[elim]:
-  fixes P :: "'s list \<Rightarrow> bool"
-  assumes "alm_all P"
-  obtains n where "\<And>w. w\<in>wf_words \<Longrightarrow> length w \<ge> n \<Longrightarrow> P w"
-  using assms unfolding ae_word_length_iff by fast
+  fixes P :: "'s::finite list \<Rightarrow> bool"
+  assumes "Alm_all P"
+  obtains n where "\<And>w. n \<le> length w \<Longrightarrow> P w"
+using assms unfolding ae_word_length_iff by blast
 
-lemma ae_disj: "alm_all P \<or> alm_all Q \<Longrightarrow> alm_all (\<lambda>x. P x \<or> Q x)"
-  by auto
+lemma ae_disj: "Alm_all P \<or> Alm_all Q \<Longrightarrow> Alm_all (\<lambda>x. P x \<or> Q x)"
+  using eventually_mono by fastforce
 
-lemma ae_conj_iff: "alm_all (\<lambda>x. P x \<and> Q x) \<longleftrightarrow> alm_all P \<and> alm_all Q"
-  unfolding alm_all_altdef MOST_conj_distrib[symmetric] disj_conj_distribL ..
+lemma ae_conj_iff: "Alm_all (\<lambda>x. P x \<and> Q x) \<longleftrightarrow> Alm_all P \<and> Alm_all Q"
+  by (rule eventually_conj_iff)
 
 lemma ae_conjI:
-  assumes "alm_all P" "alm_all Q"
-  shows "alm_all (\<lambda>x. P x \<and> Q x)"
-  unfolding ae_conj_iff using assms ..
-
-end
-
+  assumes "Alm_all P" "Alm_all Q"
+  shows "Alm_all (\<lambda>x. P x \<and> Q x)"
+using assms by (rule eventually_conj)
 
 text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
 
@@ -301,39 +292,39 @@ text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
   but it seems reasonable that a similar construction works on time bounds.\<close>
 
 lemma DTIME_ae:
-  assumes "\<exists>M::('q, 's) TM. TM.alm_all M (\<lambda>w. TM.decides_word M L w \<and> TM.time_bounded_word M T w)"
+  assumes "\<exists>M::('q, 's::finite) TM. Alm_all (\<lambda>w. TM.decides_word M L w \<and> TM.time_bounded_word M T w)"
   shows "L \<in> typed_DTIME TYPE('q) T"
 sorry
 
 lemma (in TM) DTIME_aeI:
-  assumes "\<And>w. wf_word w \<Longrightarrow> n \<le> length w \<Longrightarrow> decides_word L w"
-    and "\<And>w. wf_word w \<Longrightarrow> n \<le> length w \<Longrightarrow> time_bounded_word T w"
+  assumes "\<And>w. n \<le> length w \<Longrightarrow> decides_word L w"
+    and "\<And>w. n \<le> length w \<Longrightarrow> time_bounded_word T w"
   shows "L \<in> typed_DTIME TYPE('q) T"
   using assms by (intro DTIME_ae) blast
 
 lemma DTIME_mono_ae':
-  fixes L :: "('s) lang"
+  fixes L :: "'s::finite lang"
   assumes Tt: "\<And>n. N \<le> n \<Longrightarrow> tcomp T n \<ge> tcomp t n"
     and "L \<in> typed_DTIME TYPE('q) t"
   shows "L \<in> typed_DTIME TYPE('q) T"
 proof -
   from \<open>L \<in> typed_DTIME TYPE('q) t\<close>
   obtain M::"('q, 's) TM"
-    where wf: "TM M" and decides: "TM.decides M L" and "TM.time_bounded M t" ..
+    where decides: "TM.decides M L" and tbounded: "TM.time_bounded M t" ..
 
-  from wf interpret TM M .
+  interpret TM M .
 
-  from decides have "alm_all (decides_word L)" by fast
-  moreover have "alm_all (time_bounded_word T)"
-  proof (intro ae_word_lengthI exI allI impI, safe)
+  from decides have "Alm_all (decides_word L)" by blast
+  moreover have "Alm_all (time_bounded_word T)"
+  proof (intro ae_word_lengthI exI allI impI)
     fix w :: "'s list"
     assume "length w \<ge> Suc N"
     then have "length w \<ge> N" by (fact Suc_leD)
     then have "tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w" by (fact Tt)
-    moreover from \<open>time_bounded t\<close> have "time_bounded_word t w" ..
+    moreover from tbounded have "time_bounded_word t w" ..
     ultimately show "time_bounded_word T w" by (fact time_bounded_word_mono')
   qed
-  ultimately show ?thesis using DTIME_ae[of L T] TM.ae_conjI wf by blast
+  ultimately show ?thesis using DTIME_ae[of L T] ae_conjI by blast
 qed
 
 lemma DTIME_mono_ae:
@@ -400,25 +391,24 @@ lemma linear_time_speed_up:
   assumes "c > 0"
   \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close> required by @{cite hopcroftAutomata1979}, but simpler to define in Isabelle.\<close>
     and "superlinear T"
-    and "TM M1"
     and "TM.decides M1 L"
     and "TM.time_bounded M1 T"
-  obtains M2 where "TM M2" and "TM.decides M2 L" and "TM.time_bounded M2 (\<lambda>n. c * T n)"
+  obtains M2 where "TM.decides M2 L" and "TM.time_bounded M2 (\<lambda>n. c * T n)"
   sorry
 
 
 corollary DTIME_speed_up:
   fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and c :: 'd
-    and L::"'s lang"
+    and L::"'s::finite lang"
   assumes "c > 0"
     and "superlinear T"
     and "L \<in> typed_DTIME TYPE('q1) T"
   shows "L \<in> typed_DTIME TYPE('q2) (\<lambda>n. c * T n)"
 proof -
   from \<open>L \<in> typed_DTIME TYPE('q1) T\<close> obtain M1::"('q1, 's) TM"
-    where "TM M1" and "TM.decides M1 L" and "TM.time_bounded M1 T" ..
+    where "TM.decides M1 L" and "TM.time_bounded M1 T" ..
   with assms(1-2) obtain M2::"('q2, 's) TM"
-    where "TM M2" "TM.decides M2 L" "TM.time_bounded M2 (\<lambda>n. c * T n)"
+    where "TM.decides M2 L" and "TM.time_bounded M2 (\<lambda>n. c * T n)"
     by (rule linear_time_speed_up)
   then show ?thesis unfolding typed_DTIME_def by blast
 qed
