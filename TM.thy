@@ -76,7 +76,7 @@ record ('q, 's::finite) TM_record =
   next_write :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> nat \<Rightarrow> 's tp_symbol" \<comment> \<open>Maps the current state, read symbols and tape index
     to the symbol to write before transitioning to the next state.\<close>
   next_move  :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> nat \<Rightarrow> head_move" \<comment> \<open>Maps the current state, read symbols and tape index
-    to the head movement to perform before transitionin to the next state.\<close>
+    to the head movement to perform before transitioning to the next state.\<close>
 
 text\<open>The elements of type \<^typ>\<open>'s\<close> comprise the TM's input alphabet,
   and the wrapper \<^typ>\<open>'s tp_symbol\<close> represent its working alphabet, including the \<^const>\<open>blank_symbol\<close>.
@@ -263,7 +263,8 @@ text\<open>For both \<^const>\<open>left\<close> and \<^const>\<open>right\<clos
   as the \<^const>\<open>head\<close> symbol is always set, such that even the empty tape has size \<open>1\<close>.
   However, this makes sense concerning space-complexity,
   as a TM (depending on the exact definition) always reads at least one cell
-  (and thus matches the requirement for space-complexity-functions to be at least \<open>1\<close> from @{cite hopcroftAutomata1979}).
+  (and thus matches the requirement for space-complexity-functions to be at least \<open>1\<close>
+  from @{cite hopcroftAutomata1979}).
 
   The use of datatype (as compared to record, for instance) grants the predefined
   \<^const>\<open>map_tape\<close> and \<^const>\<open>set_tape\<close>, including useful lemmas.\<close>
@@ -394,7 +395,7 @@ abbreviation is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
   "is_final c \<equiv> state c \<in> F"
 
 lemma is_final_altdef: "is_final c \<longleftrightarrow> state c \<in> F\<^sup>+ \<or> state c \<in> F\<^sup>-"
-  by (metis Diff_iff in_mono rejecting_states_def state_axioms(4))
+  using state_axioms(4) unfolding rejecting_states_def by blast
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 

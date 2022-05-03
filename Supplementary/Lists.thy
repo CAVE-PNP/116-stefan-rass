@@ -18,25 +18,41 @@ lemma set_replicate_subset: "set (x \<up> n) \<subseteq> {x}" by auto
 lemma map2_replicate: "map2 f (x \<up> n) ys = map (f x) (take n ys)"
   unfolding zip_replicate1 map_map by simp
 
-lemma replicate_set_eq: "set xs \<subseteq> {x} \<longleftrightarrow> (\<exists>n. xs = x \<up> n)"
-  by (metis (no_types, opaque_lifting)
-      bot.extremum_uniqueI insert_absorb replicate_0 replicate_eqI
-      set_empty2 set_replicate_subset singleton_insert_inj_eq subset_insert)
+lemma replicate_set_eq: "set xs \<subseteq> {x} \<longleftrightarrow> xs = x \<up> length xs"
+proof (intro iffI)
+  assume "xs = x \<up> length xs"
+  have "set (x \<up> length xs) \<subseteq> {x}" by (fact set_replicate_subset)
+  then show "set xs \<subseteq> {x}" using \<open>xs = x \<up> length xs\<close> by simp
+next
+  assume "set xs \<subseteq> {x}"
+  then show "xs = x \<up> length xs" by (blast intro: replicate_eqI)
+qed
+
+lemma replicate_eq: "xs = x \<up> length xs \<longleftrightarrow> (\<exists>n. xs = x \<up> n)"
+proof (intro iffI)
+  assume "\<exists>n. xs = x \<up> n"
+  then obtain n where "xs = x \<up> n" ..
+  then have "n = length xs" by simp
+  with \<open>xs = x \<up> n\<close> show "xs = x \<up> length xs" by simp
+qed (fact exI)
 
 lemma map2_singleton:
-  assumes "set xs \<subseteq> {x}" and "length xs = length ys"
+  assumes "set xs \<subseteq> {x}"
+    and ls: "length xs = length ys"
   shows "map2 f xs ys = map (f x) ys"
-  using assms map2_replicate replicate_eqI
-  by (metis empty_iff map_snd_zip map_snd_zip_take min.idem singletonD subset_singletonD)
+proof -
+  from \<open>set xs \<subseteq> {x}\<close> have xs: "x \<up> length xs = xs" unfolding replicate_set_eq ..
+  have "map2 f xs ys = map2 f (x \<up> length xs) ys" unfolding xs ..
+  also have "... = map (f x) ys" unfolding map2_replicate ls by simp
+  finally show ?thesis .
+qed
 
 lemma map2_id:
   assumes "length xs = length ys"
       and "set xs \<subseteq> {x}"
       and "f x = id"
     shows "map2 f xs ys = ys"
-  apply (subst map2_singleton)
-  using assms(1-2) apply blast+
-  unfolding assms(3) list.map_id0 id_apply ..
+  using assms by (subst map2_singleton) auto
 
 lemma nth_map2:
   assumes "i < length xs" and "i < length ys"
@@ -182,16 +198,14 @@ lemma map_inv_into_map_id:
   assumes "inj_on f A"
       and "set as \<subseteq> A"
     shows "map (inv_into A f) (map f as) = as"
-  using assms inv_into_f_f
-  by (metis (no_types, lifting) list.map_comp map_idI o_apply subset_iff)
+  unfolding map_map comp_def using assms by (intro map_idI) fastforce
 
 lemma map_map_inv_into_id:
   fixes f::"'a \<Rightarrow> 'b"
   assumes "inj_on f A"
       and "set bs \<subseteq> f ` A"
     shows "map f (map (inv_into A f) bs) = bs"
-  using assms f_inv_into_f
-  by (metis (no_types, lifting) list.map_comp map_idI o_apply subset_iff)
+  unfolding map_map comp_def using assms by (intro map_idI) fastforce
 
 lemma nths_insert_interval_less:
   assumes "length w \<ge> 1"
@@ -271,15 +285,15 @@ proof (induction xs)
   with Cons show ?case by simp
 qed simp
 
-lemma trim_nil_eq: "trim b xs = [] \<longleftrightarrow> (\<exists>n. xs = b \<up> n)"
+lemma trim_nil_eq: "trim b xs = [] \<longleftrightarrow> xs = b \<up> length xs"
 proof
-  assume "\<exists>n. xs = b \<up> n"
+  assume "xs = b \<up> length xs"
   then obtain n where "xs = b \<up> n" ..
   thus "trim b xs = []" by simp
 next
   assume "trim b xs = []"
   hence "set xs \<subseteq> {b}" by (rule trim_nil_set)
-  with replicate_set_eq show "\<exists>n. xs = b \<up> n" ..
+  then show "xs = b \<up> length xs" unfolding replicate_set_eq .
 qed
 
 
