@@ -63,8 +63,9 @@ text\<open>We model a (deterministic \<open>k\<close>-tape) TM over the type \<^
  * consider applying the "labelling" pattern used by @{cite forsterCoqTM2020},
  * as this would allow more advanced extensions, such as oracles as well *)
 
-record ('q, 's::finite) TM_record =
+record ('q, 's) TM_record =
   tape_count :: nat \<comment> \<open>\<open>k\<close>, the number of tapes\<close>
+  symbols :: "'s set" \<comment> \<open>\<open>\<Sigma>\<^sub>i\<^sub>n\<close>, the set of symbols, not including the \<^const>\<open>blank_symbol\<close>\<close>
   states :: "'q set" \<comment> \<open>\<open>Q\<close>, the set of states\<close>
   initial_state :: 'q \<comment> \<open>\<open>q\<^sub>0 \<in> Q\<close>, the initial state; computation will start on \<open>k\<close> blank tapes in this state\<close>
   final_states :: "'q set" \<comment> \<open>\<open>F \<subseteq> Q\<close>, the set of final states; if a TM is in a final state,
@@ -99,6 +100,19 @@ text\<open>
   and missing actions will be assumed to have no effect (write the same symbol that was read, do not move head).\<close>
 
 
+(* TODO document *)
+definition tape_symbols_rec :: "('q, 's) TM_record \<Rightarrow> 's tp_symbol set"
+  where "tape_symbols_rec M_rec \<equiv> {blank_symbol} \<union> (Some ` symbols M_rec)"
+
+lemma tape_symbols_simps:
+  shows tape_symbols_Bk[intro, simp]: "blank_symbol \<in> tape_symbols_rec M_rec"
+    and in_tape_symbols_iff[iff]: "Some x \<in> tape_symbols_rec M_rec \<longleftrightarrow> x \<in> symbols M_rec"
+  unfolding tape_symbols_rec_def by blast+
+
+lemma tape_symbols_UNIV[iff]: "symbols M_rec = UNIV \<longleftrightarrow> tape_symbols_rec M_rec = UNIV"
+  unfolding tape_symbols_rec_def UNIV_option_conv by blast
+
+
 subsubsection\<open>A Type of Turing Machines\<close>
 
 text\<open>To use TMs conveniently, we setup a type and a locale as follows:
@@ -112,37 +126,56 @@ text\<open>To use TMs conveniently, we setup a type and a locale as follows:
   A simpler form of this pattern has been used to define the type of filters (\<^typ>\<open>'a filter\<close>).\<close>
 
 locale is_valid_TM =
-  fixes M :: "('q, 's::finite) TM_record" (structure)
+  fixes M :: "('q, 's) TM_record"
   assumes at_least_one_tape: "1 \<le> tape_count M" (* TODO motivate this assm. "why is this necessary?" edit: initial_config would have to be defined differently *)
+    and symbol_axioms: "finite (symbols M)" "symbols M \<noteq> {}"
+    and state_axioms: "finite (states M)" "initial_state M \<in> states M"
+      "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
+    and next_state_valid: "\<And>q hds. q \<in> states M \<Longrightarrow> set hds \<subseteq> tape_symbols_rec M \<Longrightarrow> next_state M q hds \<in> states M"
+    and next_write_valid: "\<And>q hds i. q \<in> states M \<Longrightarrow> set hds \<subseteq> tape_symbols_rec M \<Longrightarrow> next_write M q hds i \<in> tape_symbols_rec M"
+
+lemma is_valid_TM_finiteI:
+  fixes M :: "('q, 's::finite) TM_record"
+  assumes at_least_one_tape: "1 \<le> tape_count M"
+    and symbols_UNIV: "symbols M = UNIV"
     and state_axioms: "finite (states M)" "initial_state M \<in> states M"
       "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
     and next_state_valid: "\<And>q hds. q \<in> states M \<Longrightarrow> next_state M q hds \<in> states M"
+  shows "is_valid_TM M"
+proof
+  show "finite (symbols M)" by (fact finite_class.finite)
+  show "symbols M \<noteq> {}" unfolding symbols_UNIV by (fact UNIV_not_empty)
+
+  fix q hds i
+  assume q: "q \<in> states M"
+  then show "next_state M q hds \<in> states M" by (fact next_state_valid)
+  from symbols_UNIV show "next_write M q hds i \<in> tape_symbols_rec M" by blast
+qed (fact assms)+
+
 
 text\<open>To define a type, we must prove that it is inhabited (there exist elements that have this type).
   For this we define the trivial ``rejecting TM'', and prove it to be valid.\<close>
 
-definition "rejecting_TM_rec q0 \<equiv> \<lparr>
-  tape_count = 1,
+definition rejecting_TM_rec :: "'q \<Rightarrow> 's \<Rightarrow> ('q, 's) TM_record"
+  where "rejecting_TM_rec q0 s \<equiv> \<lparr>
+  tape_count = 1, symbols = {s},
   states = {q0}, initial_state = q0, final_states = {q0}, accepting_states = {},
   next_state = (\<lambda>q hds. q0), next_write = (\<lambda>q hds i. blank_symbol), next_move = (\<lambda>q hds i. No_Shift)
 \<rparr>"
 
-lemma rejecting_TM_valid: "is_valid_TM (rejecting_TM_rec q0)"
+lemma rejecting_TM_valid: "is_valid_TM (rejecting_TM_rec q0 s)"
   by (unfold_locales, unfold rejecting_TM_rec_def TM_record.simps) blast+
 
 text\<open>The type \<open>TM\<close> is then defined as the set of valid \<open>TM_record\<close>s.\<close>
 (* TODO elaborate on the implications of this *)
 
-typedef ('q, 's::finite) TM = "{M :: ('q, 's) TM_record. is_valid_TM M}"
+typedef ('q, 's) TM = "{M :: ('q, 's) TM_record. is_valid_TM M}"
   using rejecting_TM_valid by fast
 
-definition "rejecting_TM q0 \<equiv> Abs_TM (rejecting_TM_rec q0)"
+definition "rejecting_TM q0 s \<equiv> Abs_TM (rejecting_TM_rec q0 s)" (* TODO move this somewhere else *)
 
 locale TM = TM_abbrevs +
-  (* TODO find out what `(structure)` actually does. according to isar-ref.pdf,
-   *      it allows the element to "be referenced implicitly in this context",
-   *      but i have not yet seen any difference *)
-  fixes M :: "('q, 's::finite) TM"
+  fixes M :: "('q, 's) TM"
 begin
 
 abbreviation "M_rec \<equiv> Rep_TM M"
@@ -154,6 +187,8 @@ text\<open>Note: The following definitions ``overwrite'' the \<open>TM_record\<c
   Interestingly, this only applies to the first field (\<^const>\<open>TM_record.tape_count\<close>) and not any of the other ones.\<close>
 
 definition tape_count where "tape_count \<equiv> TM_record.tape_count M_rec"
+definition symbols where "symbols \<equiv> TM_record.symbols M_rec"
+definition tape_symbols where "tape_symbols \<equiv> tape_symbols_rec M_rec"
 definition states where "states \<equiv> TM_record.states M_rec"
 definition initial_state where "initial_state \<equiv> TM_record.initial_state M_rec"
 definition final_states where "final_states \<equiv> TM_record.final_states M_rec"
@@ -163,13 +198,16 @@ definition next_state where "next_state \<equiv> TM_record.next_state M_rec"
 definition next_write where "next_write \<equiv> TM_record.next_write M_rec"
 definition next_move  where "next_move  \<equiv> TM_record.next_move  M_rec"
 
-lemmas TM_fields_defs = tape_count_def states_def initial_state_def final_states_def
-  accepting_states_def rejecting_states_def next_state_def next_write_def next_move_def
+lemmas TM_fields_defs = tape_count_def symbols_def tape_symbols_def
+  states_def initial_state_def final_states_def accepting_states_def rejecting_states_def
+  next_state_def next_write_def next_move_def
 
 text\<open>The following abbreviations are not modelled as notation,
   as notation is not transferred when interpreting locales (see below).\<close>
 
 abbreviation "k \<equiv> tape_count"
+abbreviation "\<Sigma>\<^sub>i\<^sub>n \<equiv> symbols"
+abbreviation "\<Sigma> \<equiv> tape_symbols"
 abbreviation "Q \<equiv> states"
 abbreviation "q\<^sub>0 \<equiv> initial_state"
 abbreviation "F \<equiv> final_states"
@@ -197,10 +235,14 @@ lemma next_actions_altdef: "\<delta>\<^sub>a q hds = map (\<lambda>i. (\<delta>\
   unfolding next_actions_def zip_map_map map2_same ..
 
 
+lemma tape_symbols_simps: "\<Sigma> = {Bk} \<union> Some ` \<Sigma>\<^sub>i\<^sub>n"
+  unfolding symbols_def tape_symbols_def tape_symbols_rec_def ..
+
+
 (* TODO consider removing [simp] here, as it would only be useful for low-level stuff *)
 lemma M_rec[simp]: "M_rec = \<lparr> TM_record.tape_count = k, \<comment> \<open>as \<^const>\<open>TM.tape_count\<close> overwrites \<^const>\<open>TM_record.tape_count\<close>
         in \<^locale>\<open>TM\<close> contexts, it must be specified explicitly here.\<close>
-    states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
+    symbols = \<Sigma>\<^sub>i\<^sub>n, states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
     next_state = \<delta>\<^sub>q, next_write = \<delta>\<^sub>w, next_move  = \<delta>\<^sub>m \<rparr>"
     unfolding TM_fields_defs by simp
 
@@ -210,10 +252,12 @@ subsubsection\<open>Properties\<close>
 sublocale is_valid_TM M_rec using Rep_TM .. \<comment> \<open>The axioms of \<^locale>\<open>is_valid_TM\<close> hold by definition.\<close>
 
 lemmas at_least_one_tape = at_least_one_tape[folded TM_fields_defs]
+lemmas symbol_axioms = symbol_axioms[folded TM_fields_defs]
 lemmas state_axioms = state_axioms[folded TM_fields_defs]
 lemmas next_state_valid = next_state_valid[folded TM_fields_defs]
+lemmas next_write_valid = next_write_valid[folded TM_fields_defs]
 
-lemmas TM_axioms = at_least_one_tape state_axioms next_state_valid
+lemmas TM_axioms = at_least_one_tape state_axioms symbol_axioms next_state_valid next_write_valid
 lemmas (in -) TM_axioms[simp, intro] = TM.TM_axioms
 
 lemma next_actions_length[simp]: "length (next_actions q hds) = k" by simp
