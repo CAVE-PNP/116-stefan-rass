@@ -104,12 +104,12 @@ text\<open>
 definition tape_symbols_rec :: "('q, 's) TM_record \<Rightarrow> 's tp_symbol set"
   where "tape_symbols_rec M_rec \<equiv> {blank_symbol} \<union> (Some ` symbols M_rec)"
 
-lemma tape_symbols_simps:
+lemma tape_symbols_rec_simps:
   shows tape_symbols_Bk[intro, simp]: "blank_symbol \<in> tape_symbols_rec M_rec"
     and in_tape_symbols_iff[iff]: "Some x \<in> tape_symbols_rec M_rec \<longleftrightarrow> x \<in> symbols M_rec"
   unfolding tape_symbols_rec_def by blast+
 
-lemma tape_symbols_UNIV[iff]: "symbols M_rec = UNIV \<longleftrightarrow> tape_symbols_rec M_rec = UNIV"
+lemma tape_symbols_rec_UNIV[iff]: "symbols M_rec = UNIV \<longleftrightarrow> tape_symbols_rec M_rec = UNIV"
   unfolding tape_symbols_rec_def UNIV_option_conv by blast
 
 
@@ -245,8 +245,11 @@ lemma next_actions_simps[simp]:
     and "length (next_actions q hds) = k" unfolding next_actions_def by simp_all
 
 
-lemma tape_symbols_simps: "\<Sigma> = {Bk} \<union> Some ` \<Sigma>\<^sub>i\<^sub>n"
+lemma tape_symbols_altdef: "\<Sigma> = {Bk} \<union> Some ` \<Sigma>\<^sub>i\<^sub>n"
   unfolding symbols_def tape_symbols_def tape_symbols_rec_def ..
+
+lemma tape_symbols_simps[iff]: "set_option s \<subseteq> \<Sigma>\<^sub>i\<^sub>n \<longleftrightarrow> s \<in> \<Sigma>"
+  unfolding tape_symbols_altdef by (induction s) blast+
 
 
 (* TODO consider removing [simp] here, as it would only be useful for low-level stuff *)
@@ -435,7 +438,7 @@ lemma finite_symbol_type: "OFCLASS('s, finite_class)"
 
 (* updated/simplified properties: *)
 lemma tape_symbols_UNIV[simp]: "\<Sigma> = UNIV"
-  using symbols_UNIV unfolding symbols_def tape_symbols_def tape_symbols_UNIV .
+  using symbols_UNIV unfolding symbols_def tape_symbols_def tape_symbols_rec_UNIV .
 lemma next_state_valid[intro]: "q \<in> Q \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q" by simp
 
 lemmas symbol_simps = symbols_UNIV tape_symbols_UNIV
@@ -479,7 +482,7 @@ proof (induction tp)
   case (Tape l h r)
   assume "set_tape \<langle>l|h|r\<rangle> \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
   then have "set_option h \<subseteq> \<Sigma>\<^sub>i\<^sub>n" by simp
-  then show "head \<langle>l|h|r\<rangle> \<in> \<Sigma>" unfolding tape.sel tape_symbols_simps by (induction h) blast+
+  then show "head \<langle>l|h|r\<rangle> \<in> \<Sigma>" unfolding tape.sel by (induction h) blast+
 qed
 
 lemma tapes_heads_valid[intro]:
