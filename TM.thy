@@ -422,6 +422,27 @@ lemma map_head_tapes[simp]: "map head (map (map_tape f) tps) = map (map_option f
 lemmas TM_config_eq = TM_config.expand[OF conjI] (* sadly, \<open>datatype\<close> does not provide this directly (cf. \<open>some_record.equality\<close> defined by \<open>record\<close> *)
 
 
+locale typed_TM = (* TODO (!) move somewhere more fitting *)
+  fixes M :: "('q, 's) TM" (* TODO is it necessary to state \<open>'s::finite\<close> here? it could be inferred from the assumptions *)
+  assumes symbols_UNIV[simp]: "TM.symbols M = UNIV"
+begin
+sublocale TM M .
+
+lemma finite_symbol_type: "OFCLASS('s, finite_class)"
+  using symbol_axioms(1) unfolding symbols_UNIV
+  by (intro class.finite.of_class.intro class.finite.intro)
+
+
+(* updated/simplified properties: *)
+lemma tape_symbols_UNIV[simp]: "\<Sigma> = UNIV"
+  using symbols_UNIV unfolding symbols_def tape_symbols_def tape_symbols_UNIV .
+lemma next_state_valid[intro]: "q \<in> Q \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q" by simp
+
+lemmas symbol_simps = symbols_UNIV tape_symbols_UNIV
+lemmas TM_axioms = at_least_one_tape state_axioms symbol_simps next_state_valid
+
+end
+
 context TM
 begin
 
@@ -430,17 +451,44 @@ text\<open>A vector \<open>hds\<close> of symbols currently under the TM-heads,
   iff the number of elements of \<open>hds\<close> matches the number of tapes of \<open>M\<close>,
   and all elements are valid symbols for \<open>M\<close>.\<close>
 
-definition wf_state :: "'s tp_symbol list \<Rightarrow> bool" (* this is currently unused due to the mitigations put in place with next_actions *)
-  where [simp]: "wf_state hds \<equiv> length hds = k"
+definition wf_state :: "'s tp_symbol list \<Rightarrow> bool"
+  where "wf_state hds \<equiv> length hds = k \<and> set hds \<subseteq> \<Sigma>" (* TODO include valid state q in this? *)
+
+mk_ide wf_state_def |intro wf_stateI[intro]| |elim wf_stateE[elim]| |dest wf_stateD[dest]|
+
+lemma (in typed_TM) wf_state_def: "wf_state hds \<longleftrightarrow> length hds = k"
+  unfolding wf_state_def by simp
+
 
 text\<open>A \<^typ>\<open>('q, 's) TM_config\<close> \<open>c\<close> is considered well-formed w.r.t. a TM \<open>M\<close>,
   iff the number of \<^const>\<open>tapes\<close> of \<open>c\<close> matches the number of tapes of \<open>M\<close>.\<close>
 
 definition wf_config :: "('q, 's) TM_config \<Rightarrow> bool"
-  where "wf_config c \<equiv> state c \<in> Q \<and> length (tapes c) = k"
+  where "wf_config c \<equiv> state c \<in> Q \<and> length (tapes c) = k
+    \<and> list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>\<^sub>i\<^sub>n) (tapes c)"
 
 (* TODO consider marking the intro as [simp] as well *)
-mk_ide wf_config_def |intro wf_configI[intro]| |elim wf_configE[elim]| |dest wf_configD[dest, intro]|
+mk_ide wf_config_def |intro wf_configI[intro]| |elim wf_configE[elim]| |dest wf_configD[dest]|
+
+lemma (in typed_TM) wf_config_def: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k"
+  unfolding wf_config_def by simp
+(* TODO (?) mk_ide for typed_TM's wf_config_def *)
+
+lemma set_tape_valid[dest]: "set_tape tp \<subseteq> \<Sigma>\<^sub>i\<^sub>n \<Longrightarrow> head tp \<in> \<Sigma>"
+proof (induction tp)
+  case (Tape l h r)
+  assume "set_tape \<langle>l|h|r\<rangle> \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
+  then have "set_option h \<subseteq> \<Sigma>\<^sub>i\<^sub>n" by simp
+  then show "head \<langle>l|h|r\<rangle> \<in> \<Sigma>" unfolding tape.sel tape_symbols_simps by (induction h) blast+
+qed
+
+lemma tapes_heads_valid[intro]:
+  assumes "list_all (\<lambda>tp. set_tape tp \<subseteq> symbols) (tapes c)"
+  shows "set (heads c) \<subseteq> \<Sigma>"
+  unfolding list_all_set_map using assms by blast
+
+lemma wf_config_state: "wf_config c \<Longrightarrow> wf_state (heads c)"
+  by (elim wf_configE, intro wf_stateI) (simp, blast)
 
 abbreviation is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
   "is_final c \<equiv> state c \<in> F"
