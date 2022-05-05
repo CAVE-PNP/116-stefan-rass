@@ -58,6 +58,8 @@ qed
 
 corollary input_tape_cong[cong]: "<w>\<^sub>t\<^sub>p = <w'>\<^sub>t\<^sub>p \<longleftrightarrow> w = w'" by blast
 
+lemma input_tape_set[simp]: "set_tape <w>\<^sub>t\<^sub>p = set w" by (induction w) auto
+
 end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
 
 
@@ -72,12 +74,21 @@ definition initial_config :: "'s list \<Rightarrow> ('q, 's) TM_config"
 
 abbreviation "c\<^sub>0 \<equiv> initial_config"
 
-lemma wf_initial_config[intro]: "wf_config (initial_config w)"
-  unfolding initial_config_def using at_least_one_tape by fastforce
 
-lemma init_conf_len: "length (tapes (initial_config w)) = k" by blast
-lemma init_conf_state: "state (initial_config w) = q\<^sub>0" unfolding initial_config_def by simp
+lemma init_conf_len: "length (tapes (initial_config w)) = k"
+  unfolding initial_config_def using at_least_one_tape by force
+lemma init_conf_state: "state (initial_config w) = q\<^sub>0"
+  unfolding initial_config_def by simp
 lemmas init_conf_simps[simp] = init_conf_len init_conf_state
+
+lemma wf_initial_config[intro]: "set w \<subseteq> \<Sigma>\<^sub>i\<^sub>n \<Longrightarrow> wf_config (initial_config w)"
+proof (intro wf_configI)
+  assume "set w \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
+  then show "list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>\<^sub>i\<^sub>n) (tapes (c\<^sub>0 w))"
+    unfolding initial_config_def TM_config.sel list.pred_inject(2) by (intro conjI) (simp, force)
+qed simp_all
+
+lemma (in typed_TM) wf_initial_config[intro]: "wf_config (initial_config w)" by force
 
 
 subsubsection\<open>Running a TM Program\<close>
@@ -88,9 +99,11 @@ definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
 lemma run_initial_config[simp]: "run 0 w = c\<^sub>0 w"
   unfolding run_def by simp
 
-corollary wf_config_run[intro!, simp]: "wf_config (run n w)" unfolding run_def by auto
+corollary wf_config_run[intro, simp]: "set w \<subseteq> \<Sigma>\<^sub>i\<^sub>n \<Longrightarrow> wf_config (run n w)" unfolding run_def by blast
+corollary (in typed_TM) wf_config_run[intro!, simp]: "wf_config (run n w)" by simp
 
-corollary run_tapes_len[simp]: "length (tapes (run n w)) = k" by blast
+
+corollary run_tapes_len[simp]: "length (tapes (run n w)) = k" by (simp add: run_def steps_l_tps)
 corollary run_tapes_non_empty[simp, intro]: "tapes (run n w) \<noteq> []"
   using at_least_one_tape by (fold length_0_conv) simp
 
@@ -110,7 +123,7 @@ subsection \<open>Hoare Rules\<close>
 
 type_synonym ('q, 's) assert = "('q, 's) TM_config \<Rightarrow> bool"
 
-definition hoare_halt :: "('q, 's::finite) assert \<Rightarrow> ('q, 's) TM \<Rightarrow> ('q, 's) assert \<Rightarrow> bool"
+definition hoare_halt :: "('q, 's) assert \<Rightarrow> ('q, 's) TM \<Rightarrow> ('q, 's) assert \<Rightarrow> bool"
   where "hoare_halt P M Q \<equiv>
     (\<forall>c. P c \<longrightarrow> (\<exists>n. let cn = TM.steps M n c in TM.is_final M cn \<and> Q cn))"
 
@@ -196,7 +209,7 @@ lemma (in TM) hoare_halt_init_conf:
   unfolding hoare_halt_def TM.on_input_def run_def by blast
 
 
-definition (in TM) halts :: "'s::finite list \<Rightarrow> bool"
+definition (in TM) halts :: "'s list \<Rightarrow> bool"
   where "halts w \<equiv> halts_config (initial_config w)"
 declare TM.halts_def[simp]
 
@@ -479,12 +492,12 @@ lemma time_eqI[intro]:
   using assms unfolding TM.time_def TM.run_def TM.halts_def by (fact config_time_eqI)
 
 locale Rej_TM =
-  fixes q0 :: 'q and M :: "('q, 's::finite) TM"
-  defines "M \<equiv> rejecting_TM q0"
+  fixes q0 :: 'q and s :: 's and M :: "('q, 's) TM"
+  defines "M \<equiv> rejecting_TM q0 s"
 begin
 sublocale TM M .
 
-lemma M_rec: "M_rec = rejecting_TM_rec q0" using Abs_TM_inverse rejecting_TM_valid
+lemma M_rec: "M_rec = rejecting_TM_rec q0 s" using Abs_TM_inverse rejecting_TM_valid
   unfolding rejecting_TM_def M_def by fast
 lemmas M_fields = TM_fields_defs[unfolded M_rec rejecting_TM_rec_def TM_record.simps]
 lemmas [simp] = M_fields(1-6)
