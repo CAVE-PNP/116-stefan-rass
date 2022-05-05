@@ -188,13 +188,23 @@ definition transition :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> 'q \<
   where "transition q hds = (\<delta>\<^sub>q q hds, map (\<lambda>i. (\<delta>\<^sub>w q hds i, \<delta>\<^sub>m q hds i)) [0..<k])"
 abbreviation "\<delta> \<equiv> transition"
 
-abbreviation "next_writes q hds \<equiv> map (\<delta>\<^sub>w q hds) [0..<k]"
-abbreviation "next_moves q hds \<equiv> map (\<delta>\<^sub>m q hds) [0..<k]"
-definition [simp]: "next_actions q hds \<equiv> zip (next_writes q hds) (next_moves q hds)"
+definition "next_writes q hds \<equiv> map (\<delta>\<^sub>w q hds) [0..<k]"
+definition "next_moves q hds \<equiv> map (\<delta>\<^sub>m q hds) [0..<k]"
+definition "next_actions q hds \<equiv> zip (next_writes q hds) (next_moves q hds)"
 abbreviation "\<delta>\<^sub>a \<equiv> next_actions"
 
 lemma next_actions_altdef: "\<delta>\<^sub>a q hds = map (\<lambda>i. (\<delta>\<^sub>w q hds i, \<delta>\<^sub>m q hds i)) [0..<k]"
-  unfolding next_actions_def zip_map_map map2_same ..
+  unfolding next_actions_def next_writes_def next_moves_def unfolding zip_map_map map2_same ..
+
+lemma next_writes_simps[simp]:
+  shows "i < k \<Longrightarrow> next_writes q hds ! i = \<delta>\<^sub>w q hds i"
+    and "length (next_writes q hds) = k" unfolding next_writes_def by simp_all
+lemma next_moves_simps[simp]:
+  shows "i < k \<Longrightarrow> next_moves q hds ! i = \<delta>\<^sub>m q hds i"
+    and "length (next_moves q hds) = k" unfolding next_moves_def by simp_all
+lemma next_actions_simps[simp]:
+  shows "i < k \<Longrightarrow> \<delta>\<^sub>a q hds ! i = (\<delta>\<^sub>w q hds i, \<delta>\<^sub>m q hds i)"
+    and "length (next_actions q hds) = k" unfolding next_actions_def by simp_all
 
 
 (* TODO consider removing [simp] here, as it would only be useful for low-level stuff *)
@@ -215,8 +225,6 @@ lemmas next_state_valid = next_state_valid[folded TM_fields_defs]
 
 lemmas TM_axioms = at_least_one_tape state_axioms next_state_valid
 lemmas (in -) TM_axioms[simp, intro] = TM.TM_axioms
-
-lemma next_actions_length[simp]: "length (next_actions q hds) = k" by simp
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
@@ -356,8 +364,6 @@ datatype ('q, 's) TM_config = TM_config
 
 text\<open>Combined with the \<^typ>\<open>('q, 's) TM\<close> definition, it completely describes a TM at any time during its execution.\<close>
 
-type_synonym (in TM_abbrevs) ('q, 's) conf = "('q, 's) TM_config"
-(* abbreviation (in TM_abbrevs) "config \<equiv> TM_config" *)
 abbreviation (in TM_abbrevs) "map_conf_state \<equiv> \<lambda>fq. map_TM_config fq (\<lambda>s. s)"
 abbreviation (in TM_abbrevs) "map_conf_tapes \<equiv> map_TM_config (\<lambda>q. q)"
 
@@ -377,7 +383,8 @@ begin
 
 text\<open>A vector \<open>hds\<close> of symbols currently under the TM-heads,
   is considered a well-formed state w.r.t. a TM \<open>M\<close>,
-  iff the number of elements of \<open>hds\<close> matches the number of tapes of \<open>M\<close>.\<close>
+  iff the number of elements of \<open>hds\<close> matches the number of tapes of \<open>M\<close>,
+  and all elements are valid symbols for \<open>M\<close>.\<close>
 
 definition wf_state :: "'s tp_symbol list \<Rightarrow> bool" (* this is currently unused due to the mitigations put in place with next_actions *)
   where [simp]: "wf_state hds \<equiv> length hds = k"
@@ -419,7 +426,7 @@ fun tape_shift :: "head_move \<Rightarrow> 's tape \<Rightarrow> 's tape" where
 | "tape_shift Shift_Right \<langle>ls|h|r#rs\<rangle> = \<langle>h#ls|r |rs\<rangle>"
 | "tape_shift No_Shift    tp = tp"
 
-lemma tape_shift_set: "set_tape (tape_shift m tp) = set_tape tp" (* TODO consider removing *)
+lemma tape_shift_set[simp]: "set_tape (tape_shift m tp) = set_tape tp"
 proof (induction tp)
   case (Tape l h r)
   show ?case
@@ -452,6 +459,9 @@ lemma tape_write_map[simp]:
   "tape_write (map_option f s) (map_tape f tp) = map_tape f (tape_write s tp)"
   by (induction tp) simp
 
+lemma tape_write_set: "set_tape (tape_write s tp) \<subseteq> set_option s \<union> set_tape tp"
+  by (induction tp) auto
+
 
 text\<open>Write a symbol, then move the head.\<close>
 
@@ -467,6 +477,9 @@ lemma tape_action_id[simp]: "tape_action (head tp, No_Shift) tp = tp"
 lemma tape_action_map[simp]:
   "tape_action (map_option f s, m) (map_tape f tp) = map_tape f (tape_action (s, m) tp)"
   unfolding tape_action_def by simp
+
+lemma tape_action_set: "set_tape (tape_action (s, m) tp) \<subseteq> set_option s \<union> set_tape tp"
+  unfolding tape_action_def tape_shift_set fst_conv by (fact tape_write_set)
 
 end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
 
@@ -491,14 +504,13 @@ lemma step_not_final_eqI:
     and l': "length tps' = k"
     and "\<And>i. i < k \<Longrightarrow> tape_action (\<delta>\<^sub>w q hds i, \<delta>\<^sub>m q hds i) (tps ! i) = tps' ! i"
   shows "map2 tape_action (next_actions q hds) tps = tps'"
-proof (rule nth_equalityI, unfold length_map length_zip next_actions_length l l' min.idem)
+proof (rule nth_equalityI, unfold length_map length_zip next_actions_simps l l' min.idem)
   fix i assume "i < k"
   then have [simp]: "[0..<k] ! i = i" by simp
 
   from \<open>i < k\<close> have "map2 tape_action (\<delta>\<^sub>a q hds) tps ! i = tape_action (\<delta>\<^sub>a q hds ! i) (tps ! i)"
     by (intro nth_map2) (auto simp add: l)
-  also have "... = tape_action (\<delta>\<^sub>w q hds i, \<delta>\<^sub>m q hds i) (tps ! i)"
-    unfolding next_actions_altdef using \<open>i < k\<close> by (subst nth_map) auto
+  also from \<open>i < k\<close> have "... = tape_action (\<delta>\<^sub>w q hds i, \<delta>\<^sub>m q hds i) (tps ! i)" by simp
   also from assms(3) and \<open>i < k\<close> have "... = tps' ! i" .
   finally show "map2 tape_action (\<delta>\<^sub>a q hds) tps ! i = tps' ! i" .
 qed (rule refl)
