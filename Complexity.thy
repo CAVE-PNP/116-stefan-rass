@@ -141,7 +141,7 @@ lemma time_bounded_altdef2:
 
 corollary time_bounded_time: "time_bounded T \<Longrightarrow> time w \<le> tcomp\<^sub>w T w"
   unfolding time_bounded_altdef2 by blast
-  
+
 
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
 
@@ -468,7 +468,7 @@ proof -
     using assms(2-3) by (rule DTIME_speed_up)
 qed
 
-subsection\<open>Reductions\<close>
+subsection\<open>Reductions\<close> (* currently broken *)
 
 lemma reduce_decides:
   fixes A B :: "'s lang"

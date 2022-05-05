@@ -775,6 +775,11 @@ lemma next_state_simps[simp]:
     and "\<delta>\<^sub>q (Inr q2) hds = Inr (M2.\<delta>\<^sub>q q2 hds)"
   unfolding M_fields by auto
 
+lemma next_actions_simps[simp]:
+  shows "\<delta>\<^sub>a (Inl q1) hds = M1.\<delta>\<^sub>a q1 hds"
+    and "\<delta>\<^sub>a (Inr q2) hds = M2.\<delta>\<^sub>a q2 hds"
+  by (simp_all add: TM.next_actions_altdef M_fields(8-9))
+
 definition "cl \<equiv> map_conf_state Inl"
 definition "cr \<equiv> map_conf_state Inr"
 lemma cl_simps[simp]: "state (cl c) = Inl (state c)" "tapes (cl c) = tapes c" "cl (TM_config q tps) = TM_config (Inl q) tps" unfolding cl_def by auto
@@ -792,7 +797,7 @@ proof -
   proof (rule TM_config_eq)
     from step_nf have "M1.\<delta>\<^sub>q (state c) (heads c) \<notin> M1.F" using nf' by simp
     then show "state (step_not_final ?c) = state (cl (M1.step_not_final c))" by simp
-    show "tapes (step_not_final ?c) = tapes (cl (M1.step_not_final c))" by (simp add: M_fields(8-9))
+    show "tapes (step_not_final ?c) = tapes (cl (M1.step_not_final c))" by simp
   qed
   also from nf' have "... = cl (M1.step c)" by simp
   finally show ?thesis .
@@ -835,7 +840,7 @@ proof -
   proof (rule TM_config_eq, unfold TM_config.sel)
     from step_final have "M1.\<delta>\<^sub>q (state c) (heads c) \<in> M1.F" using nf' by simp
     then show "state (step_not_final ?c) = Inr M2.q\<^sub>0" by simp
-    show "tapes (step_not_final ?c) = tapes (M1.step_not_final c)" by (simp add: M_fields(8-9))
+    show "tapes (step_not_final ?c) = tapes (M1.step_not_final c)" by simp
   qed
   also from nf' have "... = ?c\<^sub>0 (M1.step c)" by simp
   finally show ?thesis .
@@ -875,7 +880,7 @@ proof (cases "M2.is_final c")
   also have "... = cr (M2.step_not_final c)"
   proof (rule TM_config_eq)
     show "state (step_not_final (cr c)) = state (cr (M2.step_not_final c))" by simp
-    show "tapes (step_not_final (cr c)) = tapes (cr (M2.step_not_final c))" by (simp add: M_fields(8-9))
+    show "tapes (step_not_final (cr c)) = tapes (cr (M2.step_not_final c))" by simp
   qed
   also from nf have "... = cr (M2.step c)" by simp
   finally show ?thesis .
