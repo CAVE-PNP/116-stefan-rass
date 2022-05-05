@@ -11,6 +11,19 @@ begin
 
 text\<open>Extends \<^theory>\<open>HOL.Fun\<close>, \<^theory>\<open>HOL.Set\<close>, and \<^theory>\<open>HOL.Orderings\<close>.\<close>
 
+
+lemma cond_All_mono:
+  assumes "\<forall>i. P i \<longrightarrow> Q i"
+    and "\<And>i. P i \<Longrightarrow> Q i \<Longrightarrow> R i"
+  shows "\<forall>i. P i \<longrightarrow> R i"
+proof (intro allI impI)
+  fix i
+  assume "P i"
+  with \<open>\<forall>i. P i \<longrightarrow> Q i\<close> have "Q i" by blast
+  with assms(2) and \<open>P i\<close> show "R i" .
+qed
+
+
 lemma if_cases[case_names True False]: "P a \<Longrightarrow> P b \<Longrightarrow> P (If c a b)" by presburger
 
 lemma ifI[case_names True False]:

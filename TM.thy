@@ -672,17 +672,37 @@ lemma final_steps_le[dest]:
 paragraph\<open>Well-Formed Steps\<close>
 
 lemma step_nf_l_tps: "length (tapes c) = k \<Longrightarrow> length (tapes (step_not_final c)) = k" by simp
-lemma step_nf_valid_state: "state c \<in> Q \<Longrightarrow> state (step_not_final c) \<in> Q" by simp
+lemma (in typed_TM) step_nf_valid_state: "state c \<in> Q \<Longrightarrow> state (step_not_final c) \<in> Q" by simp
 lemma wf_step_not_final[intro]: "wf_config c \<Longrightarrow> wf_config (step_not_final c)"
-  using step_nf_l_tps step_nf_valid_state by blast
+proof (elim wf_configE, intro wf_configI)
+  let ?q = "state c" and ?tps = "tapes c" and ?hds = "heads c"
+    and ?tps' = "tapes (step_not_final c)"
+
+  assume q: "?q \<in> Q" and l[simp]: "length ?tps = k"
+  from l have l': "length ?tps' = k" by (fact step_nf_l_tps)
+
+  assume valid_tps: "list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>\<^sub>i\<^sub>n) ?tps"
+  then show "list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>\<^sub>i\<^sub>n) ?tps'" unfolding list_all_length l l'
+  proof (elim cond_All_mono)
+    fix i assume [simp]: "i < k"
+    have "set_tape (?tps' ! i) = set_tape (tape_action (\<delta>\<^sub>a ?q ?hds ! i) (?tps ! i))"
+      unfolding step_not_final_simps by (subst nth_map2) simp_all
+    also have "... \<subseteq> set_option (\<delta>\<^sub>w ?q ?hds i) \<union> set_tape (?tps ! i)" by (simp add: tape_action_set)
+    also have "... \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
+    proof (rule Un_least)
+      from q and valid_tps show "set_option (\<delta>\<^sub>w ?q ?hds i) \<subseteq> \<Sigma>\<^sub>i\<^sub>n" by blast
+      from valid_tps show "set_tape (?tps ! i) \<subseteq> \<Sigma>\<^sub>i\<^sub>n" by simp
+    qed
+    finally show "set_tape (?tps' ! i) \<subseteq> \<Sigma>\<^sub>i\<^sub>n" .
+  qed
+qed auto
 
 lemma step_l_tps: "length (tapes c) = k \<Longrightarrow> length (tapes (step c)) = k" by (cases "is_final c") auto
-lemma step_valid_state: "state c \<in> Q \<Longrightarrow> state (step c) \<in> Q" by (cases "is_final c") auto
-lemma wf_step[intro]: "wf_config c \<Longrightarrow> wf_config (step c)"
-  using step_l_tps step_valid_state by blast
+lemma (in typed_TM) step_valid_state: "state c \<in> Q \<Longrightarrow> state (step c) \<in> Q" by (cases "is_final c") auto
+lemma wf_step[intro]: "wf_config c \<Longrightarrow> wf_config (step c)" by (cases "is_final c") auto
 
 lemma steps_l_tps: "length (tapes c) = k \<Longrightarrow> length (tapes (steps n c)) = k" using step_l_tps by (elim funpow_induct)
-lemma steps_valid_state: "state c \<in> Q \<Longrightarrow> state (steps n c) \<in> Q" using step_valid_state by (elim funpow_induct)
+lemma (in typed_TM) steps_valid_state: "state c \<in> Q \<Longrightarrow> state (steps n c) \<in> Q" using step_valid_state by (elim funpow_induct)
 lemma wf_steps[intro]: "wf_config c \<Longrightarrow> wf_config (steps n c)" using wf_step by (elim funpow_induct)
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
