@@ -134,7 +134,7 @@ locale is_valid_TM =
     and next_state_valid: "\<And>q hds. q \<in> states M \<Longrightarrow> set hds \<subseteq> tape_symbols_rec M \<Longrightarrow> next_state M q hds \<in> states M"
     and next_write_valid: "\<And>q hds i. q \<in> states M \<Longrightarrow> set hds \<subseteq> tape_symbols_rec M \<Longrightarrow> next_write M q hds i \<in> tape_symbols_rec M"
 
-lemma is_valid_TM_finiteI:
+lemma valid_TM_finiteI:
   fixes M :: "('q, 's::finite) TM_record"
   assumes at_least_one_tape: "1 \<le> tape_count M"
     and symbols_UNIV: "symbols M = UNIV"
@@ -150,6 +150,19 @@ proof
   assume q: "q \<in> states M"
   then show "next_state M q hds \<in> states M" by (fact next_state_valid)
   from symbols_UNIV show "next_write M q hds i \<in> tape_symbols_rec M" by blast
+qed (fact assms)+
+
+lemma valid_TM_finiteI':
+  fixes k Q q\<^sub>0 F F\<^sub>A \<delta>\<^sub>q \<delta>\<^sub>w \<delta>\<^sub>m
+  defines "(M :: ('q, 's::finite) TM_record) \<equiv> \<lparr> TM_record.tape_count = k, symbols = UNIV,
+    states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sub>A,
+    next_state = \<delta>\<^sub>q, next_write = \<delta>\<^sub>w, next_move = \<delta>\<^sub>m \<rparr>"
+  assumes at_least_one_tape: "1 \<le> k"
+    and state_axioms: "finite Q" "q\<^sub>0 \<in> Q" "F \<subseteq> Q" "F\<^sub>A \<subseteq> F"
+    and next_state_valid: "\<And>q hds. q \<in> Q \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q"
+  shows "is_valid_TM M"
+proof (intro valid_TM_finiteI, unfold M_def TM_record.simps)
+  show "UNIV = UNIV" ..
 qed (fact assms)+
 
 
@@ -198,7 +211,8 @@ definition next_state where "next_state \<equiv> TM_record.next_state M_rec"
 definition next_write where "next_write \<equiv> TM_record.next_write M_rec"
 definition next_move  where "next_move  \<equiv> TM_record.next_move  M_rec"
 
-lemmas TM_fields_defs = tape_count_def symbols_def tape_symbols_def
+lemmas TM_fields_defs = tape_count_def symbols_def \<comment> \<open>we omit \<open>tape_symbols_def\<close> here,
+    as in most cases \<open>tape_symbols_altdef\<close> is the more relevant relation.\<close>
   states_def initial_state_def final_states_def accepting_states_def rejecting_states_def
   next_state_def next_write_def next_move_def
 
@@ -267,8 +281,8 @@ sublocale is_valid_TM M_rec using Rep_TM .. \<comment> \<open>The axioms of \<^l
 lemmas at_least_one_tape = at_least_one_tape[folded TM_fields_defs]
 lemmas symbol_axioms = symbol_axioms[folded TM_fields_defs]
 lemmas state_axioms = state_axioms[folded TM_fields_defs]
-lemmas next_state_valid = next_state_valid[folded TM_fields_defs]
-lemmas next_write_valid = next_write_valid[folded TM_fields_defs]
+lemmas next_state_valid = next_state_valid[folded TM_fields_defs tape_symbols_def]
+lemmas next_write_valid = next_write_valid[folded TM_fields_defs tape_symbols_def]
 
 lemmas TM_axioms = at_least_one_tape state_axioms symbol_axioms next_state_valid next_write_valid
 lemmas (in -) TM_axioms[simp, intro] = TM.TM_axioms
@@ -280,7 +294,7 @@ text\<open>The following code showcases the usage of TM concepts in this draft:\
 
 notepad
 begin
-  fix M M\<^sub>1 :: "('q, 's::finite) TM"
+  fix M M\<^sub>1 :: "('q, 's) TM"
 
   interpret TM M .
   term \<delta>\<^sub>q
@@ -426,8 +440,8 @@ lemmas TM_config_eq = TM_config.expand[OF conjI] (* sadly, \<open>datatype\<clos
 
 
 locale typed_TM = (* TODO (!) move somewhere more fitting *)
-  fixes M :: "('q, 's) TM" (* TODO is it necessary to state \<open>'s::finite\<close> here? it could be inferred from the assumptions *)
-  assumes symbols_UNIV[simp]: "TM.symbols M = UNIV"
+  fixes M :: "('q, 's::finite) TM" (* TODO is it necessary to state \<open>'s::finite\<close> here? it could be inferred from the assumptions *)
+  assumes symbols_UNIV[simp, intro]: "TM.symbols M = UNIV"
 begin
 sublocale TM M .
 
@@ -445,6 +459,17 @@ lemmas symbol_simps = symbols_UNIV tape_symbols_UNIV
 lemmas TM_axioms = at_least_one_tape state_axioms symbol_simps next_state_valid
 
 end
+
+lemma typed_TM_I:
+  assumes "is_valid_TM M_rec"
+    and "symbols M_rec = UNIV"
+  shows "typed_TM (Abs_TM M_rec)"
+proof (unfold_locales)
+  have "TM.symbols (Abs_TM M_rec) = symbols (Rep_TM (Abs_TM M_rec))" unfolding TM.symbols_def ..
+  also from \<open>is_valid_TM M_rec\<close> have "... = symbols M_rec" by (subst Abs_TM_inverse) blast+
+  finally show "TM.symbols (Abs_TM M_rec) = UNIV" unfolding \<open>symbols M_rec = UNIV\<close> .
+qed
+
 
 context TM
 begin
