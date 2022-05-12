@@ -70,4 +70,21 @@ proof -
   finally show ?thesis .
 qed
 
+
+definition options :: "'a set \<Rightarrow> 'a option set"
+  where "options A = insert None (Some ` A)"
+
+lemma options_altdef: "options A = {None} \<union> (Some ` A)" unfolding options_def by blast
+
+lemma empty_options[simp]: "options {} = {None}"
+  and UNIV_options[simp]: "options UNIV = UNIV"
+  and None_in_options[intro]: "None \<in> options A"
+  and Some_options_iff[iff]: "Some x \<in> options A \<longleftrightarrow> x \<in> A"
+  unfolding options_def UNIV_option_conv by blast+
+
+lemma options_UNIV_iff[iff]: "options A = UNIV \<longleftrightarrow> A = UNIV" by auto
+
+lemma set_options_eq: "x \<in> options A \<longleftrightarrow> set_option x \<subseteq> A" by (induction x) blast+
+
+
 end
