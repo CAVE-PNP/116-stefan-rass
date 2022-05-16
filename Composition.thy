@@ -286,7 +286,7 @@ next
         note * = this[OF l_tps'] this[OF l_hds']
         from \<open>i < k'\<close> have [simp]: "map head tps' ! i = head (tps' ! i)"
           by (intro nth_map) (unfold l_tps')
-        show ?case unfolding M'_fields * by simp
+        show ?case unfolding M'_fields * using l_hds' by auto
       next
         case (Some i')
         then have [simp]: "is ! i = Some i'" ..
@@ -354,9 +354,9 @@ corollary reorder_config_time:
 
 corollary reorder_run':
   fixes c' :: "('q, 's) TM_config"
-  assumes "length (tapes c') = k'"
+  assumes tpl: "length (tapes c') = k'" and wwf: "wf_input w"
   shows "M'.steps n (rc (tapes c') (initial_config w)) = rc (tapes c') (run n w)"
-  unfolding run_def reorder_steps[OF wf_initial_config assms] ..
+  unfolding run_def using reorder_steps[OF wf_initial_config tpl, OF wwf] .
 
 lemma init_conf_eq:
   assumes "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"

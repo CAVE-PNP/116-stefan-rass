@@ -81,8 +81,10 @@ lemma init_conf_state: "state (initial_config w) = q\<^sub>0"
   unfolding initial_config_def by simp
 lemmas init_conf_simps[simp] = init_conf_len init_conf_state
 
-lemma wf_initial_config[intro]: "set w \<subseteq> \<Sigma>\<^sub>i\<^sub>n \<Longrightarrow> wf_config (initial_config w)"
-proof (intro wf_configI)
+definition "wf_input w \<equiv> set w \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
+
+lemma wf_initial_config[intro]: "wf_input w \<Longrightarrow> wf_config (initial_config w)"
+proof (unfold wf_input_def, intro wf_configI)
   assume "set w \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
   then show "list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>\<^sub>i\<^sub>n) (tapes (c\<^sub>0 w))"
     unfolding initial_config_def TM_config.sel list.pred_inject(2) by (intro conjI) (simp, force)
@@ -99,8 +101,8 @@ definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
 lemma run_initial_config[simp]: "run 0 w = c\<^sub>0 w"
   unfolding run_def by simp
 
-corollary wf_config_run[intro, simp]: "set w \<subseteq> \<Sigma>\<^sub>i\<^sub>n \<Longrightarrow> wf_config (run n w)" unfolding run_def by blast
-corollary (in typed_TM) wf_config_run[intro!, simp]: "wf_config (run n w)" by simp
+corollary wf_config_run[intro, simp]: "wf_input w \<Longrightarrow> wf_config (run n w)" unfolding run_def by blast
+corollary (in typed_TM) wf_config_run[intro!, simp]: "wf_config (run n w)" using wf_input_def by simp
 
 
 corollary run_tapes_len[simp]: "length (tapes (run n w)) = k" by (simp add: run_def steps_l_tps)
