@@ -20,6 +20,9 @@ proof -
 qed
 
 
+lemma these_empty_eq_subset: "Option.these A = {} \<longleftrightarrow> A \<subseteq> {None}"
+  unfolding these_empty_eq subset_singleton_iff ..
+
 lemma these_union[simp]: "Option.these (A \<union> B) = Option.these A \<union> Option.these B"
   unfolding Option.these_def by blast
 

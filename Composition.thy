@@ -47,6 +47,46 @@ definition reorder_inv :: "(nat option list) \<Rightarrow> 'a list \<Rightarrow>
     (\<lambda>i. ys ! (LEAST i'. i'<length is \<and> is ! i' = Some i))
     [0..<if set is \<subseteq> {None} then 0 else Suc (Max (Option.these (set is)))]"
 
+
+lemma set_reorder_inv:
+  assumes ls: "length ys = length is"
+    and items_match: "Option.these (set is) = {0..<N}"
+  shows "set (reorder_inv is ys) \<subseteq> set ys" (is "set ?r \<subseteq> set ys")
+proof (cases "set is \<subseteq> {None}")
+  assume "set is \<subseteq> {None}"
+  then have "set (reorder_inv is ys) = {}" unfolding reorder_inv_def by simp
+  also have "... \<subseteq> set ys" ..
+  finally show ?thesis .
+next
+  assume "\<not> set is \<subseteq> {None}"
+  then have "N > 0" unfolding these_empty_eq_subset[symmetric] items_match by simp
+
+  show "set (reorder_inv is ys) \<subseteq> set ys"
+  proof (rule subsetI)
+    define n where "n \<equiv> if set is \<subseteq> {None} then 0 else Suc (Max (Option.these (set is)))"
+    with \<open>\<not> set is \<subseteq> {None}\<close> have n_simp: "n = Suc (Max (Option.these (set is)))" by simp
+
+    define f where "f \<equiv> \<lambda>i. ys ! (LEAST i'. i' < length is \<and> is ! i' = Some i)"
+    have lr: "length (map f [0..<n]) = n" by simp
+
+    fix x
+    assume "x \<in> set ?r"
+    then have "x \<in> set (map f [0..<n])" unfolding reorder_inv_def by (fold n_def f_def)
+    then obtain i where "i < n" and "map f [0..<n] ! i = x" unfolding in_set_conv_nth lr by blast
+    then have "x = f i" by simp
+    show "x \<in> set ys" unfolding \<open>x = f i\<close> f_def
+    proof (intro nth_mem)
+      from \<open>i < n\<close> have "i \<le> Max (Option.these (set is))" unfolding n_simp by simp
+      then have "i \<in> Option.these (set is)" unfolding items_match
+        using \<open>N > 0\<close> by (subst (asm) Max_ge_iff) force+
+      then have "\<exists>i'. i' < length is \<and> is ! i' = Some i" unfolding in_set_conv_nth in_these_eq .
+      then show "(LEAST i'. i' < length is \<and> is ! i' = Some i) < length ys"
+        unfolding ls by (blast dest!: LeastI_ex)
+    qed
+  qed
+qed
+
+
 lemma reorder_inv:
   assumes [simp]: "length xs = length is"
     and items_match: "Option.these (set is) = {0..<length ys}"
@@ -96,6 +136,7 @@ proof -
   then show ?thesis unfolding map_nth .
 qed
 
+
 definition reorder_config :: "(nat option list) \<Rightarrow> 's tape list \<Rightarrow> ('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
   where "reorder_config is tps c = TM_config (state c) (reorder is tps (tapes c))"
 
@@ -121,6 +162,22 @@ abbreviation "r \<equiv> reorder is"
 abbreviation "rc \<equiv> reorder_config is"
 abbreviation r_inv ("r\<inverse>") where "r_inv \<equiv> reorder_inv is"
 
+lemma is_not_only_None(* TODO rename *): "\<not> (set is \<subseteq> {None})"
+  using items_match at_least_one_tape these_not_empty_eq
+  by (metis atLeastLessThan0 ivl_subset linorder_le_cases not_one_le_zero subset_singleton_iff)
+lemma is_not_empty: "is \<noteq> []" using items_match at_least_one_tape these_not_empty_eq by fastforce
+
+lemma h1[simp]: "Suc (Max (Option.these (set is))) = k"
+  unfolding items_match using at_least_one_tape by (simp add: Max_atLeastLessThan_nat)
+
+lemma r_inv_len[simp]: "length (reorder_inv is ys) = k"
+  unfolding reorder_inv_def using is_not_only_None by simp
+
+lemma r_inv_set:
+  assumes "length ys = k'"
+  shows "set (reorder_inv is ys) \<subseteq> set ys"
+  using assms items_match by (fact set_reorder_inv)
+
 lemma k_k': "k \<le> k'"
 proof -
   have "k = card {0..<k}" by simp
@@ -140,7 +197,7 @@ definition reorder_tapes_rec :: "('q, 's) TM_record"
     \<rparr>"
 
 lemma reorder_tapes_rec_simps: "reorder_tapes_rec = \<lparr>
-  TM_record.tape_count = k',
+  TM_record.tape_count = k', symbols = \<Sigma>\<^sub>i\<^sub>n,
   states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
   next_state = \<lambda>q hds. \<delta>\<^sub>q q (r\<inverse> hds),
   next_write = \<lambda>q hds i. case is ! i of Some i \<Rightarrow> (\<delta>\<^sub>w q (r\<inverse> hds) i) | None \<Rightarrow> hds ! i,
@@ -566,7 +623,7 @@ lemma fc_simps[simp]:
 
 definition map_alph_rec :: "('q, 's2) TM_record"
   where "map_alph_rec \<equiv> \<lparr>
-    TM_record.tape_count = k,
+    TM_record.tape_count = k, symbols = \<Sigma>\<^sub>i\<^sub>n,
     states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
     next_state = \<lambda>q hds. if set hds \<subseteq> range f' then \<delta>\<^sub>q q (map f'_inv hds) else q,
     next_write = \<lambda>q hds i. if set hds \<subseteq> range f' then f' (\<delta>\<^sub>w q (map f'_inv hds) i) else hds ! i,
@@ -730,7 +787,7 @@ text\<open>Note: the current definition will not work correctly when execution s
 
 definition comp_rec :: "('q1 + 'q2, 's) TM_record"
   where "comp_rec \<equiv> \<lparr>
-    TM_record.tape_count = M1.k,
+    TM_record.tape_count = M1.k, symbols = \<Sigma>\<^sub>i\<^sub>n,
     states = Inl ` M1.Q \<union> Inr ` M2.Q,
     initial_state = if M1.q\<^sub>0 \<in> M1.F then Inr M2.q\<^sub>0 else Inl M1.q\<^sub>0,
     final_states = Inr ` M2.F,
