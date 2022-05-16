@@ -58,6 +58,12 @@ qed
 lemma case_option_same[simp]: "(case x of None \<Rightarrow> a | Some y \<Rightarrow> a) = a"
   by (simp add: option.case_eq_if)
 
+lemma case_option_cases[case_names None Some]:
+  assumes "x = None \<Longrightarrow> P a"
+    and "\<And>y. x = Some y \<Longrightarrow> P (b y)"
+  shows "P (case x of None \<Rightarrow> a | Some y \<Rightarrow> b y)"
+  using assms unfolding option.split_sel by blast
+
 lemma if_Some_P[elim_format]: "(if P then Some x else None) = Some y \<Longrightarrow> P" by (cases P) auto
 lemma if_None_notP[elim_format]: "(if P then Some x else None) = None \<Longrightarrow> \<not>P" by (cases P) auto
 lemma if_Some_notP[elim_format]: "(if P then None else Some x) = Some y \<Longrightarrow> \<not>P" by (cases P) auto

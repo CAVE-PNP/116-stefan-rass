@@ -322,6 +322,12 @@ lemma nth_or_simps[simp]:
 
 lemma nth_or_map: "f (nth_or x n xs) = nth_or (f x) n (map f xs)" by (cases "n < length xs") auto
 
+lemma nth_or_cases:
+  assumes "n < length xs \<Longrightarrow> P (xs ! n)"
+    and "\<not> (n < length xs) \<Longrightarrow> P x"
+  shows "P (nth_or x n xs)"
+  unfolding nth_or_def using assms by (fact ifI)
+
 
 text\<open>Force a list to a given length; truncate if too long, and pad with the default value if too short.\<close>
 

@@ -192,24 +192,36 @@ definition reorder_tapes_rec :: "('q, 's) TM_record"
     M_rec \<lparr>
       tape_count := k',
       next_state := \<lambda>q hds. \<delta>\<^sub>q q (r\<inverse> hds),
-      next_write := \<lambda>q hds i. case is ! i of Some i \<Rightarrow> (\<delta>\<^sub>w q (r\<inverse> hds) i) | None \<Rightarrow> hds ! i,
-      next_move  := \<lambda>q hds i. case is ! i of Some i \<Rightarrow> (\<delta>\<^sub>m q (r\<inverse> hds) i) | None \<Rightarrow> No_Shift
+      next_write := \<lambda>q hds i. case nth_or None i is of Some i \<Rightarrow> (\<delta>\<^sub>w q (r\<inverse> hds) i) | None \<Rightarrow> nth_or None i hds,
+      next_move  := \<lambda>q hds i. case nth_or None i is of Some i \<Rightarrow> (\<delta>\<^sub>m q (r\<inverse> hds) i) | None \<Rightarrow> No_Shift
     \<rparr>"
 
 lemma reorder_tapes_rec_simps: "reorder_tapes_rec = \<lparr>
   TM_record.tape_count = k', symbols = \<Sigma>\<^sub>i\<^sub>n,
   states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
   next_state = \<lambda>q hds. \<delta>\<^sub>q q (r\<inverse> hds),
-  next_write = \<lambda>q hds i. case is ! i of Some i \<Rightarrow> (\<delta>\<^sub>w q (r\<inverse> hds) i) | None \<Rightarrow> hds ! i,
-  next_move  = \<lambda>q hds i. case is ! i of Some i \<Rightarrow> (\<delta>\<^sub>m q (r\<inverse> hds) i) | None \<Rightarrow> No_Shift
+  next_write = \<lambda>q hds i. case nth_or None i is of Some i \<Rightarrow> (\<delta>\<^sub>w q (r\<inverse> hds) i) | None \<Rightarrow> nth_or None i hds,
+  next_move  = \<lambda>q hds i. case nth_or None i is of Some i \<Rightarrow> (\<delta>\<^sub>m q (r\<inverse> hds) i) | None \<Rightarrow> No_Shift
 \<rparr>" unfolding reorder_tapes_rec_def by simp
 
 definition "M' \<equiv> Abs_TM reorder_tapes_rec"
 
-lemma M'_valid: "is_valid_TM reorder_tapes_rec"
-  unfolding reorder_tapes_rec_simps
-proof (unfold_locales, unfold TM_record.simps)
+lemma M'_valid: "is_valid_TM reorder_tapes_rec" unfolding reorder_tapes_rec_simps
+proof (rule valid_TM_I)
   from at_least_one_tape and k_k' show "1 \<le> k'" by simp
+
+  fix q hds assume "q \<in> Q" and "length hds = k'" and "set hds \<subseteq> \<Sigma>"
+  from \<open>length hds = k'\<close> have "set (r\<inverse> hds) \<subseteq> set hds" by (fact r_inv_set)
+  also note \<open>set hds \<subseteq> \<Sigma>\<close>
+  finally have "set (r\<inverse> hds) \<subseteq> \<Sigma>" .
+  with \<open>q \<in> Q\<close> show "\<delta>\<^sub>q q (r\<inverse> hds) \<in> Q" by (auto intro!: next_state_valid wf_hdsI)
+
+  fix i
+  show "(case nth_or None i is of Some x \<Rightarrow> \<delta>\<^sub>w q (r\<inverse> hds) x | None \<Rightarrow> nth_or None i hds) \<in> \<Sigma>"
+  proof (rule case_option_cases)
+    show "nth_or None i hds \<in> \<Sigma>" by (rule nth_or_cases) (use \<open>set hds \<subseteq> \<Sigma>\<close> in auto)
+    show "\<delta>\<^sub>w q (r\<inverse> hds) y \<in> \<Sigma>" for y using \<open>set (r\<inverse> hds) \<subseteq> \<Sigma>\<close> and \<open>q \<in> Q\<close> wf_hdsI by auto
+  qed
 qed (fact TM_axioms)+
 
 sublocale M': TM M' .
