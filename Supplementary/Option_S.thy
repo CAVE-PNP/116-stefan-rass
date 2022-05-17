@@ -72,13 +72,30 @@ lemma if_None_P[elim_format]: "(if P then None else Some x) = None \<Longrightar
 
 lemma those_map_Some[simp]: "those (map Some xs) = Some xs" by (induction xs) auto
 
-lemma card_these_length: "card (Option.these (set xs)) \<le> length xs"
+(* set of items which are not None *)
+abbreviation "someset xs \<equiv> Option.these (set xs)"
+
+lemma card_these_length: "card (someset xs) \<le> length xs"
 proof -
-  have "card (Option.these (set xs)) \<le> card (set xs)" by (rule card_these) blast
+  have "card (someset xs) \<le> card (set xs)" by (rule card_these) blast
   also have "... \<le> length xs" by (rule card_length)
   finally show ?thesis .
 qed
 
+definition "option_map f \<equiv> \<exists>g. f = map_option g"
+lemma "option_map f \<longleftrightarrow> f None = None \<and> (\<forall>x. \<exists>y. f (Some x) = Some y)"
+proof safe
+  assume "option_map f"
+  then obtain g where f_def: "f = map_option g" unfolding option_map_def ..
+  show "f None = None" unfolding f_def by simp
+  fix x show "\<exists>y. f (Some x) = Some y" unfolding f_def by simp
+next
+  assume fN: "f None = None" and fS: "\<forall>x. \<exists>y. f (Some x) = Some y"
+  define g where "g \<equiv> \<lambda>x. the (f (Some x))"
+  have "f = map_option g"
+    by (rule ext) (metis fS fN g_def not_Some_eq option.sel option.simps(8) option.simps(9))
+  thus "option_map f" unfolding option_map_def by blast
+qed
 
 definition options :: "'a set \<Rightarrow> 'a option set"
   where "options A = insert None (Some ` A)"
