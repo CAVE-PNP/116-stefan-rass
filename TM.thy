@@ -153,7 +153,7 @@ text\<open>Notes on assumptions.
 
 lemma valid_TM_I:
   fixes k \<Sigma>\<^sub>i\<^sub>n Q q\<^sub>0 F F\<^sub>A \<delta>\<^sub>q \<delta>\<^sub>w \<delta>\<^sub>m
-  defines "(M :: ('q, 's::finite) TM_record) \<equiv> \<lparr> TM_record.tape_count = k, symbols = \<Sigma>\<^sub>i\<^sub>n,
+  defines "(M :: ('q, 's) TM_record) \<equiv> \<lparr> TM_record.tape_count = k, symbols = \<Sigma>\<^sub>i\<^sub>n,
     states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sub>A,
     next_state = \<delta>\<^sub>q, next_write = \<delta>\<^sub>w, next_move = \<delta>\<^sub>m \<rparr>"
   defines "\<Sigma> \<equiv> options \<Sigma>\<^sub>i\<^sub>n"
