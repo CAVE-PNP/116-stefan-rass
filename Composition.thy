@@ -354,7 +354,7 @@ corollary reorder_config_time:
 
 corollary reorder_run':
   fixes c' :: "('q, 's) TM_config"
-  assumes tpl: "length (tapes c') = k'" and wwf: "wf_input w"
+  assumes wwf: "wf_input w" and tpl: "length (tapes c') = k'"
   shows "M'.steps n (rc (tapes c') (initial_config w)) = rc (tapes c') (run n w)"
   unfolding run_def using reorder_steps[OF wf_initial_config tpl, OF wwf] .
 
@@ -413,19 +413,19 @@ qed simp
 
 corollary reorder_run:
   fixes c' :: "('q, 's) TM_config"
-  assumes "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
+  assumes wwf: "wf_input w" and "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
   shows "M'.run n w = rc (\<langle>\<rangle> \<up> k') (run n w)"
 proof -
   let ?rc = "rc (tapes (TM_config q\<^sub>0 (\<langle>\<rangle> \<up> k')))"
   have "M'.run n w = M'.steps n (?rc (initial_config w))"
-    unfolding M'.run_def init_conf_eq[OF assms] by simp
-  also have "... = ?rc (run n w)" by (subst reorder_run') auto
+    unfolding M'.run_def init_conf_eq[OF assms(2)] by simp
+  also have "... = ?rc (run n w)" using wwf by (subst reorder_run') auto
   finally show ?thesis by simp
 qed
 
 corollary reorder_time:
   fixes c' :: "('q, 's) TM_config"
-  assumes "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
+  assumes "wf_input w" and "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
   shows "M'.time w = time w"
   unfolding TM.time_altdef reorder_run[OF assms] by simp
 
