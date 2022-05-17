@@ -150,7 +150,7 @@ lemma reorder_config_simps[simp]:
 
 
 locale TM_reorder_tapes =
-  fixes M :: "('q, 's::finite) TM"
+  fixes M :: "('q, 's) TM"
     and "is" :: "nat option list"
   assumes items_match: "Option.these (set is) = {0..<TM.tape_count M}"
 begin
@@ -413,19 +413,21 @@ qed simp
 
 corollary reorder_run:
   fixes c' :: "('q, 's) TM_config"
-  assumes "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
+  assumes "wf_input w"
+    and tape0_id: "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0" \<comment> \<open>the first tape is only mapped to the first tape\<close>
   shows "M'.run n w = rc (\<langle>\<rangle> \<up> k') (run n w)"
 proof -
   let ?rc = "rc (tapes (TM_config q\<^sub>0 (\<langle>\<rangle> \<up> k')))"
   have "M'.run n w = M'.steps n (?rc (initial_config w))"
-    unfolding M'.run_def init_conf_eq[OF assms] by simp
-  also have "... = ?rc (run n w)" by (subst reorder_run') auto
+    unfolding M'.run_def init_conf_eq[OF tape0_id] by simp
+  also from \<open>wf_input w\<close> have "... = ?rc (run n w)" by (subst reorder_run') auto
   finally show ?thesis by simp
 qed
 
 corollary reorder_time:
   fixes c' :: "('q, 's) TM_config"
-  assumes "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
+  assumes "wf_input w"
+    and tape0_id: "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
   shows "M'.time w = time w"
   unfolding TM.time_altdef reorder_run[OF assms] by simp
 
@@ -435,7 +437,7 @@ end \<comment> \<open>\<^locale>\<open>TM_reorder_tapes\<close>\<close>
 context TM
 begin
 
-definition reorder_tapes :: "nat option list \<Rightarrow> ('q, 's::finite) TM"
+definition reorder_tapes :: "nat option list \<Rightarrow> ('q, 's) TM"
   where "reorder_tapes is \<equiv> TM_reorder_tapes.M' M is"
 
 corollary reorder_tapes_steps:
@@ -562,7 +564,7 @@ end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
 
 locale TM_tape_offset =
-  fixes M :: "('q, 's::finite) TM"
+  fixes M :: "('q, 's) TM"
     and a b :: nat
 begin
 sublocale TM M .
@@ -599,7 +601,7 @@ qed
 corollary init_conf_offset_eq: "a = 0 \<Longrightarrow> M'.c\<^sub>0 w = rc (\<langle>\<rangle> \<up> length is) (c\<^sub>0 w)"
   by (intro init_conf_eq tape_offset_helper)
 
-corollary offset_time: "a = 0 \<Longrightarrow> M'.time w = time w"
+corollary offset_time: "a = 0 \<Longrightarrow> wf_input w \<Longrightarrow> M'.time w = time w"
   by (intro reorder_time tape_offset_helper)
 
 end \<comment> \<open>\<^locale>\<open>TM_tape_offset\<close>\<close>
