@@ -525,8 +525,10 @@ paragraph\<open>Symbols currently under the TM-heads\<close>
 abbreviation heads :: "('q, 's) TM_config \<Rightarrow> 's tp_symbol list"
   where "heads c \<equiv> map head (tapes c)"
 
-lemma map_head_tapes[simp]: "map head (map (map_tape f) tps) = map (map_option f) (map head tps)"
-  unfolding map_map comp_def tape.map_sel ..
+lemma map_head_tapes[simp]:
+  shows "map head (map (map_tape f) tps) = map (map_option f) (map head tps)"
+    and "map (head \<circ> map_tape f) tps = map (map_option f) (map head tps)"
+  by (simp_all only: map_map comp_def tape.map_sel)
 
 
 context TM

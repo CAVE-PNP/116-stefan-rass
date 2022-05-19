@@ -626,9 +626,9 @@ lemma inv_f_f[simp]: "x \<in> \<Sigma>\<^sub>i\<^sub>n \<Longrightarrow> f_inv (
   unfolding f_inv_def using inj_f by (rule inv_into_f_f)
 lemma inv_f'_f'[simp]: "x \<in> \<Sigma> \<Longrightarrow> f'_inv (f' x) = x" by (induction x) auto
 
-lemma map_f_inv: "set xs \<subseteq> \<Sigma>\<^sub>i\<^sub>n \<Longrightarrow> map f_inv (map f xs) = xs"
+lemma map_f_inv[simp]: "set xs \<subseteq> \<Sigma>\<^sub>i\<^sub>n \<Longrightarrow> map f_inv (map f xs) = xs"
   unfolding f_inv_def using inj_f by (rule map_inv_into_map_id)
-lemma map_f'_inv: "set xs \<subseteq> \<Sigma> \<Longrightarrow> map f'_inv (map f' xs) = xs"
+lemma map_f'_inv[simp]: "set xs \<subseteq> \<Sigma> \<Longrightarrow> map f'_inv (map f' xs) = xs"
   unfolding map_map comp_def using inv_f'_f' by (blast intro: map_idI)
 
 
@@ -680,8 +680,10 @@ lemma M'_rec: "M'.M_rec = map_alph_rec" using Abs_TM_inverse M'_valid by (auto s
 lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec map_alph_rec_def TM_record.simps]
 lemmas [simp] = M'_fields(1-6)
 
+lemma M'_tape_symbols: "f' ` \<Sigma> \<subseteq> M'.\<Sigma>" by auto
+
 lemma map_step:
-  assumes [simp]: "length (tapes c) = k"
+  assumes [intro]: "wf_config c"
   shows "M'.step (fc c) = fc (step c)"
 proof (cases "is_final c") (* TODO extract this pattern as lemma *)
   assume "is_final c"
@@ -694,28 +696,31 @@ next
   let ?ft = "map (map_tape f)"
   let ?hds' = "map f' ?hds" and ?tps' = "?ft ?tps"
 
+  from \<open>wf_config c\<close> have [simp]: "length ?tps = k" ..
+
   assume "\<not> is_final c"
   then have "M'.step ?c' = M'.step_not_final ?c'" by simp
   also have "... = fc (step_not_final c)"
   proof (rule TM_config_eq)
-    have set_hds'[intro]: "set ?hds' \<subseteq> range f'" by blast
-    then show "state (M'.step_not_final ?c') = state (fc (step_not_final c))"
-      unfolding fc_simps TM.step_not_final_simps M'_fields by (simp add: comp_def tape.map_sel)
+    from \<open>wf_config c\<close> have "set ?hds' \<subseteq> f' ` \<Sigma>" by auto
+    then have \<delta>_If: "\<And>x y. (if set ?hds' \<subseteq> f' ` \<Sigma> then x else y) = x" by (fact if_P)
+    from \<open>wf_config c\<close> have f_inv_f: "map f'\<inverse> (map f' ?hds) = ?hds" by (fast intro: map_f'_inv)
+    note * = M'_fields(8-10) \<delta>_If f_inv_f
+
+    have "state (M'.step_not_final ?c') = M'.\<delta>\<^sub>q ?q ?hds'" by simp
+    also have "... = \<delta>\<^sub>q ?q ?hds" by (simp only: *)
+    also have "... = state (fc (step_not_final c))" by simp
+    finally show "state (M'.step_not_final ?c') = state (fc (step_not_final c))" .
 
     show "tapes (M'.step_not_final ?c') = tapes (fc (step_not_final c))"
       unfolding TM.step_not_final_simps
     proof (intro TM.step_not_final_eqI, unfold fc_simps map_head_tapes)
       fix i assume "i < M'.k"
-      then have [simp]: "i < k" by simp
-
-      then have **: "?tps' ! i = map_tape f (tapes c ! i)" by simp
-      have *: "(if set ?hds' \<subseteq> range f' then a else b) = a" for a b :: 'x by (blast intro: if_P)
+      then have [simp]: "i < k" by simp (* [simp] by simp necessary/useful here *)
 
       have "tape_action (M'.\<delta>\<^sub>w ?q ?hds' i, M'.\<delta>\<^sub>m ?q ?hds' i) (?tps' ! i)
-          = tape_action (f' (\<delta>\<^sub>w ?q ?hds i), \<delta>\<^sub>m ?q ?hds i) (?tps' ! i)"
-        unfolding M'_fields * map_f'_inv ..
-      also have "... = tape_action (f' (\<delta>\<^sub>w ?q ?hds i), \<delta>\<^sub>m ?q ?hds i) (map_tape f (?tps ! i))"
-        by (subst nth_map) auto
+          = tape_action (f' (\<delta>\<^sub>w ?q ?hds i), \<delta>\<^sub>m ?q ?hds i) (?tps' ! i)" by (simp only: *)
+      also have "... = tape_action (f' (\<delta>\<^sub>w ?q ?hds i), \<delta>\<^sub>m ?q ?hds i) (map_tape f (?tps ! i))" by simp
       also have "... = map_tape f (tape_action (\<delta>\<^sub>w ?q ?hds i, \<delta>\<^sub>m ?q ?hds i) (?tps ! i))" by simp
       also have "... = ?ft (tapes (step_not_final c)) ! i" by simp
       finally show "tape_action (M'.\<delta>\<^sub>w ?q ?hds' i, M'.\<delta>\<^sub>m ?q ?hds' i) (?tps' ! i) =
@@ -727,35 +732,30 @@ next
 qed
 
 corollary map_steps:
-  assumes l_tps: "length (tapes c) = k"
+  assumes "wf_config c"
   shows "M'.steps n (fc c) = fc (steps n c)"
-  using assms
 proof (induction n)
   case (Suc n)
-  then have IH: "M'.steps n (fc c) = fc (steps n c)" by blast
-  from \<open>length (tapes c) = k\<close> have l_tpss: "length (tapes (steps n c)) = k" by (rule steps_l_tps)
-
-  show ?case unfolding funpow.simps comp_def IH map_step[OF l_tpss] ..
+  from \<open>wf_config c\<close> have wf: "wf_config (steps n c)" by (fact wf_steps)
+  show ?case unfolding funpow.simps comp_def Suc.IH map_step[OF wf] ..
 qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
-corollary map_run[simp]: "M'.run n (map f w) = fc (run n w)"
-proof -
-  have *: "M'.initial_config (map f w) = fc (initial_config w)"
-    unfolding TM.initial_config_def by (rule TM_config_eq) auto
-  show "M'.run n (map f w) = fc (run n w)" unfolding TM.run_def * map_steps[OF init_conf_len] ..
-qed
-
-corollary map_time[simp]: "M'.time (map f w) = time w" unfolding TM.time_altdef map_run by simp
-
 lemma map_init_conf[simp]: "M'.c\<^sub>0 (map f w) = fc (c\<^sub>0 w)"
-  unfolding TM.initial_config_def fc_def by simp
+  unfolding TM.initial_config_def by (rule TM_config_eq) auto
+
+corollary map_run[simp]: "wf_input w \<Longrightarrow> M'.run n (map f w) = fc (run n w)"
+  unfolding TM.run_def map_init_conf by (blast intro: map_steps)
+
+corollary map_time[simp]: "wf_input w \<Longrightarrow> M'.time (map f w) = time w"
+  unfolding TM.time_altdef map_run by simp
 
 corollary map_halts_conf:
-  assumes "length (tapes c) = k"
+  assumes "wf_config c"
   shows "M'.halts_config (fc c) = halts_config c"
   unfolding halts_config_altdef map_steps[OF assms] by simp
 
-corollary map_halts[iff]: "M'.halts (map f w) \<longleftrightarrow> halts w" using map_halts_conf by simp
+corollary map_halts[iff]: "wf_input w \<Longrightarrow> M'.halts (map f w) \<longleftrightarrow> halts w"
+  unfolding TM.halts_def map_init_conf by (blast intro!: map_halts_conf)
 
 lemma map_computes_word: "M'.computes_word (map f w) (map f w') \<longleftrightarrow> computes_word w w'"
   \<comment> \<open>Note that the equivalence does not extend to \<^const>\<open>TM.computes\<close>,
