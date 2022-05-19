@@ -797,18 +797,20 @@ context TM
 begin
 
 
-definition map_alphabet :: "('s \<Rightarrow> 's2::finite) \<Rightarrow> ('q, 's2) TM"
-  where "map_alphabet f \<equiv> TM_map_alphabet.M' M f"
+abbreviation map_alphabet :: "('s \<Rightarrow> 's2) \<Rightarrow> 's2 set \<Rightarrow> ('q, 's2) TM"
+  where "map_alphabet \<equiv> TM_map_alphabet.M' M"
 
 theorem map_alphabet_steps:
   fixes f :: "'s \<Rightarrow> 's2::finite"
-  assumes "length (tapes c) = k"
-    and "inj f"
-  shows "TM.steps (map_alphabet f) n (map_conf_tapes f c) = map_conf_tapes f (steps n c)"
+  assumes "wf_config c"
+    and inj_f: "inj_on f \<Sigma>\<^sub>i\<^sub>n"
+    and range_f: "f ` \<Sigma>\<^sub>i\<^sub>n \<subseteq> \<Sigma>\<^sub>i\<^sub>n'"
+    and finite_symbols: "finite \<Sigma>\<^sub>i\<^sub>n'"
+  shows "TM.steps (map_alphabet f \<Sigma>\<^sub>i\<^sub>n') n (map_conf_tapes f c) = map_conf_tapes f (steps n c)"
 proof -
-  interpret TM_map_alphabet M f using \<open>inj f\<close> by (unfold_locales)
-  from \<open>length (tapes c) = k\<close> have "M'.steps n (fc c) = fc (steps n c)" by (rule map_steps)
-  then show ?thesis unfolding map_alphabet_def fc_def .
+  interpret TM_map_alphabet M f using inj_f range_f finite_symbols by (unfold_locales)
+  from \<open>wf_config c\<close> have "M'.steps n (fc c) = fc (steps n c)" by (rule map_steps)
+  then show ?thesis unfolding fc_def .
 qed
 
 end
