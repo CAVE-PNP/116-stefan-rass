@@ -819,12 +819,16 @@ end
 subsubsection\<open>Simple Composition\<close>
 
 locale simple_TM_comp = TM_abbrevs +
-  fixes M1 :: "('q1, 's::finite) TM"
-    and M2 :: "('q2, 's::finite) TM"
+  fixes M1 :: "('q1, 's) TM"
+    and M2 :: "('q2, 's) TM"
   assumes k[simp]: "TM.tape_count M1 = TM.tape_count M2"
+    and symbols_eq[simp]: "TM.symbols M1 = TM.symbols M2"
 begin
 sublocale M1: TM M1 .
 sublocale M2: TM M2 .
+
+lemma wf_hds_eq[iff]: "M1.wf_hds hds \<longleftrightarrow> M2.wf_hds hds" by (simp add: TM.wf_hds_altdef)
+
 
 text\<open>Note: the current definition will not work correctly when execution starts from one of
   \<^term>\<open>M1\<close>' final states (\<^term>\<open>state c \<in> Inl ` M1.F\<close>).
@@ -843,7 +847,7 @@ text\<open>Note: the current definition will not work correctly when execution s
 
 definition comp_rec :: "('q1 + 'q2, 's) TM_record"
   where "comp_rec \<equiv> \<lparr>
-    TM_record.tape_count = M1.k, symbols = \<Sigma>\<^sub>i\<^sub>n,
+    TM_record.tape_count = M1.k, symbols = M1.\<Sigma>\<^sub>i\<^sub>n,
     states = Inl ` M1.Q \<union> Inr ` M2.Q,
     initial_state = if M1.q\<^sub>0 \<in> M1.F then Inr M2.q\<^sub>0 else Inl M1.q\<^sub>0,
     final_states = Inr ` M2.F,
@@ -855,24 +859,42 @@ definition comp_rec :: "('q1 + 'q2, 's) TM_record"
     next_move  = \<lambda>q hds i. case q of Inl q1 \<Rightarrow> M1.\<delta>\<^sub>m q1 hds i | Inr q2 \<Rightarrow> M2.\<delta>\<^sub>m q2 hds i
   \<rparr>"
 
+
 lemma M_valid: "is_valid_TM comp_rec" unfolding comp_rec_def
-proof (unfold_locales, unfold TM.simps)
+proof (rule valid_TM_I)
   show "(if M1.q\<^sub>0 \<in> M1.F then Inr M2.q\<^sub>0 else Inl M1.q\<^sub>0) \<in> Inl ` M1.Q \<union> Inr ` M2.Q"
     by (rule if_cases) blast+
 
   fix q hds
-  assume "q \<in> Inl ` M1.Q \<union> Inr ` M2.Q"
+  assume "length hds = M1.k" and "set hds \<subseteq> M1.\<Sigma>"
+  then have wf_hds: "M2.wf_hds hds" by auto
+  assume q_valid: "q \<in> Inl ` M1.Q \<union> Inr ` M2.Q"
   then show "(case q of Inl q1 \<Rightarrow> let q1' = M1.\<delta>\<^sub>q q1 hds in if q1' \<in> M1.F then Inr M2.q\<^sub>0 else Inl q1'
         | Inr q2 \<Rightarrow> Inr (M2.\<delta>\<^sub>q q2 hds))
-       \<in> Inl ` M1.Q \<union> Inr ` M2.Q" (is "(case q of Inl q1 \<Rightarrow> ?l q1 | Inr q2 \<Rightarrow> ?r q2) \<in> ?Q")
-  proof (induction q)
+       \<in> Inl ` M1.Q \<union> Inr ` M2.Q"
+  proof (induction q rule: case_sum_cases)
     case (Inl q1)
-    show ?case unfolding sum.case Let_def by (rule if_cases) (use Inl in blast)+
+    then have "q1 \<in> M1.Q" by blast
+    with wf_hds have "M1.\<delta>\<^sub>q q1 hds \<in> M1.Q" by blast
+    then show ?case unfolding Let_def by (induction rule: if_cases) blast+
   next
     case (Inr q2)
-    then show ?case unfolding sum.case by blast
+    then have "q2 \<in> M2.Q" by blast
+    with wf_hds have "M2.\<delta>\<^sub>q q2 hds \<in> M2.Q" by blast
+    then show ?case unfolding Let_def by (induction rule: if_cases) blast+
   qed
-qed (use M2.TM_axioms(4-5) in blast)+
+
+  fix i
+  show "(case q of Inl q1 \<Rightarrow> M1.\<delta>\<^sub>w q1 hds i | Inr q2 \<Rightarrow> M2.\<delta>\<^sub>w q2 hds i) \<in> M1.\<Sigma>"
+    using wf_hds q_valid
+  proof (induction q rule: case_sum_cases)
+    case (Inl q1)
+    then show ?case by blast
+  next
+    case (Inr q2)
+    then show ?case unfolding symbols_eq by blast
+  qed
+qed (use M1.symbol_axioms(2) M2.state_axioms(3-4) in blast)+
 
 definition "M \<equiv> Abs_TM comp_rec"
 

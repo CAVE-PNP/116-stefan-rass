@@ -148,5 +148,11 @@ lemma funpow_fixpoint: "f x = x \<Longrightarrow> (f^^n) x = x" by (rule funpow_
 lemma isl_not_def: "\<not> isl x \<longleftrightarrow> (\<exists>x2. x = Inr x2)" \<comment> \<open>analogous to\<close> thm isl_def
   by (induction x) auto
 
+lemma case_sum_cases[case_names Inl Inr]:
+  assumes "\<And>l. x = Inl l \<Longrightarrow> P (f l)"
+    and "\<And>r. x = Inr r \<Longrightarrow> P (g r)"
+  shows "P (case x of Inl l \<Rightarrow> f l | Inr r \<Rightarrow> g r)"
+  using assms using sum.split_sel by blast
+
 
 end
