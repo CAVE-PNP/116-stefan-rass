@@ -757,21 +757,39 @@ corollary map_halts_conf:
 corollary map_halts[iff]: "wf_input w \<Longrightarrow> M'.halts (map f w) \<longleftrightarrow> halts w"
   unfolding TM.halts_def map_init_conf by (blast intro!: map_halts_conf)
 
-lemma map_computes_word: "M'.computes_word (map f w) (map f w') \<longleftrightarrow> computes_word w w'"
+lemma map_computes_word:
+  assumes wf: "wf_input w" and wf': \<open>wf_input w'\<close>
+  shows "M'.computes_word (map f w) (map f w') \<longleftrightarrow> computes_word w w'"
   \<comment> \<open>Note that the equivalence does not extend to \<^const>\<open>TM.computes\<close>,
       as \<^term>\<open>f\<close> is not required to be \<^const>\<open>bij\<close>.\<close>
   unfolding TM.computes_word_altdef
 proof (intro conj_cong)
+  from wf show "M'.halts (map f w) = halts w" by blast
+
   have "last (tapes (M'.compute (map f w))) = <map f w'>\<^sub>t\<^sub>p
        \<longleftrightarrow> map_tape f (last (tapes (compute w))) = map_tape f <w'>\<^sub>t\<^sub>p"
-    unfolding map_run map_time fc_simps input_tape_map[symmetric] by (subst last_map) simp_all
+    unfolding map_run[OF wf] map_time[OF wf] fc_simps by (subst last_map) simp_all
   also have "... \<longleftrightarrow> last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p"
-    using inj_f tape.inj_map by (intro inj_eq) blast
+  proof (rule iffI, rule tape.inj_map_strong)
+    fix z za
+    assume "f z = f za"
+
+    assume "z \<in> set_tape (last (tapes (compute w)))"
+    moreover from wf have "wf_config (compute w)" by blast
+    ultimately have "z \<in> \<Sigma>\<^sub>i\<^sub>n" by force (* TUNE *)
+
+    assume "za \<in> set_tape <w'>\<^sub>t\<^sub>p"
+    with wf' have "za \<in> \<Sigma>\<^sub>i\<^sub>n" by auto
+
+    with inj_f and \<open>f z = f za\<close> and \<open>z \<in> \<Sigma>\<^sub>i\<^sub>n\<close> show "z = za" by (rule inj_onD)
+  qed force+
+
   finally show "last (tapes (M'.compute (map f w))) = <map f w'>\<^sub>t\<^sub>p
             \<longleftrightarrow> last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p" .
-qed (fact map_halts)
+qed
 
-corollary map_compute: "M'.compute (map f w) = fc (compute w)" unfolding map_run map_time ..
+corollary map_compute: "wf_input w \<Longrightarrow> M'.compute (map f w) = fc (compute w)"
+  using map_run map_time by simp
 
 end \<comment> \<open>\<^locale>\<open>TM_map_alphabet\<close>\<close>
 
