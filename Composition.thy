@@ -994,11 +994,11 @@ lemma comp_steps1_final:
 proof -
   from \<open>\<not> M1.is_final c\<close> have "\<not> M1.is_final (M1.steps 0 c)" by simp
   with \<open>M1.halts_config c\<close> have "n > 0" unfolding n_def by blast
-  then obtain n' where "n = Suc n'" by (rule lessE)
+  then obtain n' where n'_def: "n = Suc n'" by (rule lessE)
   then have "n' < n" by blast
 
-  have *: "TM.steps M n c = TM.step M (TM.steps M n' c)" for M :: "('x, 'y::finite) TM" and c
-    unfolding \<open>n = Suc n'\<close> funpow.simps comp_def ..
+  have *: "TM.steps M n c = TM.step M (TM.steps M n' c)" for M :: "('x, 'y) TM" and c
+    unfolding n'_def funpow.simps comp_def ..
   from \<open>n' < n\<close> have **: "steps n' (cl c) = cl (M1.steps n' c)"
     unfolding n_def by (rule comp_steps1_non_final')
 
@@ -1009,7 +1009,6 @@ proof -
       unfolding *[symmetric] n_def by blast
   qed
 qed
-
 
 lemma comp_step2: "step (cr c) = cr (M2.step c)"
 proof (cases "M2.is_final c")
@@ -1031,7 +1030,6 @@ proof (induction n2 rule: dec_induct)
   case (step n2)
   show ?case unfolding funpow.simps comp_def unfolding step.IH comp_step2 ..
 qed \<comment> \<open>case \<open>n2 = 0\<close> by\<close> simp
-
 
 lemma comp_steps_final:
   fixes c_init1 n1 n2
@@ -1095,12 +1093,11 @@ qed
 
 end
 
-
-definition TM_comp :: "('q1, 's::finite) TM \<Rightarrow> ('q2, 's) TM \<Rightarrow> ('q1 + 'q2, 's) TM"
+definition TM_comp :: "('q1, 's) TM \<Rightarrow> ('q2, 's) TM \<Rightarrow> ('q1 + 'q2, 's) TM"
   where "TM_comp M1 M2 \<equiv> simple_TM_comp.M M1 M2"
 
 theorem TM_comp_steps_final:
-  fixes M1 :: "('q1, 's::finite) TM" and M2 :: "('q2, 's) TM"
+  fixes M1 :: "('q1, 's) TM" and M2 :: "('q2, 's) TM"
     and c_init1 :: "('q1, 's) TM_config"
     and n1 n2 :: nat
   assumes k: "TM.tape_count M1 = TM.tape_count M2"

@@ -516,8 +516,8 @@ text\<open>Combined with the \<^typ>\<open>('q, 's) TM\<close> definition,
 declare TM_config.map_sel[simp]
 lemmas TM_config_eq = TM_config.expand[OF conjI] (* sadly, \<open>datatype\<close> does not provide this directly (cf. \<open>some_record.equality\<close> defined by \<open>record\<close> *)
 
-abbreviation (in TM_abbrevs) "map_conf_state \<equiv> \<lambda>f\<^sub>q. map_TM_config f\<^sub>q (\<lambda>s. s)"
-abbreviation (in TM_abbrevs) "map_conf_tapes \<equiv> map_TM_config (\<lambda>q. q)"
+abbreviation (in TM_abbrevs) "map_conf_state f \<equiv> map_TM_config f (\<lambda>s. s)"
+abbreviation (in TM_abbrevs) "map_conf_tapes f \<equiv> map_TM_config (\<lambda>q. q) f"
 
 
 paragraph\<open>Symbols currently under the TM-heads\<close>
