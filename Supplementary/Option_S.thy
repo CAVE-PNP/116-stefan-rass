@@ -83,7 +83,7 @@ proof -
 qed
 
 definition "option_map f \<equiv> \<exists>g. f = map_option g"
-lemma "option_map f \<longleftrightarrow> f None = None \<and> (\<forall>x. \<exists>y. f (Some x) = Some y)"
+lemma option_map_altdef: "option_map f \<longleftrightarrow> f None = None \<and> (\<forall>x. \<exists>y. f (Some x) = Some y)"
 proof safe
   assume "option_map f"
   then obtain g where f_def: "f = map_option g" unfolding option_map_def ..
@@ -111,6 +111,5 @@ lemma empty_options[simp]: "options {} = {None}"
 lemma options_UNIV_iff[iff]: "options A = UNIV \<longleftrightarrow> A = UNIV" by auto
 
 lemma set_options_eq: "x \<in> options A \<longleftrightarrow> set_option x \<subseteq> A" by (induction x) blast+
-
 
 end

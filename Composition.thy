@@ -910,10 +910,15 @@ lemma next_state_simps[simp]:
     and "\<delta>\<^sub>q (Inr q2) hds = Inr (M2.\<delta>\<^sub>q q2 hds)"
   unfolding M_fields by auto
 
+lemma next_moves_simps[simp]:
+  shows "\<delta>\<^sub>m (Inl q1) hds = M1.\<delta>\<^sub>m q1 hds"
+    and "\<delta>\<^sub>m (Inr q2) hds = M2.\<delta>\<^sub>m q2 hds"
+  unfolding M_fields by simp_all
+
 lemma next_actions_simps[simp]:
   shows "\<delta>\<^sub>a (Inl q1) hds = M1.\<delta>\<^sub>a q1 hds"
     and "\<delta>\<^sub>a (Inr q2) hds = M2.\<delta>\<^sub>a q2 hds"
-  by (simp_all add: TM.next_actions_altdef M_fields(8-9))
+  unfolding TM.next_actions_altdef M_fields by simp_all
 
 definition "cl \<equiv> map_conf_state Inl"
 definition "cr \<equiv> map_conf_state Inr"

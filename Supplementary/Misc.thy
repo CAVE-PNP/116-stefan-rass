@@ -145,8 +145,8 @@ lemma funpow_induct: "P x \<Longrightarrow> (\<And>x. P x \<Longrightarrow> P (f
 lemma funpow_fixpoint: "f x = x \<Longrightarrow> (f^^n) x = x" by (rule funpow_induct) auto
 
 
-lemma isl_not_def: "\<not> isl x \<longleftrightarrow> (\<exists>x2. x = Inr x2)" \<comment> \<open>analogous to\<close> thm isl_def
-  by (induction x) auto
+lemma isl_not_def: "\<not> isl x \<longleftrightarrow> (\<exists>x2. x = Inr x2)" \<comment> \<open>analogous to @{thm isl_def}\<close>
+  by (cases x) auto
 
 lemma case_sum_cases[case_names Inl Inr]:
   assumes "\<And>l. x = Inl l \<Longrightarrow> P (f l)"
