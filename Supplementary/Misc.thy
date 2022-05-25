@@ -45,14 +45,11 @@ lemma Max_atLeastLessThan_nat:
   shows "Max {x..<y} = y-1"
   using assms
 proof (induction y)
-  case 0 thus ?case by blast
-next
   case (Suc y)
   from \<open>x < Suc y\<close> have "x \<le> y" by auto
   then show ?case unfolding atLeastLessThanSuc_atLeastAtMost diff_Suc_1
     by (rule Max_atLeastAtMost_nat)
-qed
-
+qed blast
 
 lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_def)
 
@@ -128,8 +125,7 @@ proof -
 qed
 
 lemma max_cases:
-  assumes "P a"
-    and "P b"
+  assumes "P a" and "P b"
   shows "P (max a b)"
   using assms unfolding max_def by simp
 

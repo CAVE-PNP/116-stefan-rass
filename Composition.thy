@@ -686,9 +686,6 @@ lemma map_step:
   assumes [intro]: "wf_config c"
   shows "M'.step (fc c) = fc (step c)"
 proof (cases "is_final c") (* TODO extract this pattern as lemma *)
-  assume "is_final c"
-  then show ?thesis by simp
-next
   let ?c' = "fc c"
   let ?q = "state c" and ?q' = "state ?c'"
   let ?tps = "tapes c" and ?hds = "heads c"
@@ -729,7 +726,7 @@ next
   qed
   also from \<open>\<not> is_final c\<close> have "... = fc (step c)" by simp
   finally show ?thesis .
-qed
+qed simp
 
 corollary map_steps:
   assumes "wf_config c"
@@ -1013,14 +1010,10 @@ qed
 lemma comp_step2: "step (cr c) = cr (M2.step c)"
 proof (cases "M2.is_final c")
   assume nf: "\<not> M2.is_final c"
-  then have "\<not> is_final (cr c)" by force
+  then have "\<not> is_final (cr c)" by fastforce
 
-  then have "step (cr c) = step_not_final (cr c)" by blast
-  also have "... = cr (M2.step_not_final c)"
-  proof (rule TM_config_eq)
-    show "state (step_not_final (cr c)) = state (cr (M2.step_not_final c))" by simp
-    show "tapes (step_not_final (cr c)) = tapes (cr (M2.step_not_final c))" by simp
-  qed
+  then have "step (cr c) = step_not_final (cr c)" ..
+  also have "... = cr (M2.step_not_final c)" by (rule TM_config_eq) simp_all
   also from nf have "... = cr (M2.step c)" by simp
   finally show ?thesis .
 qed \<comment> \<open>case \<^term>\<open>M2.is_final c\<close> by\<close> simp
@@ -1109,7 +1102,6 @@ theorem TM_comp_steps_final:
     and cf1: "TM.is_final M1 c_fin1"
     and cf2: "TM.is_final M2 c_fin2"
   shows "TM.steps (TM_comp M1 M2) (n1+n2) (simple_TM_comp.cl c_init1) = simple_TM_comp.cr c_fin2"
-    (is "TM.steps ?M ?n ?c0 = ?c_fin")
   using k symbols_eq ci1_nf cf1 cf2
   unfolding c_fin1_def c_init2_def c_fin2_def TM_comp_def
   by (intro simple_TM_comp.comp_steps_final simple_TM_comp.intro)
