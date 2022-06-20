@@ -360,19 +360,11 @@ subsubsection\<open>Symbols as Type\<close>
 
 (* TODO document, motivate *)
 
-text\<open>Implementation note: When extending Isabelle locales,
-  all type variables get replaced by generic ones (\<open>'a, 'b, 'c, ...\<close>).
-  For clarity, we want to retain the names of the generic types of states \<^typ>\<open>'q\<close> and symbols \<^typ>\<open>'s\<close>.
-  We therefore use the following pattern instead of directly extending existing locales:
-  Create a new locale containing the same fixes and assumptions as the original locale
-  (in addition to any new ones), then invoke \<open>sublocale\<close>.\<close>
-
-locale typed_TM =
-  fixes M :: "('q, 's::finite) TM" (* It is required to specify \<^typ>\<open>'s\<close> as \<^class>\<open>finite\<close> here,
-    even though this could be inferred from the assumption below. See \<^url>\<open>https://stackoverflow.com/a/72136728/9335596\<close> *)
+locale typed_TM = TM M for M :: "('q, 's::finite) TM" +
+  (* It is required to specify \<^typ>\<open>'s\<close> as \<^class>\<open>finite\<close> here,
+     even though this could be inferred from the assumption below. See \<^url>\<open>https://stackoverflow.com/a/72136728/9335596\<close> *)
   assumes symbols_UNIV[simp, intro]: "TM.symbols M = UNIV"
 begin
-sublocale TM M .
 
 text\<open>The added assumption that all members of \<^typ>\<open>'s\<close> are valid symbols
   allows for simpler axioms.\<close>

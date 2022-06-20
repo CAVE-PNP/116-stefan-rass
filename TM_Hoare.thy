@@ -493,14 +493,11 @@ lemma time_eqI[intro]:
   shows "TM.time M1 w1 - n1 = TM.time M2 w2"
   using assms unfolding TM.time_def TM.run_def TM.halts_def by (fact config_time_eqI)
 
-locale Rej_TM =
-  fixes q0 :: 'q and s :: 's and M :: "('q, 's) TM"
-  defines "M \<equiv> rejecting_TM q0 s"
+locale Rej_TM = TM "rejecting_TM q0 s" for q0 :: 'q and s :: 's
 begin
-sublocale TM M .
 
 lemma M_rec: "M_rec = rejecting_TM_rec q0 s" using Abs_TM_inverse rejecting_TM_valid
-  unfolding rejecting_TM_def M_def by fast
+  unfolding rejecting_TM_def by fast
 lemmas M_fields = TM_fields_defs[unfolded M_rec rejecting_TM_rec_def TM_record.simps]
 lemmas [simp] = M_fields(1-6)
 
