@@ -226,59 +226,6 @@ text\<open>@{cite \<open>ch.~12.2\<close> hopcroftAutomata1979} uses the finite 
   often (i.o.) if it is true for an infinite number of \<open>n\<close>'s. Note that both a statement and
   its negation may be true i.o.''\<close>
 
-lemma ae_word_length_iff[iff]:
-  fixes P :: "'s::finite list \<Rightarrow> bool"
-  shows "Alm_all P \<longleftrightarrow> (\<exists>n. \<forall>w. n \<le> length w \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
-proof
-  assume ?rhs
-  then obtain n where "P w" if "n \<le> length w" for w by blast
-  then have "\<not> P w \<Longrightarrow> length w \<le> n" for w by force
-  then have "{w. \<not> P w} \<subseteq> {w. length w \<le> n}" by auto
-  moreover have "finite {w::'s list. length w \<le> n}"
-    using finite_type_lists_length_le .
-  ultimately show ?lhs unfolding eventually_cofinite by (rule finite_subset)
-next
-  assume ?lhs
-  then have "finite {w. \<not> P w}" unfolding eventually_cofinite .
-  show ?rhs proof (cases "{x. \<not> P x} = {}")
-    assume "{x. \<not> P x} \<noteq> {}"
-    define n where "n = Suc (Max (length ` {x. \<not> P x}))"
-
-    have "P x" if "length x \<ge> n" for x
-    proof -
-      from \<open>length x \<ge> n\<close> have "length x > Max (length ` {x. \<not> P x})"
-        unfolding n_def by (fact Suc_le_lessD)
-      then have "length x \<notin> length ` {x. \<not> P x}"
-        using \<open>{x. \<not> P x} \<noteq> {}\<close> and \<open>finite {x. \<not> P x}\<close> by (subst (asm) Max_less_iff) blast+
-      with that show "P x" by blast
-    qed
-    then show ?rhs by blast
-  qed blast
-qed
-
-lemma ae_word_lengthI:
-  fixes P :: "'s::finite list \<Rightarrow> bool"
-  assumes "\<exists>n. \<forall>w. n \<le> length w \<longrightarrow> P w"
-  shows "Alm_all P"
-unfolding ae_word_length_iff using assms .
-
-lemma ae_word_lengthE[elim]:
-  fixes P :: "'s::finite list \<Rightarrow> bool"
-  assumes "Alm_all P"
-  obtains n where "\<And>w. n \<le> length w \<Longrightarrow> P w"
-using assms unfolding ae_word_length_iff by blast
-
-lemma ae_disj: "Alm_all P \<or> Alm_all Q \<Longrightarrow> Alm_all (\<lambda>x. P x \<or> Q x)"
-  using eventually_mono by fastforce
-
-lemma ae_conj_iff: "Alm_all (\<lambda>x. P x \<and> Q x) \<longleftrightarrow> Alm_all P \<and> Alm_all Q"
-  by (rule eventually_conj_iff)
-
-lemma ae_conjI:
-  assumes "Alm_all P" "Alm_all Q"
-  shows "Alm_all (\<lambda>x. P x \<and> Q x)"
-using assms by (rule eventually_conj)
-
 text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
 
   ``\<^bold>\<open>Lemma 12.3\<close>  If \<open>L\<close> is accepted by a TM \<open>M\<close> that is \<open>S(n)\<close> space bounded a.e., then \<open>L\<close> is
