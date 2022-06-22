@@ -149,12 +149,10 @@ lemma reorder_config_simps[simp]:
   unfolding reorder_config_def by simp_all
 
 
-locale TM_reorder_tapes =
-  fixes M :: "('q, 's) TM"
-    and "is" :: "nat option list"
+locale TM_reorder_tapes = TM M for M :: "('q, 's) TM" +
+  fixes "is" :: "nat option list"
   assumes items_match: "someset is = {0..<TM.tape_count M}"
 begin
-sublocale TM .
 
 abbreviation "k' \<equiv> length is"
 
@@ -562,11 +560,9 @@ theorem tape_offset_steps:
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
 
-locale TM_tape_offset =
-  fixes M :: "('q, 's) TM"
-    and a b :: nat
+locale TM_tape_offset = TM M for M :: "('q, 's) TM" +
+  fixes a b :: nat
 begin
-sublocale TM M .
 
 abbreviation "is \<equiv> tape_offset a b"
 
@@ -608,15 +604,13 @@ end \<comment> \<open>\<^locale>\<open>TM_tape_offset\<close>\<close>
 
 subsubsection\<open>Change Alphabet\<close>
 
-locale TM_map_alphabet =
-  fixes M :: "('q, 's1) TM"
-    and f :: "'s1 \<Rightarrow> 's2"
+locale TM_map_alphabet = TM M for M :: "('q, 's1) TM" +
+  fixes f :: "'s1 \<Rightarrow> 's2"
     and \<Sigma>\<^sub>i\<^sub>n' :: "'s2 set" \<comment> \<open>this is not necessarily \<^term>\<open>f ` TM.symbols M\<close>.\<close>
   assumes inj_f: "inj_on f (TM.symbols M)"
     and range_f: "f ` TM.symbols M \<subseteq> \<Sigma>\<^sub>i\<^sub>n'"
     and finite_symbols: "finite \<Sigma>\<^sub>i\<^sub>n'"
 begin
-sublocale TM .
 
 abbreviation f' where "f' \<equiv> map_option f"
 definition f_inv ("f\<inverse>") where "f_inv \<equiv> inv_into \<Sigma>\<^sub>i\<^sub>n f"
@@ -1112,9 +1106,8 @@ subsubsection\<open>Composition with Offset\<close> (* TODO find better title *)
 text\<open>Combine \<^locale>\<open>simple_TM_comp\<close> and \<^locale>\<open>TM_tape_offset\<close> to define a composition
   where the output of the first TM becomes the input for the second one.\<close>
 
-locale IO_TM_comp = TM_abbrevs +
-  fixes M1 :: "('q1, 's) TM"
-    and M2 :: "('q2, 's) TM"
+locale IO_TM_comp = TM_abbrevs + M1: TM M1 + M2: TM M2
+  for M1 :: "('q1, 's) TM" and M2 :: "('q2, 's) TM" +
   assumes symbols_eq: "TM.symbols M1 = TM.symbols M2"
 begin
 
@@ -1366,20 +1359,17 @@ text\<open>This is designed to allow composition of TMs that we do not know anyt
   (``from \<open>L \<in> DTIME(T)\<close> we obtain \<open>M\<close> where ...'').\<close>
 
 
-locale arb_TM_comp =
-  fixes M1 :: "('q1, 's1::finite) TM"
-    and M2 :: "('q2, 's2::finite) TM"
-    and f1 :: "('s1 \<Rightarrow> 's::finite)"
-    and f2 :: "('s2 \<Rightarrow> 's)"
-  assumes inj_f1: "inj f1"
-    and inj_f2: "inj f2"
+locale arb_TM_comp = M1a: TM_map_alphabet M1 f1 + M2a: TM_map_alphabet M2 f2
+  for M1 :: "('q1, 's1) TM"
+    and M2 :: "('q2, 's2) TM"
+    and f1 :: "('s1 \<Rightarrow> 's)"
+    and f2 :: "('s2 \<Rightarrow> 's)" +
+  assumes symbols_eq: "f1 ` M1a.\<Sigma>\<^sub>i\<^sub>n = f2 ` M2a.\<Sigma>\<^sub>i\<^sub>n"
 begin
-sublocale M1a: TM_map_alphabet M1 f1 using inj_f1 by (unfold_locales)
-sublocale M2a: TM_map_alphabet M2 f2 using inj_f2 by (unfold_locales)
 
 abbreviation "M1a \<equiv> M1a.M'"
 abbreviation "M2a \<equiv> M2a.M'"
-sublocale IO_TM_comp M1a M2a .
+sublocale IO_TM_comp M1a M2a using symbols_eq by unfold_locales simp
 
 lemma arb_comp_run:
   fixes t2 :: nat
