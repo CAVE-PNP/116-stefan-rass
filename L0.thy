@@ -46,9 +46,31 @@ next
 qed
 
 
+locale UTM_Encoding =
+  fixes enc\<^sub>U :: "('q, 's) TM \<times> 's list \<Rightarrow> bool list"
+    and is_valid_enc\<^sub>U :: "bool list \<Rightarrow> bool"
+    and dec\<^sub>U :: "bool list \<Rightarrow> ('q, 's) TM \<times> 's list"
+  assumes inj_enc\<^sub>U: "inj enc\<^sub>U"
+    and enc_dec:   "\<And>M w. TM.wf_input M w \<Longrightarrow> dec\<^sub>U (enc\<^sub>U (M, w)) = (M, w)"
+    and valid_enc: "\<And>M w. TM.wf_input M w \<Longrightarrow> is_valid_enc\<^sub>U (enc\<^sub>U (M, w))"
+    and invalid_rejects: "\<And>x. \<not> is_valid_enc\<^sub>U x \<Longrightarrow> let (M, w) = dec\<^sub>U x in TM.rejects M w" (* a nicer version of: "\<exists>q\<^sub>0 s w. dec\<^sub>U x = (rejecting_TM q\<^sub>0 s, w)" *)
+    and dec_enc: "\<And>x. is_valid_enc\<^sub>U x \<Longrightarrow> enc\<^sub>U (dec\<^sub>U x) = x" (* TODO is this useful/necessary/practicable? *)
+
+locale UTM = UTM: TM M\<^sub>U + UTM_Encoding enc\<^sub>U is_valid_enc\<^sub>U dec\<^sub>U
+  for M\<^sub>U :: "('q, bool) TM" (* TODO make 'q = nat ? *)
+    and enc\<^sub>U :: "('q, nat) TM \<times> nat list \<Rightarrow> bool list"
+    and is_valid_enc\<^sub>U dec\<^sub>U +
+  assumes halts_iff: "\<And>M w. TM.halts   M w \<longleftrightarrow> UTM.halts   (enc\<^sub>U (M, w))"
+    and accepts_iff: "\<And>M w. TM.accepts M w \<longleftrightarrow> UTM.accepts (enc\<^sub>U (M, w))"
+
+locale timed_UTM = UTM M\<^sub>U for M\<^sub>U :: "(nat, bool) TM" +
+  fixes f :: "nat \<Rightarrow> nat"
+  assumes "\<And>M::(nat, nat) TM. \<And>w. TM.halts M w \<Longrightarrow> UTM.time (enc\<^sub>U (M, w)) \<le> f (TM.time M w)"
+
+
 subsection\<open>The Time Hierarchy Theorem\<close>
 
-locale tht_assms =
+locale tht_assms = timed_UTM +
   fixes T t :: "nat \<Rightarrow> nat"
   assumes fully_tconstr_T: "fully_tconstr TYPE('a) TYPE('b::blank) T"
 
@@ -179,7 +201,7 @@ next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME TYPE('a) 
     define w' where "w' = encode_TM M\<^sub>w"
 
     from \<open>TM M\<^sub>w\<close> interpret TM M\<^sub>w .
-    
+
     let ?n = "length (encode_TM M\<^sub>w) + 2"
     obtain l where "T(2*l) \<ge> t(2*l)" and "clog l \<ge> ?n"
     proof -
@@ -211,7 +233,7 @@ next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME TYPE('a) 
       ultimately have "\<not> TM.rejects M\<^sub>w w" by blast
       then show "w \<notin> L\<^sub>D" unfolding LD_def mem_Collect_eq dec_w by presburger
     next
-      
+
       assume "w \<notin> L\<^sub>D"
       moreover have "TM.time_bounded_word M\<^sub>w T w"
       proof (rule time_bounded_word_mono)
