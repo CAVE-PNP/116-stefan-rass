@@ -48,7 +48,7 @@ proof (cases "k > 0")
     moreover have "a < b \<Longrightarrow> a \<le> b - 1" for a b :: nat by force
     ultimately show "?Z^(k - 1) \<le> 2^k - 1" by blast
   qed
-qed (* case "k = 0" by *) simp
+qed \<comment> \<open>case \<open>k = 0\<close> by\<close> simp
 
 
 lemma dlog_times_exp:
@@ -63,7 +63,7 @@ proof (induction k)
   also have "... = dlog (a * 2^k) + 1" using log_twice h1 unfolding Suc_eq_plus1 .
   also have "... = dlog a + Suc k" unfolding Suc.IH add.assoc Suc_eq_plus1 ..
   finally show ?case .
-qed (* case "k = 0" by *) simp
+qed \<comment> \<open>case \<open>k = 0\<close> by\<close> simp
 
 lemma dlog_Suc:
   assumes "n > 0"
@@ -109,7 +109,7 @@ qed
 corollary dlog_add1_le: "dlog (n + 1) \<le> dlog n + 1"
 proof (cases "n > 0")
   assume "n > 0" thus ?thesis by (fold Suc_eq_plus1, subst dlog_Suc) simp_all
-qed (* case "n = 0" by *) simp
+qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
 
 subsubsection\<open>Discrete Ceiling Log\<close>
@@ -134,7 +134,7 @@ proof (cases "n > 0")
   have "dlog n = dlog (n - 1 + 1)" unfolding n_split ..
   also have "... \<le> dlog (n - 1) + 1" by (rule dlog_add1_le)
   finally show "dlog n \<le> clog n" unfolding clog_def .
-qed (* case "n = 0" by *) simp
+qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
 lemma clog_le_dlog_p1: "clog n \<le> dlog n + 1"
 proof -

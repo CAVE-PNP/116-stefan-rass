@@ -167,7 +167,7 @@ proof (cases "x > 0")
   also have "nat (\<lfloor>x\<rfloor> + 1) = nat (int (nat \<lfloor>x\<rfloor>) + int 1)" unfolding int_nat_x of_nat_1 ..
   also have "... = nat \<lfloor>x\<rfloor> + 1" using nat_int_add .
   finally show "nat \<lceil>x\<rceil> \<le> nat \<lfloor>x\<rfloor> + 1" .
-qed (* case "x \<le> 0" by *) simp
+qed \<comment> \<open>case \<open>x \<le> 0\<close> by\<close> simp
 
 
 subsection\<open>Length of Prefix\<close>
@@ -254,7 +254,7 @@ proof (cases "n > 0")
 
   also have "... \<le> 2 ^ (4 + bit_length n div 2)" using \<open>n > 0\<close> by (subst bit_len_eq_dlog) simp_all
   finally show ?thesis .
-qed (* case "n = 0" by *) simp
+qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
 lemma adj_sq_diff: "next_square n - prev_square n < 2 ^ (4 + bit_length n div 2)"
   using adj_sq_diff_pow2 next_prev_sq_diff by (rule dual_order.strict_trans2)
@@ -336,7 +336,7 @@ proof (cases "n > 0", cases "k > 0")
     using \<open>n \<le> 2 ^ k - 1\<close> by (rule log_le_iff)
   also have "... = k" unfolding log_exp_m1 using \<open>k > 0\<close> by simp
   finally show ?thesis .
-qed (* cases "n = 0" and "k = 0" by *) fastforce+
+qed \<comment> \<open>cases \<open>n = 0\<close> and \<open>k = 0\<close> by\<close> fastforce+
 
 (* suppl *)
 lemma pow2_min: "0 < n \<Longrightarrow> n < 2^k \<Longrightarrow> k > 0" for n k :: nat by (cases "k > 0") force+
@@ -361,7 +361,7 @@ proof (cases "up > 0", cases "lo > 0")
   also have "... = up * 2 ^ length (?lo @ ?zs) + lo" unfolding nat_of_bin_app by simp
   also have "... = ?lhs" unfolding lloz ..
   finally show ?thesis by (rule sym)
-qed (* cases "up = 0" and "lo = 0" by *) (simp_all add: nat_of_bin_app_0s)
+qed \<comment> \<open>cases \<open>up = 0\<close> and \<open>lo = 0\<close> by\<close> (simp_all add: nat_of_bin_app_0s)
 
 corollary add_suffix_bin':
   fixes up lo k :: nat
@@ -444,7 +444,7 @@ proof (cases "lo > 0")
     show "bin_of_nat n = ?lo @ ?z (k - ?lb lo) @ ?up" unfolding n_def n'_def using add_suffix_bin' \<open>up > 0\<close> \<open>lo < 2^k\<close> .
   qed
   finally show "?lb n = ?lb n'" ..
-qed (* case "lo = 0" by *) (simp add: assms)
+qed \<comment> \<open>case \<open>lo = 0\<close> by\<close> (simp add: assms)
 
 
 lemma adj_sq_sh_pfx_half:

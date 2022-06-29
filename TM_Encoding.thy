@@ -154,7 +154,7 @@ proof (intro replicate_eqI)
   fix y
   assume "y \<in> set (takeWhile (\<lambda>x. x = a) xs)"
   thus "y = a" by (blast dest: set_takeWhileD conjunct2)
-qed rule
+qed (rule refl)
 
 lemma replicate_While: "(a \<up> length (takeWhile (\<lambda>x. x = a) xs)) @ dropWhile (\<lambda>x. x = a) xs = xs"
   by (fold replicate_takeWhile) (rule takeWhile_dropWhile_id)

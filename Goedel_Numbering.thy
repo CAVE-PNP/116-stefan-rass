@@ -90,7 +90,7 @@ fun word_of_num :: "num \<Rightarrow> word" where
 lemma word_num_word_id [simp]: "word_of_num (num_of_word x) = x"
 proof (induction x)
   case (Cons a x) thus ?case by (induction a) simp_all
-qed (* case "x = []" by *) simp
+qed \<comment> \<open>case \<open>x = []\<close> by\<close> simp
 
 lemma num_word_num_id [simp]: "num_of_word (word_of_num x) = x"
   by (induction x) auto

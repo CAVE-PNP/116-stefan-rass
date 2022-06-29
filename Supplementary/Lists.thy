@@ -172,7 +172,7 @@ proof (intro iffI)
   from \<open>xs \<noteq> []\<close> have "butlast xs @ [last xs] = xs"
     unfolding snoc_eq_iff_butlast by (intro conjI) auto
   then show "ends_in x xs" unfolding \<open>last xs = x\<close> by (intro exI) (rule sym)
-qed (* direction "\<longrightarrow>" by *) force
+qed \<comment> \<open>direction \<open>\<longrightarrow>\<close> by\<close> force
 
 lemma ends_in_append: "ends_in x (xs @ ys) \<longleftrightarrow> (if ys = [] then ends_in x xs else ends_in x ys)"
 proof (cases "ys = []")
@@ -183,7 +183,7 @@ proof (cases "ys = []")
   also have "... \<longleftrightarrow> ends_in x ys" using ends_in_last[symmetric] \<open>ys \<noteq> []\<close> .
   also have "... \<longleftrightarrow> (if ys = [] then ends_in x xs else ends_in x ys)" using \<open>ys \<noteq> []\<close> by simp
   finally show ?thesis .
-qed (* case "ys = []" by *) simp
+qed \<comment> \<open>case \<open>ys = []\<close> by\<close> simp
 
 lemma ends_in_drop:
   assumes "k < length xs"
