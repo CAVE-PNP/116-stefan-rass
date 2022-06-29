@@ -4,6 +4,29 @@ theory Goedel_Numbering
   imports Binary
 begin
 
+class goedel_numbering =
+  fixes gn :: "'a list \<Rightarrow> nat"
+  assumes inj_gn: "inj gn"
+
+
+instantiation bool :: goedel_numbering
+begin
+definition gn_bool :: "bool list \<Rightarrow> nat"
+  where "gn w = nat_of_bin (w @ [True])"
+
+instance
+proof intro_classes
+  have gn_comp: "nat_of_bin \<circ> (\<lambda>w. w @ [True]) = gn" unfolding gn_bool_def by force
+  have range_appT: "range (\<lambda>w. w @ [True]) = {w. ends_in True w}" by fast
+
+  have "inj_on nat_of_bin (range (\<lambda>w. w @ [True]))" unfolding range_appT by (rule inj_on_nat_of_bin)
+  then have "inj (nat_of_bin \<circ> (\<lambda>w. w @ [True]))" using inj_append_L by (subst comp_inj_on_iff[symmetric])
+  then show "inj (gn::bool list \<Rightarrow> nat)" unfolding gn_comp .
+qed
+
+end
+
+
 type_synonym word = "bin"
 
 
