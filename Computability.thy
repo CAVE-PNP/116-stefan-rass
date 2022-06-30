@@ -240,35 +240,12 @@ lemma conf_time_steps_final_iff:
 definition "time w \<equiv> config_time (initial_config w)"
 declare (in -) TM.time_def[simp]
 
-abbreviation "compute w \<equiv> run (time w) w"
-
 lemma time_altdef: "time w = (LEAST n. is_final (run n w))"
   unfolding TM.run_def using config_time_def by simp
 
 lemma time_leI[intro]:
   "is_final (run n w) \<Longrightarrow> time w \<le> n"
   unfolding run_def time_def by (rule conf_time_geI)
-
-lemma computeI:
-  assumes "\<exists>n. is_final (run n w) \<and> P (run n w)"
-  shows "P (compute w)"
-proof -
-  from assms have "halts w" by blast
-  then have "is_final (compute w)" unfolding run_def by auto
-  from assms obtain n where "is_final (run n w)" and "P (run n w)" by blast
-  with \<open>is_final (compute w)\<close> have "run n w = compute w" unfolding run_def by blast
-  with \<open>P (run n w)\<close> show ?thesis by argo
-qed
-
-
-lemma final_steps_config_time[dest]:
-  "is_final (steps n c) \<Longrightarrow> steps n c = steps (config_time c) c" by blast
-
-lemma final_run_time[intro]: "is_final (run n w) \<Longrightarrow> run n w = compute w"
-  unfolding time_def run_def by blast
-
-corollary halts_compute_final[dest]: "halts w \<Longrightarrow> is_final (compute w)"
-  unfolding run_def halts_def time_def by (fact conf_time_finalI)
 
 
 lemma config_time_offset:
@@ -317,7 +294,6 @@ next
   finally show ?thesis by presburger
 qed
 
-end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
 lemma config_time_eqI[intro]:
   assumes "TM.halts_config M1 c1"
@@ -335,6 +311,34 @@ lemma time_eqI[intro]:
     and "\<And>n. TM.is_final M1 (TM.run M1 (n1 + n) w1) \<longleftrightarrow> TM.is_final M2 (TM.run M2 n w2)"
   shows "TM.time M1 w1 - n1 = TM.time M2 w2"
   using assms unfolding TM.time_def TM.run_def TM.halts_def by (fact config_time_eqI)
+
+
+subsubsection\<open>Compute\<close>
+
+abbreviation "compute w \<equiv> run (time w) w"
+
+lemma computeI:
+  assumes "\<exists>n. is_final (run n w) \<and> P (run n w)"
+  shows "P (compute w)"
+proof -
+  from assms have "halts w" by blast
+  then have "is_final (compute w)" unfolding run_def by auto
+  from assms obtain n where "is_final (run n w)" and "P (run n w)" by blast
+  with \<open>is_final (compute w)\<close> have "run n w = compute w" unfolding run_def by blast
+  with \<open>P (run n w)\<close> show ?thesis by argo
+qed
+
+
+lemma final_steps_config_time[dest]:
+  "is_final (steps n c) \<Longrightarrow> steps n c = steps (config_time c) c" by blast
+
+lemma final_run_time[intro]: "is_final (run n w) \<Longrightarrow> run n w = compute w"
+  unfolding time_def run_def by blast
+
+corollary halts_compute_final[intro]: "halts w \<Longrightarrow> is_final (compute w)"
+  unfolding run_def halts_def time_def by (fact conf_time_finalI)
+
+end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
 
 subsection\<open>Deciding Languages\<close>
