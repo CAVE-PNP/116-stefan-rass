@@ -21,6 +21,8 @@ fun input_tape :: "'s word \<Rightarrow> 's tape" ("<_>\<^sub>t\<^sub>p") where
   "<[]>\<^sub>t\<^sub>p = \<langle>\<rangle>"
 | "<x # xs>\<^sub>t\<^sub>p = \<langle>|Some x|map Some xs\<rangle>"
 
+(* TODO consider introducing: notation input_tape ("\<langle>_\<rangle>") *)
+
 lemma input_tape_map[simp]: "map_tape f <w>\<^sub>t\<^sub>p = <map f w>\<^sub>t\<^sub>p" by (induction w) auto
 
 lemma input_tape_left[simp]: "left <w>\<^sub>t\<^sub>p = []" by (induction w) auto
@@ -378,7 +380,7 @@ lemma final_steps_config_time[dest]:
 lemma final_run_time[intro]: "is_final (run n w) \<Longrightarrow> run n w = compute w"
   unfolding time_def run_def by blast
 
-corollary halts_compute_final[intro]: "halts w \<Longrightarrow> is_final (compute w)"
+corollary halts_compute_final[dest]: "halts w \<Longrightarrow> is_final (compute w)"
   unfolding run_def halts_def time_def by (fact conf_time_finalI)
 
 lemma hoare_run_altdef: "hoare_run w M P \<longleftrightarrow> halts w \<and> P (compute w)"

@@ -52,7 +52,7 @@ lemma set_reorder_inv:
   assumes ls: "length ys = length is"
     and items_match: "someset is = {0..<N}"
   shows "set (reorder_inv is ys) \<subseteq> set ys" (is "set ?r \<subseteq> set ys")
-proof (cases "set is \<subseteq> {None}")
+proof cases
   assume "set is \<subseteq> {None}"
   then have "set (reorder_inv is ys) = {}" unfolding reorder_inv_def by simp
   also have "... \<subseteq> set ys" ..

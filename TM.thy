@@ -251,6 +251,8 @@ lemmas TM_fields_defs = tape_count_def symbols_def
   states_def initial_state_def final_states_def accepting_states_def rejecting_states_def
   next_state_def next_write_def next_move_def
 
+declare rejecting_states_def[simp]
+
 text\<open>The following abbreviations are intentionally not implemented as \<^emph>\<open>notation\<close>,
   as notation is not transferred when interpreting locales (see section \<^emph>\<open>Usage\<close>).\<close>
 

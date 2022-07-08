@@ -144,7 +144,7 @@ proof -
 qed
 
 lemma clog_mono: "mono clog"
-  unfolding clog_def by (intro monoI) (rule add_le_mono1, rule log_le_iff, rule diff_le_mono)
+  unfolding clog_def by (intro monoI add_le_mono1 log_le_iff diff_le_mono)
 
 
 lemma power_two_decompose:
@@ -167,7 +167,7 @@ proof -
     thus False using * by fastforce
   qed
 
-  ultimately show thesis using that by simp
+  ultimately show ?thesis using that by simp
 qed
 
 lemma log_eq1:
