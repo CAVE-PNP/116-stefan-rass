@@ -144,7 +144,8 @@ locale is_valid_TM =
     and state_axioms: "finite (states M)" "initial_state M \<in> states M"
       "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
     and next_state_valid: "\<And>q hds. q \<in> states M \<Longrightarrow> wf_hds_rec M hds \<Longrightarrow> next_state M q hds \<in> states M"
-    and next_write_valid: "\<And>q hds i. q \<in> states M \<Longrightarrow> wf_hds_rec M hds \<Longrightarrow> next_write M q hds i \<in> tape_symbols_rec M"
+    and next_write_valid: "\<And>q hds i. q \<in> states M \<Longrightarrow> wf_hds_rec M hds \<Longrightarrow> i < tape_count M \<Longrightarrow>
+          next_write M q hds i \<in> tape_symbols_rec M"
 
 text\<open>Notes on assumptions.
   Many of these assumptions would be trivial to satisfy when explicitly constructing a TM,
@@ -328,7 +329,7 @@ lemmas at_least_one_tape = at_least_one_tape[folded TM_fields_defs]
 lemmas symbol_axioms = symbol_axioms[folded TM_fields_defs]
 lemmas state_axioms = state_axioms[folded TM_fields_defs]
 lemma next_state_valid: "q \<in> Q \<Longrightarrow> wf_hds hds \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q" unfolding wf_hds_def TM_fields_defs by (fact next_state_valid)
-lemma next_write_valid: "q \<in> Q \<Longrightarrow> wf_hds hds \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>" unfolding wf_hds_def TM_fields_defs by (fact next_write_valid)
+lemma next_write_valid: "q \<in> Q \<Longrightarrow> wf_hds hds \<Longrightarrow> i < k \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>" unfolding wf_hds_def TM_fields_defs by (rule next_write_valid)
 
 lemmas TM_axioms = at_least_one_tape state_axioms symbol_axioms next_state_valid next_write_valid
 lemmas (in -) TM_axioms[simp, intro] = TM.TM_axioms
@@ -771,7 +772,7 @@ proof (elim wf_configE, intro wf_configI)
     also have "... \<subseteq> set_option (\<delta>\<^sub>w ?q ?hds i) \<union> set_tape (?tps ! i)" by (simp add: tape_action_set)
     also have "... \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
     proof (rule Un_least)
-      from q and valid_tps and wf show "set_option (\<delta>\<^sub>w ?q ?hds i) \<subseteq> \<Sigma>\<^sub>i\<^sub>n" by blast
+      from q and valid_tps and wf and \<open>i < k\<close> show "set_option (\<delta>\<^sub>w ?q ?hds i) \<subseteq> \<Sigma>\<^sub>i\<^sub>n" by blast
       from valid_tps show "set_tape (?tps ! i) \<subseteq> \<Sigma>\<^sub>i\<^sub>n" by simp
     qed
     finally show "set_tape (?tps' ! i) \<subseteq> \<Sigma>\<^sub>i\<^sub>n" .
