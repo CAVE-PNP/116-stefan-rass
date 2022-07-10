@@ -1,8 +1,9 @@
 section\<open>A Theory of Turing Machines\<close>
 
 theory TM
-  imports Main "Supplementary/Misc" "Supplementary/Lists" "Supplementary/Option_S"
-    "Intro_Dest_Elim.IHOL_IDE" "HOL-Library.Countable_Set"
+  imports Main
+    "Supplementary/Lists" "Supplementary/Option_S"
+    "Intro_Dest_Elim.IHOL_IDE"
 begin
 
 
@@ -333,6 +334,10 @@ lemma next_write_valid: "q \<in> Q \<Longrightarrow> wf_hds hds \<Longrightarrow
 
 lemmas TM_axioms = at_least_one_tape state_axioms symbol_axioms next_state_valid next_write_valid
 lemmas (in -) TM_axioms[simp, intro] = TM.TM_axioms
+
+lemma final_states_valid[dest]: "q \<in> F \<Longrightarrow> q \<in> Q" using state_axioms(3) by blast
+lemma accepting_states_final[dest]: "q \<in> F\<^sub>A \<Longrightarrow> q \<in> F" using state_axioms(4) by blast
+lemma rejecting_states_final[dest]: "q \<in> F\<^sub>R \<Longrightarrow> q \<in> F" unfolding rejecting_states_def by blast
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
