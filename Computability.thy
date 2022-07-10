@@ -92,70 +92,49 @@ proof (intro wf_configI)
     unfolding initial_config_def TM_config.sel list.pred_inject(2) by (intro conjI) (simp, force)
 qed simp_all
 
-lemma (in typed_TM) wf_initial_config[intro]: "wf_config (initial_config w)" by force
+lemma (in typed_TM) wf_initial_config[intro!]: "wf_config (initial_config w)" by force
 
 
 subsubsection\<open>Running a TM Program\<close>
 
 definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
-  where "run n w \<equiv> steps n (initial_config w)"
+  where [simp]: "run n w \<equiv> steps n (initial_config w)"
 
-lemma run_initial_config[simp]: "run 0 w = c\<^sub>0 w"
-  unfolding run_def by simp
+corollary wf_config_run[intro, simp]: "wf_input w \<Longrightarrow> wf_config (run n w)" by auto
+corollary (in typed_TM) wf_config_run[intro!, simp]: "wf_config (run n w)" by auto
 
-corollary wf_config_run[intro, simp]: "wf_input w \<Longrightarrow> wf_config (run n w)" unfolding run_def by blast
-corollary (in typed_TM) wf_config_run[intro!, simp]: "wf_config (run n w)" by simp
-
-
-corollary run_tapes_len[simp]: "length (tapes (run n w)) = k" by (simp add: run_def steps_l_tps)
+corollary run_tapes_len[simp]: "length (tapes (run n w)) = k" by (simp add: steps_l_tps)
 corollary run_tapes_non_empty[simp, intro]: "tapes (run n w) \<noteq> []"
-  using at_least_one_tape by (fold length_0_conv) simp
+  using at_least_one_tape by (fold length_0_conv) (simp add: steps_l_tps)
 
-corollary steps_run[simp]: "steps n (run m w) = run (m + n) w"
-  unfolding run_def add_ac[of m n] funpow_add comp_def ..
+lemma final_le_run[dest]: "is_final (run n w) \<Longrightarrow> n \<le> m \<Longrightarrow> run m w = run n w"
+  unfolding run_def by (fact final_le_steps)
 
-corollary run_final_mono[dest]:
-  assumes "is_final (run n w)"
-    and "n \<le> m"
-  shows "is_final (run m w)"
-using assms unfolding run_def by (fact final_mono)
-
-end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
+corollary final_mono_run[dest]: "is_final (run n w) \<Longrightarrow> n \<le> m \<Longrightarrow> is_final (run m w)"
+  unfolding run_def by (fact final_mono)
 
 
-definition (in TM) "on_input w \<equiv> (\<lambda>c. c = initial_config w)"
+definition "on_input w \<equiv> (\<lambda>c. c = initial_config w)"
 
-lemma on_inputI[intro, simp]: "TM.on_input M w (TM.initial_config M w)"
+lemma (in -) on_inputI[intro, simp]: "TM.on_input M w (TM.initial_config M w)"
   unfolding TM.on_input_def by blast
 
 
-definition (in TM) halts_config :: "('q, 's) TM_config \<Rightarrow> bool"
-  where "halts_config c \<equiv> \<exists>n. is_final (steps n c)"
+definition halts_config :: "('q, 's) TM_config \<Rightarrow> bool"
+  where [simp]: "halts_config c \<equiv> \<exists>n. is_final (steps n c)"
 
 mk_ide (in -) TM.halts_config_def |intro halts_confI[intro]| |dest halts_confD[dest]|
 
 
-definition (in TM) halts :: "'s list \<Rightarrow> bool"
-  where "halts w \<equiv> halts_config (initial_config w)"
-declare TM.halts_def[simp]
+definition halts :: "'s list \<Rightarrow> bool"
+  where [simp]: "halts w \<equiv> halts_config (c\<^sub>0 w)"
 
-lemma halts_altdef2: "TM.halts M w \<longleftrightarrow> (\<exists>n. TM.is_final M (TM.run M n w))"
-  by (simp add: TM.run_def TM.halts_config_def)
+lemma halts_altdef: "halts w \<longleftrightarrow> (\<exists>n. is_final (run n w))" by simp
 
-
-lemma haltsI[intro]:
-  assumes "\<exists>n. TM.is_final M (TM.run M n w)"
-  shows "TM.halts M w"
-  using assms by (simp add: TM.run_def TM.halts_config_def)
-
-lemma haltsD[dest]: "TM.halts M w \<Longrightarrow> \<exists>n. TM.is_final M (TM.run M n w)"
-  unfolding TM.halts_def TM.run_def by blast
+mk_ide (in -) TM.halts_altdef |intro haltsI[intro]| |dest haltsD[dest]|
 
 
 subsubsection\<open>Output\<close>
-
-context TM
-begin
 
 text\<open>By convention, the \<^emph>\<open>output\<close> of a TM is found on its last tape
   when the computation has reached its end.
@@ -165,201 +144,136 @@ text\<open>By convention, the \<^emph>\<open>output\<close> of a TM is found on 
   so only the symbols up to the first blank will be considered output.\<close> (* TODO does this make sense *)
 
 definition output_of :: "('q, 's) TM_config \<Rightarrow> 's list"
-  where "output_of c = (let o_tp = last (tapes c) in
+  where [code]: "output_of c = (let o_tp = last (tapes c) in
     case head o_tp of Bk \<Rightarrow> [] | Some h \<Rightarrow> h # the (those (takeWhile (\<lambda>s. s \<noteq> Bk) (right o_tp))))"
 
 lemma out_config_simps[simp, intro]: "last (tapes c) = <w>\<^sub>t\<^sub>p \<Longrightarrow> output_of c = w"
   unfolding output_of_def by (induction w) (auto simp add: takeWhile_map)
 
+
 text\<open>The requirement that the output conforms to the input standard should simplify some parts.
   It is possible to construct a TM that produces clean output, simply by adding another tape.\<close>
 
-definition "clean_output c \<equiv> \<exists>w. last (tapes c) = <w>\<^sub>t\<^sub>p"
+definition "clean_output c \<equiv> \<exists>w. last (tapes c) = <w>\<^sub>t\<^sub>p" (* TODO change to allow trailing blanks. potentially define new tape equivalence relation *)
 
+lemma clean_outputI[intro]: "last (tapes c) = <w>\<^sub>t\<^sub>p \<Longrightarrow> clean_output c"
+  unfolding clean_output_def by blast
 lemma clean_outputD[dest]: "clean_output c \<Longrightarrow> output_of c = w \<Longrightarrow> last (tapes c) = <w>\<^sub>t\<^sub>p"
   unfolding clean_output_def by force
 
 lemma clean_output_alt: "clean_output c \<and> output_of c = w \<longleftrightarrow> last (tapes c) = <w>\<^sub>t\<^sub>p"
   unfolding clean_output_def by force
 
-end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
+lemma clean_output_altdef[code]: "clean_output c \<longleftrightarrow> last (tapes c) = <output_of c>\<^sub>t\<^sub>p"
+  using clean_output_alt unfolding clean_output_def by blast
+
+definition clean_output_of :: "('q, 's) TM_config \<Rightarrow> 's list option"
+  where "clean_output_of c = (if clean_output c then Some (output_of c) else None)"
+
+lemma clean_output_of_altdef[code]: "clean_output_of c =
+    (let w = output_of c in  if last (tapes c) = <w>\<^sub>t\<^sub>p then Some w else None)"
+  unfolding clean_output_of_def Let_def clean_output_altdef ..
 
 
-subsubsection\<open>Execution Time\<close>
+definition has_output :: "('q, 's) TM_config \<Rightarrow> 's list \<Rightarrow> bool"
+  where "has_output c w \<equiv> clean_output_of c = Some w"
 
-context TM
-begin
+lemma has_output_altdef: "has_output c w \<longleftrightarrow> last (tapes c) = <w>\<^sub>t\<^sub>p"
+  unfolding has_output_def clean_output_of_def by auto
 
-definition "config_time c \<equiv> LEAST n. is_final (steps n c)"
-
-lemma steps_conf_time[intro, simp]:
-  assumes "is_final (steps n c)"
-  shows "steps (config_time c) c = steps n c"
-proof -
-  from assms have "is_final (steps (config_time c) c)" unfolding config_time_def by (rule LeastI)
-  then show ?thesis using assms by (rule final_steps_rev)
-qed
-
-lemma conf_time_lessD[dest, elim]: "n < config_time c \<Longrightarrow> \<not> is_final (steps n c)"
-  unfolding config_time_def by (rule not_less_Least)
-
-lemma conf_time_geD[dest, elim]:
-  assumes "n \<ge> config_time c"
-    and "halts_config c"
-  shows "is_final (steps n c)"
-proof -
-  from assms(2) have "is_final (steps (LEAST n. is_final (steps n c)) c)"
-    unfolding halts_config_def by (rule LeastI_ex)
-  with assms(1) show ?thesis unfolding config_time_def by blast
-qed
-
-lemma conf_time_geI[intro]: "is_final (steps n c) \<Longrightarrow> config_time c \<le> n"
-  unfolding config_time_def run_def by (fact Least_le)
-
-lemma conf_time_ge_iff[intro]: "halts_config c \<Longrightarrow> is_final (steps n c) \<longleftrightarrow> n \<ge> config_time c"
-  by blast
-
-lemma conf_time_less_rev[intro]: "halts_config c \<Longrightarrow> \<not> is_final (steps n c) \<Longrightarrow> n < config_time c"
-  by (subst (asm) conf_time_ge_iff) auto
-
-lemma conf_time_finalI[intro]: "halts_config c \<Longrightarrow> is_final (steps (config_time c) c)"
-  using conf_time_ge_iff by blast
-
-lemma conf_time0[simp, intro]: "is_final c \<Longrightarrow> config_time c = 0" unfolding config_time_def by simp
+mk_ide has_output_altdef |intro has_outputI[intro]| |dest has_outputD[dest]|
 
 
-lemma conf_time_steps_finalI: "\<exists>n. is_final (steps n c) \<and> P (steps n c) \<Longrightarrow>
-  is_final (steps (config_time c) c) \<and> P (steps (config_time c) c)" by force
+subsubsection\<open>\<open>compute\<close> Function\<close>
 
-lemma conf_time_steps_final_iff:
-  "(\<exists>n. is_final (steps n c) \<and> P (steps n c)) \<longleftrightarrow>
-  (is_final (steps (config_time c) c) \<and> P (steps (config_time c) c))"
-  by (intro iffI conf_time_steps_finalI) blast+
+definition "compute_config c = steps (SOME n. is_final (steps n c)) c"
 
-
-definition "time w \<equiv> config_time (initial_config w)"
-declare (in -) TM.time_def[simp]
-
-lemma time_altdef: "time w = (LEAST n. is_final (run n w))"
-  unfolding TM.run_def using config_time_def by simp
-
-lemma time_leI[intro]:
-  "is_final (run n w) \<Longrightarrow> time w \<le> n"
-  unfolding run_def time_def by (rule conf_time_geI)
+lemma halts_compute_config[iff?]: "halts_config c \<longleftrightarrow> is_final (compute_config c)"
+  unfolding compute_config_def halts_config_def by (fact some_eq_ex[symmetric])
 
 
-lemma config_time_offset:
-  fixes c0
-  defines "n \<equiv> config_time c0"
-  assumes "halts_config c0"
-  shows "config_time (steps n1 c0) = n - n1"
-proof (cases "is_final (steps n1 c0)")
-  assume f: "is_final (steps n1 c0)"
-  then have "n1 \<ge> n" unfolding n_def by blast
-  with f show ?thesis unfolding n_def by simp
-next
-  assume nf: "\<not> is_final (steps n1 c0)"
+definition "compute w = compute_config (initial_config w)"
 
-  let ?N = "{n2. is_final (steps n2 (steps n1 c0))}"
+lemma halts_compute: "halts w \<longleftrightarrow> is_final (compute w)"
+  unfolding compute_def halts_def by (fact halts_compute_config)
 
-  have "{n. is_final (steps n c0)} = {n. \<exists>n2. n = n1 + n2 \<and> is_final (steps n2 (steps n1 c0))}"
-    (is "{n. ?lhs n} = {n. ?rhs n}")
-  proof (rule sym, intro Collect_eqI iffI)
-    fix n assume "?lhs n"
-    with nf have "n > n1" by blast
-    then have "\<exists>n2. n = n1 + n2" by (intro le_Suc_ex less_imp_le_nat)
-    then obtain n2 where "n = n1 + n2" ..
-    from \<open>?lhs n\<close> have "is_final (steps n2 (steps n1 c0))" unfolding \<open>n = n1 + n2\<close> by simp
-    with \<open>n = n1 + n2\<close> show "?rhs n" by blast
-  next
-    fix n assume "?rhs n"
-    then obtain n2 where "n = n1 + n2" and "is_final (steps n2 (steps n1 c0))" by blast
-    then show "?lhs n" by simp
-  qed
-  then have *: "{n. is_final (steps n c0)} = (\<lambda>n2. n1 + n2) ` ?N" unfolding image_Collect .
+mk_ide (in -) TM.halts_compute |intro halts_compI[intro]| |dest halts_compD[dest]|
 
-  have "n = (LEAST n. is_final (steps n c0))" unfolding n_def config_time_def ..
-  also have "... = (LEAST n. n \<in> {n. is_final (steps n c0)})" by simp
-  also have "... = n1 + (LEAST n. is_final (steps n (steps n1 c0)))" unfolding *
-  proof (subst Least_mono, unfold mem_Collect_eq)
-    show "mono (\<lambda>n2. n1 + n2)" by (intro monoI add_left_mono)
+lemma compute_altdef: "compute w = run (SOME n. is_final (run n w)) w"
+  unfolding compute_def compute_config_def run_def ..
 
-    let ?n = "config_time c0" let ?n2 = "?n - n1"
-    have *: "x \<in> ?N \<longleftrightarrow> x \<ge> ?n2" for x
-      unfolding mem_Collect_eq steps_plus le_diff_conv add.commute[of x n1]
-      using \<open>halts_config c0\<close> by (fact conf_time_ge_iff)
-    then show "\<exists>n\<in>?N. \<forall>n'\<in>?N. n \<le> n'" by blast
-  qed blast
-  also have "... = n1 + config_time (steps n1 c0)" unfolding config_time_def ..
-  finally show ?thesis by presburger
-qed
+lemma compute_altdef2[simp]: "is_final (steps n (c\<^sub>0 w)) \<Longrightarrow> compute w = run n w"
+  unfolding compute_altdef run_def by (meson final_steps_rev someI)
 
-
-lemma config_time_eqI[intro]:
-  assumes "TM.halts_config M1 c1"
-    and "\<And>n. TM.is_final M1 (TM.steps M1 (n1 + n) c1) \<longleftrightarrow> TM.is_final M2 (TM.steps M2 n c2)"
-  shows "TM.config_time M1 c1 - n1 = TM.config_time M2 c2"
-proof -
-  from \<open>TM.halts_config M1 c1\<close> have "TM.config_time M1 c1 - n1 = TM.config_time M1 (TM.steps M1 n1 c1)"
-    by (subst TM.config_time_offset) auto
-  also have "... = TM.config_time M2 c2" unfolding TM.config_time_def TM.steps_plus unfolding assms ..
-  finally show ?thesis .
-qed
-
-lemma time_eqI[intro]:
-  assumes "TM.halts M1 w1"
-    and "\<And>n. TM.is_final M1 (TM.run M1 (n1 + n) w1) \<longleftrightarrow> TM.is_final M2 (TM.run M2 n w2)"
-  shows "TM.time M1 w1 - n1 = TM.time M2 w2"
-  using assms unfolding TM.time_def TM.run_def TM.halts_def by (fact config_time_eqI)
-
-
-subsubsection\<open>Compute\<close>
-
-abbreviation "compute w \<equiv> run (time w) w"
-
-lemma computeI:
+lemma computeI[intro?]:
   assumes "\<exists>n. is_final (run n w) \<and> P (run n w)"
   shows "P (compute w)"
 proof -
-  from assms have "halts w" by blast
-  then have "is_final (compute w)" unfolding run_def by auto
+  from assms have "halts w" by auto
+  then have "is_final (compute w)" ..
   from assms obtain n where "is_final (run n w)" and "P (run n w)" by blast
-  with \<open>is_final (compute w)\<close> have "run n w = compute w" unfolding run_def by blast
-  with \<open>P (run n w)\<close> show ?thesis by argo
+  with \<open>is_final (compute w)\<close> have "run n w = compute w" by simp
+  with \<open>P (run n w)\<close> show "P (compute w)" by argo
 qed
 
+lemma final_run_compute[intro]: "is_final (run n w) \<Longrightarrow> run n w = compute w" by (blast intro: computeI)
 
-lemma final_steps_config_time[dest]:
-  "is_final (steps n c) \<Longrightarrow> steps n c = steps (config_time c) c" by blast
 
-lemma final_run_time[intro]: "is_final (run n w) \<Longrightarrow> run n w = compute w"
-  unfolding time_def run_def by blast
+subsubsection\<open>\<open>computes\<close> Predicate\<close>
 
-corollary halts_compute_final[intro]: "halts w \<Longrightarrow> is_final (compute w)"
-  unfolding run_def halts_def time_def by (fact conf_time_finalI)
+definition computes_word :: "'s list \<Rightarrow> 's list \<Rightarrow> bool"
+  where"computes_word w w' \<equiv> halts w \<and> has_output (compute w) w'"
 
-end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
+mk_ide computes_word_def |intro computes_wordI[intro]| |dest computes_wordD[dest]|
+
+
+definition "computes f \<equiv> \<forall>w. computes_word w (f w)"
+
+lemma computes_haltsD[dest]: "computes f \<Longrightarrow> halts w" unfolding computes_def by force
+
+mk_ide computes_def |intro computesI[intro]| |dest computesD[dest]|
 
 
 subsection\<open>Deciding Languages\<close>
-context TM begin
 
-definition accepts :: "'s list \<Rightarrow> bool"
-  where "accepts w \<equiv> state (compute w) \<in> accepting_states"
-
-definition rejects :: "'s list \<Rightarrow> bool"
-  where "rejects w \<equiv> state (compute w) \<in> rejecting_states"
+definition accepts :: "'s list \<Rightarrow> bool" where "accepts w \<equiv> state (compute w) \<in> F\<^sub>A"
+definition rejects :: "'s list \<Rightarrow> bool" where "rejects w \<equiv> state (compute w) \<in> F\<^sub>R"
 
 lemma halts_iff: "halts w \<longleftrightarrow> accepts w \<or> rejects w"
-  unfolding accepts_def rejects_def
-  using is_final_altdef by blast
+  unfolding accepts_def rejects_def using is_final_altdef by blast
+
+lemma accepts_halts[dest]: "accepts w \<Longrightarrow> halts w" using halts_iff by blast
+lemma rejects_halts[dest]: "rejects w \<Longrightarrow> halts w" using halts_iff by blast
 
 lemma acc_not_rej: "accepts w \<Longrightarrow> \<not> rejects w"
   unfolding accepts_def rejects_def rejecting_states_def by simp
 
-lemma rejects_altdef:
+lemma rejects_accepts:
   "rejects w = (halts w \<and> \<not> accepts w)"
   using acc_not_rej halts_iff by blast
+
+lemma accepts_altdef: "accepts w \<longleftrightarrow> (\<exists>n. state (run n w) \<in> F\<^sub>A)"
+proof (rule iffI)
+  assume "accepts w"
+  then show "\<exists>n. state (run n w) \<in> F\<^sub>A" unfolding accepts_def compute_altdef by blast
+next
+  assume "\<exists>n. state (run n w) \<in> F\<^sub>A"
+  then obtain n where "state (run n w) \<in> F\<^sub>A" ..
+  then have "is_final (run n w)" ..
+  with \<open>state (run n w) \<in> F\<^sub>A\<close> show "accepts w" unfolding accepts_def by simp
+qed
+
+lemma rejects_altdef: "rejects w \<longleftrightarrow> (\<exists>n. state (run n w) \<in> F\<^sub>R)"
+proof (rule iffI)
+  assume "rejects w"
+  then show "\<exists>n. state (run n w) \<in> F\<^sub>R" unfolding rejects_def compute_altdef by blast
+next
+  assume "\<exists>n. state (run n w) \<in> F\<^sub>R"
+  then obtain n where "state (run n w) \<in> F\<^sub>R" ..
+  then have "is_final (run n w)" ..
+  with \<open>state (run n w) \<in> F\<^sub>R\<close> show "rejects w" unfolding rejects_def by fastforce
+qed
+
 
 definition decides_word :: "'s lang \<Rightarrow> 's list \<Rightarrow> bool"
   where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
@@ -373,8 +287,7 @@ abbreviation decides :: "'s lang \<Rightarrow> bool"
 corollary decides_halts_all: "decides L \<Longrightarrow> \<forall>w. halts w"
   using decides_halts by blast
 
-lemma decides_altdef:
-  "decides_word L w \<longleftrightarrow> halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
+lemma decides_altdef: "decides_word L w \<longleftrightarrow> halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
 proof (intro iffI)
   fix w
   assume "decides_word L w"
@@ -383,7 +296,7 @@ proof (intro iffI)
   ultimately show "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)" ..
 next
   assume "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
-  then show "decides_word L w" by (simp add: rejects_altdef)
+  then show "decides_word L w" by (simp add: rejects_accepts)
 qed
 
 lemma decides_altdef4: "decides_word L w \<longleftrightarrow> (if w \<in> L then accepts w else rejects w)"
@@ -392,18 +305,23 @@ lemma decides_altdef4: "decides_word L w \<longleftrightarrow> (if w \<in> L the
 end
 
 
-(* TODO find a better place for the rejecting TM *)
+subsubsection\<open>The Rejecting TM\<close>
+
+text\<open>Based on the example TM \<^const>\<open>rejecting_TM_rec\<close> defined for \<^typ>\<open>('q, 's) TM\<close>.\<close>
 
 locale Rej_TM = TM "rejecting_TM q0 s" for q0 :: 'q and s :: 's
 begin
 
-lemma M_rec: "M_rec = rejecting_TM_rec q0 s" using Abs_TM_inverse rejecting_TM_valid
-  unfolding rejecting_TM_def by fast
+lemma M_rec: "M_rec = rejecting_TM_rec q0 s" unfolding rejecting_TM_def
+  by (blast intro: Abs_TM_inverse rejecting_TM_valid)
 lemmas M_fields = TM_fields_defs[unfolded M_rec rejecting_TM_rec_def TM_record.simps]
-lemmas [simp] = M_fields(1-6)
+lemmas [simp] = M_fields(1-7)
 
-lemma rej_tm_time: "time w = 0" by simp
+lemma rejects: "rejects w" by (simp add: rejects_altdef)
+
+
 end
+
 
 (* Note: having this much code commented out leads to errors when importing this theory sometimes.
          (Isabelle reports this theory as broken)

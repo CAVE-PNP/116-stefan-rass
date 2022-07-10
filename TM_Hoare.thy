@@ -104,17 +104,18 @@ proof (rule ccontr)
 qed
 
 
-subsubsection\<open>Computes Predicate\<close>
-
 context TM
 begin
 
 (* TODO document, clean up *)
 
+(* TODO this was previously used to define the computes predicate. consider removing if it is not used otherwise *)
+(* TODO consider renaming *)
 definition (in -) [simp]: "hoare_run w M P \<equiv> hoare_halt (TM.on_input M w) M P"
 
-definition "computes_word w w' \<equiv> hoare_run w M (\<lambda>c. clean_output c \<and> output_of c = w')"
-
+lemma computes_word_hoare_run: "computes_word w w' \<longleftrightarrow> hoare_run w M (\<lambda>c. has_output c w')"
+  unfolding hoare_run_def computes_word_def
+  by (metis TM.final_run_compute TM.hoare_halt_init_conf TM_Hoare.halts_altdef)
 
 lemma hoare_run_altdef: "hoare_run w M P \<longleftrightarrow> halts w \<and> P (compute w)"
 proof (rule iffI)
@@ -126,55 +127,16 @@ proof (rule iffI)
 next
   assume "halts w \<and> P (compute w)"
   then have "halts w" and "P (compute w)" by blast+
-  from \<open>halts w\<close> have "is_final (compute w)" by blast
-  with \<open>P (compute w)\<close> show "hoare_run w M P"
-    unfolding hoare_run_def hoare_halt_init_conf Let_def by blast
+  then show "hoare_run w M P"
+    unfolding hoare_run_def hoare_halt_init_conf Let_def halts_altdef by force
 qed
 
-
-definition "computes f \<equiv> \<forall>w. computes_word w (f w)"
-declare (in -) TM.computes_def[simp]
-
-lemma hoare_run_halts[dest]: "hoare_run w M P \<Longrightarrow> halts w"
-  unfolding halts_altdef hoare_run_def by (rule hoare_true)
-
-lemma computes_word_halts[dest]: "computes_word w w' \<Longrightarrow> halts w"
-  unfolding computes_word_def by (rule hoare_run_halts)
-
-lemma computes_halts[dest]: "computes f \<Longrightarrow> halts w"
-  unfolding halts_altdef2 by auto
-
+lemma hoare_run_halts[dest]: "hoare_run w M P \<Longrightarrow> halts w" unfolding hoare_run_altdef by blast
 
 lemma hoare_run_run[dest]: "hoare_run w M P \<Longrightarrow> P (compute w)" unfolding hoare_run_altdef by blast
 
 lemma run_hoare_run[simp]: "halts w \<Longrightarrow> hoare_run w M P = P (compute w)"
   unfolding hoare_run_altdef by blast
-
-
-lemma computes_word_output[dest]:
-  assumes "computes_word w w'"
-  shows "last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p"
-proof -
-  let ?c = "run (time w) w"
-  from assms have "clean_output ?c" and "output_of ?c = w'" unfolding computes_word_def by blast+
-  then obtain x where "last (tapes ?c) = <x>\<^sub>t\<^sub>p" unfolding clean_output_def by blast
-  then have "output_of ?c = x" by blast
-  with \<open>output_of ?c = w'\<close> have "x = w'" by blast
-  with \<open>last (tapes ?c) = <x>\<^sub>t\<^sub>p\<close> show ?thesis by blast
-qed
-
-lemma computes_output: "computes f \<Longrightarrow> last (tapes (compute w)) = <f w>\<^sub>t\<^sub>p"
-  by (intro computes_word_output) simp
-
-lemma output_computes_word:
-  assumes "halts w"
-    and "last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p"
-  shows "computes_word w w'"
-  unfolding computes_word_def run_hoare_run[OF \<open>halts w\<close>] clean_output_alt by (fact assms(2))
-
-
-lemma computes_word_altdef: "computes_word w w' \<longleftrightarrow> halts w \<and> last (tapes (compute w)) = <w'>\<^sub>t\<^sub>p"
-  unfolding computes_word_def hoare_run_altdef by blast
 
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
 
