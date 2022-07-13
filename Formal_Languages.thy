@@ -13,21 +13,21 @@ lemma valid_langD[dest]: "valid_lang L \<Longrightarrow> w \<in> words L \<Longr
   unfolding valid_lang_def by blast
 
 
-definition lang_from_pred :: "'s set \<Rightarrow> ('s list \<Rightarrow> bool) \<Rightarrow> 's lang"
-  where "lang_from_pred \<Sigma> P = Lang \<Sigma> {w. set w \<subseteq> \<Sigma> \<and> P w}"
-
-syntax "_lang_from_pred" :: "pttrn \<Rightarrow> 's set \<Rightarrow> bool \<Rightarrow> 's lang" ("(3{(_/\<in>_*.)/ _})")
-translations "{w\<in>\<Sigma>*. P}" \<rightleftharpoons> "CONST lang_from_pred \<Sigma> (\<lambda>w. P)"
-
-lemma valid_lang_from_pred[simp, intro]: "valid_lang {w\<in>\<Sigma>*. P}"
-  unfolding valid_lang_def lang_from_pred_def by simp
-
-
 definition member_lang :: "'s list \<Rightarrow> 's lang \<Rightarrow> bool" (infix "\<in>\<^sub>L" 50)
   where "w \<in>\<^sub>L L \<equiv> set w \<subseteq> alphabet L \<and> w \<in> words L"
+
+abbreviation not_member_lang :: "'s list \<Rightarrow> 's lang \<Rightarrow> bool" (infix "\<notin>\<^sub>L" 50)
+  where "w \<notin>\<^sub>L L \<equiv> \<not> (w \<in>\<^sub>L L)"
 
 lemma valid_lang_member[simp, dest]: "valid_lang L \<Longrightarrow> w \<in>\<^sub>L L \<longleftrightarrow> w \<in> words L"
   unfolding member_lang_def by blast
 
+
+abbreviation kleene_star ("(3_*)" [100] 101) where "\<Sigma>* \<equiv> lists \<Sigma>"
+
+lemma lists_member[simp]: "w \<in> \<Sigma>* \<longleftrightarrow> set w \<subseteq> \<Sigma>" by blast
+
+lemma valid_lang_listsI[simp, intro]: "valid_lang (Lang \<Sigma> {w\<in>\<Sigma>*. P})"
+  unfolding valid_lang_def by simp
 
 end
