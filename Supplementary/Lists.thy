@@ -410,53 +410,77 @@ qed
 lemma finite_type_lists_length_le: "finite {xs::('s::finite list). length xs \<le> n}"
   using finite_lists_length_le[OF finite, of UNIV] by simp
 
+
 subsubsection\<open>Almost Everywhere\<close>
 
-lemma ae_word_length_iff[iff]:
-  fixes P :: "'s::finite list \<Rightarrow> bool"
-  shows "Alm_all P \<longleftrightarrow> (\<exists>n. \<forall>w. n \<le> length w \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
-proof
-  assume ?rhs
-  then obtain n where "P w" if "n \<le> length w" for w by blast
-  then have "\<not> P w \<Longrightarrow> length w \<le> n" for w by force
-  then have "{w. \<not> P w} \<subseteq> {w. length w \<le> n}" by auto
-  moreover have "finite {w::'s list. length w \<le> n}"
-    using finite_type_lists_length_le .
-  ultimately show ?lhs unfolding eventually_cofinite by (rule finite_subset)
-next
-  assume ?lhs
-  then have "finite {w. \<not> P w}" unfolding eventually_cofinite .
-  show ?rhs proof (cases "{x. \<not> P x} = {}")
-    assume "{x. \<not> P x} \<noteq> {}"
-    define n where "n = Suc (Max (length ` {x. \<not> P x}))"
-
-    have "P x" if "length x \<ge> n" for x
-    proof -
-      from \<open>length x \<ge> n\<close> have "length x > Max (length ` {x. \<not> P x})"
-        unfolding n_def by (fact Suc_le_lessD)
-      then have "length x \<notin> length ` {x. \<not> P x}"
-        using \<open>{x. \<not> P x} \<noteq> {}\<close> and \<open>finite {x. \<not> P x}\<close> by (subst (asm) Max_less_iff) blast+
-      with that show "P x" by blast
-    qed
-    then show ?rhs by blast
-  qed blast
+lemma ae_word_lengthI:
+  fixes P :: "'s list \<Rightarrow> bool" and \<Sigma> :: "'s set"
+  defines "P' w \<equiv> w \<in> \<Sigma>* \<longrightarrow> P w"
+  assumes "finite \<Sigma>"
+  assumes "\<And>w. w \<in> \<Sigma>* \<Longrightarrow> n \<le> length w \<Longrightarrow> P w"
+  shows "\<forall>\<^sub>\<infinity>w. P' w"
+proof -
+  from assms(3) obtain n where n_def: "P' w" if "n \<le> length w" for w :: "'s list" unfolding P'_def by blast
+  have "\<not> P' w \<longrightarrow> set w \<subseteq> \<Sigma> \<and> length w \<le> n" for w using n_def[of w] unfolding P'_def by force
+  then have "{w. \<not> P' w} \<subseteq> {w. set w \<subseteq> \<Sigma> \<and> length w \<le> n}" by blast
+  moreover from \<open>finite \<Sigma>\<close> have "finite {w. set w \<subseteq> \<Sigma> \<and> length w \<le> n}" by (fact finite_lists_length_le)
+  ultimately show "\<forall>\<^sub>\<infinity>w. P' w" unfolding P'_def eventually_cofinite by (rule finite_subset)
 qed
 
-lemma ae_word_lengthI:
-  fixes P :: "'s::finite list \<Rightarrow> bool"
-  assumes "\<exists>n. \<forall>w. n \<le> length w \<longrightarrow> P w"
-  shows "Alm_all P"
-unfolding ae_word_length_iff using assms .
+lemma ae_word_lengthE[elim?]:
+  fixes P :: "'s list \<Rightarrow> bool" and \<Sigma> :: "'s set"
+  defines "P' w \<equiv> w \<in> \<Sigma>* \<longrightarrow> P w"
+  assumes "\<forall>\<^sub>\<infinity>w. P' w"
+  obtains n where "\<And>w. w \<in> \<Sigma>* \<Longrightarrow> n \<le> length w \<Longrightarrow> P w"
+proof (rule that, cases "{w. \<not> P' w} = {}")
+  assume "{w. \<not> P' w} \<noteq> {}"
+  define n where "n = Suc (Max (length ` {w. \<not> P' w}))"
+  fix w assume "w \<in> \<Sigma>*" and "n \<le> length w"
 
-lemma ae_word_lengthE[elim]:
+  from \<open>\<forall>\<^sub>\<infinity>w. P' w\<close> have "finite {w. \<not> P' w}" unfolding eventually_cofinite .
+  from \<open>length w \<ge> n\<close> have "length w > Max (length ` {w. \<not> P' w})"
+    unfolding n_def by (fact Suc_le_lessD)
+  then have "length w \<notin> length ` {w. \<not> P' w}"
+    using \<open>{w. \<not> P' w} \<noteq> {}\<close> and \<open>finite {w. \<not> P' w}\<close> by (subst (asm) Max_less_iff) blast+
+  then have "P' w" by blast
+  with \<open>w \<in> \<Sigma>*\<close> show "P w" unfolding P'_def by blast
+qed (use assms in blast)
+
+lemma ae_word_length_iff:
+  fixes P :: "'s list \<Rightarrow> bool"
+  assumes "finite \<Sigma>"
+  shows "(\<forall>\<^sub>\<infinity>w. w\<in>\<Sigma>* \<longrightarrow> P w) \<longleftrightarrow> (\<exists>n. \<forall>w\<in>\<Sigma>*. n \<le> length w \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
+proof
+  show "?lhs \<Longrightarrow> ?rhs" by (elim ae_word_lengthE) blast
+next
+  assume ?rhs
+  then obtain n where "P w" if "w \<in> \<Sigma>*" and "n \<le> length w" for w by blast
+  with \<open>finite \<Sigma>\<close> show ?lhs by (intro ae_word_lengthI)
+qed
+
+
+lemma ae_word_length_finite_iff:
   fixes P :: "'s::finite list \<Rightarrow> bool"
-  assumes "Alm_all P"
+  shows "(\<forall>\<^sub>\<infinity>x. P x) \<longleftrightarrow> (\<exists>n. \<forall>w. n \<le> length w \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
+  using ae_word_length_iff[of UNIV P] by simp
+
+lemma ae_word_length_finiteI:
+  fixes P :: "'s::finite list \<Rightarrow> bool"
+  assumes "\<And>w. n \<le> length w \<Longrightarrow> P w"
+  shows "\<forall>\<^sub>\<infinity>x. P x"
+  unfolding ae_word_length_finite_iff using assms by blast
+
+lemma ae_word_length_finiteE[elim?]:
+  fixes P :: "'s::finite list \<Rightarrow> bool"
+  assumes "\<forall>\<^sub>\<infinity>x. P x"
   obtains n where "\<And>w. n \<le> length w \<Longrightarrow> P w"
-using assms unfolding ae_word_length_iff by blast
+  using assms unfolding ae_word_length_finite_iff by blast
 
-lemma ae_disj: "Alm_all P \<or> Alm_all Q \<Longrightarrow> Alm_all (\<lambda>x. P x \<or> Q x)"
-  using eventually_mono by fastforce
 
+lemma eventually_disj: "eventually P F \<or> eventually Q F \<Longrightarrow> eventually (\<lambda>x. P x \<or> Q x) F"
+  by (elim disjE eventually_mono) blast+
+
+(* TODO remove. these are fully subsumed by the rules used to prove them *)
 lemma ae_conj_iff: "Alm_all (\<lambda>x. P x \<and> Q x) \<longleftrightarrow> Alm_all P \<and> Alm_all Q"
   by (rule eventually_conj_iff)
 
