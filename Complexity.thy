@@ -161,6 +161,8 @@ text\<open>From @{cite \<open>ch.~12.1\<close> hopcroftAutomata1979}:
     * Note, however, that there are TM's that accept or reject without reading all their input.
       We choose to eliminate them from consideration.''\<close>
 
+(* TODO get rid of \<open>'c::semiring_1 \<Rightarrow> 'd::floor_ceiling\<close> from other definitions.
+        replace by \<open>nat \<Rightarrow> nat\<close>, but retain some adapter like \<open>tcomp\<close> *)
 definition tcomp :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
   where [simp]: "tcomp T n \<equiv> max (n + 1) (nat \<lceil>T (of_nat n)\<rceil>)"
 

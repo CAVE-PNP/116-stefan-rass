@@ -1,5 +1,5 @@
 theory Computability
-  imports TM
+  imports TM Formal_Languages
 begin
 
 subsection\<open>Computation on TMs\<close>
@@ -276,31 +276,31 @@ qed
 
 
 definition decides_word :: "'s lang \<Rightarrow> 's list \<Rightarrow> bool"
-  where decides_def[simp]: "decides_word L w \<equiv> (w \<in> L \<longleftrightarrow> accepts w) \<and> (w \<notin> L \<longleftrightarrow> rejects w)"
+  where decides_def[simp]: "decides_word L w \<equiv> (w \<in>\<^sub>L L \<longleftrightarrow> accepts w) \<and> (w \<notin>\<^sub>L L \<longleftrightarrow> rejects w)"
 
 lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
   using halts_iff by auto
 
 abbreviation decides :: "'s lang \<Rightarrow> bool"
-  where "decides L \<equiv> \<forall>w. decides_word L w"
+  where "decides L \<equiv> alphabet L \<subseteq> \<Sigma>\<^sub>i\<^sub>n \<and> (\<forall>w. set w \<subseteq> alphabet L \<longrightarrow> decides_word L w)"
 
-corollary decides_halts_all: "decides L \<Longrightarrow> \<forall>w. halts w"
+corollary decides_halts_all: "decides L \<Longrightarrow> \<forall>w. set w \<subseteq> alphabet L \<longrightarrow> halts w"
   using decides_halts by blast
 
-lemma decides_altdef: "decides_word L w \<longleftrightarrow> halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
+lemma decides_altdef: "decides_word L w \<longleftrightarrow> halts w \<and> (w \<in>\<^sub>L L \<longleftrightarrow> accepts w)"
 proof (intro iffI)
   fix w
   assume "decides_word L w"
   hence "halts w" by (rule decides_halts)
-  moreover have "w \<in> L \<longleftrightarrow> accepts w" using \<open>decides_word L w\<close> by simp
-  ultimately show "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)" ..
+  moreover have "w \<in>\<^sub>L L \<longleftrightarrow> accepts w" using \<open>decides_word L w\<close> by simp
+  ultimately show "halts w \<and> (w \<in>\<^sub>L L \<longleftrightarrow> accepts w)" ..
 next
-  assume "halts w \<and> (w \<in> L \<longleftrightarrow> accepts w)"
+  assume "halts w \<and> (w \<in>\<^sub>L L \<longleftrightarrow> accepts w)"
   then show "decides_word L w" by (simp add: rejects_accepts)
 qed
 
-lemma decides_altdef4: "decides_word L w \<longleftrightarrow> (if w \<in> L then accepts w else rejects w)"
-  unfolding decides_def using acc_not_rej by (cases "w \<in> L") auto
+lemma decides_altdef4: "decides_word L w \<longleftrightarrow> (if w \<in>\<^sub>L L then accepts w else rejects w)"
+  unfolding decides_def using acc_not_rej by (cases "w \<in>\<^sub>L L") auto
 
 end
 
@@ -315,10 +315,9 @@ begin
 lemma M_rec: "M_rec = rejecting_TM_rec q0 s" unfolding rejecting_TM_def
   by (blast intro: Abs_TM_inverse rejecting_TM_valid)
 lemmas M_fields = TM_fields_defs[unfolded M_rec rejecting_TM_rec_def TM_record.simps]
-lemmas [simp] = M_fields(1-7)
+lemmas [simp] = M_fields(1-6)
 
 lemma rejects: "rejects w" by (simp add: rejects_altdef)
-
 
 end
 

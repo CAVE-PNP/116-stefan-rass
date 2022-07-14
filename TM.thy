@@ -16,8 +16,7 @@ text\<open>We introduce the locale \<open>TM_abbrevs\<close> to scope local abbr
 locale TM_abbrevs
 
 (* TODO consider extracting these to some other theory *)
-type_synonym ('symbol) word = "'symbol list"
-type_synonym ('symbol) lang = "'symbol word set"
+type_synonym ('symbol) word = "'symbol list" (* TODO it seems "word" is not actually used anywhere. use or remove. *)
 
 
 subsubsection\<open>Symbols\<close>
@@ -259,7 +258,7 @@ text\<open>The following abbreviations are intentionally not implemented as \<^e
   as notation is not transferred when interpreting locales (see section \<^emph>\<open>Usage\<close>).\<close>
 
 abbreviation "k \<equiv> tape_count"
-abbreviation "\<Sigma>\<^sub>i\<^sub>n \<equiv> symbols"
+abbreviation "\<Sigma>\<^sub>i\<^sub>n \<equiv> symbols" (* TODO consider "\<Sigma> \<equiv> symbols" and "\<Sigma>\<^sub>t\<^sub>p \<equiv> tape_symbols" *)
 abbreviation "Q \<equiv> states"
 abbreviation "q\<^sub>0 \<equiv> initial_state"
 abbreviation "F \<equiv> final_states"
