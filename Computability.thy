@@ -87,11 +87,11 @@ lemma init_conf_last[simp, intro]:
   using at_least_one_tape by (simp_all add: initial_config_def)
 
 
-abbreviation "wf_input w \<equiv> set w \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
+abbreviation "wf_input w \<equiv> w \<in> \<Sigma>\<^sub>i\<^sub>n*"
 
 lemma wf_initial_config[simp, intro]: "wf_input w \<Longrightarrow> wf_config (initial_config w)"
 proof (intro wf_configI)
-  assume "set w \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
+  assume "w \<in> \<Sigma>\<^sub>i\<^sub>n*"
   then show "list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>\<^sub>i\<^sub>n) (tapes (c\<^sub>0 w))"
     unfolding initial_config_def TM_config.sel list.pred_inject(2) by (intro conjI) (simp, force)
 qed simp_all
@@ -289,9 +289,9 @@ lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
   using halts_iff by auto
 
 abbreviation decides :: "'s lang \<Rightarrow> bool"
-  where "decides L \<equiv> alphabet L \<subseteq> \<Sigma>\<^sub>i\<^sub>n \<and> (\<forall>w. set w \<subseteq> alphabet L \<longrightarrow> decides_word L w)"
+  where "decides L \<equiv> alphabet L \<subseteq> \<Sigma>\<^sub>i\<^sub>n \<and> (\<forall>w\<in>(alphabet L)*. decides_word L w)"
 
-corollary decides_halts_all: "decides L \<Longrightarrow> \<forall>w. set w \<subseteq> alphabet L \<longrightarrow> halts w"
+corollary decides_halts_all: "decides L \<Longrightarrow> \<forall>w\<in>(alphabet L)*. halts w"
   using decides_halts by blast
 
 lemma decides_altdef: "decides_word L w \<longleftrightarrow> halts w \<and> (w \<in>\<^sub>L L \<longleftrightarrow> accepts w)"

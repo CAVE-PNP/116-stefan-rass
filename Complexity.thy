@@ -379,7 +379,7 @@ text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
 
 lemma DTIME_ae:
   assumes "\<exists>M::('q, 's) TM. alphabet L \<subseteq> TM.symbols M \<and>
-    (\<forall>\<^sub>\<infinity>w. set w \<subseteq> alphabet L \<longrightarrow> TM.decides_word M L w \<and> TM.time_bounded_word M T w)"
+    (\<forall>\<^sub>\<infinity>w\<in>(alphabet L)*. TM.decides_word M L w \<and> TM.time_bounded_word M T w)"
   shows "L \<in> typed_DTIME TYPE('q) T"
   sorry
 
@@ -388,14 +388,12 @@ lemma (in TM) DTIME_aeI:
     and [intro]: "\<And>w. n \<le> length w \<Longrightarrow> w \<in> (alphabet L)* \<Longrightarrow> decides_word L w"
     and [intro]: "\<And>w. n \<le> length w \<Longrightarrow> w \<in> (alphabet L)* \<Longrightarrow> time_bounded_word T w"
   shows "L \<in> typed_DTIME TYPE('q) T"
-
-  thm assms
 proof (intro DTIME_ae exI[of _ M] conjI)
   from valid_alphabet show "alphabet L \<subseteq> \<Sigma>\<^sub>i\<^sub>n" .
 
   from valid_alphabet and symbol_axioms(1) have "finite (alphabet L)" by (fact finite_subset)
-  then show "\<forall>\<^sub>\<infinity>w. set w \<subseteq> alphabet L \<longrightarrow> decides_word L w \<and> time_bounded_word T w"
-    unfolding lists_member[symmetric] by (rule ae_word_lengthI) blast
+  then show "\<forall>\<^sub>\<infinity>w\<in>(alphabet L)*. decides_word L w \<and> time_bounded_word T w"
+    by (rule ae_word_lengthI) blast
 qed
 
 lemma DTIME_mono_ae':

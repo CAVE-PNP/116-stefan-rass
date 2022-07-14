@@ -16,7 +16,7 @@ notation lists ("(_*)" [1000] 999) \<comment> \<open>Priorities taken from \<^co
   but the abbreviation completely replaces references to \<^const>\<open>lists\<close>, which is confusing.\<close>
 (*(* abbreviation kleene_star ("(_*)" [1000] 999) where "\<Sigma>* \<equiv> lists \<Sigma>" *)
 
-lemma lists_member[simp]: "w \<in> \<Sigma>* \<longleftrightarrow> set w \<subseteq> \<Sigma>" by blast
+lemma lists_member[iff]: "w \<in> \<Sigma>* \<longleftrightarrow> set w \<subseteq> \<Sigma>" by blast
 
 
 \<comment> \<open>From \<^session>\<open>Universal_Turing_Machine\<close>.\<close>

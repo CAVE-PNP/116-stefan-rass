@@ -631,9 +631,9 @@ lemma inv_f_f[simp]: "x \<in> \<Sigma>\<^sub>i\<^sub>n \<Longrightarrow> f_inv (
   unfolding f_inv_def using inj_f by (rule inv_into_f_f)
 lemma inv_f'_f'[simp]: "x \<in> \<Sigma> \<Longrightarrow> f'_inv (f' x) = x" by (induction x) auto
 
-lemma map_f_inv[simp]: "set xs \<subseteq> \<Sigma>\<^sub>i\<^sub>n \<Longrightarrow> map f_inv (map f xs) = xs"
-  unfolding f_inv_def using inj_f by (rule map_inv_into_map_id)
-lemma map_f'_inv[simp]: "set xs \<subseteq> \<Sigma> \<Longrightarrow> map f'_inv (map f' xs) = xs"
+lemma map_f_inv[simp]: "xs \<in> \<Sigma>\<^sub>i\<^sub>n* \<Longrightarrow> map f_inv (map f xs) = xs"
+  unfolding f_inv_def lists_member using inj_f by (rule map_inv_into_map_id)
+lemma map_f'_inv[simp]: "xs \<in> \<Sigma>* \<Longrightarrow> map f'_inv (map f' xs) = xs"
   unfolding map_map comp_def using inv_f'_f' by (blast intro: map_idI)
 
 
@@ -753,7 +753,7 @@ corollary map_run[simp]: "wf_input w \<Longrightarrow> M'.run n (map f w) = fc (
 corollary map_time[simp]: "wf_input w \<Longrightarrow> M'.time (map f w) = time w" by simp
 corollary map_compute[simp]: "wf_input w \<Longrightarrow> M'.compute (map f w) = fc (compute w)" by simp
 corollary map_halts_conf: "wf_config c \<Longrightarrow> M'.halts_config (fc c) = halts_config c" by simp
-corollary map_halts[iff]: "wf_input w \<Longrightarrow> M'.halts (map f w) \<longleftrightarrow> halts w" by force
+corollary map_halts[iff]: "wf_input w \<Longrightarrow> M'.halts (map f w) \<longleftrightarrow> halts w" by simp
 
 lemma map_computes_word:
   assumes wf: "wf_input w" and wf': \<open>wf_input w'\<close>
@@ -766,7 +766,8 @@ proof (intro conj_cong)
 
   from wf have "last (tapes (M'.compute (map f w))) = last (map (map_tape f) (tapes (compute w)))"
     by simp
-  also from wf have "... = map_tape f (last (tapes (compute w)))" by (subst last_map) blast+
+  also from wf have "... = map_tape f (last (tapes (compute w)))"
+    by (subst last_map, intro wf_config_tapes_nonempty) blast+
   finally have *: "last (tapes (M'.compute (map f w))) = map_tape f (last (tapes (compute w)))" .
 
   have "last (tapes (M'.compute (map f w))) = <map f w'>\<^sub>t\<^sub>p
@@ -1410,15 +1411,15 @@ proof -
     using wf_w_in wf_w_out1 by (subst M1a.map_computes_word) blast+
   from M2 have M2': "M2a.M'.halts ?w_out" unfolding w_out_eq using wf_w_out2 by blast
 
-  note M2a_map_run = M2a.map_run[OF wf_w_out2[unfolded lists_member]]
+  note M2a_map_run = M2a.map_run[OF wf_w_out2]
 
   have "run (?t1 + t2) (map f1 w_in) = run (M1a.M'.time (map f1 w_in) + t2) (map f1 w_in)"
     using wf_w_in M1a.map_time by auto
   also from M1' M2' have "... = TM_config (Inr (state (M2a.M'.run t2 ?w_out)))
      (butlast (tapes (M1a.M'.compute (map f1 w_in))) @ tapes (M2a.M'.run t2 ?w_out))"
   proof (subst io_comp_run')
-    from M1a.range_f wf_w_in show "set (map f1 w_in) \<subseteq> M1a.M'.\<Sigma>\<^sub>i\<^sub>n" unfolding M1a.M'_fields(2) by blast
-    from M2a.range_f wf_w_out1 show "set (map f1 w_out1) \<subseteq> M2a.M'.\<Sigma>\<^sub>i\<^sub>n" using M1a.M'_fields(2)
+    from M1a.range_f wf_w_in show "map f1 w_in \<in> M1a.M'.\<Sigma>\<^sub>i\<^sub>n*" unfolding M1a.M'_fields(2) by blast
+    from M2a.range_f wf_w_out1 show "map f1 w_out1 \<in> M2a.M'.\<Sigma>\<^sub>i\<^sub>n*" using M1a.M'_fields(2)
       by (fold symbols_eq symbols_eq_a) blast
   qed blast+
   also have "... = TM_config ?q2 (butlast ?tps1 @ ?tps2)"
@@ -1427,7 +1428,7 @@ proof -
       unfolding w_out_eq M2a_map_run M2a.fc_simps c2_def ..
     show "butlast (tapes (M1a.M'.compute (map f1 w_in))) @ tapes (M2a.M'.run t2 ?w_out) =
           butlast ?tps1 @ ?tps2"
-      unfolding w_out_eq M1a.map_compute[OF wf_w_in[unfolded lists_member]] M2a_map_run unfolding c1_def c2_def ..
+      unfolding w_out_eq M1a.map_compute[OF wf_w_in] M2a_map_run unfolding c1_def c2_def ..
   qed
   finally show ?thesis .
 qed

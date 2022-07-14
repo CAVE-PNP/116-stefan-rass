@@ -570,7 +570,7 @@ lemma tapes_heads_valid[dest]:
   shows "set (heads c) \<subseteq> \<Sigma>"
   unfolding list_all_set_map using assms by blast
 
-lemma wf_config_hds[dest]: "wf_config c \<Longrightarrow> wf_hds (heads c)" by (intro wf_hdsI) (force, blast)
+lemma wf_config_hds[dest, intro]: "wf_config c \<Longrightarrow> wf_hds (heads c)" by (intro wf_hdsI) auto
 
 lemma wf_configE[elim]:
   assumes "wf_config c"

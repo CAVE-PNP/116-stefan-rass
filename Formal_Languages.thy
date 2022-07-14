@@ -5,16 +5,16 @@ begin
 datatype ('s) lang = Lang (alphabet: "'s set") (words: "'s list set")
 
 definition valid_lang :: "'s lang \<Rightarrow> bool"
-  where "valid_lang L \<equiv> \<forall>w\<in>words L. set w \<subseteq> alphabet L"
+  where "valid_lang L \<equiv> words L \<subseteq> (alphabet L)*"
 
-lemma valid_langI[intro]: "(\<And>w. w\<in>words L \<Longrightarrow> set w \<subseteq> alphabet L) \<Longrightarrow> valid_lang L"
+lemma valid_langI[intro]: "words L \<subseteq> (alphabet L)* \<Longrightarrow> valid_lang L"
   unfolding valid_lang_def by blast
-lemma valid_langD[dest]: "valid_lang L \<Longrightarrow> w \<in> words L \<Longrightarrow> set w \<subseteq> alphabet L"
+lemma valid_langD[dest]: "valid_lang L \<Longrightarrow> w \<in> words L \<Longrightarrow> w \<in> (alphabet L)*"
   unfolding valid_lang_def by blast
 
 
 definition member_lang :: "'s list \<Rightarrow> 's lang \<Rightarrow> bool" (infix "\<in>\<^sub>L" 50)
-  where "w \<in>\<^sub>L L \<equiv> set w \<subseteq> alphabet L \<and> w \<in> words L"
+  where "w \<in>\<^sub>L L \<equiv> w \<in> (alphabet L)* \<and> w \<in> words L"
 
 abbreviation not_member_lang :: "'s list \<Rightarrow> 's lang \<Rightarrow> bool" (infix "\<notin>\<^sub>L" 50)
   where "w \<notin>\<^sub>L L \<equiv> \<not> (w \<in>\<^sub>L L)"
@@ -24,6 +24,6 @@ lemma valid_lang_member[simp, dest]: "valid_lang L \<Longrightarrow> w \<in>\<^s
 
 
 lemma valid_lang_listsI[simp, intro]: "valid_lang (Lang \<Sigma> {w\<in>\<Sigma>*. P})"
-  unfolding valid_lang_def by simp
+  unfolding valid_lang_def by auto
 
 end
