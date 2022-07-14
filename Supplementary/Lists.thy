@@ -9,8 +9,12 @@ text\<open>Extends \<^theory>\<open>HOL.List\<close>.\<close>
 lemma takeWhile_True[simp]: "takeWhile (\<lambda>x. True) = (\<lambda>x. x)" by fastforce
 
 
-(* abbreviation kleene_star ("_*" [100] 101) where "\<Sigma>* \<equiv> lists \<Sigma>" *)
-notation lists ("_*" [100] 101)
+notation lists ("(_*)" [1000] 999) \<comment> \<open>Priorities taken from \<^const>\<open>rtrancl\<close>,
+  to force parentheses on terms like \<^term>\<open>x \<in> (f A)*\<close>.
+  Introducing an abbreviation would be nicer, since Ctrl+Click then shows the abbreviation,
+  instead of directly jumping to \<^const>\<open>lists\<close>,
+  but the abbreviation completely replaces references to \<^const>\<open>lists\<close>, which is confusing.\<close>
+(*(* abbreviation kleene_star ("(_*)" [1000] 999) where "\<Sigma>* \<equiv> lists \<Sigma>" *)
 
 lemma lists_member[simp]: "w \<in> \<Sigma>* \<longleftrightarrow> set w \<subseteq> \<Sigma>" by blast
 
