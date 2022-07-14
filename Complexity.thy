@@ -247,32 +247,24 @@ qed (* direction "\<Longleftarrow>" by *) (fact time_boundedI)
 lemma time_boundedE: "time_bounded_word T w \<Longrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
   using time_bounded_altdef by blast
 
-lemma time_bounded_word_mono':
+lemma time_bounded_word_mono[dest]:
   fixes T t w
   assumes Tt: "tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w"
     and tr: "time_bounded_word t w"
   shows "time_bounded_word T w"
-  using tr Tt unfolding time_bounded_def
 proof -
-  from tr obtain n where n_tcomp: "n \<le> tcomp\<^sub>w t w"
-                     and final_n: "is_final (run n w)"
+  from tr obtain n where n_tcomp: "n \<le> tcomp\<^sub>w t w" and final_n: "is_final (run n w)"
     unfolding time_bounded_def of_nat_id by blast
- from n_tcomp Tt have "n \<le> tcomp\<^sub>w T w" by (fact le_trans)
-  with final_n show "\<exists>n\<le>tcomp\<^sub>w T w. is_final (run n w)" by blast
+  from n_tcomp Tt have "n \<le> tcomp\<^sub>w T w" by (fact le_trans)
+  with final_n show "time_bounded_word T w" unfolding time_bounded_def by blast
 qed
-
-lemma time_bounded_word_mono:
-  assumes "tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w"
-    and "time_bounded_word t w"
-  shows "time_bounded_word T w"
-  using assms by (fact time_bounded_word_mono')
 
 lemma time_bounded_mono':
   fixes T t
   assumes "\<And>w::'s list. tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w"
     and "time_bounded t"
   shows "time_bounded T"
-  using assms time_bounded_word_mono' by blast
+  using assms time_bounded_word_mono by blast
 
 lemma time_bounded_mono:
   fixes T t :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling)"
@@ -295,54 +287,56 @@ text\<open>Notion of time-constructible from @{cite \<open>ch.~12.3\<close> hopc
   bounded multitape Turing machine M such that for each n there exists some input
   on which M actually makes T(n) moves.''\<close>
 
-definition tconstr :: "('a::finite) itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "tconstr TYPE('a) T \<equiv> \<exists>M::(nat, 'a) TM. \<forall>n. \<exists>w. TM.time M w = T n"
+definition tconstr :: "'s itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "tconstr \<ss> T \<equiv> \<exists>M::(nat, 's) TM. \<forall>n. \<exists>w. TM.time M w = T n"
 
 text\<open>Fully time-constructible, (@{cite \<open>ch.~12.3\<close> hopcroftAutomata1979}):
   ``We say that T(n) is fully time-constructible if there is a TM
   that uses T(n) time on all inputs of length n.''\<close>
 
-definition fully_tconstr :: "'q itself \<Rightarrow> ('s::finite) itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "fully_tconstr TYPE('q) TYPE('s) T \<equiv>
-    \<exists>M::('q, 's) TM. \<forall>n w. length w = n \<longrightarrow> TM.time M w = T n"
+definition fully_tconstr :: "'q itself \<Rightarrow> 's itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "fully_tconstr \<qq> \<ss> T \<equiv> \<exists>M::('q, 's) TM. \<forall>n w. length w = n \<longrightarrow> TM.time M w = T n"
 
-lemma fully_tconstr_altdef: "fully_tconstr TYPE('q) TYPE('s::finite) T \<longleftrightarrow>
+lemma fully_tconstr_altdef: "fully_tconstr TYPE('q) TYPE('s) T \<longleftrightarrow>
                    (\<exists>M::('q, 's) TM. \<forall>w. TM.time M w = T (length w))"
   unfolding fully_tconstr_def by simp
 
-definition computable_in_time :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> ('s::finite list \<Rightarrow> 's list) \<Rightarrow> bool"
-  where "computable_in_time TYPE('q) T f \<equiv> \<exists>M::('q, 's) TM. TM.computes M f \<and> TM.time_bounded M T"
+definition computable_in_time :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> ('s list \<Rightarrow> 's list) \<Rightarrow> bool"
+  where "computable_in_time \<qq> T f \<equiv> \<exists>M::('q, 's) TM. TM.computes M f \<and> TM.time_bounded M T"
 
 lemma computableE[elim]:
   assumes "computable_in_time TYPE('q) T f"
-  obtains M::"('q, 's::finite) TM" where "TM.computes M f" and "TM.time_bounded M T"
+  obtains M::"('q, 's) TM" where "TM.computes M f" and "TM.time_bounded M T"
 using assms that unfolding computable_in_time_def by blast
+
 
 subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
-definition typed_DTIME :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> 's::finite lang set"
-  where "typed_DTIME TYPE('q) T \<equiv> {L. \<exists>M::('q, 's) TM. TM.decides M L \<and> TM.time_bounded M T}"
+definition typed_DTIME :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> 's lang set"
+  where "typed_DTIME \<tau> T \<equiv> {L. \<exists>M::('q, 's) TM. alphabet L \<subseteq> TM.symbols M \<and> TM.decides M L \<and> TM.time_bounded M T}"
 
 abbreviation DTIME where
   "DTIME \<equiv> typed_DTIME TYPE(nat)"
 
 lemma (in TM) in_dtimeI[intro]:
-  assumes "decides L"
+  assumes "alphabet L \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
+    and "decides L"
     and "time_bounded T"
   shows "L \<in> typed_DTIME TYPE('q) T"
-  unfolding typed_DTIME_def using assms TM_axioms by blast
+  unfolding typed_DTIME_def using assms by blast
 
 lemma in_dtimeE[elim]:
   assumes "L \<in> typed_DTIME TYPE('q) T"
-  obtains M::"('q, 's::finite) TM"
-  where "TM.decides M L"
+  obtains M::"('q, 's) TM"
+  where "alphabet L \<subseteq> TM.symbols M"
+    and "TM.decides M L"
     and "TM.time_bounded M T"
   using assms unfolding typed_DTIME_def by blast
 
-lemma in_dtimeE'[elim]:
+lemma in_dtimeD[dest]:
   assumes "L \<in> typed_DTIME TYPE('q) T"
-  shows "\<exists>M::('q, 's::finite) TM. TM.decides M L \<and> TM.time_bounded M T"
+  shows "\<exists>M::('q, 's) TM. alphabet L \<subseteq> TM.symbols M \<and> TM.decides M L \<and> TM.time_bounded M T"
   using assms unfolding typed_DTIME_def ..
 
 corollary in_dtime_mono':
@@ -384,39 +378,48 @@ text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
   but it seems reasonable that a similar construction works on time bounds.\<close>
 
 lemma DTIME_ae:
-  assumes "\<exists>M::('q, 's::finite) TM. Alm_all (\<lambda>w. TM.decides_word M L w \<and> TM.time_bounded_word M T w)"
+  assumes "\<exists>M::('q, 's) TM. alphabet L \<subseteq> TM.symbols M \<and>
+    (\<forall>\<^sub>\<infinity>w. set w \<subseteq> alphabet L \<longrightarrow> TM.decides_word M L w \<and> TM.time_bounded_word M T w)"
   shows "L \<in> typed_DTIME TYPE('q) T"
-sorry
+  sorry
 
 lemma (in TM) DTIME_aeI:
-  assumes "\<And>w. n \<le> length w \<Longrightarrow> decides_word L w"
-    and "\<And>w. n \<le> length w \<Longrightarrow> time_bounded_word T w"
+  assumes valid_alphabet: "alphabet L \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
+    and [intro]: "\<And>w. n \<le> length w \<Longrightarrow> w \<in> (alphabet L)* \<Longrightarrow> decides_word L w"
+    and [intro]: "\<And>w. n \<le> length w \<Longrightarrow> w \<in> (alphabet L)* \<Longrightarrow> time_bounded_word T w"
   shows "L \<in> typed_DTIME TYPE('q) T"
-  using assms by (intro DTIME_ae) blast
+
+  thm assms
+proof (intro DTIME_ae exI[of _ M] conjI)
+  from valid_alphabet show "alphabet L \<subseteq> \<Sigma>\<^sub>i\<^sub>n" .
+
+  from valid_alphabet and symbol_axioms(1) have "finite (alphabet L)" by (fact finite_subset)
+  then show "\<forall>\<^sub>\<infinity>w. set w \<subseteq> alphabet L \<longrightarrow> decides_word L w \<and> time_bounded_word T w"
+    unfolding lists_member[symmetric] by (rule ae_word_lengthI) blast
+qed
 
 lemma DTIME_mono_ae':
-  fixes L :: "'s::finite lang"
+  fixes L :: "'s lang"
   assumes Tt: "\<And>n. N \<le> n \<Longrightarrow> tcomp T n \<ge> tcomp t n"
     and "L \<in> typed_DTIME TYPE('q) t"
   shows "L \<in> typed_DTIME TYPE('q) T"
 proof -
-  from \<open>L \<in> typed_DTIME TYPE('q) t\<close>
-  obtain M::"('q, 's) TM"
-    where decides: "TM.decides M L" and tbounded: "TM.time_bounded M t" ..
+  from \<open>L \<in> typed_DTIME TYPE('q) t\<close> obtain M :: "('q, 's) TM"
+    where symbols: "alphabet L \<subseteq> TM.symbols M"
+      and decides: "TM.decides M L"
+      and tbounded: "TM.time_bounded M t" ..
 
   interpret TM M .
 
-  from decides have "Alm_all (decides_word L)" by blast
-  moreover have "Alm_all (time_bounded_word T)"
-  proof (intro ae_word_lengthI exI allI impI)
-    fix w :: "'s list"
-    assume "length w \<ge> Suc N"
-    then have "length w \<ge> N" by (fact Suc_leD)
-    then have "tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w" by (fact Tt)
-    moreover from tbounded have "time_bounded_word t w" ..
-    ultimately show "time_bounded_word T w" by (fact time_bounded_word_mono')
+  from symbols show ?thesis
+  proof (rule DTIME_aeI)
+    fix w
+    assume "w \<in> (alphabet L)*"
+    with decides show "decides_word L w" by blast
+
+    assume "N \<le> length w"
+    with Tt and tbounded show "time_bounded_word T w" by blast
   qed
-  ultimately show ?thesis using DTIME_ae[of L T] ae_conjI by blast
 qed
 
 lemma DTIME_mono_ae:
@@ -491,7 +494,7 @@ lemma linear_time_speed_up:
 
 corollary DTIME_speed_up:
   fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and c :: 'd
-    and L::"'s::finite lang"
+    and L::"'s lang"
   assumes "c > 0"
     and "superlinear T"
     and "L \<in> typed_DTIME TYPE('q1) T"
