@@ -76,16 +76,20 @@ definition initial_config :: "'s list \<Rightarrow> ('q, 's) TM_config"
 
 abbreviation "c\<^sub>0 \<equiv> initial_config"
 
-
 lemma init_conf_len: "length (tapes (initial_config w)) = k"
-  unfolding initial_config_def using at_least_one_tape by force
-lemma init_conf_state: "state (initial_config w) = q\<^sub>0"
-  unfolding initial_config_def by simp
+  using at_least_one_tape by (simp add: initial_config_def)
+lemma init_conf_state: "state (initial_config w) = q\<^sub>0" by (simp add: initial_config_def)
 lemmas init_conf_simps[simp] = init_conf_len init_conf_state
+
+lemma init_conf_last[simp, intro]:
+  shows "k = 1 \<Longrightarrow> last (tapes (c\<^sub>0 w)) = <w>\<^sub>t\<^sub>p"
+    and "k \<noteq> 1 \<Longrightarrow> last (tapes (c\<^sub>0 w)) = \<langle>\<rangle>"
+  using at_least_one_tape by (simp_all add: initial_config_def)
+
 
 abbreviation "wf_input w \<equiv> set w \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
 
-lemma wf_initial_config[intro]: "wf_input w \<Longrightarrow> wf_config (initial_config w)"
+lemma wf_initial_config[simp, intro]: "wf_input w \<Longrightarrow> wf_config (initial_config w)"
 proof (intro wf_configI)
   assume "set w \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
   then show "list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>\<^sub>i\<^sub>n) (tapes (c\<^sub>0 w))"
@@ -103,7 +107,7 @@ definition run :: "nat \<Rightarrow> 's list \<Rightarrow> ('q, 's) TM_config"
 corollary wf_config_run[intro, simp]: "wf_input w \<Longrightarrow> wf_config (run n w)" by auto
 corollary (in typed_TM) wf_config_run[intro!, simp]: "wf_config (run n w)" by auto
 
-corollary run_tapes_len[simp]: "length (tapes (run n w)) = k" by (simp add: steps_l_tps)
+corollary run_tapes_len[simp]: "length (tapes (steps n (c\<^sub>0 w))) = k" by (simp add: steps_l_tps)
 corollary run_tapes_non_empty[simp, intro]: "tapes (run n w) \<noteq> []"
   using at_least_one_tape by (fold length_0_conv) (simp add: steps_l_tps)
 
@@ -186,11 +190,10 @@ mk_ide has_output_altdef |intro has_outputI[intro]| |dest has_outputD[dest]|
 
 subsubsection\<open>\<open>compute\<close> Function\<close>
 
-definition "compute_config c = steps (SOME n. is_final (steps n c)) c"
+definition "compute_config c = steps (LEAST n. is_final (steps n c)) c"
 
 lemma halts_compute_config[iff?]: "halts_config c \<longleftrightarrow> is_final (compute_config c)"
-  unfolding compute_config_def halts_config_def by (fact some_eq_ex[symmetric])
-
+  unfolding compute_config_def halts_config_def by (rule iffI) (fact LeastI_ex, fact exI)
 
 definition "compute w = compute_config (initial_config w)"
 
@@ -199,11 +202,11 @@ lemma halts_compute: "halts w \<longleftrightarrow> is_final (compute w)"
 
 mk_ide (in -) TM.halts_compute |intro halts_compI[intro]| |dest halts_compD[dest]|
 
-lemma compute_altdef: "compute w = run (SOME n. is_final (run n w)) w"
+lemma compute_altdef2: "compute w = run (LEAST n. is_final (run n w)) w"
   unfolding compute_def compute_config_def run_def ..
 
-lemma compute_altdef2[simp]: "is_final (steps n (c\<^sub>0 w)) \<Longrightarrow> compute w = run n w"
-  unfolding compute_altdef run_def by (meson final_steps_rev someI)
+lemma compute_run_eqI[simp]: "is_final (steps n (c\<^sub>0 w)) \<Longrightarrow> compute w = run n w"
+  unfolding compute_altdef2 run_def by (rule final_steps_rev, rule LeastI_ex) blast+
 
 lemma computeI[intro?]:
   assumes "\<exists>n. is_final (run n w) \<and> P (run n w)"
@@ -216,7 +219,11 @@ proof -
   with \<open>P (run n w)\<close> show "P (compute w)" by argo
 qed
 
-lemma final_run_compute[intro]: "is_final (run n w) \<Longrightarrow> run n w = compute w" by (blast intro: computeI)
+lemma wf_config_compute[intro, dest]: "wf_input w \<Longrightarrow> wf_config (compute w)"
+  unfolding compute_altdef2 by blast
+
+lemma final_run_compute[intro]: "is_final (run n w) \<Longrightarrow> run n w = compute w"
+  by (blast intro: computeI)
 
 
 subsubsection\<open>\<open>computes\<close> Predicate\<close>
@@ -255,7 +262,7 @@ lemma rejects_accepts:
 lemma accepts_altdef: "accepts w \<longleftrightarrow> (\<exists>n. state (run n w) \<in> F\<^sub>A)"
 proof (rule iffI)
   assume "accepts w"
-  then show "\<exists>n. state (run n w) \<in> F\<^sub>A" unfolding accepts_def compute_altdef by blast
+  then show "\<exists>n. state (run n w) \<in> F\<^sub>A" unfolding accepts_def compute_altdef2 by blast
 next
   assume "\<exists>n. state (run n w) \<in> F\<^sub>A"
   then obtain n where "state (run n w) \<in> F\<^sub>A" ..
@@ -266,7 +273,7 @@ qed
 lemma rejects_altdef: "rejects w \<longleftrightarrow> (\<exists>n. state (run n w) \<in> F\<^sub>R)"
 proof (rule iffI)
   assume "rejects w"
-  then show "\<exists>n. state (run n w) \<in> F\<^sub>R" unfolding rejects_def compute_altdef by blast
+  then show "\<exists>n. state (run n w) \<in> F\<^sub>R" unfolding rejects_def compute_altdef2 by blast
 next
   assume "\<exists>n. state (run n w) \<in> F\<^sub>R"
   then obtain n where "state (run n w) \<in> F\<^sub>R" ..

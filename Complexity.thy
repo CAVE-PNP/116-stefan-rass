@@ -73,6 +73,9 @@ declare (in -) TM.time_def[simp]
 lemma time_altdef: "time w = (LEAST n. is_final (run n w))"
   unfolding TM.run_def using config_time_def by simp
 
+lemma compute_altdef[simp, intro]: "compute w = run (time w) w"
+  unfolding compute_altdef2 time_altdef ..
+
 lemma time_leI[intro]:
   "is_final (run n w) \<Longrightarrow> time w \<le> n"
   unfolding run_def time_def by (rule conf_time_geI)
