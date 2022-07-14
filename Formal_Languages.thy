@@ -1,5 +1,5 @@
 theory Formal_Languages
-  imports Main Intro_Dest_Elim.IHOL_IDE
+  imports Main "Supplementary/Lists" Intro_Dest_Elim.IHOL_IDE
 begin
 
 datatype ('s) lang = Lang (alphabet: "'s set") (words: "'s list set")
@@ -22,10 +22,6 @@ abbreviation not_member_lang :: "'s list \<Rightarrow> 's lang \<Rightarrow> boo
 lemma valid_lang_member[simp, dest]: "valid_lang L \<Longrightarrow> w \<in>\<^sub>L L \<longleftrightarrow> w \<in> words L"
   unfolding member_lang_def by blast
 
-
-abbreviation kleene_star ("(3_*)" [100] 101) where "\<Sigma>* \<equiv> lists \<Sigma>"
-
-lemma lists_member[simp]: "w \<in> \<Sigma>* \<longleftrightarrow> set w \<subseteq> \<Sigma>" by blast
 
 lemma valid_lang_listsI[simp, intro]: "valid_lang (Lang \<Sigma> {w\<in>\<Sigma>*. P})"
   unfolding valid_lang_def by simp
