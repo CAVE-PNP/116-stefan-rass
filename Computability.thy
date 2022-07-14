@@ -331,6 +331,47 @@ lemma rejects: "rejects w" by (simp add: rejects_altdef)
 end
 
 
+subsection\<open>TM Languages\<close>
+
+definition TM_lang :: "('q, 's) TM \<Rightarrow> 's lang" ("L'(_')")
+  where "L(M) \<equiv> Lang (TM.symbols M) (TM.accepts M)"
+
+lemma TM_lang_simps[simp]:
+  shows TM_lang_alphabet: "alphabet L(M) = TM.symbols M"
+    and TM_lang_gen_pred: "gen_pred L(M) = TM.accepts M"
+    and TM_lang_words: "words L(M) = {w\<in>(TM.symbols M)*. TM.accepts M w}"
+  unfolding TM_lang_def words_def by auto
+
+context TM begin
+
+lemma decides_TM_lang: "(\<And>w. w \<in> \<Sigma>\<^sub>i\<^sub>n* \<Longrightarrow> halts w) \<Longrightarrow> decides L(M)"
+  by (simp add: TM_lang_def rejects_accepts)
+
+lemma TM_lang_uniq:
+  assumes "alphabet L = \<Sigma>\<^sub>i\<^sub>n"
+    and "decides L"
+  shows "words L(M) = words L"
+    and "alphabet L(M) = alphabet L"
+proof -
+  from \<open>alphabet L = \<Sigma>\<^sub>i\<^sub>n\<close> show "alphabet L(M) = alphabet L" by simp
+
+  from \<open>decides L\<close> have dec: "\<forall>w\<in>\<Sigma>\<^sub>i\<^sub>n*. decides_word L w" unfolding \<open>alphabet L = \<Sigma>\<^sub>i\<^sub>n\<close> ..
+  show "words L(M) = words L"
+  proof (intro Set.equalityI subsetI)
+    fix w assume \<open>w \<in>\<^sub>L L\<close>
+    then have "w \<in> \<Sigma>\<^sub>i\<^sub>n*" by (fold \<open>alphabet L = \<Sigma>\<^sub>i\<^sub>n\<close>) blast
+    moreover with \<open>w \<in>\<^sub>L L\<close> and dec have "accepts w" by simp
+    ultimately show "w \<in>\<^sub>L L(M)" unfolding TM_lang_def by simp
+  next
+    fix w assume \<open>w \<in>\<^sub>L L(M)\<close>
+    then have "accepts w" and "w \<in> \<Sigma>\<^sub>i\<^sub>n*" by auto
+    with dec show "w \<in>\<^sub>L L" by simp
+  qed
+qed
+
+end
+
+
 (* Note: having this much code commented out leads to errors when importing this theory sometimes.
          (Isabelle reports this theory as broken)
          My guess is that Isabelle tries to verify the theory, but does not look ahead far enough
@@ -384,46 +425,6 @@ lemma init_state_initial_state: "init w c \<Longrightarrow> state c = initial_st
   unfolding initial_config_def by simp
 
 end
-
-subsection\<open>TM Languages\<close>
-
-definition TM_lang :: "('q, 's) TM \<Rightarrow> 's lang" ("L'(_')")
-  where "L(M) \<equiv> if (\<forall>w\<in>pre_TM.wf_words M. TM.halts M w)
-                then {w\<in>pre_TM.wf_words M. TM.accepts M w}
-                else undefined"
-
-context TM begin
-
-lemma decides_TM_lang_accepts: "(\<And>w. wf_word w \<Longrightarrow> halts w) \<Longrightarrow> decides {w. accepts w}"
-  unfolding decides_def rejects_altdef accepts_def
-  by (simp add: Collect_mono)
-
-lemma decides_TM_lang: "(\<And>w. wf_word w \<Longrightarrow> halts w) \<Longrightarrow> decides L(M)"
-  unfolding TM_lang_def using decides_TM_lang_accepts by auto
-
-lemma decidesE: "decides L \<Longrightarrow> L(M) = L"
-proof safe
-  assume dec: "\<forall>w\<in>wf_words. decides_word L w"
-  assume wfl: \<open>wf_lang L\<close>
-  from dec have "\<forall>w\<in>wf_words. halts w"
-    using decides_halts by blast
-  then have L_M: "L(M) = {w\<in>wf_words. accepts w}" unfolding TM_lang_def by presburger
-
-  fix w
-  show "w \<in> L(M)" if "w \<in> L" proof -
-    from \<open>w\<in>L\<close> wfl have "wf_word w" by blast
-    moreover from \<open>w\<in>L\<close> \<open>wf_word w\<close> dec have "accepts w" unfolding decides_def by blast
-    ultimately show "w \<in> L(M)" unfolding L_M by fastforce
-  qed
-  show "w \<in> L" if "w \<in> L(M)" proof -
-    from \<open>w \<in> L(M)\<close> have "accepts w" "wf_word w" unfolding L_M by blast+
-    with dec show "w \<in> L" unfolding decides_def by blast
-  qed
-qed
-
-lemma TM_lang_unique: "\<exists>\<^sub>\<le>\<^sub>1L. wf_lang L \<and> decides L"
-  using decidesE by (intro Uniq_I) metis
-
-end
 *)
+
 end

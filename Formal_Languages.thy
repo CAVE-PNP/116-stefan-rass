@@ -8,10 +8,14 @@ definition words :: "'s lang \<Rightarrow> 's list set"
   where "words L = {w\<in>(alphabet L)*. gen_pred L w}"
 
 
-definition member_lang :: "'s list \<Rightarrow> 's lang \<Rightarrow> bool" (infix "\<in>\<^sub>L" 50)
+abbreviation member_lang :: "'s list \<Rightarrow> 's lang \<Rightarrow> bool" (infix "\<in>\<^sub>L" 50)
   where "w \<in>\<^sub>L L \<equiv> w \<in> words L"
 
 abbreviation not_member_lang :: "'s list \<Rightarrow> 's lang \<Rightarrow> bool" (infix "\<notin>\<^sub>L" 50)
   where "w \<notin>\<^sub>L L \<equiv> \<not> (w \<in>\<^sub>L L)"
+
+lemma member_lang_iff[iff]: "w \<in>\<^sub>L L \<longleftrightarrow> w\<in>(alphabet L)* \<and> gen_pred L w"
+  unfolding words_def by blast
+
 
 end
