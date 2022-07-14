@@ -753,7 +753,7 @@ corollary map_run[simp]: "wf_input w \<Longrightarrow> M'.run n (map f w) = fc (
 corollary map_time[simp]: "wf_input w \<Longrightarrow> M'.time (map f w) = time w" by simp
 corollary map_compute[simp]: "wf_input w \<Longrightarrow> M'.compute (map f w) = fc (compute w)" by simp
 corollary map_halts_conf: "wf_config c \<Longrightarrow> M'.halts_config (fc c) = halts_config c" by simp
-corollary map_halts[iff]: "wf_input w \<Longrightarrow> M'.halts (map f w) \<longleftrightarrow> halts w" by simp
+corollary map_halts[iff]: "wf_input w \<Longrightarrow> M'.halts (map f w) \<longleftrightarrow> halts w" by (simp add: TM.halts_def)
 
 lemma map_computes_word:
   assumes wf: "wf_input w" and wf': \<open>wf_input w'\<close>
@@ -1279,7 +1279,7 @@ next
       unfolding M1.M'.initial_config_def M1.M'_fields by simp
 
     from \<open>M1.computes_word w w'\<close> have "M1.halts w" by blast
-    then have "M1.halts_config (M1.c\<^sub>0 w)" by simp
+    then have "M1.halts_config (M1.c\<^sub>0 w)" by (simp add: M1.halts_def)
     with \<open>M1.wf_input w\<close> have "M1.M'.halts_config (M1.rc (\<langle>\<rangle> \<up> k) (M1.c\<^sub>0 w))"
       by (subst M1.reorder_halts, unfold M1_is_len) auto
     then show "M1.M'.halts_config (M1.M'.c\<^sub>0 w)"

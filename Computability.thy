@@ -131,9 +131,9 @@ mk_ide (in -) TM.halts_config_def |intro halts_confI[intro]| |dest halts_confD[d
 
 
 definition halts :: "'s list \<Rightarrow> bool"
-  where [simp]: "halts w \<equiv> halts_config (c\<^sub>0 w)"
+  where "halts w \<equiv> halts_config (c\<^sub>0 w)"
 
-lemma halts_altdef: "halts w \<longleftrightarrow> (\<exists>n. is_final (run n w))" by simp
+lemma halts_altdef: "halts w \<longleftrightarrow> (\<exists>n. is_final (run n w))" by (simp add: halts_def)
 
 mk_ide (in -) TM.halts_altdef |intro haltsI[intro]| |dest haltsD[dest]|
 
@@ -246,8 +246,10 @@ subsection\<open>Deciding Languages\<close>
 definition accepts :: "'s list \<Rightarrow> bool" where "accepts w \<equiv> state (compute w) \<in> F\<^sub>A"
 definition rejects :: "'s list \<Rightarrow> bool" where "rejects w \<equiv> state (compute w) \<in> F\<^sub>R"
 
-lemma halts_iff: "halts w \<longleftrightarrow> accepts w \<or> rejects w"
+lemma halts_iff[iff?]: "halts w \<longleftrightarrow> accepts w \<or> rejects w"
   unfolding accepts_def rejects_def using is_final_altdef by blast
+
+mk_ide halts_iff |dest halts_acc_rejD[dest]|
 
 lemma accepts_halts[dest]: "accepts w \<Longrightarrow> halts w" using halts_iff by blast
 lemma rejects_halts[dest]: "rejects w \<Longrightarrow> halts w" using halts_iff by blast

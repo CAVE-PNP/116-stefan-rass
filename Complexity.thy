@@ -80,7 +80,7 @@ lemma time_leI[intro]:
   "is_final (run n w) \<Longrightarrow> time w \<le> n"
   unfolding run_def time_def by (rule conf_time_geI)
 
-lemma run_time_halts[dest]: "halts w \<Longrightarrow> is_final (run (time w) w)" by auto
+lemma run_time_halts[dest]: "halts w \<Longrightarrow> is_final (run (time w) w)" unfolding halts_def by auto
 
 lemma config_time_offset:
   fixes c0
