@@ -417,6 +417,19 @@ lemma finite_type_lists_length_le: "finite {xs::('s::finite list). length xs \<l
 
 subsubsection\<open>Almost Everywhere\<close>
 
+text\<open>Analogous to \<^const>\<open>Ball\<close> and its notation \<^term>\<open>\<forall>x\<in>A. P\<close>.\<close>
+
+abbreviation Alm_ball :: "'a set \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> bool"
+  where "Alm_ball A P \<equiv> \<forall>\<^sub>\<infinity>x. x \<in> A \<longrightarrow> P x"
+syntax
+  "_Alm_ball" :: "pttrn \<Rightarrow> 's set \<Rightarrow> bool \<Rightarrow> bool"   ("(3\<forall>\<^sub>\<infinity>_/\<in>_./ _)" [0, 0, 10] 10)
+translations
+  "\<forall>\<^sub>\<infinity>x\<in>A. P" \<rightleftharpoons> "CONST Alm_ball A (\<lambda>x. P)"
+print_translation\<open>[
+  Syntax_Trans.preserve_binder_abs2_tr' \<^const_syntax>\<open>Alm_ball\<close> \<^syntax_const>\<open>_Alm_ball\<close>
+]\<close> \<comment> \<open>to avoid eta-contraction of body (otherwise, \<^term>\<open>\<forall>\<^sub>\<infinity>x\<in>A. P x\<close> will be printed as \<^term>\<open>Alm_ball A P\<close>)\<close>
+
+
 lemma ae_word_lengthI:
   fixes P :: "'s list \<Rightarrow> bool" and \<Sigma> :: "'s set"
   defines "P' w \<equiv> w \<in> \<Sigma>* \<longrightarrow> P w"
@@ -453,7 +466,7 @@ qed (use assms in blast)
 lemma ae_word_length_iff:
   fixes P :: "'s list \<Rightarrow> bool"
   assumes "finite \<Sigma>"
-  shows "(\<forall>\<^sub>\<infinity>w. w\<in>\<Sigma>* \<longrightarrow> P w) \<longleftrightarrow> (\<exists>n. \<forall>w\<in>\<Sigma>*. n \<le> length w \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
+  shows "(\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. P w) \<longleftrightarrow> (\<exists>n. \<forall>w\<in>\<Sigma>*. n \<le> length w \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
 proof
   show "?lhs \<Longrightarrow> ?rhs" by (elim ae_word_lengthE) blast
 next
