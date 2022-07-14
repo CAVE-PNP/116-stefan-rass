@@ -489,4 +489,12 @@ lemma ae_conjI:
   shows "Alm_all (\<lambda>x. P x \<and> Q x)"
 using assms by (rule eventually_conj)
 
+
+lemma list_all_last[elim]:
+  assumes "list_all P xs"
+    and "xs \<noteq> []"
+  shows "P (last xs)"
+  using assms by simp
+
+
 end

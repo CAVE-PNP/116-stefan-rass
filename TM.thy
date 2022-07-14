@@ -162,14 +162,15 @@ lemma valid_TM_I:
     and symbol_axioms: "finite \<Sigma>\<^sub>i\<^sub>n" "\<Sigma>\<^sub>i\<^sub>n \<noteq> {}"
     and state_axioms: "finite Q" "q\<^sub>0 \<in> Q" "F \<subseteq> Q" "F\<^sub>A \<subseteq> F"
     and next_state_valid: "\<And>q hds. q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> \<Sigma> \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q"
-    and next_write_valid: "\<And>q hds i. q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> \<Sigma> \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>"
+    and next_write_valid: "\<And>q hds i. q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> \<Sigma> \<Longrightarrow> i < k \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>"
   shows "is_valid_TM M"
 proof (unfold_locales, unfold M_def TM_record.simps wf_hds_rec_simps)
   fix q hds
   assume "q \<in> Q" and wf: "length hds = k \<and> set hds \<subseteq> options \<Sigma>\<^sub>i\<^sub>n"
   with next_state_valid show "\<delta>\<^sub>q q hds \<in> Q" unfolding \<Sigma>_def by blast
   fix i
-  from next_write_valid and \<open>q \<in> Q\<close> and wf show "\<delta>\<^sub>w q hds i \<in> options \<Sigma>\<^sub>i\<^sub>n" unfolding \<Sigma>_def by blast
+  assume "i < k"
+  with next_write_valid and \<open>q \<in> Q\<close> and wf show "\<delta>\<^sub>w q hds i \<in> options \<Sigma>\<^sub>i\<^sub>n" unfolding \<Sigma>_def by blast
 qed (fact assms)+
 
 lemma valid_TM_finiteI:
@@ -579,6 +580,16 @@ lemma wf_configE[elim]:
           wf_hds (heads c)\<rbrakk> \<Longrightarrow> P"
   shows P
   using \<open>wf_config c\<close> by (blast intro!: assms(2))
+
+lemma wf_config_tapes_nonempty[intro,dest]: "wf_config c \<Longrightarrow> tapes c \<noteq> []"
+  using at_least_one_tape by force
+
+lemma wf_config_last[intro]: "wf_config c \<Longrightarrow> set_tape (last (tapes c)) \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
+proof (elim wf_configE)
+  assume "length (tapes c) = k"
+    and "list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>\<^sub>i\<^sub>n) (tapes c)"
+  then show "set_tape (last (tapes c)) \<subseteq> \<Sigma>\<^sub>i\<^sub>n" using at_least_one_tape by (elim list_all_last) force
+qed
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
