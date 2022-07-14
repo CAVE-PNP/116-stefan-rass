@@ -563,8 +563,13 @@ proof -
     using assms(2-3) by (rule DTIME_speed_up)
 qed
 
+
+context TM_abbrevs
+begin
+
 subsection\<open>Reductions\<close> (* currently broken *)
 
+(*
 lemma reduce_decides:
   fixes A B :: "'s lang"
     and M\<^sub>R :: "('q1, 's) TM" and M\<^sub>B :: "('q2, 's) TM"
@@ -592,7 +597,7 @@ proof -
   define l :: nat where "l  \<equiv> length w"
   define l' :: 'c where "l' \<equiv> of_nat l"
 
-    \<comment> \<open>Idea: We already know that the first machine \<^term>\<open>M\<^sub>R\<close> is time bounded
+  text\<open>Idea: We already know that the first machine \<^term>\<open>M\<^sub>R\<close> is time bounded
     (@{thm \<open>TM.time_bounded_word M\<^sub>R T\<^sub>R w\<close>}).
 
     We also know that its execution will result in the encoded corresponding input word \<open>f\<^sub>R w\<close>
@@ -611,7 +616,7 @@ proof -
 
   show ?thesis sorry
 qed
-
+*)
 
 lemma exists_ge:
   fixes P :: "'q :: linorder \<Rightarrow> bool"
@@ -630,7 +635,7 @@ lemma exists_ge_eq:
 
 lemma ball_eq_simp: "(\<forall>n\<ge>x. \<forall>m. f m = n \<longrightarrow> P m) = (\<forall>m. f m \<ge> x \<longrightarrow> P m)" by blast
 
-
+(*
 lemma reduce_DTIME: (* TODO clean up and tidy assumptions *)
   fixes T\<^sub>B T\<^sub>R T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling"
     and f\<^sub>R :: "('s) list \<Rightarrow> 's list"
@@ -660,7 +665,7 @@ proof -
     if "length w \<ge> n" for w
     unfolding MOST_nat_le ball_eq_simp by blast
 
-  \<comment> \<open>Prove \<^term>\<open>M\<close> to be \<^term>\<open>T\<close>-time-bounded.
+  text\<open>Prove \<^term>\<open>M\<close> to be \<^term>\<open>T\<close>-time-bounded.
     Part 1: show a time-bound for \<^term>\<open>M\<close>.\<close>
   have "L2 \<in> typed_DTIME TYPE('q0+'q1) ?T'"
   proof (rule TM.DTIME_aeI)
@@ -689,7 +694,7 @@ proof -
 
   (* TODO (?) split proof here *)
 
-  \<comment> \<open>Part 2: bound the run-time of M (\<^term>\<open>?T'\<close>) by a multiple of the desired time-bound \<^term>\<open>T\<close>.\<close>
+  text\<open>Part 2: bound the run-time of M (\<^term>\<open>?T'\<close>) by a multiple of the desired time-bound \<^term>\<open>T\<close>.\<close>
   have "\<exists>n0. \<forall>n\<ge>n0. \<lceil>?T n\<rceil> \<ge> (2 * n) \<and> n \<ge> 1"
   proof (rule exists_ge, rule ex_reg, intro allI impI)
     from \<open>superlinear T\<close> show "\<exists>n0. \<forall>n\<ge>n0. of_nat 2 * of_nat n \<le> ?T n"
@@ -731,5 +736,8 @@ proof -
   with \<open>superlinear T\<close> show "L2 \<in> typed_DTIME TYPE('q0+'q1) T"
     by (intro DTIME_speed_up_rev[where T=T]) auto
 qed
+*)
+
+end \<comment> \<open>context \<^locale>\<open>TM_abbrevs\<close>\<close>
 
 end
