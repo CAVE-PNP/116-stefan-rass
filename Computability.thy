@@ -87,12 +87,12 @@ lemma init_conf_last[simp, intro]:
   using at_least_one_tape by (simp_all add: initial_config_def)
 
 
-abbreviation "wf_input w \<equiv> w \<in> \<Sigma>\<^sub>i\<^sub>n*"
+abbreviation "wf_input w \<equiv> w \<in> \<Sigma>*"
 
 lemma wf_initial_config[simp, intro]: "wf_input w \<Longrightarrow> wf_config (initial_config w)"
 proof (intro wf_configI)
-  assume "w \<in> \<Sigma>\<^sub>i\<^sub>n*"
-  then show "list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>\<^sub>i\<^sub>n) (tapes (c\<^sub>0 w))"
+  assume "w \<in> \<Sigma>*"
+  then show "list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>) (tapes (c\<^sub>0 w))"
     unfolding initial_config_def TM_config.sel list.pred_inject(2) by (intro conjI) (simp, force)
 qed simp_all
 
@@ -291,7 +291,7 @@ lemma decides_halts: "decides_word L w \<Longrightarrow> halts w"
   using halts_iff by auto
 
 abbreviation decides :: "'s lang \<Rightarrow> bool"
-  where "decides L \<equiv> alphabet L \<subseteq> \<Sigma>\<^sub>i\<^sub>n \<and> (\<forall>w\<in>(alphabet L)*. decides_word L w)"
+  where "decides L \<equiv> alphabet L \<subseteq> \<Sigma> \<and> (\<forall>w\<in>(alphabet L)*. decides_word L w)"
 
 corollary decides_halts_all: "decides L \<Longrightarrow> \<forall>w\<in>(alphabet L)*. halts w"
   using decides_halts by blast
@@ -344,27 +344,27 @@ lemma TM_lang_simps[simp]:
 
 context TM begin
 
-lemma decides_TM_lang: "(\<And>w. w \<in> \<Sigma>\<^sub>i\<^sub>n* \<Longrightarrow> halts w) \<Longrightarrow> decides L(M)"
+lemma decides_TM_lang: "(\<And>w. w \<in> \<Sigma>* \<Longrightarrow> halts w) \<Longrightarrow> decides L(M)"
   by (simp add: TM_lang_def rejects_accepts)
 
 lemma TM_lang_uniq:
-  assumes "alphabet L = \<Sigma>\<^sub>i\<^sub>n"
+  assumes "alphabet L = \<Sigma>"
     and "decides L"
   shows "words L(M) = words L"
     and "alphabet L(M) = alphabet L"
 proof -
-  from \<open>alphabet L = \<Sigma>\<^sub>i\<^sub>n\<close> show "alphabet L(M) = alphabet L" by simp
+  from \<open>alphabet L = \<Sigma>\<close> show "alphabet L(M) = alphabet L" by simp
 
-  from \<open>decides L\<close> have dec: "\<forall>w\<in>\<Sigma>\<^sub>i\<^sub>n*. decides_word L w" unfolding \<open>alphabet L = \<Sigma>\<^sub>i\<^sub>n\<close> ..
+  from \<open>decides L\<close> have dec: "\<forall>w\<in>\<Sigma>*. decides_word L w" unfolding \<open>alphabet L = \<Sigma>\<close> ..
   show "words L(M) = words L"
   proof (intro Set.equalityI subsetI)
     fix w assume \<open>w \<in>\<^sub>L L\<close>
-    then have "w \<in> \<Sigma>\<^sub>i\<^sub>n*" by (fold \<open>alphabet L = \<Sigma>\<^sub>i\<^sub>n\<close>) blast
+    then have "w \<in> \<Sigma>*" by (fold \<open>alphabet L = \<Sigma>\<close>) blast
     moreover with \<open>w \<in>\<^sub>L L\<close> and dec have "accepts w" by simp
     ultimately show "w \<in>\<^sub>L L(M)" unfolding TM_lang_def by simp
   next
     fix w assume \<open>w \<in>\<^sub>L L(M)\<close>
-    then have "accepts w" and "w \<in> \<Sigma>\<^sub>i\<^sub>n*" by auto
+    then have "accepts w" and "w \<in> \<Sigma>*" by auto
     with dec show "w \<in>\<^sub>L L" by simp
   qed
 qed

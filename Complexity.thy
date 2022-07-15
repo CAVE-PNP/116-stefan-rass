@@ -320,7 +320,7 @@ abbreviation DTIME where
   "DTIME \<equiv> typed_DTIME TYPE(nat)"
 
 lemma (in TM) in_dtimeI[intro]:
-  assumes "alphabet L \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
+  assumes "alphabet L \<subseteq> \<Sigma>"
     and "decides L"
     and "time_bounded T"
   shows "L \<in> typed_DTIME TYPE('q) T"
@@ -384,12 +384,12 @@ lemma DTIME_ae:
   sorry
 
 lemma (in TM) DTIME_aeI:
-  assumes valid_alphabet: "alphabet L \<subseteq> \<Sigma>\<^sub>i\<^sub>n"
+  assumes valid_alphabet: "alphabet L \<subseteq> \<Sigma>"
     and [intro]: "\<And>w. n \<le> length w \<Longrightarrow> w \<in> (alphabet L)* \<Longrightarrow> decides_word L w"
     and [intro]: "\<And>w. n \<le> length w \<Longrightarrow> w \<in> (alphabet L)* \<Longrightarrow> time_bounded_word T w"
   shows "L \<in> typed_DTIME TYPE('q) T"
 proof (intro DTIME_ae exI[of _ M] conjI)
-  from valid_alphabet show "alphabet L \<subseteq> \<Sigma>\<^sub>i\<^sub>n" .
+  from valid_alphabet show "alphabet L \<subseteq> \<Sigma>" .
 
   from valid_alphabet and symbol_axioms(1) have "finite (alphabet L)" by (fact finite_subset)
   then show "\<forall>\<^sub>\<infinity>w\<in>(alphabet L)*. decides_word L w \<and> time_bounded_word T w"
