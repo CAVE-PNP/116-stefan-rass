@@ -208,7 +208,7 @@ lemma compute_altdef2: "compute w = run (LEAST n. is_final (run n w)) w"
 lemma compute_run_eqI[simp]: "is_final (steps n (c\<^sub>0 w)) \<Longrightarrow> compute w = run n w"
   unfolding compute_altdef2 run_def by (rule final_steps_rev, rule LeastI_ex) blast+
 
-lemma computeI[intro?]:
+lemma computeI:
   assumes "\<exists>n. is_final (run n w) \<and> P (run n w)"
   shows "P (compute w)"
 proof -

@@ -54,7 +54,8 @@ proof (induction y)
     by (rule Max_atLeastAtMost_nat)
 qed blast
 
-lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_def)
+lemma inj_imp_inj_on[dest]: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_def)
+
 
 lemma inv_into_onto: "inj_on f A \<Longrightarrow> inv_into A f ` f ` A = A" by simp
 

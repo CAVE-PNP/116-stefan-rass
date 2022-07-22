@@ -20,7 +20,7 @@ lemma lists_member[iff]: "xs \<in> X* \<longleftrightarrow> set xs \<subseteq> X
 
 
 \<comment> \<open>From \<^session>\<open>Universal_Turing_Machine\<close>.\<close>
-abbreviation replicate_exponent :: "'a \<Rightarrow> nat \<Rightarrow> 'a list" ("_ \<up> _" [100, 99] 100)
+abbreviation replicate_exponent :: "'a \<Rightarrow> nat \<Rightarrow> 'a list" (infixr "\<up>" 100)
   where "x \<up> n \<equiv> replicate n x"
 
 lemma set_replicate_subset: "set (x \<up> n) \<subseteq> {x}"
