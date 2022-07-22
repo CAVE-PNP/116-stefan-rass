@@ -44,14 +44,14 @@ definition gn_inv :: "nat \<Rightarrow> word" where "gn_inv n = butlast (bin_of_
 
 abbreviation (input) is_gn :: "nat \<Rightarrow> bool" where "is_gn n \<equiv> n > 0"
 
-lemmas gn_defs[simp] = gn_def gn_inv_def
+lemmas gn_defs = gn_def gn_inv_def
 
 
 subsection\<open>Basic Properties\<close>
 
-lemma gn_gt_0: "gn w > 0" unfolding gn_def by (fold bin_of_nat_end_True) simp
+lemma gn_gt_0[simp, intro]: "gn w > 0" unfolding gn_def by simp
 
-corollary gn_inv_id [simp]: "gn_inv (gn (x)) = x" by simp
+corollary gn_inv_id [simp]: "gn_inv (gn (x)) = x" unfolding gn_defs by simp
 
 corollary inv_gn_id [simp]: "is_gn n \<Longrightarrow> gn (gn_inv n) = n"
 proof -
@@ -132,9 +132,9 @@ proof -
 qed
 
 
-lemma gn_altdef: "gn w = nat_of_num (num_of_word w)" by (induction w) auto
+lemma gn_altdef: "gn w = nat_of_num (num_of_word w)" by (induction w) (auto simp add: gn_def)
 
-lemma bin_of_gn[simp]: "bin_of_nat (gn w) = w @ [True]" by force
+lemma bin_of_gn[simp]: "bin_of_nat (gn w) = w @ [True]" by (simp add: gn_def)
 
 lemma gn_inv_of_bin[simp]: "is_gn n \<Longrightarrow> gn_inv n @ [True] = bin_of_nat n"
 proof -
@@ -146,7 +146,7 @@ qed
 
 lemma len_gn[simp]: "bit_length (gn w) = length w + 1" by force
 
-lemma len_gn_inv[simp]: "length (gn_inv n) = length (bin_of_nat n) - 1" by force
+lemma len_gn_inv[simp]: "length (gn_inv n) = length (bin_of_nat n) - 1" by (simp add: gn_inv_def)
 
 
 end

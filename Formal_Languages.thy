@@ -7,6 +7,8 @@ datatype ('s) lang = Lang (alphabet: "'s set") (gen_pred: "'s list \<Rightarrow>
 definition words :: "'s lang \<Rightarrow> 's list set"
   where "words L = {w\<in>(alphabet L)*. gen_pred L w}"
 
+lemma words_simp: "words (Lang \<Sigma> P) = {w\<in>\<Sigma>*. P w}" by (simp add: words_def)
+
 
 abbreviation member_lang :: "'s list \<Rightarrow> 's lang \<Rightarrow> bool" (infix "\<in>\<^sub>L" 50)
   where "w \<in>\<^sub>L L \<equiv> w \<in> words L"
@@ -14,8 +16,12 @@ abbreviation member_lang :: "'s list \<Rightarrow> 's lang \<Rightarrow> bool" (
 abbreviation not_member_lang :: "'s list \<Rightarrow> 's lang \<Rightarrow> bool" (infix "\<notin>\<^sub>L" 50)
   where "w \<notin>\<^sub>L L \<equiv> \<not> (w \<in>\<^sub>L L)"
 
-lemma member_lang_iff[iff]: "w \<in>\<^sub>L L \<longleftrightarrow> w\<in>(alphabet L)* \<and> gen_pred L w"
+lemma member_lang_iff: "w \<in>\<^sub>L L \<longleftrightarrow> w\<in>(alphabet L)* \<and> gen_pred L w"
   unfolding words_def by blast
+
+corollary member_lang_iff'[simp]: "w \<in>\<^sub>L Lang \<Sigma> P \<longleftrightarrow> w\<in>\<Sigma>* \<and> P w" by (simp add: member_lang_iff)
+
+mk_ide member_lang_iff' |intro member_langI[intro]| |dest member_langD[dest]| |elim member_langE[elim]|
 
 
 text\<open>Defining complement and intersection analogous to sets.
@@ -37,6 +43,6 @@ lemma inf_lang_altdef: "Lang \<Sigma>1 P1 \<inter>\<^sub>L Lang \<Sigma>2 P2 = L
 lemma inter_lang_commute: "L\<^sub>1 \<inter>\<^sub>L L\<^sub>2 = L\<^sub>2 \<inter>\<^sub>L L\<^sub>1" unfolding inf_lang_def by blast
 
 lemma inter_lang_words[simp]: "words (L\<^sub>1 \<inter>\<^sub>L L\<^sub>2) = words L\<^sub>1 \<inter> words L\<^sub>2"
-  unfolding inf_lang_def lang.sel words_def by (induction L\<^sub>1, induction L\<^sub>2) auto
+  unfolding inf_lang_def by (induction L\<^sub>1, induction L\<^sub>2) auto
 
 end
