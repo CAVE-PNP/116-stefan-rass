@@ -295,11 +295,7 @@ text\<open>Fully time-constructible, (@{cite \<open>ch.~12.3\<close> hopcroftAut
   that uses T(n) time on all inputs of length n.''\<close>
 
 definition fully_tconstr :: "'q itself \<Rightarrow> 's itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "fully_tconstr \<qq> \<ss> T \<equiv> \<exists>M::('q, 's) TM. \<forall>n w. length w = n \<longrightarrow> TM.time M w = T n"
-
-lemma fully_tconstr_altdef: "fully_tconstr TYPE('q) TYPE('s) T \<longleftrightarrow>
-                   (\<exists>M::('q, 's) TM. \<forall>w. TM.time M w = T (length w))"
-  unfolding fully_tconstr_def by simp
+  where "fully_tconstr \<qq> \<ss> T \<equiv> \<exists>M::('q, 's) TM. \<forall>w. TM.time M w = T (length w)"
 
 definition computable_in_time :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> ('s list \<Rightarrow> 's list) \<Rightarrow> bool"
   where "computable_in_time \<qq> T f \<equiv> \<exists>M::('q, 's) TM. TM.computes M f \<and> TM.time_bounded M T"

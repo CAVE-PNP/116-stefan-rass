@@ -64,24 +64,27 @@ locale UTM = UTM: TM M\<^sub>U + UTM_Encoding enc\<^sub>U is_valid_enc\<^sub>U d
     and accepts_iff: "\<And>M w. TM.accepts M w \<longleftrightarrow> UTM.accepts (enc\<^sub>U (M, w))"
 
 locale timed_UTM = UTM M\<^sub>U for M\<^sub>U :: "(nat, bool) TM" +
-  fixes f :: "nat \<Rightarrow> nat"
-  assumes "\<And>M::(nat, nat) TM. \<And>w. TM.halts M w \<Longrightarrow> UTM.time (enc\<^sub>U (M, w)) \<le> f (TM.time M w)"
+  fixes T\<^sub>U :: "nat \<Rightarrow> nat" \<comment> \<open>Simulation time overhead of \<^term>\<open>M\<^sub>U\<close>.\<close>
+  assumes sim_overhead: "\<And>M::(nat, nat) TM. \<And>w. TM.halts M w \<Longrightarrow>
+    UTM.time (enc\<^sub>U (M, w)) \<le> T\<^sub>U (TM.time M w)"
+    and overhead_min: "T\<^sub>U n \<ge> n" \<comment> \<open>This should be trivially true, but is required for the THT.\<close>
 
 
 subsection\<open>The Time Hierarchy Theorem\<close>
 
 locale tht_assms = timed_UTM +
   fixes T t :: "nat \<Rightarrow> nat"
-  assumes fully_tconstr_T: "fully_tconstr TYPE('a) TYPE('b::blank) T"
+  assumes fully_tconstr_T: "fully_tconstr TYPE(nat) TYPE(bool) T"
 
   \<comment> \<open>This assumption represents the statements containing \<open>lim\<close> @{cite rassOwf2017} and \<open>lim inf\<close> @{cite hopcroftAutomata1979}.
       \<^const>\<open>LIMSEQ\<close> (\<^term>\<open>X \<longlonglongrightarrow> x\<close>) was chosen, as it seems to match the intended meaning
-      (@{thm LIMSEQ_def lim_sequentially}).\<close>
-    and T_dominates_t: "(\<lambda>n. t n * log 2 (t n) / T n) \<longlonglongrightarrow> 0"
+      (@{thm LIMSEQ_def lim_sequentially}).
+      The sources additionally specify \<^term>\<open>T\<^sub>U n = n * log 2 n\<close>.\<close>
+    and T_dominates_t: "(\<lambda>n. T\<^sub>U (t n) / T n) \<longlonglongrightarrow> 0"
   \<comment> \<open>Additionally, \<open>T n\<close> is assumed not to be zero since in Isabelle,
       \<open>x / 0 = 0\<close> holds over the reals (@{thm division_ring_divide_zero}).
       Thus, the above assumption would trivially hold for \<open>T(n) = 0\<close>.\<close>
-    and T_not_0: "T n \<noteq> 0"
+    and T_not_0: "\<forall>\<^sub>\<infinity>n. T n \<noteq> 0"
 
   \<comment> \<open>The following assumption is not found in @{cite rassOwf2017} or the primary source @{cite hopcroftAutomata1979},
     but is taken from the AAU lecture slides of \<^emph>\<open>Algorithms and Complexity Theory\<close>.
