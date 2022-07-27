@@ -2,6 +2,7 @@ section\<open>Lists\<close>
 
 theory Lists
   imports Main Misc "HOL-Library.Sublist"
+    "HOL-Eisbach.Eisbach"
 begin
 
 text\<open>Extends \<^theory>\<open>HOL.List\<close>.\<close>
@@ -476,6 +477,27 @@ next
 qed
 
 
+lemma ae_word_rev_mpE:
+  assumes "\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. P w"
+    and "\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. P w \<longrightarrow> Q w"
+  shows "\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. Q w"
+  using assms by (elim eventually_rev_mp) simp
+
+method ae_intro_words =
+  -,
+  match conclusion in "\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. _ w" for \<Sigma> \<Rightarrow> \<open> (* fix the alphabet \<open>\<Sigma>\<close> *)
+    match premises in fin[thin]: "finite \<Sigma>" \<Rightarrow> \<open>
+      (unfold ae_word_length_iff[symmetric, OF fin])?, (* fold does not work with the symbolic \<open>fin\<close> *)
+      (match premises in ae_assms[thin]: "\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. _ w" (multi)
+                     and ex_assms[thin]: "\<exists>N. \<forall>n\<ge>N. _ n" (multi) \<Rightarrow> \<open>
+        use ae_assms ex_assms[unfolded ae_word_length_iff[symmetric, OF fin]]
+          in \<open>elim ae_word_rev_mpE\<close>
+      \<close>)?,
+      intro ae_word_lengthI[OF fin] impI
+    \<close>
+  \<close>
+
+
 lemma ae_word_length_finite_iff:
   fixes P :: "'s::finite list \<Rightarrow> bool"
   shows "(\<forall>\<^sub>\<infinity>x. P x) \<longleftrightarrow> (\<exists>n. \<forall>w. n \<le> length w \<longrightarrow> P w)" (is "?lhs \<longleftrightarrow> ?rhs")
@@ -494,17 +516,37 @@ lemma ae_word_length_finiteE[elim?]:
   using assms unfolding ae_word_length_finite_iff by blast
 
 
-lemma eventually_disj: "eventually P F \<or> eventually Q F \<Longrightarrow> eventually (\<lambda>x. P x \<or> Q x) F"
+lemma eventually_disj[intro]: "eventually P F \<or> eventually Q F \<Longrightarrow> eventually (\<lambda>x. P x \<or> Q x) F"
   by (elim disjE eventually_mono) blast+
 
-(* TODO remove. these are fully subsumed by the rules used to prove them *)
-lemma ae_conj_iff: "Alm_all (\<lambda>x. P x \<and> Q x) \<longleftrightarrow> Alm_all P \<and> Alm_all Q"
-  by (rule eventually_conj_iff)
+declare eventually_conj_iff[iff]
+declare eventually_rev_mp[elim]
+declare eventuallyI[intro?]
 
-lemma ae_conjI:
-  assumes "Alm_all P" "Alm_all Q"
-  shows "Alm_all (\<lambda>x. P x \<and> Q x)"
-using assms by (rule eventually_conj)
+
+lemma Alm_all_nat_altdef[iff]:
+  fixes P :: "nat \<Rightarrow> bool"
+  shows "(\<forall>\<^sub>\<infinity>n. P n) \<longleftrightarrow> (\<exists>N. \<forall>n\<ge>N. P n)"
+  by (simp add: cofinite_eq_sequentially eventually_sequentially)
+
+lemma Alm_all_natI[intro]: "(\<And>n::nat. n\<ge>n\<^sub>0 \<Longrightarrow> P n) \<Longrightarrow> \<forall>\<^sub>\<infinity>n. P n" using Alm_all_nat_altdef by blast
+
+method ae_intro_nat uses add =
+  insert add,
+  (fold Alm_all_nat_altdef)?,
+  (elim eventually_rev_mp)?,
+  intro Alm_all_natI impI (* TODO add possibility to  *)
+
+text\<open>To solve goals like \<open>\<lbrakk>\<forall>\<^sub>\<infinity>n. P\<^sub>1 n; \<forall>\<^sub>\<infinity>n. P\<^sub>2 n; ...\<rbrakk> \<Longrightarrow> \<forall>\<^sub>\<infinity>n. Q n\<close>, where \<open>n :: nat\<close>,
+  apply @{method ae_intro_nat}, then prove the resulting goal
+  of the form \<open>\<And>n. \<lbrakk>n\<ge>n\<^sub>0; A n; B n; ...\<rbrakk> \<Longrightarrow> P n\<close>.
+  The additional premise \<open>n\<ge>n\<^sub>0\<close> allows specifying an arbitrary minimum,
+  as many lemmas require proving \<open>n>0\<close> or similar.
+
+  Supply input facts via the parameter \<open>ae_intro_nat add: some_fact\<close>,
+  or by chaining them into \<open>ae_intro_nat\<close>
+  (this will leave them in the premises after elimination, however).
+  If no input facts are given, this is equivalent to just applying @{thm Alm_all_natI}.\<close>
 
 
 lemma list_all_last[elim]:
