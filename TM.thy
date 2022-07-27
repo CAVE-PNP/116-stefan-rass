@@ -62,6 +62,11 @@ text\<open>We model a (deterministic \<open>k\<close>-tape) TM over the type \<^
  * consider applying the "labelling" pattern used by @{cite forsterCoqTM2020},
  * as this would allow more advanced extensions, such as oracles as well *)
 
+(* TODO define equality for TMs. regular equality is not really what we want
+        (as the behavior of the transition functions outside of their intended range are irrelevant).
+        possible solutions include defining TMs as quotient type with suitable equality function,
+        and using relations instead of functions. this would be reusable for defining NTMs as well. *)
+
 record ('q, 's) TM_record =
   tape_count :: nat \<comment> \<open>\<open>k\<close>, the number of tapes\<close>
   symbols :: "'s set" \<comment> \<open>\<open>\<Sigma>\<close>, the set of symbols, not including the \<^const>\<open>blank_symbol\<close>\<close>

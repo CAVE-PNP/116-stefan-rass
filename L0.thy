@@ -51,10 +51,10 @@ locale UTM_Encoding =
     and is_valid_enc\<^sub>U :: "bool list \<Rightarrow> bool"
     and dec\<^sub>U :: "bool list \<Rightarrow> ('q, 's) TM \<times> 's list"
   assumes inj_enc\<^sub>U: "inj enc\<^sub>U"
-    and enc_dec:   "\<And>M w. TM.wf_input M w \<Longrightarrow> dec\<^sub>U (enc\<^sub>U (M, w)) = (M, w)"
     and valid_enc: "\<And>M w. TM.wf_input M w \<Longrightarrow> is_valid_enc\<^sub>U (enc\<^sub>U (M, w))"
+    and enc_dec:   "\<And>M w. TM.wf_input M w \<Longrightarrow> dec\<^sub>U (enc\<^sub>U (M, w)) = (M, w)"  (* TODO is this possible? the transition table is defined as a function *)
     and invalid_rejects: "\<And>x. \<not> is_valid_enc\<^sub>U x \<Longrightarrow> let (M, w) = dec\<^sub>U x in TM.rejects M w" (* a nicer version of: "\<exists>q\<^sub>0 s w. dec\<^sub>U x = (rejecting_TM q\<^sub>0 s, w)" *)
-    and dec_enc: "\<And>x. is_valid_enc\<^sub>U x \<Longrightarrow> enc\<^sub>U (dec\<^sub>U x) = x" (* TODO is this useful/necessary/practicable? *)
+    and dec_enc: "\<And>x. is_valid_enc\<^sub>U x \<Longrightarrow> enc\<^sub>U (dec\<^sub>U x) = x" (* this should be easy to achieve *)
 
 locale UTM = UTM: TM M\<^sub>U + UTM_Encoding enc\<^sub>U is_valid_enc\<^sub>U dec\<^sub>U
   for M\<^sub>U :: "('q, bool) TM" (* TODO make 'q = nat ? *)

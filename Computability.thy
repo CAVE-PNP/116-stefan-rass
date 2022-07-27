@@ -359,7 +359,7 @@ proof -
   show "words L(M) = words L"
   proof (intro Set.equalityI subsetI)
     fix w assume \<open>w \<in>\<^sub>L L\<close>
-    then have "w \<in> \<Sigma>*" by (fold \<open>alphabet L = \<Sigma>\<close>) blast
+    then have "w \<in> \<Sigma>*" by (simp add: \<open>alphabet L = \<Sigma>\<close> member_lang_iff)
     moreover with \<open>w \<in>\<^sub>L L\<close> and dec have "accepts w" by simp
     ultimately show "w \<in>\<^sub>L L(M)" unfolding TM_lang_def by simp
   next
