@@ -1,52 +1,13 @@
 section\<open>The Time Hierarchy Theorem and the Language \<open>L\<^sub>0\<close>\<close>
 
 theory L0
-  imports SQ Complexity
+  imports SQ Complexity "Supplementary/Asymptotic"
 begin
 
 
 subsection\<open>Preliminaries\<close>
 
 lemma SQ_DTIME: "SQ \<in> DTIME(\<lambda>n. n^3)" sorry
-
-lemma dominates_altdef:
-  fixes c :: real
-  assumes "\<forall>\<^sub>\<infinity>n. T n \<noteq> 0"
-    and T_dominates_t: "(\<lambda>n. t n / T n) \<longlonglongrightarrow> 0"
-  shows "\<forall>\<^sub>\<infinity>n. \<bar>c * t n\<bar> < \<bar>T n\<bar>"
-proof (cases "c = 0")
-  assume "c = 0"
-  show ?thesis
-  proof (ae_intro_nat add: \<open>\<forall>\<^sub>\<infinity>n. T n \<noteq> 0\<close>)
-    fix n
-    assume "T n \<noteq> 0"
-    have "\<bar>c * t n\<bar> = 0" unfolding \<open>c = 0\<close> by simp
-    also have "0 < \<bar>T n\<bar>" using \<open>T n \<noteq> 0\<close> by simp
-    finally show "\<bar>c * t n\<bar> < \<bar>T n\<bar>" .
-  qed
-next
-  let ?f = "\<lambda>n. t n / T n"
-  assume "c \<noteq> 0"
-  define c' where c': "c' \<equiv> 1 / c"
-  from \<open>c \<noteq> 0\<close> have "c' \<noteq> 0" unfolding c' by simp
-
-  with T_dominates_t have "\<exists>N. \<forall>n\<ge>N. \<bar>?f n\<bar> < \<bar>c'\<bar>"
-    unfolding LIMSEQ_def dist_real_def diff_0_right by force
-  then obtain N where "\<bar>?f n\<bar> < \<bar>c'\<bar>" if "n \<ge> N" for n by blast
-
-  show "\<forall>\<^sub>\<infinity>n. \<bar>c * t n\<bar> < \<bar>T n\<bar>"
-  proof (ae_intro_nat add: \<open>\<forall>\<^sub>\<infinity>n. T n \<noteq> 0\<close>)
-    fix n
-    assume "n \<ge> N" and "T n \<noteq> 0"
-    from \<open>T n \<noteq> 0\<close> have "\<bar>T n\<bar> > 0" unfolding zero_less_abs_iff .
-    from \<open>c \<noteq> 0\<close> have "\<bar>c\<bar> > 0" unfolding zero_less_abs_iff .
-
-    have "\<bar>?f n\<bar> < \<bar>c'\<bar>" using \<open>n \<ge> N\<close> by fact
-    then have "\<bar>t n\<bar> / \<bar>T n\<bar> < 1 / \<bar>c\<bar>" unfolding c' abs_divide abs_one .
-    then have "\<bar>t n\<bar> < \<bar>T n\<bar> / \<bar>c\<bar>" unfolding \<open>\<bar>T n\<bar> > 0\<close>[THEN pos_divide_less_eq] by argo
-    then show "\<bar>c * t n\<bar> < \<bar>T n\<bar>" unfolding \<open>\<bar>c\<bar> > 0\<close>[THEN pos_less_divide_eq] abs_mult by argo
-  qed
-qed
 
 
 locale UTM_Encoding =
@@ -104,32 +65,16 @@ lemma T_ge_t_log_t_ae:
   assumes "c \<ge> 0"
   shows "\<forall>\<^sub>\<infinity>n. c * T\<^sub>U (t n) < T n"
 proof -
-  from T_not_0 have "\<forall>\<^sub>\<infinity>n. real (T n) \<noteq> 0" unfolding of_nat_eq_0_iff .
-  then have "\<forall>\<^sub>\<infinity>n. \<bar>c * (T\<^sub>U (t n))\<bar> < \<bar>real (T n)\<bar>"
-    using T_dominates_t by (rule dominates_altdef)
-  then obtain N where *: "n \<ge> N \<Longrightarrow> \<bar>c * T\<^sub>U (t n)\<bar> < \<bar>real (T n)\<bar>" for n by blast
-  let ?N = "max N 2"
-
-  show "?thesis"
-  proof ae_intro_nat
-    fix n
-    assume "n \<ge> ?N"
-    from \<open>n \<ge> ?N\<close> have "n \<ge> N" and "n \<ge> 2" by auto
-    from \<open>n \<ge> N\<close> have "\<bar>c * T\<^sub>U (t n)\<bar> < \<bar>real (T n)\<bar>" by (fact *)
-
-    have "c * T\<^sub>U (t n) = c * \<bar>T\<^sub>U (t n)\<bar>" by simp
-    also from \<open>c \<ge> 0\<close> have "... = \<bar>c * T\<^sub>U (t n)\<bar>" by simp
-    also from \<open>n \<ge> N\<close> have "... < \<bar>real (T n)\<bar>" by (fact *)
-    also have "... = T n" by simp
-    finally show "c * T\<^sub>U (t n) < T n" .
-  qed
+  from T_not_0 and T_dominates_t have "\<forall>\<^sub>\<infinity>n. c * \<bar>real (T\<^sub>U (t n))\<bar> < \<bar>real (T n)\<bar>"
+    by (elim dominates_ae) simp
+  then show "?thesis" by simp
 qed
 
 lemma T_ge_t_ae: "\<forall>\<^sub>\<infinity>n. T n > t n"
 proof -
-  from T_ge_t_log_t_ae[of 1] have "\<forall>\<^sub>\<infinity>n. T n > T\<^sub>U (t n)" by auto
+  from T_ge_t_log_t_ae[of 1] have "\<forall>\<^sub>\<infinity>n. T\<^sub>U (t n) < T n" by simp
   then show "\<forall>\<^sub>\<infinity>n. t n < T n"
-  proof ae_intro_nat
+  proof ae_nat_elim
     fix n
     have "t n \<le> T\<^sub>U (t n)" by (fact overhead_min)
     also assume "T\<^sub>U (t n) < T n"
