@@ -4,6 +4,7 @@ text\<open>Definitions and lemmas from computational complexity theory.\<close>
 
 theory Complexity
   imports TM_Hoare Goedel_Numbering
+    "Supplementary/Asymptotic"
 begin
 
 subsection\<open>Time\<close>
@@ -441,39 +442,6 @@ lemma decides_altdef3: "decides_word L w \<longleftrightarrow> wf_word w \<and> 
  ``\<^bold>\<open>Theorem 12.3\<close>  If \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>T(n)\<close> time-bounded Turing machine
   \<open>M\<^sub>1\<close>, then \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>cT(n)\<close> time-bounded TM \<open>M\<^sub>2\<close> for any \<open>c > 0\<close>,
   provided that \<open>k > 1\<close> and \<open>inf\<^sub>n\<^sub>\<rightarrow>\<^sub>\<infinity> T(n)/n = \<infinity>\<close>.''\<close>
-
-definition "unbounded f \<equiv> \<forall>S. \<exists>n0. \<forall>n\<ge>n0. S \<le> f n"
-
-lemma unboundedD[dest]:
-  assumes "unbounded f"
-  obtains n0 where "\<And>n. n \<ge> n0 \<Longrightarrow> S \<le> f n"
-  using assms unfolding unbounded_def by presburger
-
-abbreviation "superlinear f \<equiv> unbounded (\<lambda>n. f (of_nat n) / (of_nat n))"
-
-lemma superlinearE:
-  fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and c :: 'd
-  assumes "superlinear T"
-  obtains n0 where "\<And>n. n0 \<le> n \<Longrightarrow> T(of_nat n) \<ge> c*(of_nat n)"
-proof -
-  obtain n0 :: nat where n0: "T(of_nat n)/(of_nat n) \<ge> c" if "n \<ge> n0" for n
-    by (fact unboundedD[OF assms])
-
-  then have "T(of_nat n) \<ge> c*(of_nat n)" if "n \<ge> n0 + 1" for n
-  proof -
-    from \<open>n \<ge> n0 + 1\<close> have "n \<ge> n0" by (fact add_leD1)
-    with n0 have "T(of_nat n)/(of_nat n) \<ge> c" .
-    moreover from \<open>n \<ge> n0 + 1\<close> have "(of_nat n :: 'd) > 0" by force
-    ultimately show "T(of_nat n) \<ge> c*(of_nat n)" by (subst (asm) pos_le_divide_eq)
-  qed
-  thus ?thesis ..
-qed
-
-lemma superlinearE':
-  fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and c :: 'd
-  assumes "superlinear T"
-  shows "\<exists>n0. \<forall>n\<ge>n0. T(of_nat n) \<ge> c*(of_nat n)"
-  using assms by (elim superlinearE) blast
 
 
 lemma linear_time_speed_up:
