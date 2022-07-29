@@ -289,17 +289,17 @@ text\<open>Notion of time-constructible from @{cite \<open>ch.~12.3\<close> hopc
   on which M actually makes T(n) moves.''\<close>
 
 definition tconstr :: "'s itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "tconstr \<ss> T \<equiv> \<exists>M::(nat, 's) TM. \<forall>n. \<exists>w. TM.time M w = T n"
+  where "tconstr TYPE('s) T \<equiv> \<exists>M::(nat, 's) TM. \<forall>n. \<exists>w. TM.time M w = T n"
 
 text\<open>Fully time-constructible, (@{cite \<open>ch.~12.3\<close> hopcroftAutomata1979}):
   ``We say that T(n) is fully time-constructible if there is a TM
   that uses T(n) time on all inputs of length n.''\<close>
 
 definition fully_tconstr :: "'q itself \<Rightarrow> 's itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "fully_tconstr \<qq> \<ss> T \<equiv> \<exists>M::('q, 's) TM. \<forall>w. TM.time M w = T (length w)"
+  where "fully_tconstr TYPE('q) TYPE('s) T \<equiv> \<exists>M::('q, 's) TM. \<forall>w. TM.time M w = T (length w)"
 
 definition computable_in_time :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> ('s list \<Rightarrow> 's list) \<Rightarrow> bool"
-  where "computable_in_time \<qq> T f \<equiv> \<exists>M::('q, 's) TM. TM.computes M f \<and> TM.time_bounded M T"
+  where "computable_in_time TYPE('q) T f \<equiv> \<exists>M::('q, 's) TM. TM.computes M f \<and> TM.time_bounded M T"
 
 lemma computableE[elim]:
   assumes "computable_in_time TYPE('q) T f"
@@ -311,7 +311,7 @@ subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
 definition typed_DTIME :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> 's lang set"
-  where "typed_DTIME \<tau> T \<equiv> {L. \<exists>M::('q, 's) TM. alphabet L \<subseteq> TM.symbols M \<and> TM.decides M L \<and> TM.time_bounded M T}"
+  where "typed_DTIME TYPE('q) T \<equiv> {L. \<exists>M::('q, 's) TM. alphabet L \<subseteq> TM.symbols M \<and> TM.decides M L \<and> TM.time_bounded M T}"
 
 abbreviation DTIME where
   "DTIME \<equiv> typed_DTIME TYPE(nat)"
