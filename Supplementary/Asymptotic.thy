@@ -217,15 +217,14 @@ subsection\<open>Asymptotic Domination\<close>
 
 lemma dominates_helper:
   fixes c :: real
-  assumes "c \<noteq> 0"
+  assumes "c > 0"
     and "T n \<noteq> 0"
-  shows "\<bar>c\<bar> * \<bar>t n\<bar> < \<bar>T n\<bar> \<longleftrightarrow> \<bar>t n / T n\<bar> < \<bar>1/c\<bar>"
+  shows "c * \<bar>t n\<bar> < \<bar>T n\<bar> \<longleftrightarrow> \<bar>t n / T n\<bar> < 1/c"
 proof -
-  from \<open>c \<noteq> 0\<close> have "\<bar>c\<bar> > 0" by simp
-  then have "\<bar>c\<bar> * \<bar>t n\<bar> < \<bar>T n\<bar> \<longleftrightarrow> \<bar>t n\<bar> < \<bar>T n\<bar> / \<bar>c\<bar>"
-    by (subst pos_less_divide_eq) argo+
-  also have "... \<longleftrightarrow> \<bar>t n\<bar> < \<bar>T n\<bar> * \<bar>1/c\<bar>" by force
-  also from \<open>T n \<noteq> 0\<close> have "... \<longleftrightarrow> \<bar>t n / T n\<bar> < \<bar>1/c\<bar>"
+  have "c * \<bar>t n\<bar> < \<bar>T n\<bar> \<longleftrightarrow> \<bar>t n\<bar> < \<bar>T n\<bar> / c"
+    unfolding pos_less_divide_eq[OF \<open>c > 0\<close>] by argo
+  also have "... \<longleftrightarrow> \<bar>t n\<bar> < \<bar>T n\<bar> * (1/c)" by argo
+  also from \<open>T n \<noteq> 0\<close> have "... \<longleftrightarrow> \<bar>t n / T n\<bar> < 1/c"
     unfolding abs_divide by (subst pos_divide_less_eq) (simp, argo)
   finally show ?thesis .
 qed
@@ -239,8 +238,9 @@ proof cases
   assume [simp]: "c = 0"
   show ?thesis by (ae_nat_elim add: \<open>\<forall>\<^sub>\<infinity>n. T n \<noteq> 0\<close>) simp
 next
-  let ?r = "\<bar>1/c\<bar>"
+  let ?r = "1/\<bar>c\<bar>"
   assume "c \<noteq> 0"
+  then have "\<bar>c\<bar> > 0" by simp
   then have "?r > 0" by simp
   with \<open>(\<lambda>n. t n / T n) \<longlonglongrightarrow> 0\<close> have "\<forall>\<^sub>\<infinity>n. \<bar>t n / T n\<bar> < ?r"
     unfolding lim_sequentially dist_real_def diff_0_right by blast
@@ -250,7 +250,7 @@ next
     assume "\<bar>t n / T n\<bar> < ?r" and "T n \<noteq> 0"
 
     have "c * \<bar>t n\<bar> \<le> \<bar>c\<bar> * \<bar>t n\<bar>" using mult_right_mono abs_ge_self abs_ge_zero .
-    also from \<open>c \<noteq> 0\<close> and \<open>\<bar>t n / T n\<bar> < ?r\<close> and \<open>T n \<noteq> 0\<close> have "\<bar>c\<bar> * \<bar>t n\<bar> < \<bar>T n\<bar>"
+    also from \<open>\<bar>c\<bar> > 0\<close> and \<open>\<bar>t n / T n\<bar> < ?r\<close> and \<open>T n \<noteq> 0\<close> have "\<bar>c\<bar> * \<bar>t n\<bar> < \<bar>T n\<bar>"
       by (subst dominates_helper)
     finally show "c * \<bar>t n\<bar> < \<bar>T n\<bar>" .
   qed
