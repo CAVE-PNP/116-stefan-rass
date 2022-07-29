@@ -185,10 +185,14 @@ lemma tcomp_nat_id:
   shows "(\<And>n. f n \<ge> n + 1) \<Longrightarrow> tcomp f = f"
   by (intro ext) (unfold tcomp_nat_simp, rule max_absorb2)
 
-lemma tcomp_nat_mono: "T n \<ge> t n \<Longrightarrow> tcomp T n \<ge> tcomp t n" unfolding Let_def of_nat_id tcomp_def
+lemma tcomp_nat_mono:
+  fixes T t :: "nat \<Rightarrow> 'd::floor_ceiling"
+  shows "T n \<ge> t n \<Longrightarrow> tcomp T n \<ge> tcomp t n"
+  unfolding Let_def of_nat_id tcomp_def
   by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono le_refl)
 
 lemma tcomp_mono:
+  fixes T t :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling"
   assumes Tt: "T (of_nat n) \<ge> t (of_nat n)"
   shows "tcomp T n \<ge> tcomp t n"
 proof -
@@ -198,6 +202,7 @@ proof -
 qed
 
 lemma tcomp_mono':
+  fixes T t :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling"
   assumes Tt: "\<And>x. T x \<ge> t x"
   shows "tcomp T n \<ge> tcomp t n"
 proof -
@@ -207,6 +212,7 @@ proof -
 qed
 
 lemma
+  fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling"
   shows tcomp_altdef1: "nat (max (\<lceil>n\<rceil> + 1) \<lceil>T (of_nat n)\<rceil>) = tcomp T n" (is "?def1 = tcomp T n")
     and tcomp_altdef2: "nat (max \<lceil> n + 1 \<rceil> \<lceil>T (of_nat n)\<rceil>) = tcomp T n" (is "?def2 = tcomp T n")
 proof -
@@ -228,57 +234,26 @@ text\<open>Predicates to verify that TMs halt within a given time-bound.\<close>
 
 context TM begin
 
-definition time_bounded_word :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> 's list \<Rightarrow> bool"
-  where time_bounded_def[simp]: "time_bounded_word T w \<equiv> \<exists>n.
-            n \<le> tcomp\<^sub>w T w \<and> is_final (run n w)"
+(* TODO extract general version \<open>halts_within n w \<equiv> is_final (run n w)\<close> (maybe abbrev?) *)
+(* TODO rename time_bounded_def -> time_bounded_word_def (use auto generated name; less confusing) *)
+definition time_bounded_word :: "(nat \<Rightarrow> nat) \<Rightarrow> 's list \<Rightarrow> bool"
+  where time_bounded_def[simp]: "time_bounded_word T w \<equiv> is_final (run (T (length w)) w)"
 
-abbreviation time_bounded :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> bool"
+abbreviation time_bounded :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
   where "time_bounded T \<equiv> \<forall>w. time_bounded_word T w"
 
-lemma time_boundedI: "is_final (run (tcomp\<^sub>w T w) w) \<Longrightarrow> time_bounded_word T w"
-  unfolding time_bounded_def by blast
+(* TODO move this somewhere else *)
+lemma final_steps_ex_eq[simp]: "(\<exists>n\<le>N. is_final (steps n c)) \<longleftrightarrow> is_final (steps N c)" by blast
 
-lemma time_bounded_altdef: "time_bounded_word T w \<longleftrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
-proof
-  assume "time_bounded_word T w"
-  then obtain n where "n \<le> tcomp\<^sub>w T w" and "is_final (run n w)" unfolding time_bounded_def by blast
-  then show "is_final (run (tcomp\<^sub>w T w) w)" by blast
-qed (* direction "\<Longleftarrow>" by *) (fact time_boundedI)
 
-lemma time_boundedE: "time_bounded_word T w \<Longrightarrow> is_final (run (tcomp\<^sub>w T w) w)"
-  using time_bounded_altdef by blast
+mk_ide time_bounded_def |intro time_bounded_wordI[intro]| |dest time_bounded_wordD[dest]|
 
 lemma time_bounded_word_mono[dest]:
-  fixes T t w
-  assumes Tt: "tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w"
-    and tr: "time_bounded_word t w"
-  shows "time_bounded_word T w"
-proof -
-  from tr obtain n where n_tcomp: "n \<le> tcomp\<^sub>w t w" and final_n: "is_final (run n w)"
-    unfolding time_bounded_def of_nat_id by blast
-  from n_tcomp Tt have "n \<le> tcomp\<^sub>w T w" by (fact le_trans)
-  with final_n show "time_bounded_word T w" unfolding time_bounded_def by blast
-qed
+  "time_bounded_word t w \<Longrightarrow> t (length w) \<le> T (length w) \<Longrightarrow> time_bounded_word T w" by blast
 
-lemma time_bounded_mono':
-  fixes T t
-  assumes "\<And>w::'s list. tcomp\<^sub>w T w \<ge> tcomp\<^sub>w t w"
-    and "time_bounded t"
-  shows "time_bounded T"
-  using assms time_bounded_word_mono by blast
+lemma time_bounded_mono: "time_bounded t \<Longrightarrow> (\<And>x. T x \<ge> t x) \<Longrightarrow> time_bounded T" by blast
 
-lemma time_bounded_mono:
-  fixes T t :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling)"
-  assumes Tt: "\<And>x. T x \<ge> t x"
-    and "time_bounded t"
-  shows "time_bounded T"
-  by (rule time_bounded_mono', rule tcomp_mono) fact+
-
-lemma time_bounded_altdef2: "time_bounded T \<longleftrightarrow> (\<forall>w. halts w \<and> time w \<le> tcomp\<^sub>w T w)"
-  unfolding time_bounded_def by blast
-
-corollary time_bounded_time: "time_bounded T \<Longrightarrow> time w \<le> tcomp\<^sub>w T w"
-  unfolding time_bounded_altdef2 by blast
+lemma time_bounded_altdef2: "time_bounded T \<longleftrightarrow> (\<forall>w. halts w \<and> time w \<le> T (length w))" by blast
 
 
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
@@ -298,7 +273,7 @@ text\<open>Fully time-constructible, (@{cite \<open>ch.~12.3\<close> hopcroftAut
 definition fully_tconstr :: "'q itself \<Rightarrow> 's itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
   where "fully_tconstr TYPE('q) TYPE('s) T \<equiv> \<exists>M::('q, 's) TM. \<forall>w. TM.time M w = T (length w)"
 
-definition computable_in_time :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> ('s list \<Rightarrow> 's list) \<Rightarrow> bool"
+definition computable_in_time :: "'q itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> ('s list \<Rightarrow> 's list) \<Rightarrow> bool"
   where "computable_in_time TYPE('q) T f \<equiv> \<exists>M::('q, 's) TM. TM.computes M f \<and> TM.time_bounded M T"
 
 lemma computableE[elim]:
@@ -310,7 +285,7 @@ using assms that unfolding computable_in_time_def by blast
 subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
-definition typed_DTIME :: "'q itself \<Rightarrow> ('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> 's lang set"
+definition typed_DTIME :: "'q itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> 's lang set"
   where "typed_DTIME TYPE('q) T \<equiv> {L. \<exists>M::('q, 's) TM. alphabet L \<subseteq> TM.symbols M \<and> TM.decides M L \<and> TM.time_bounded M T}"
 
 abbreviation DTIME where
@@ -395,7 +370,7 @@ qed
 
 lemma DTIME_mono_ae':
   fixes L :: "'s lang"
-  assumes Tt: "\<And>n. N \<le> n \<Longrightarrow> tcomp T n \<ge> tcomp t n"
+  assumes Tt: "\<And>n. N \<le> n \<Longrightarrow> T n \<ge> t n"
     and "L \<in> typed_DTIME TYPE('q) t"
   shows "L \<in> typed_DTIME TYPE('q) T"
 proof -
