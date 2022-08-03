@@ -288,6 +288,7 @@ text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in tim
 definition typed_DTIME :: "'q itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> 's lang set"
   where "typed_DTIME TYPE('q) T \<equiv> {L. \<exists>M::('q, 's) TM. alphabet L \<subseteq> TM.symbols M \<and> TM.decides M L \<and> TM.time_bounded M T}"
 
+
 abbreviation DTIME where
   "DTIME \<equiv> typed_DTIME TYPE(nat)"
 
@@ -306,24 +307,19 @@ lemma in_dtimeE[elim]:
     and "TM.time_bounded M T"
   using assms unfolding typed_DTIME_def by blast
 
+
 lemma in_dtimeD[dest]:
+  fixes L :: "'s lang"
   assumes "L \<in> typed_DTIME TYPE('q) T"
   shows "\<exists>M::('q, 's) TM. alphabet L \<subseteq> TM.symbols M \<and> TM.decides M L \<and> TM.time_bounded M T"
   using assms unfolding typed_DTIME_def ..
-
-corollary in_dtime_mono':
-  fixes T t
-  assumes "\<And>n. tcomp T n \<ge> tcomp t n"
-    and "L \<in> typed_DTIME TYPE('q) t"
-  shows "L \<in> typed_DTIME TYPE('q) T"
-  using assms TM.time_bounded_mono' by (elim in_dtimeE, intro TM.in_dtimeI) blast+
 
 corollary in_dtime_mono:
   fixes T t
   assumes "\<And>n. t n \<le> T n"
     and "L \<in> typed_DTIME TYPE('q) t"
   shows "L \<in> typed_DTIME TYPE('q) T"
-  using assms by (intro in_dtime_mono'[of t T] tcomp_mono)
+  using assms TM.time_bounded_mono by (elim in_dtimeE, intro TM.in_dtimeI) blast+
 
 subsection\<open>Classical Results\<close>
 
@@ -368,10 +364,10 @@ proof (intro DTIME_ae exI[of _ M] conjI)
     by (rule ae_word_lengthI) blast
 qed
 
-lemma DTIME_mono_ae':
+lemma DTIME_mono_ae[dest]:
   fixes L :: "'s lang"
-  assumes Tt: "\<And>n. N \<le> n \<Longrightarrow> T n \<ge> t n"
-    and "L \<in> typed_DTIME TYPE('q) t"
+  assumes "L \<in> typed_DTIME TYPE('q) t"
+    and Tt: "\<And>n. N \<le> n \<Longrightarrow> T n \<ge> t n"
   shows "L \<in> typed_DTIME TYPE('q) T"
 proof -
   from \<open>L \<in> typed_DTIME TYPE('q) t\<close> obtain M :: "('q, 's) TM"
@@ -392,17 +388,6 @@ proof -
   qed
 qed
 
-lemma DTIME_mono_ae:
-  assumes Tt: "\<And>n. n \<ge> N \<Longrightarrow> T (of_nat n) \<ge> t (of_nat n)"
-    and "L \<in> typed_DTIME TYPE('q) t"
-  shows "L \<in> typed_DTIME TYPE('q) T"
-proof (rule DTIME_mono_ae')
-  fix n :: nat
-  assume "n \<ge> N"
-  then have "T (of_nat n) \<ge> t (of_nat n)" by (fact Tt)
-  then show "tcomp t n \<le> tcomp T n" by (fact tcomp_mono)
-qed (fact \<open>L \<in> typed_DTIME TYPE('q) t\<close>)
-
 
 subsubsection\<open>Linear Speed-Up\<close>
 
@@ -420,34 +405,35 @@ lemma decides_altdef3: "decides_word L w \<longleftrightarrow> wf_word w \<and> 
 
 
 lemma linear_time_speed_up:
+  fixes T :: "nat \<Rightarrow> nat" and c :: real
   assumes "c > 0"
   \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close> required by @{cite hopcroftAutomata1979}, but simpler to define in Isabelle.\<close>
     and "superlinear T"
     and "TM.decides M1 L"
     and "TM.time_bounded M1 T"
-  obtains M2 where "TM.decides M2 L" and "TM.time_bounded M2 (\<lambda>n. c * T n)"
+  obtains M2 where "TM.decides M2 L" and "TM.time_bounded M2 (tcomp (\<lambda>n. c * T n))"
   sorry
 
 
 corollary DTIME_speed_up:
-  fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and c :: 'd
+  fixes T :: "nat \<Rightarrow> nat" and c :: real
     and L::"'s lang"
   assumes "c > 0"
     and "superlinear T"
     and "L \<in> typed_DTIME TYPE('q1) T"
-  shows "L \<in> typed_DTIME TYPE('q2) (\<lambda>n. c * T n)"
+  shows "L \<in> typed_DTIME TYPE('q2) (tcomp (\<lambda>n. c * T n))"
 proof -
   from \<open>L \<in> typed_DTIME TYPE('q1) T\<close> obtain M1::"('q1, 's) TM"
     where "TM.decides M1 L" and "TM.time_bounded M1 T" ..
   with assms(1-2) obtain M2::"('q2, 's) TM"
-    where "TM.decides M2 L" and "TM.time_bounded M2 (\<lambda>n. c * T n)"
+    where "TM.decides M2 L" and "TM.time_bounded M2 (tcomp (\<lambda>n. c * T n))"
     by (rule linear_time_speed_up)
   then show ?thesis unfolding typed_DTIME_def by blast
 qed
 
 lemma DTIME_speed_up_rev:
-  fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and c :: 'd
-  defines "T' \<equiv> \<lambda>n. c * T n"
+  fixes T :: "nat \<Rightarrow> nat" and c :: real
+  defines "T' \<equiv> tcomp (\<lambda>n. c * T n)"
   assumes "c > 0"
     and "superlinear T"
     and "L \<in> typed_DTIME TYPE('q1) T'"
@@ -479,11 +465,11 @@ proof -
 qed
 
 corollary DTIME_speed_up_eq:
-  fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and c :: 'd
+  fixes T :: "nat \<Rightarrow> nat"
   assumes "c > 0"
     and "superlinear T"
   shows "typed_DTIME TYPE('q1) (\<lambda>n. c * T n) = typed_DTIME TYPE('q2) T"
-  using assms by (intro set_eqI iffI) (fact DTIME_speed_up_rev, fact DTIME_speed_up)
+  using assms apply (intro set_eqI iffI) apply (fact DTIME_speed_up_rev, fact DTIME_speed_up)
 
 corollary DTIME_speed_up_div:
   fixes T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling" and d :: 'd
