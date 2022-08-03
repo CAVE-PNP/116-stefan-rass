@@ -14,11 +14,11 @@ locale UTM_Encoding =
   fixes enc\<^sub>U :: "('q, 's) TM \<times> 's list \<Rightarrow> bool list"
     and is_valid_enc\<^sub>U :: "bool list \<Rightarrow> bool"
     and dec\<^sub>U :: "bool list \<Rightarrow> ('q, 's) TM \<times> 's list"
-  assumes inj_enc\<^sub>U: "inj enc\<^sub>U"
-    and valid_enc: "\<And>M w. TM.wf_input M w \<Longrightarrow> is_valid_enc\<^sub>U (enc\<^sub>U (M, w))"
-    and enc_dec:   "\<And>M w. TM.wf_input M w \<Longrightarrow> dec\<^sub>U (enc\<^sub>U (M, w)) = (M, w)"  (* TODO is this possible? the transition table is defined as a function *)
-    and invalid_rejects: "\<And>x. \<not> is_valid_enc\<^sub>U x \<Longrightarrow> let (M, w) = dec\<^sub>U x in TM.rejects M w" (* a nicer version of: "\<exists>q\<^sub>0 s w. dec\<^sub>U x = (rejecting_TM q\<^sub>0 s, w)" *)
-    and dec_enc: "\<And>x. is_valid_enc\<^sub>U x \<Longrightarrow> enc\<^sub>U (dec\<^sub>U x) = x" (* this should be easy to achieve *)
+  assumes valid_enc: "\<And>M w. TM.wf_input M w \<Longrightarrow> is_valid_enc\<^sub>U (enc\<^sub>U (M, w))"
+    and inj_enc\<^sub>U: "inj enc\<^sub>U"  (* see remarks for TM_encoding *)
+    and enc_dec:   "\<And>M w. TM.wf_input M w \<Longrightarrow> dec\<^sub>U (enc\<^sub>U (M, w)) = (M, w)"
+    and invalid_rejects: "\<And>x. \<not> is_valid_enc\<^sub>U x \<Longrightarrow> let (M, w) = dec\<^sub>U x in TM.rejects M w"
+    and dec_enc: "\<And>x. is_valid_enc\<^sub>U x \<Longrightarrow> enc\<^sub>U (dec\<^sub>U x) = x"
 
 locale UTM = UTM: TM M\<^sub>U + UTM_Encoding enc\<^sub>U is_valid_enc\<^sub>U dec\<^sub>U
   for M\<^sub>U :: "('q, bool) TM" (* TODO make 'q = nat ? *)
@@ -36,9 +36,9 @@ locale timed_UTM = UTM M\<^sub>U for M\<^sub>U :: "(nat, bool) TM" +
 
 subsection\<open>The Time Hierarchy Theorem\<close>
 
-locale tht_assms = timed_UTM +
+locale tht_assms = TM_Encoding + timed_UTM +
   fixes T t :: "nat \<Rightarrow> nat"
-  assumes fully_tconstr_T: "fully_tconstr TYPE(nat) TYPE(bool) T"
+  assumes fully_tconstr_T: "fully_tconstr TYPE(bool) T"
 
   \<comment> \<open>This assumption represents the statements containing \<open>lim\<close> @{cite rassOwf2017} and \<open>lim inf\<close> @{cite hopcroftAutomata1979}.
       \<^const>\<open>LIMSEQ\<close> (\<^term>\<open>X \<longlonglongrightarrow> x\<close>) was chosen, as it seems to match the intended meaning
@@ -89,9 +89,9 @@ text\<open>\<open>L\<^sub>D\<close>, defined as part of the proof for the Time H
        \<open>LD := {w \<in> \<Sigma>\<^sup>*: M\<^sub>w halts and rejects w within \<le> T(len(w)) steps}\<close>.    (9)''
   @{cite rassOwf2017}\<close>
 
-definition L\<^sub>D :: "'b lang"
-  where LD_def[simp]: "L\<^sub>D \<equiv> {w. let M\<^sub>w = TM_decode_pad w in
-                  TM.rejects M\<^sub>w w \<and> TM.time_bounded_word M\<^sub>w T w}"
+definition L\<^sub>D :: "bool lang"
+  where LD_def[simp]: "L\<^sub>D \<equiv> Lang UNIV (\<lambda>w. let M\<^sub>w = dec w in
+                  TM.rejects M\<^sub>w w \<and> TM.time_bounded_word M\<^sub>w T w)"
 
 \<comment> \<open>In the above definition, membership is dependent on the whole word \<open>w\<close>,
   as this is the input for \<open>M\<^sub>w\<close>.
@@ -100,7 +100,7 @@ definition L\<^sub>D :: "'b lang"
   Therefore, the membership of some \<open>w'\<close> with \<open>TM_decode_pad w' = M\<^sub>w\<close>
   is not equivalent to that of \<open>w\<close>.
 
-  To illustrate this, consider a TM that decides word only based on the value of their last bit;
+  To illustrate this, consider a TM that decides words only based on the value of their last bit;
   accepting if it is \<open>1\<close> and rejecting otherwise.
   This TM will reject exactly half of its encodings, causing only these to be members of \<open>L\<^sub>D\<close>.\<close>
 
@@ -108,8 +108,8 @@ text\<open>Alternative formulation: \<open>L\<^sub>D' := {w \<in> \<Sigma>\<^sup
   where \<open>w' := strip_al_prefix (strip_exp_pad w)\<close>.\<close>
 
 definition L\<^sub>D' :: "'b lang"
-  where LD'_def[simp]: "L\<^sub>D' \<equiv> {w. let M\<^sub>w = TM_decode_pad w; w' = strip_al_prefix (strip_exp_pad w) in
-                  rejects M\<^sub>w w' \<and> time_bounded_word T M\<^sub>w w'}"
+  where LD'_def[simp]: "L\<^sub>D' \<equiv> Lang UNIV (\<lambda>w. let w' = strip_al_prefix (strip_exp_pad w); M\<^sub>w = dec w' in
+                  rejects M\<^sub>w w' \<and> time_bounded_word T M\<^sub>w w')"
 
 theorem time_hierarchy: "L\<^sub>D \<in> DTIME TYPE('a) T - DTIME TYPE('a) t"
 proof
