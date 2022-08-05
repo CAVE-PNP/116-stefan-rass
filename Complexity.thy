@@ -255,23 +255,45 @@ lemma time_bounded_mono: "time_bounded t \<Longrightarrow> (\<And>x. T x \<ge> t
 
 lemma time_bounded_altdef2: "time_bounded T \<longleftrightarrow> (\<forall>w. halts w \<and> time w \<le> T (length w))" by blast
 
-
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
+
+
+subsection\<open>Time-Constructibility\<close>
 
 text\<open>Notion of time-constructible from @{cite \<open>ch.~12.3\<close> hopcroftAutomata1979}:
   ``A function T(n) is said to be time constructible if there exists a T(n) time-
-  bounded multitape Turing machine M such that for each n there exists some input
+  bounded multi-tape Turing machine M such that for each n there exists some input
   on which M actually makes T(n) moves.''\<close>
 
-definition tconstr :: "'s itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "tconstr TYPE('s) T \<equiv> \<exists>M::(nat, 's) TM. \<forall>n. \<exists>w. TM.time M w = T n"
+definition typed_time_constr :: "'q itself \<Rightarrow> 's itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "typed_time_constr TYPE('q) TYPE('s) T \<equiv> \<exists>M::('q, 's) TM. \<forall>n. \<exists>w. TM.time M w = T n"
+
+abbreviation "time_constr \<equiv> typed_time_constr TYPE(nat) TYPE(nat)"
+
 
 text\<open>Fully time-constructible, (@{cite \<open>ch.~12.3\<close> hopcroftAutomata1979}):
   ``We say that T(n) is fully time-constructible if there is a TM
   that uses T(n) time on all inputs of length n.''\<close>
 
-definition fully_tconstr :: "'q itself \<Rightarrow> 's itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "fully_tconstr TYPE('q) TYPE('s) T \<equiv> \<exists>M::('q, 's) TM. \<forall>w. TM.time M w = T (length w)"
+definition typed_fully_time_constr :: "'q itself \<Rightarrow> 's itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "typed_fully_time_constr TYPE('q) TYPE('s) T \<equiv> \<exists>M::('q, 's) TM. \<forall>w. TM.time M w = T (length w)"
+
+abbreviation "fully_time_constr \<equiv> typed_fully_time_constr TYPE(nat) TYPE(nat)"
+
+
+corollary fully_imp_time_constr:
+  assumes "typed_fully_time_constr TYPE('q) TYPE('s) T"
+  shows "typed_time_constr TYPE('q) TYPE('s) T"
+proof -
+  from assms obtain M :: "('q, 's) TM" where *: "TM.time M w = T (length w)" for w
+    unfolding typed_fully_time_constr_def by blast
+  then show ?thesis unfolding typed_time_constr_def
+  proof (intro exI allI)
+    fix n
+    let ?w = "undefined \<up> n" \<comment> \<open>@{thm Ex_list_of_length}\<close>
+    show "TM.time M ?w = T n" unfolding * by simp
+  qed
+qed
 
 definition computable_in_time :: "'q itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> ('s list \<Rightarrow> 's list) \<Rightarrow> bool"
   where "computable_in_time TYPE('q) T f \<equiv> \<exists>M::('q, 's) TM. TM.computes M f \<and> TM.time_bounded M T"
