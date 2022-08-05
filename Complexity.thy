@@ -404,6 +404,7 @@ lemma decides_altdef3: "decides_word L w \<longleftrightarrow> wf_word w \<and> 
   provided that \<open>k > 1\<close> and \<open>inf\<^sub>n\<^sub>\<rightarrow>\<^sub>\<infinity> T(n)/n = \<infinity>\<close>.''\<close>
 
 
+(* TODO check for consistency *)
 lemma linear_time_speed_up:
   fixes T :: "nat \<Rightarrow> nat" and c :: real
   assumes "c > 0"

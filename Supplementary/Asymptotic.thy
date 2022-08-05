@@ -361,15 +361,16 @@ lemma superlinearE':
   using assms by (elim superlinearE) blast
 
 
-(* TODO rework these definitions *)
-definition "unbounded f \<equiv> \<forall>S. \<exists>n0. \<forall>n\<ge>n0. S \<le> f n"
+(* TODO general versions of these definitions? *)
+definition unbounded :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "unbounded f \<equiv> \<forall>S. \<forall>\<^sub>\<infinity>n. S \<le> f n"
 
 lemma unboundedD[dest]:
   assumes "unbounded f"
   obtains n0 where "\<And>n. n \<ge> n0 \<Longrightarrow> S \<le> f n"
-  using assms unfolding unbounded_def by presburger
+  using assms unfolding unbounded_def by blast
 
-abbreviation "superlinear f \<equiv> unbounded (\<lambda>n. f (of_nat n) / (of_nat n))"
-
+abbreviation superlinear :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "superlinear f \<equiv> unbounded (\<lambda>n. f n div n)"
 
 end
