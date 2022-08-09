@@ -227,6 +227,9 @@ proof -
   then show "?def2 = tcomp T n" unfolding h1 .
 qed
 
+lemma tcomp_tcomp[simp]: "tcomp (tcomp f) = tcomp f" unfolding tcomp_def
+  unfolding of_nat_id ceiling_of_nat nat_int max.left_idem ..
+
 
 lemma less_max_self:
   fixes x :: "'a :: linorder"
@@ -396,10 +399,10 @@ lemma in_dtimeD[dest]:
   shows "\<exists>M::('q, 's) TM. alphabet L \<subseteq> TM.symbols M \<and> TM.decides M L \<and> TM.time_bounded M T"
   using assms unfolding typed_DTIME_def ..
 
-corollary in_dtime_mono:
+corollary in_dtime_mono[dest]:
   fixes T t
-  assumes "\<And>n. t n \<le> T n"
-    and "L \<in> typed_DTIME TYPE('q) t"
+  assumes "L \<in> typed_DTIME TYPE('q) t"
+    and "\<And>n. t n \<le> T n"
   shows "L \<in> typed_DTIME TYPE('q) T"
   using assms TM.time_bounded_mono by (elim in_dtimeE, intro TM.in_dtimeI) blast+
 
@@ -486,7 +489,7 @@ lemma decides_altdef3: "decides_word L w \<longleftrightarrow> wf_word w \<and> 
   provided that \<open>k > 1\<close> and \<open>inf\<^sub>n\<^sub>\<rightarrow>\<^sub>\<infinity> T(n)/n = \<infinity>\<close>.''\<close>
 
 
-(* TODO check for consistency *)
+(* TODO (!) check for consistency (fix types!) *)
 lemma linear_time_speed_up:
   fixes T :: "nat \<Rightarrow> nat" and c :: real
   assumes "c > 0"
@@ -498,55 +501,131 @@ lemma linear_time_speed_up:
   sorry
 
 
-corollary DTIME_speed_up:
+corollary DTIME_speed_up[dest]:
   fixes T :: "nat \<Rightarrow> nat" and c :: real
     and L::"'s lang"
-  assumes "c > 0"
+  assumes "L \<in> typed_DTIME TYPE('q1) T"
     and "superlinear T"
-    and "L \<in> typed_DTIME TYPE('q1) T"
+    and "c > 0"
   shows "L \<in> typed_DTIME TYPE('q2) (tcomp (\<lambda>n. c * T n))"
 proof -
   from \<open>L \<in> typed_DTIME TYPE('q1) T\<close> obtain M1::"('q1, 's) TM"
     where "TM.decides M1 L" and "TM.time_bounded M1 T" ..
-  with assms(1-2) obtain M2::"('q2, 's) TM"
+  with assms(3, 2) obtain M2::"('q2, 's) TM"
     where "TM.decides M2 L" and "TM.time_bounded M2 (tcomp (\<lambda>n. c * T n))"
     by (rule linear_time_speed_up)
   then show ?thesis unfolding typed_DTIME_def by blast
 qed
 
+
+lemma speed_up_rev_helper:
+  fixes n :: nat and c d :: real
+  defines "d \<equiv> 1/(2*c)"
+  assumes "c \<ge> 1" (* is this necessary? *)
+  shows "nat \<lceil>d * \<lceil>c * n\<rceil>\<rceil> \<le> n"
+  sorry (* @moritz proven on paper, to be formalized as exercise *)
+
+lemma speed_up_rev_helper':
+  fixes n :: nat and c d :: real
+  defines "d \<equiv> 1/(2*c)"
+  assumes "c \<ge> 1"
+  shows "nat \<lceil>d * nat \<lceil>c * n\<rceil>\<rceil> \<le> n"
+proof -
+  from \<open>c \<ge> 1\<close> have "c * n \<ge> 0" by simp
+  then have *: "real (nat \<lceil>c * n\<rceil>) = real_of_int \<lceil>c * n\<rceil>" by simp
+  from speed_up_rev_helper[OF \<open>c \<ge> 1\<close>] show ?thesis unfolding * d_def .
+qed
+
 lemma DTIME_speed_up_rev:
   fixes T :: "nat \<Rightarrow> nat" and c :: real
   defines "T' \<equiv> tcomp (\<lambda>n. c * T n)"
-  assumes "c > 0"
+  assumes "L \<in> typed_DTIME TYPE('q1) T'"
     and "superlinear T"
-    and "L \<in> typed_DTIME TYPE('q1) T'"
-  shows "L \<in> typed_DTIME TYPE('q2) T"
-proof -
-  define c' where "c' \<equiv> 1/c"
-  have T: "T = (\<lambda>n. c' * T' n)" unfolding T'_def c'_def using \<open>c > 0\<close> by force
+    and "c > 0"
+  shows "L \<in> typed_DTIME TYPE('q2) (tcomp T)"
+proof (cases "c \<ge> 1")
+  assume "\<not> c \<ge> 1"
+  then have "c \<le> 1" by simp
 
-  from \<open>c > 0\<close> have "c' > 0" unfolding c'_def by simp
-  moreover have "superlinear T'" unfolding T'_def unbounded_def
-  proof (rule allI)
-    fix N
-    define N' where "N' \<equiv> N / c"
-    {
-      fix n :: nat
-      let ?n = "of_nat n"
-      have "T(?n)/?n \<ge> N/c \<longleftrightarrow> c*T(?n)/?n \<ge> N" unfolding pos_divide_le_eq[OF \<open>c > 0\<close>]
-      proof -
-        let ?lhs = "(T ?n) / ?n * c" and ?rhs = "(c * T ?n) / ?n"
-        have "?lhs = ?rhs" by force
-        then show "(N \<le> ?lhs) = (N \<le> ?rhs)" by (fact arg_cong)
-      qed
-    } note * = this
-    from assms(3) have "\<exists>n'. \<forall>n\<ge>n'. T(of_nat n)/(of_nat n) \<ge> N'" unfolding unbounded_def ..
-    then show "\<exists>n'. \<forall>n\<ge>n'. c * T(of_nat n)/(of_nat n) \<ge> N" unfolding N'_def * .
+  define T'' where "T'' \<equiv> tcomp (\<lambda>n. 1 * real (T' n))"
+  have "T'' = T'" unfolding T''_def T'_def mult_1 tcomp_tcomp ..
+
+  from \<open>superlinear T\<close> and \<open>c > 0\<close> have "superlinear T'" unfolding T'_def by simp
+  with \<open>L \<in> typed_DTIME TYPE('q1) T'\<close>
+  have "L \<in> typed_DTIME TYPE('q2) T''" unfolding T''_def by (rule DTIME_speed_up) simp
+  then show "L \<in> typed_DTIME TYPE('q2) (tcomp T)" unfolding \<open>T'' = T'\<close> and T'_def
+  proof (rule in_dtime_mono, intro tcomp_nat_mono)
+    fix n
+    have "real (T n) \<ge> 0" by simp
+    with \<open>c \<le> 1\<close> show "c * T n \<le> T n" by (simp add: mult_le_cancel_right2)
   qed
-  from \<open>c' > 0\<close> this assms(4) show "L \<in> typed_DTIME TYPE('q2) T"
-    unfolding T by (fact DTIME_speed_up)
+next
+  assume "c \<ge> 1"
+  define d where "d \<equiv> 1 / (2*c)"
+  from \<open>c > 0\<close> have "d > 0" unfolding d_def by simp
+
+  define T'' where "T'' \<equiv> tcomp (\<lambda>n. d * T' n)"
+
+  from \<open>superlinear T\<close> and \<open>c > 0\<close> have "superlinear T'" unfolding T'_def by simp
+
+  from \<open>L \<in> typed_DTIME TYPE('q1) T'\<close> and \<open>superlinear T'\<close> and \<open>d > 0\<close>
+  have "L \<in> typed_DTIME TYPE('q2) T''" unfolding T''_def by (rule DTIME_speed_up)
+  then show "L \<in> typed_DTIME TYPE('q2) (tcomp T)"
+  proof (rule in_dtime_mono)
+    have nle_le': "\<not> a \<le> b \<Longrightarrow> a \<ge> b" for a b :: "'x :: linorder" by simp
+
+    fix n
+    show "T'' n \<le> tcomp T n "
+    proof (cases "n + 1 \<ge> T n", cases "n + 1 \<ge> nat \<lceil>c * real (T n)\<rceil>")
+      assume "\<not> n + 1 \<ge> T n"
+      then have "n + 1 \<le> T n" by (fact nle_le')
+      also have "... \<le> nat \<lceil>1 * real (T n)\<rceil>" by simp
+      also have "... \<le> nat \<lceil>c * real (T n)\<rceil>" using \<open>c \<ge> 1\<close>
+        by (intro nat_mono ceiling_mono mult_right_mono) auto
+      finally have "n + 1 \<le> nat \<lceil>c * real (T n)\<rceil>" .
+
+      then have h3: "T' n = nat \<lceil>c * real (T n)\<rceil>"
+        unfolding T'_def tcomp_def unfolding of_nat_id nat_int ceiling_of_nat
+        by (rule max.absorb2)
+
+      have "T'' n = max (n + 1) (nat \<lceil>d * nat \<lceil>c * T n\<rceil>\<rceil>)" unfolding T''_def tcomp_def of_nat_id h3 ..
+      also have "... \<le> tcomp T n" unfolding tcomp_def of_nat_id nat_int ceiling_of_nat
+      proof (intro max.mono)
+        from \<open>c \<ge> 1\<close> show "nat \<lceil>d * nat \<lceil>c * T n\<rceil>\<rceil> \<le> T n"
+          unfolding d_def by (fact speed_up_rev_helper')
+      qed blast
+      finally show "T'' n \<le> tcomp T n" .
+    next
+      assume h1: "n + 1 \<ge> T n"
+      assume "\<not> n + 1 \<ge> nat \<lceil>c * real (T n)\<rceil>"
+      then have h1b: "n + 1 \<le> nat \<lceil>c * real (T n)\<rceil>" by (fact nle_le')
+      then have h3: "T' n = nat \<lceil>c * real (T n)\<rceil>" unfolding T'_def tcomp_def
+        unfolding of_nat_id nat_int ceiling_of_nat by (rule max.absorb2)
+
+      have "T'' n = max (n + 1) (nat \<lceil>d * nat \<lceil>c * T n\<rceil>\<rceil>)" unfolding T''_def tcomp_def of_nat_id h3 ..
+      also have "... \<le> tcomp T n" unfolding tcomp_def
+      proof (rule max.mono)
+        from \<open>c \<ge> 1\<close> have "nat \<lceil>d * nat \<lceil>c * T n\<rceil>\<rceil> \<le> T n" unfolding d_def by (fact speed_up_rev_helper')
+        then show "nat \<lceil>d * nat \<lceil>c * T n\<rceil>\<rceil> \<le> nat \<lceil>T (of_nat n)\<rceil>" unfolding of_nat_id ceiling_of_nat nat_int .
+      qed blast
+      finally show "T'' n \<le> tcomp T n" .
+    next
+      assume h1: "n + 1 \<ge> T n"
+      assume h1b: "n + 1 \<ge> nat \<lceil>c * real (T n)\<rceil>"
+      then have h3: "T' n = n + 1"
+        unfolding tcomp_def T'_def unfolding of_nat_id nat_int ceiling_of_nat by (rule max.absorb1)
+
+      from \<open>c \<ge> 1\<close> have "d \<le> 1" unfolding d_def by simp
+      then have "nat \<lceil>d * real (n + 1)\<rceil> \<le> n + 1" by simp
+
+      then have "T'' n = n + 1" unfolding T''_def tcomp_def of_nat_id h3 by (rule max.absorb1)
+      also have "... \<le> tcomp T n" unfolding tcomp_def by (rule max.cobounded1)
+      finally show "T'' n \<le> tcomp T n" .
+    qed
+  qed
 qed
 
+(*
 corollary DTIME_speed_up_eq:
   fixes T :: "nat \<Rightarrow> nat"
   assumes "c > 0"
@@ -568,7 +647,7 @@ proof -
   then show "L \<in> typed_DTIME TYPE('q) (\<lambda>n. T n / d)" unfolding \<open>\<And>a. a / d = c * a\<close>
     using assms(2-3) by (rule DTIME_speed_up)
 qed
-
+*)
 
 context TM_abbrevs
 begin
