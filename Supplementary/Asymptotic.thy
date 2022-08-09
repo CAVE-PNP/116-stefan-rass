@@ -378,6 +378,7 @@ lemma unboundedD[dest]:
   obtains n0 where "\<And>n. n \<ge> n0 \<Longrightarrow> S \<le> f n"
   using assms unfolding unbounded_def by blast
 
+(* TODO assess if \<open>HOL-Library.BigO\<close> save effort here. *)
 definition superlinear :: "('a :: {linorder,semiring_1} \<Rightarrow> 'b :: {linorder,semiring_1}) \<Rightarrow> bool"
   where "superlinear f \<equiv> \<forall>C. \<forall>\<^sub>\<infinity>n. of_nat (C * n) \<le> f (of_nat n)"
 
@@ -397,6 +398,50 @@ lemma superlinear_altdef_nat':
   shows "superlinear f \<longleftrightarrow> (\<forall>C. \<forall>\<^sub>\<infinity>n. C \<le> f n div n)"
   unfolding superlinear_altdef_nat
   by (intro all_cong1, ae_nat_param_elim 1, intro less_eq_div_iff_mult_less_eq[symmetric]) simp
+
+lemma superlinear_of_nat[simp]:
+  fixes f :: "nat \<Rightarrow> nat" and f' :: "nat \<Rightarrow> 'a :: linordered_nonzero_semiring"
+  defines "f' x \<equiv> of_nat (f x)" (is "\<And>x. f' x \<equiv> ?of_nat (f x)")
+  shows "superlinear f' = superlinear f"
+  unfolding superlinear_def of_nat_id f'_def of_nat_le_iff ..
+
+lemma superlinear_factor[simp]:
+  fixes f :: "'a :: {linorder,semiring_1} \<Rightarrow> 'b :: floor_ceiling"
+  assumes "c > 0"
+  shows "superlinear (\<lambda>x. c * f x) \<longleftrightarrow> superlinear f"
+  unfolding superlinear_def
+proof (intro iffI allI; elim allE; ae_nat_elim)
+  fix C n :: nat
+  let ?C = "Suc C"
+  assume "n \<ge> 1"
+
+  from \<open>c > 0\<close> have "c * of_nat (C * n) \<le> c * of_nat (?C * n)" by simp
+  also have "... \<le> of_nat (nat \<lceil>c\<rceil>) * of_nat (?C * n)"
+  proof (subst mult_le_cancel_iff1)
+    from \<open>c > 0\<close> and \<open>n \<ge> 1\<close> show "(0::'b) < of_nat (Suc C * n)"
+      unfolding of_nat_0_less_iff by simp
+    show "c \<le> of_nat (nat \<lceil>c\<rceil>)" by (fact of_nat_ceiling)
+  qed
+  also have "... \<le> of_nat (nat \<lceil>c\<rceil> * ?C * n)" unfolding of_nat_mult mult.assoc ..
+  also assume "of_nat (nat \<lceil>c\<rceil> * ?C * n) \<le> c * f (of_nat n)"
+  finally show "of_nat (C * n) \<le> f (of_nat n)" using \<open>c > 0\<close> by simp
+next
+  fix C n :: nat
+  define d where "d \<equiv> nat \<lceil>1 / c\<rceil>"
+  assume asm: "of_nat (d * C * n) \<le> f (of_nat n)"
+
+  have "of_nat (C * n) = 1 * of_nat (C * n)" by simp
+  also have "1 * of_nat (C * n) \<le> c * of_nat d * of_nat (C * n)"
+  proof (rule mult_right_mono)
+    from \<open>c > 0\<close> have "1 \<le> c * (1/c)" by simp
+    also from \<open>c > 0\<close> have "... \<le> c * of_nat d"
+      unfolding d_def by (intro mult_left_mono) (simp_all add: of_nat_ceiling)
+    finally show  "c * of_nat d \<ge> 1" .
+  qed simp
+  also have "c * of_nat d * of_nat (C * n) = c * of_nat (d * C * n)" unfolding of_nat_mult mult.assoc ..
+  also from asm and \<open>c > 0\<close> have "... \<le> c * f (of_nat n)" by (subst mult_le_cancel_iff2)
+  finally show "of_nat (C * n) \<le> c * f (of_nat n)" .
+qed
 
 
 end
