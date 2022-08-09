@@ -228,6 +228,66 @@ proof -
 qed
 
 
+lemma less_max_self:
+  fixes x :: "'a :: linorder"
+  shows "x < max x y \<Longrightarrow> max x y = y"
+  unfolding less_max_iff_disj by simp
+
+lemma superlinear_tcomp_simp[dest?]:
+  fixes f :: "'a :: semiring_1 \<Rightarrow> 'b :: floor_ceiling"
+  assumes "superlinear (tcomp f)"
+  shows "\<forall>\<^sub>\<infinity>n. tcomp f n = nat \<lceil>f (of_nat n)\<rceil>"
+  using assms unfolding superlinear_altdef_nat
+proof (elim allE, ae_nat_elim)
+  fix n :: nat
+  assume "2 \<le> n"
+  then have "n + 1 < 2 * n" by simp
+  also assume "2 * n \<le> tcomp f n"
+  finally show "tcomp f n = nat \<lceil>f (of_nat n)\<rceil>"
+    unfolding tcomp_def of_nat_id by (fact less_max_self)
+qed
+
+lemma ceil_m1_le_floor: "\<lceil>x\<rceil> - 1 \<le> \<lfloor>x\<rfloor>" using ceiling_diff_floor_le_1[of x] by simp
+
+lemma superlinear_tcomp:
+  fixes f :: "'a :: {linorder,semiring_1} \<Rightarrow> 'b :: floor_ceiling"
+  assumes "superlinear (tcomp f)"
+  shows "superlinear f"
+proof -
+  from assms have "\<forall>\<^sub>\<infinity>n. tcomp f n = nat \<lceil>f (of_nat n)\<rceil>" ..
+  with assms show ?thesis unfolding superlinear_def of_nat_id
+  proof (intro allI, elim allE, ae_nat_elim)
+    fix C n :: nat
+    assume "n \<ge> 1"
+    then have "C * n + 1 \<le> (C + 1) * n" by simp
+    also assume "(C + 1) * n \<le> tcomp f n"
+    also assume "tcomp f n = nat \<lceil>f (of_nat n)\<rceil>"
+    finally have "of_nat (C * n) + 1 \<le> \<lceil>f (of_nat n)\<rceil>" by linarith
+    then have "of_nat (C * n) \<le> \<lceil>f (of_nat n)\<rceil> - 1" by (fact add_le_imp_le_diff)
+    also have "... \<le> \<lfloor>f (of_nat n)\<rfloor>" by (fact ceil_m1_le_floor)
+    finally show "of_nat (C * n) \<le> f (of_nat n)" unfolding le_floor_iff of_int_of_nat_eq .
+  qed
+qed
+
+lemma superlinear_tcomp_iff[iff]: "superlinear (tcomp f) \<longleftrightarrow> superlinear f"
+proof (intro iffI)
+  show "superlinear f \<Longrightarrow> superlinear (tcomp f)" unfolding superlinear_def of_nat_id
+  proof (intro allI, elim allE, ae_nat_elim)
+    fix C n :: nat
+    assume "of_nat (C * n) \<le> f (of_nat n)"
+    also have "... \<le> of_int \<lceil>f (of_nat n)\<rceil>" by (fact le_of_int_ceiling)
+    also have "... = of_nat (nat \<lceil>f (of_nat n)\<rceil>)"
+    proof (intro of_nat_nat[symmetric])
+      note of_nat_0_le_iff
+      also note \<open>of_nat (C * n) \<le> f (of_nat n)\<close>
+      also note \<open>f (of_nat n) \<le> of_int \<lceil>f (of_nat n)\<rceil>\<close>
+      finally show "0 \<le> \<lceil>f (of_nat n)\<rceil>" by simp
+    qed
+    finally show "C * n \<le> tcomp f n" unfolding of_nat_le_iff tcomp_def by (fact max.coboundedI2)
+  qed
+qed \<comment> \<open>direction \<open>\<Longrightarrow>\<close> by\<close> (fact superlinear_tcomp)
+
+
 subsubsection\<open>Time-Bounded Execution\<close>
 
 text\<open>Predicates to verify that TMs halt within a given time-bound.\<close>

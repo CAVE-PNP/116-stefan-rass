@@ -66,17 +66,12 @@ lemma Alm_all_natE':
   obtains n\<^sub>0 where "\<And>n::nat. n\<ge>n\<^sub>0 \<Longrightarrow> P n"
   using assms unfolding Alm_all_nat_altdef by blast
 
-method ae_nat_elim uses add =
-  insert add,
-  (fold Alm_all_nat_altdef)?,
-  (elim eventually_rev_mp)?,
-  intro Alm_all_natI' impI
-
 text\<open>To solve goals like \<open>\<lbrakk>\<forall>\<^sub>\<infinity>n. P\<^sub>1 n; \<forall>\<^sub>\<infinity>n. P\<^sub>2 n; ...\<rbrakk> \<Longrightarrow> \<forall>\<^sub>\<infinity>n. Q n\<close>, where \<open>n :: nat\<close>,
-  apply @{method ae_nat_elim}, then prove the resulting goal
+  apply \<open>ae_nat_elim\<close>, then prove the resulting goal
   of the form \<open>\<And>n. \<lbrakk>n\<ge>n\<^sub>0; A n; B n; ...\<rbrakk> \<Longrightarrow> P n\<close>.
   The additional premise \<open>n\<ge>n\<^sub>0\<close> allows specifying an arbitrary minimum,
   as many lemmas require proving \<open>n>0\<close> or similar.
+  The variant \<open>ae_nat_param_elim\<close> allows to fix \<open>n\<^sub>0\<close> in advance.
 
   Supply input facts via the parameter \<open>ae_nat_elim add: some_fact\<close>,
   or by chaining them into \<open>ae_nat_elim\<close>
@@ -86,6 +81,20 @@ text\<open>To solve goals like \<open>\<lbrakk>\<forall>\<^sub>\<infinity>n. P\<
   Note that this is somewhat similar to @{method eventually_elim},
   but tailored to statements over the naturals.
   Crucially, @{method eventually_elim} does not provide the additional premise \<open>n\<ge>n\<^sub>0\<close>.\<close>
+
+method ae_nat_elim uses add =
+  (intro eventually_subst)?,
+  insert add,
+  (fold Alm_all_nat_altdef)?,
+  (elim eventually_rev_mp)?,
+  intro Alm_all_natI' impI
+
+method ae_nat_param_elim for n\<^sub>0 :: nat uses add =
+  (intro eventually_subst)?,
+  insert add,
+  (fold Alm_all_nat_altdef)?,
+  (elim eventually_rev_mp)?,
+  intro Alm_all_natI'[where n\<^sub>0=n\<^sub>0] impI
 
 
 text\<open>Equivalence of different \<^emph>\<open>sufficiently large\<close> definitions as simple and general rewrite rule.
@@ -361,16 +370,33 @@ lemma superlinearE':
   using assms by (elim superlinearE) blast
 
 
-(* TODO general versions of these definitions? *)
-definition unbounded :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "unbounded f \<equiv> \<forall>S. \<forall>\<^sub>\<infinity>n. S \<le> f n"
+definition unbounded :: "('a :: linorder \<Rightarrow> 'b :: linorder) \<Rightarrow> bool"
+  where "unbounded f \<equiv> \<forall>S. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. S \<le> f n"
 
 lemma unboundedD[dest]:
   assumes "unbounded f"
   obtains n0 where "\<And>n. n \<ge> n0 \<Longrightarrow> S \<le> f n"
   using assms unfolding unbounded_def by blast
 
-abbreviation superlinear :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "superlinear f \<equiv> unbounded (\<lambda>n. f n div n)"
+definition superlinear :: "('a :: {linorder,semiring_1} \<Rightarrow> 'b :: {linorder,semiring_1}) \<Rightarrow> bool"
+  where "superlinear f \<equiv> \<forall>C. \<forall>\<^sub>\<infinity>n. of_nat (C * n) \<le> f (of_nat n)"
+
+lemma superlinear_altdef_lf: \<comment> \<open>for \<^typ>\<open>real\<close>\<close>
+  fixes f :: "'a :: linordered_field \<Rightarrow> 'b :: linordered_field"
+  shows "superlinear f \<longleftrightarrow> (\<forall>C. \<forall>\<^sub>\<infinity>n. (of_nat C) \<le> f (of_nat n) / (of_nat n))"
+  unfolding superlinear_def of_nat_mult
+  by (intro all_cong1, ae_nat_param_elim 1, intro pos_le_divide_eq[symmetric]) simp
+
+lemma superlinear_altdef_nat:
+  fixes f :: "nat \<Rightarrow> nat"
+  shows "superlinear f \<longleftrightarrow> (\<forall>C. \<forall>\<^sub>\<infinity>n. C * n \<le> f n)"
+  by (auto simp: superlinear_def)
+
+lemma superlinear_altdef_nat':
+  fixes f :: "nat \<Rightarrow> nat"
+  shows "superlinear f \<longleftrightarrow> (\<forall>C. \<forall>\<^sub>\<infinity>n. C \<le> f n div n)"
+  unfolding superlinear_altdef_nat
+  by (intro all_cong1, ae_nat_param_elim 1, intro less_eq_div_iff_mult_less_eq[symmetric]) simp
+
 
 end
