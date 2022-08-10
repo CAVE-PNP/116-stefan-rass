@@ -157,22 +157,20 @@ proof -
   then show "infinite X" using finite_maxlen by (rule contrapos_nn)
 qed
 
-(* TODO this should be a definition *)
-abbreviation pad :: "nat \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a list"
+
+definition pad :: "nat \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a list"
   where "pad n x xs \<equiv> xs @ x \<up> (n - length xs)"
 
-lemma pad_length: "length (pad n x xs) = max n (length xs)" by simp
-lemma pad_le_length[simp]: "length xs \<le> n \<Longrightarrow> length (pad n x xs) = n" by simp
-lemma pad_ge_length[simp]: "length xs \<ge> n \<Longrightarrow> pad n x xs = xs" by simp
+lemma pad_length[simp]: "length (pad n x xs) = max n (length xs)" by (simp add: pad_def)
+lemma pad_ge_length[simp]: "length xs \<ge> n \<Longrightarrow> pad n x xs = xs" by (simp add: pad_def)
 
-lemma pad_prefix: "prefix xs (pad n x xs)" by simp
+lemma pad_prefix: "prefix xs (pad n x xs)" by (simp add: pad_def)
 
 
-(* TODO this should be a definition *)
 abbreviation (input) ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" \<comment> \<open>an alternative to \<^const>\<open>last\<close>.\<close>
   where "ends_in x xs \<equiv> (\<exists>ys. xs = ys @ [x])"
 
-lemma ends_inI[intro]: "ends_in x (xs @ [x])" by blast
+lemma ends_inI[intro?]: "ends_in x (xs @ [x])" by blast
 
 lemma ends_in_Cons: "ends_in y (x # xs) \<Longrightarrow> xs \<noteq> [] \<Longrightarrow> ends_in y xs"
   by (simp add: Cons_eq_append_conv)
@@ -196,9 +194,9 @@ proof (cases "ys = []")
   finally show ?thesis .
 qed \<comment> \<open>case \<open>ys = []\<close> by\<close> simp
 
-lemma ends_in_drop:
-  assumes "k < length xs"
-    and "ends_in x xs"
+lemma ends_in_drop[dest]:
+  assumes "ends_in x xs"
+    and "k < length xs"
   shows "ends_in x (drop k xs)"
   using assms by force
 
@@ -357,7 +355,7 @@ proof (cases "length xs \<ge> n")
 next
   assume "\<not> length xs \<ge> n" hence "length xs < n" by simp
   then have *: "take n xs = xs" by simp
-  show ?thesis unfolding take_or_def * ..
+  show ?thesis unfolding take_or_def * pad_def ..
 qed
 
 

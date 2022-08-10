@@ -160,7 +160,7 @@ abbreviation "r \<equiv> reorder is"
 abbreviation "rc \<equiv> reorder_config is"
 abbreviation r_inv ("r\<inverse>") where "r_inv \<equiv> reorder_inv is"
 
-lemma is_not_only_None(* TODO rename *): "\<not> (set is \<subseteq> {None})"
+lemma is_not_only_None: "\<not> (set is \<subseteq> {None})"
 proof
   assume "set is \<subseteq> {None}"
   then have "Option.these (set is) = {}" unfolding these_empty_eq by (fact subset_singletonD)
@@ -245,10 +245,7 @@ lemma reorder_step:
     (is "M'.step (?rc c) = ?rc (step c)")
 proof (cases "is_final c")
   assume "is_final c"
-  then have "M'.is_final (?rc c)" by simp
-  then have "M'.step (?rc c) = (?rc c)" by fast
-  also from \<open>is_final c\<close> have "... = ?rc (step c)" by simp
-  finally show ?thesis .
+  then show ?thesis by simp
 next
   let ?c' = "?rc c"
   let ?q = "state c" and ?q' = "state ?c'"
@@ -1111,7 +1108,7 @@ theorem TM_comp_steps_final:
   by (intro simple_TM_comp.comp_steps_final simple_TM_comp.intro)
 
 
-subsubsection\<open>Composition with Offset\<close> (* TODO find better title *)
+subsubsection\<open>Composition with Tape-Offset/Separate Tape Ranges\<close>
 
 text\<open>Combine \<^locale>\<open>simple_TM_comp\<close> and \<^locale>\<open>TM_tape_offset\<close> to define a composition
   where the output of the first TM becomes the input for the second one.\<close>

@@ -771,6 +771,8 @@ lemma final_steps_le[dest]:
   shows "n1 < n2"
   using assms and TM.final_mono linorder_le_less_linear by blast
 
+lemma final_steps_ex_eq[simp]: "(\<exists>n\<le>N. is_final (steps n c)) \<longleftrightarrow> is_final (steps N c)" by blast
+
 
 paragraph\<open>Well-Formed Steps\<close>
 

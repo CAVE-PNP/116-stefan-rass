@@ -42,17 +42,17 @@ proof -
   with assms(1) show ?thesis unfolding config_time_def by blast
 qed
 
-lemma conf_time_geI[intro]: "is_final (steps n c) \<Longrightarrow> config_time c \<le> n"
+lemma conf_time_leI[intro]: "is_final (steps n c) \<Longrightarrow> config_time c \<le> n"
   unfolding config_time_def run_def by (fact Least_le)
 
-lemma conf_time_ge_iff[intro]: "halts_config c \<Longrightarrow> is_final (steps n c) \<longleftrightarrow> n \<ge> config_time c"
+lemma conf_time_le_iff[intro]: "halts_config c \<Longrightarrow> is_final (steps n c) \<longleftrightarrow> config_time c \<le> n"
   by blast
 
-lemma conf_time_less_rev[intro]: "halts_config c \<Longrightarrow> \<not> is_final (steps n c) \<Longrightarrow> n < config_time c"
-  by (subst (asm) conf_time_ge_iff) auto
+lemma conf_time_gt_rev[intro]: "halts_config c \<Longrightarrow> \<not> is_final (steps n c) \<Longrightarrow> config_time c > n"
+  by (subst (asm) conf_time_le_iff) auto
 
 lemma conf_time_finalI[intro]: "halts_config c \<Longrightarrow> is_final (steps (config_time c) c)"
-  using conf_time_ge_iff by blast
+  using conf_time_le_iff by blast
 
 lemma conf_time0[simp, intro]: "is_final c \<Longrightarrow> config_time c = 0" unfolding config_time_def by simp
 
@@ -77,9 +77,8 @@ lemma time_altdef: "time w = (LEAST n. is_final (run n w))"
 lemma compute_altdef[simp, intro]: "compute w = run (time w) w"
   unfolding compute_altdef2 time_altdef ..
 
-lemma time_leI[intro]:
-  "is_final (run n w) \<Longrightarrow> time w \<le> n"
-  unfolding run_def time_def by (rule conf_time_geI)
+lemma time_leI[intro]: "is_final (run n w) \<Longrightarrow> time w \<le> n"
+  unfolding run_def time_def by (rule conf_time_leI)
 
 lemma run_time_halts[dest]: "halts w \<Longrightarrow> is_final (run (time w) w)" unfolding halts_def by auto
 
@@ -122,7 +121,7 @@ next
     let ?n = "config_time c0" let ?n2 = "?n - n1"
     have *: "x \<in> ?N \<longleftrightarrow> x \<ge> ?n2" for x
       unfolding mem_Collect_eq steps_plus le_diff_conv add.commute[of x n1]
-      using \<open>halts_config c0\<close> by (fact conf_time_ge_iff)
+      using \<open>halts_config c0\<close> by (fact conf_time_le_iff)
     then show "\<exists>n\<in>?N. \<forall>n'\<in>?N. n \<le> n'" by blast
   qed blast
   also have "... = n1 + config_time (steps n1 c0)" unfolding config_time_def ..
@@ -165,8 +164,6 @@ text\<open>From @{cite \<open>ch.~12.1\<close> hopcroftAutomata1979}:
     * Note, however, that there are TM's that accept or reject without reading all their input.
       We choose to eliminate them from consideration.''\<close>
 
-(* TODO get rid of \<open>'c::semiring_1 \<Rightarrow> 'd::floor_ceiling\<close> from other definitions.
-        replace by \<open>nat \<Rightarrow> nat\<close>, but retain some adapter like \<open>tcomp\<close> *)
 definition tcomp :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
   where [simp]: "tcomp T n \<equiv> max (n + 1) (nat \<lceil>T (of_nat n)\<rceil>)"
 
@@ -298,23 +295,21 @@ text\<open>Predicates to verify that TMs halt within a given time-bound.\<close>
 context TM begin
 
 (* TODO extract general version \<open>halts_within n w \<equiv> is_final (run n w)\<close> (maybe abbrev?) *)
-(* TODO rename time_bounded_def -> time_bounded_word_def (use auto generated name; less confusing) *)
 definition time_bounded_word :: "(nat \<Rightarrow> nat) \<Rightarrow> 's list \<Rightarrow> bool"
-  where time_bounded_def[simp]: "time_bounded_word T w \<equiv> is_final (run (T (length w)) w)"
+  where [simp]: "time_bounded_word T w \<equiv> is_final (run (T (length w)) w)"
 
 abbreviation time_bounded :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
   where "time_bounded T \<equiv> \<forall>w. time_bounded_word T w"
 
-(* TODO move this somewhere else *)
-lemma final_steps_ex_eq[simp]: "(\<exists>n\<le>N. is_final (steps n c)) \<longleftrightarrow> is_final (steps N c)" by blast
+lemmas time_bounded_def = time_bounded_word_def
 
 
-mk_ide time_bounded_def |intro time_bounded_wordI[intro]| |dest time_bounded_wordD[dest]|
+mk_ide time_bounded_word_def |intro time_bounded_wordI[intro]| |dest time_bounded_wordD[dest]|
 
 lemma time_bounded_word_mono[dest]:
   "time_bounded_word t w \<Longrightarrow> t (length w) \<le> T (length w) \<Longrightarrow> time_bounded_word T w" by blast
 
-lemma time_bounded_mono: "time_bounded t \<Longrightarrow> (\<And>x. T x \<ge> t x) \<Longrightarrow> time_bounded T" by blast
+lemma time_bounded_mono: "time_bounded t \<Longrightarrow> (\<And>x. t x \<le> T x) \<Longrightarrow> time_bounded T" by blast
 
 lemma time_bounded_altdef2: "time_bounded T \<longleftrightarrow> (\<forall>w. halts w \<and> time w \<le> T (length w))" by blast
 
