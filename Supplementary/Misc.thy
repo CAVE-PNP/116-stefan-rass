@@ -69,6 +69,9 @@ lemma singleton_image[simp]: "f ` {x} = {f x}" by blast
 
 lemma image_Collect_compose: "f ` {g x | x. P x} = {f (g x) | x. P x}" by blast
 
+lemma map_image[intro]: "set xs \<subseteq> A \<Longrightarrow> set (map g xs) \<subseteq> g ` A"
+  unfolding set_map by (fact image_mono)
+
 lemma finite_imp_inj_to_nat_fix_one:
   fixes A::"'a set" and x::'a and y::nat
   assumes "finite A"

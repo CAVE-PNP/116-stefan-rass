@@ -663,7 +663,7 @@ proof (rule valid_TM_I)
 
   then have *[dest]: "wf_hds ?hds'" if "set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p"
   proof (intro wf_hdsI)
-    from \<open>set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p\<close> have "set ?hds' \<subseteq> f'_inv ` f' ` \<Sigma>\<^sub>t\<^sub>p" by blast
+    from \<open>set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p\<close> have "set ?hds' \<subseteq> f'_inv ` f' ` \<Sigma>\<^sub>t\<^sub>p" ..
     also have "... \<subseteq> \<Sigma>\<^sub>t\<^sub>p" by force
     finally show "set ?hds' \<subseteq> \<Sigma>\<^sub>t\<^sub>p" .
   qed simp
@@ -702,7 +702,7 @@ proof (cases "is_final c") (* TODO extract this pattern as lemma *)
   then have "M'.step ?c' = M'.step_not_final ?c'" by simp
   also have "... = fc (step_not_final c)"
   proof (rule TM_config_eq)
-    from \<open>wf_config c\<close> have "set ?hds' \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p" by auto
+    from \<open>wf_config c\<close> have "set ?hds' \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p" by (intro map_image) blast
     then have \<delta>_If: "\<And>x y. (if set ?hds' \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then x else y) = x" by (fact if_P)
     from \<open>wf_config c\<close> have f_inv_f: "map f'\<inverse> (map f' ?hds) = ?hds" by (fast intro: map_f'_inv)
     note * = M'_fields(8-10) \<delta>_If f_inv_f
@@ -1415,9 +1415,8 @@ proof -
   also from M1' M2' have "... = TM_config (Inr (state (M2a.M'.run t2 ?w_out)))
      (butlast (tapes (M1a.M'.compute (map f1 w_in))) @ tapes (M2a.M'.run t2 ?w_out))"
   proof (subst io_comp_run')
-    from M1a.range_f wf_w_in show "map f1 w_in \<in> M1a.M'.\<Sigma>*" unfolding M1a.M'_fields(2) by blast
-    from M2a.range_f wf_w_out1 show "map f1 w_out1 \<in> M2a.M'.\<Sigma>*" using M1a.M'_fields(2)
-      by (fold symbols_eq symbols_eq_a) blast
+    from M1a.range_f wf_w_in show "map f1 w_in \<in> M1a.M'.\<Sigma>*" by auto
+    from M2a.range_f wf_w_out1 show "map f1 w_out1 \<in> M2a.M'.\<Sigma>*" by (fold symbols_eq symbols_eq_a) auto
   qed blast+
   also have "... = TM_config ?q2 (butlast ?tps1 @ ?tps2)"
   proof (rule TM_config_eq; unfold TM_config.sel)
