@@ -200,8 +200,8 @@ lemma ends_in_drop[dest]:
   shows "ends_in x (drop k xs)"
   using assms by force
 
-declare list_all_iff[iff]
-lemma list_all_set_map[iff]: "set (map f xs) \<subseteq> A \<longleftrightarrow> list_all (\<lambda>x. f x \<in> A) xs" by auto
+lemma list_all_set_map[iff]: "set (map f xs) \<subseteq> A \<longleftrightarrow> list_all (\<lambda>x. f x \<in> A) xs"
+  by (auto iff: list_all_iff)
 
 lemma map_inv_into_map_id:
   fixes f::"'a \<Rightarrow> 'b"
@@ -418,7 +418,6 @@ lemma list_all_last[elim]:
   assumes "list_all P xs"
     and "xs \<noteq> []"
   shows "P (last xs)"
-  using assms by simp
-
+  using assms by (simp add: list_all_iff)
 
 end

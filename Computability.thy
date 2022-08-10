@@ -86,17 +86,19 @@ lemma init_conf_last[simp, intro]:
     and "k \<noteq> 1 \<Longrightarrow> last (tapes (c\<^sub>0 w)) = \<langle>\<rangle>"
   using at_least_one_tape by (simp_all add: initial_config_def)
 
+lemma all_initial_tapes_helperI[intro]:
+  assumes "P <w>\<^sub>t\<^sub>p" and "P \<langle>\<rangle>"
+  shows "list_all P (tapes (c\<^sub>0 w))"
+  unfolding initial_config_def TM_config.sel list.pred_inject(2)
+  unfolding list_all_iff Ball_set_replicate using assms by blast
+
 
 abbreviation "wf_input w \<equiv> w \<in> \<Sigma>*"
 
 lemma wf_initial_config[simp, intro]: "wf_input w \<Longrightarrow> wf_config (initial_config w)"
-proof (intro wf_configI)
-  assume "w \<in> \<Sigma>*"
-  then show "list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>) (tapes (c\<^sub>0 w))"
-    unfolding initial_config_def TM_config.sel list.pred_inject(2) by (intro conjI) (simp, force)
-qed simp_all
+  by (intro wf_configI) fastforce+
 
-lemma (in typed_TM) wf_initial_config[intro!]: "wf_config (initial_config w)" by force
+lemma (in typed_TM) wf_initial_config[intro!]: "wf_config (initial_config w)" by simp
 
 
 subsubsection\<open>Running a TM Program\<close>

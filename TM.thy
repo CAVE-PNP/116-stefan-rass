@@ -560,7 +560,7 @@ definition wf_config :: "('q, 's) TM_config \<Rightarrow> bool"
 mk_ide wf_config_def |intro wf_configI[intro]| |dest wf_configD[dest]|
 
 lemma (in typed_TM) wf_config_def: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k"
-  unfolding wf_config_def by simp
+  unfolding wf_config_def by (simp add: list_all_iff)
 
 lemma set_tape_valid[dest]: "set_tape tp \<subseteq> \<Sigma> \<Longrightarrow> head tp \<in> \<Sigma>\<^sub>t\<^sub>p"
 proof (induction tp)
@@ -573,9 +573,10 @@ qed
 lemma tapes_heads_valid[dest]:
   assumes "list_all (\<lambda>tp. set_tape tp \<subseteq> symbols) (tapes c)"
   shows "set (heads c) \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
-  unfolding list_all_set_map using assms by blast
+  using assms unfolding list_all_set_map list_all_iff by blast
 
-lemma wf_config_hds[dest, intro]: "wf_config c \<Longrightarrow> wf_hds (heads c)" by (intro wf_hdsI) auto
+lemma wf_config_hds[dest, intro]: "wf_config c \<Longrightarrow> wf_hds (heads c)"
+  by (intro wf_hdsI) (auto iff: list_all_iff)
 
 lemma wf_configE[elim]:
   assumes "wf_config c"
@@ -795,7 +796,7 @@ proof (elim wf_configE, intro wf_configI)
     also have "... \<subseteq> \<Sigma>"
     proof (rule Un_least)
       from q and valid_tps and wf and \<open>i < k\<close> show "set_option (\<delta>\<^sub>w ?q ?hds i) \<subseteq> \<Sigma>" by blast
-      from valid_tps show "set_tape (?tps ! i) \<subseteq> \<Sigma>" by simp
+      from valid_tps show "set_tape (?tps ! i) \<subseteq> \<Sigma>" by (simp add: list_all_iff)
     qed
     finally show "set_tape (?tps' ! i) \<subseteq> \<Sigma>" .
   qed
