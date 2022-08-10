@@ -321,7 +321,7 @@ lemma next_actions_simps[simp]:
 definition wf_hds :: "'s option list \<Rightarrow> bool"
   where "wf_hds = wf_hds_rec M_rec"
 
-lemma wf_hds_altdef: "wf_hds hds \<longleftrightarrow> length hds = k \<and> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
+lemma wf_hds_altdef[simp]: "wf_hds hds \<longleftrightarrow> length hds = k \<and> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
   unfolding wf_hds_def wf_hds_rec_def TM_fields_defs ..
 
 mk_ide wf_hds_altdef |intro wf_hdsI[intro]| |elim wf_hdsE[elim]| |dest wf_hdsD[dest]|
@@ -466,6 +466,14 @@ proof (induction tp)
   ultimately show ?case unfolding tape.set by (intro finite_UnI)
 qed
 
+lemma (in TM) set_tape_valid[dest]: "set_tape tp \<subseteq> \<Sigma> \<Longrightarrow> head tp \<in> \<Sigma>\<^sub>t\<^sub>p"
+proof (induction tp)
+  case (Tape l h r)
+  assume "set_tape \<langle>l|h|r\<rangle> \<subseteq> \<Sigma>"
+  then have "set_option h \<subseteq> \<Sigma>" by simp
+  then show "head \<langle>l|h|r\<rangle> \<in> \<Sigma>\<^sub>t\<^sub>p" unfolding tape.sel by (induction h) blast+
+qed
+
 corollary map_tape_def[unfolded Let_def]:
   "map_tape f tp = (let f' = map_option f in \<langle>map f' (left tp)|f' (head tp)|map f' (right tp)\<rangle>)"
   unfolding Let_def by (induction tp) simp
@@ -557,45 +565,30 @@ definition wf_config :: "('q, 's) TM_config \<Rightarrow> bool"
   where "wf_config c \<equiv> state c \<in> Q \<and> length (tapes c) = k
     \<and> list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>) (tapes c)"
 
-mk_ide wf_config_def |intro wf_configI[intro]| |dest wf_configD[dest]|
+mk_ide wf_config_def |intro wf_configI[intro]|
 
-lemma (in typed_TM) wf_config_def: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k"
-  unfolding wf_config_def by (simp add: list_all_iff)
-
-lemma set_tape_valid[dest]: "set_tape tp \<subseteq> \<Sigma> \<Longrightarrow> head tp \<in> \<Sigma>\<^sub>t\<^sub>p"
-proof (induction tp)
-  case (Tape l h r)
-  assume "set_tape \<langle>l|h|r\<rangle> \<subseteq> \<Sigma>"
-  then have "set_option h \<subseteq> \<Sigma>" by simp
-  then show "head \<langle>l|h|r\<rangle> \<in> \<Sigma>\<^sub>t\<^sub>p" unfolding tape.sel by (induction h) blast+
-qed
-
-lemma tapes_heads_valid[dest]:
+lemma tapes_heads_valid:
   assumes "list_all (\<lambda>tp. set_tape tp \<subseteq> symbols) (tapes c)"
   shows "set (heads c) \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
   using assms unfolding list_all_set_map list_all_iff by blast
 
-lemma wf_config_hds[dest, intro]: "wf_config c \<Longrightarrow> wf_hds (heads c)"
-  by (intro wf_hdsI) (auto iff: list_all_iff)
+lemma wf_config_hds: "wf_config c \<Longrightarrow> wf_hds (heads c)"
+  unfolding wf_config_def by (intro wf_hdsI tapes_heads_valid) auto
 
-lemma wf_configE[elim]:
-  assumes "wf_config c"
-    and "\<lbrakk>state c \<in> Q;
-          length (tapes c) = k;
-          list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>) (tapes c);
-          wf_hds (heads c)\<rbrakk> \<Longrightarrow> P"
-  shows P
-  using \<open>wf_config c\<close> by (blast intro!: assms(2))
+lemma wf_config_iff: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k
+    \<and> list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>) (tapes c) \<and> wf_hds (heads c)"
+  by (intro iffI conjI wf_config_hds; (assumption | unfold wf_config_def, blast))
+
+mk_ide wf_config_iff |dest wf_configD[dest]| |elim wf_configE[elim]|
+
+lemma (in typed_TM) wf_config_def: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k"
+  unfolding wf_config_def by (simp add: list_all_iff)
 
 lemma wf_config_tapes_nonempty[intro,dest]: "wf_config c \<Longrightarrow> tapes c \<noteq> []"
   using at_least_one_tape by force
 
 lemma wf_config_last[intro]: "wf_config c \<Longrightarrow> set_tape (last (tapes c)) \<subseteq> \<Sigma>"
-proof (elim wf_configE)
-  assume "length (tapes c) = k"
-    and "list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>) (tapes c)"
-  then show "set_tape (last (tapes c)) \<subseteq> \<Sigma>" using at_least_one_tape by (elim list_all_last) force
-qed
+  using at_least_one_tape by (elim wf_configE list_all_last) force
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
