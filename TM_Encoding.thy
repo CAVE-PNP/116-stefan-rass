@@ -28,7 +28,7 @@ text\<open>As defined in @{cite \<open>ch.~4.2\<close> rassOwf2017} (outlined in
     \<^item> Arbitrary-length \<open>1\<^sup>+0\<close> prefix. ``from [the result] we drop all preceding 1-bits and the first 0-bit''
     \<^item> Code description. ``let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form''.
 
-  Recall the definition of \<^typ>\<open>bin\<close> (see \<^theory>\<open>116_stefan_rass.Binary\<close>),
+  Recall the definition of \<^typ>\<open>bin\<close> (see \<^file>\<open>Binary.thy\<close>),
   which causes the MSB to be the \<^const>\<open>last\<close> element of the list,
   which is the \<^emph>\<open>rightmost\<close> one when explicitly referring to lists in Isabelle.\<close>
 
