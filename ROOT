@@ -4,16 +4,22 @@ session "116_stefan_rass" = "HOL-Library" +
     Universal_Turing_Machine
     "HOL-Computational_Algebra"
     Intro_Dest_Elim
+    "HOL-Eisbach"
   directories
+    (* This allows unqualified imports (\<open>Misc\<close> instead of \<open>"Supplementary/Misc"\<close>),
+     * but only if this session is registered in Isabelle's component list.
+     * To avoid inconsistent behaviour for users inspecting the code,
+     * we hence use qualified imports where applicable. *)
     Supplementary
   theories [quick_and_dirty] (* allow `sorry` *)
     (* Supplementary theories *)
-    Misc
-    Lists
-    Sublists
-    Discrete_Log
-    Discrete_Sqrt
-    UF_Code
+    "Supplementary/Misc"
+    "Supplementary/Lists"
+    "Supplementary/Sublists"
+    "Supplementary/Discrete_Log"
+    "Supplementary/Discrete_Sqrt"
+    "Supplementary/Asymptotic"
+    "Supplementary/UF_Code"
     (* Definitions and Preliminaries *)
     Binary
     Goedel_Numbering
@@ -23,7 +29,6 @@ session "116_stefan_rass" = "HOL-Library" +
     TM_Encoding
     Complexity
     L0
-    LD_Issues
   document_files
     "root.tex"
     "root.bib"

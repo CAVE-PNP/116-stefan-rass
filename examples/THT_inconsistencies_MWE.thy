@@ -3,8 +3,8 @@ theory THT_inconsistencies_MWE
 begin
 
 
-\<comment> \<open>This document demonstrates a flaw in the formulation of the Time Hierarchy Theorem (THT)
-  in the paper by Stefan Rass and the primary source (Hopcroft).
+text\<open>This document demonstrates a flaw in the formulation of the Time Hierarchy Theorem (THT)
+  in @{cite rassOwf2017} and the primary source @{cite hopcroftAutomata1979}.
 
   The example is trivial, as choosing \<open>T(n) = t(n) = 1\<close> fulfils the assumptions and allows
   proving non-emptiness of \<open>DTIME(T) - DTIME(t) = {}\<close>.
@@ -122,7 +122,7 @@ qed
 
 section\<open>Assumption\<close>
 
-theorem time_hierarchy: 
+theorem time_hierarchy:
   fixes T t :: "nat \<Rightarrow> nat"
   assumes fully_tconstr_T: "fully_tconstr T"
     and T_dominates_t: "(\<lambda>n. t n * log 2 (t n) / T n) \<longlonglongrightarrow> 0"
@@ -140,7 +140,7 @@ proof -
   have "fully_tconstr T" unfolding fully_tconstr_def T_def
     by (intro exI allI impI) (rule rej_TM_time)
   moreover have "(\<lambda>n. T n * log 2 (T n) / T n) \<longlonglongrightarrow> 0" unfolding T_def by force
-  moreover have "T n \<noteq> 0" for n unfolding T_def by (rule one_neq_zero) 
+  moreover have "T n \<noteq> 0" for n unfolding T_def by (rule one_neq_zero)
   ultimately have "\<exists>L. L \<in> DTIME(T) - DTIME(T)" by (rule time_hierarchy)
   then show False by blast
 qed
