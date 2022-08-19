@@ -366,7 +366,7 @@ subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
 definition typed_DTIME :: "'q itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> 's lang set"
-  where "typed_DTIME TYPE('q) T \<equiv> {L. \<exists>M::('q, 's) TM. alphabet L \<subseteq> TM.symbols M \<and> TM.decides M L \<and> TM.time_bounded M T}"
+  where "typed_DTIME TYPE('q) T \<equiv> {L. \<exists>M::('q, 's) TM. TM.decides M L \<and> TM.time_bounded M T}"
 
 
 abbreviation DTIME where
@@ -391,7 +391,7 @@ lemma in_dtimeE[elim]:
 lemma in_dtimeD[dest]:
   fixes L :: "'s lang"
   assumes "L \<in> typed_DTIME TYPE('q) T"
-  shows "\<exists>M::('q, 's) TM. alphabet L \<subseteq> TM.symbols M \<and> TM.decides M L \<and> TM.time_bounded M T"
+  shows "\<exists>M::('q, 's) TM. TM.decides M L \<and> TM.time_bounded M T"
   using assms unfolding typed_DTIME_def ..
 
 corollary in_dtime_mono[dest]:
@@ -400,6 +400,7 @@ corollary in_dtime_mono[dest]:
     and "\<And>n. t n \<le> T n"
   shows "L \<in> typed_DTIME TYPE('q) T"
   using assms TM.time_bounded_mono by (elim in_dtimeE, intro TM.in_dtimeI) blast+
+
 
 subsection\<open>Classical Results\<close>
 
