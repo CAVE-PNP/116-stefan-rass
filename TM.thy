@@ -563,32 +563,32 @@ text\<open>A \<^typ>\<open>('q, 's) TM_config\<close> \<open>c\<close> is consid
 
 definition wf_config :: "('q, 's) TM_config \<Rightarrow> bool"
   where "wf_config c \<equiv> state c \<in> Q \<and> length (tapes c) = k
-    \<and> list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>) (tapes c)"
+    \<and> (\<forall>tp\<in>set (tapes c). set_tape tp \<subseteq> \<Sigma>)"
 
 mk_ide wf_config_def |intro wf_configI[intro]|
 
 lemma tapes_heads_valid:
-  assumes "list_all (\<lambda>tp. set_tape tp \<subseteq> symbols) (tapes c)"
+  assumes "\<forall>tp\<in>set (tapes c). set_tape tp \<subseteq> \<Sigma>"
   shows "set (heads c) \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
-  using assms unfolding list_all_set_map list_all_iff by blast
+  using assms unfolding Ball_set_map by blast
 
 lemma wf_config_hds: "wf_config c \<Longrightarrow> wf_hds (heads c)"
   unfolding wf_config_def by (intro wf_hdsI tapes_heads_valid) auto
 
 lemma wf_config_iff: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k
-    \<and> list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>) (tapes c) \<and> wf_hds (heads c)"
+    \<and> (\<forall>tp\<in>set (tapes c). set_tape tp \<subseteq> \<Sigma>) \<and> wf_hds (heads c)"
   by (intro iffI conjI wf_config_hds; (assumption | unfold wf_config_def, blast))
 
 mk_ide wf_config_iff |dest wf_configD[dest]| |elim wf_configE[elim]|
 
 lemma (in typed_TM) wf_config_def: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k"
-  unfolding wf_config_def by (simp add: list_all_iff)
+  unfolding wf_config_def by simp
 
 lemma wf_config_tapes_nonempty[intro,dest]: "wf_config c \<Longrightarrow> tapes c \<noteq> []"
   using at_least_one_tape by force
 
 lemma wf_config_last[intro]: "wf_config c \<Longrightarrow> set_tape (last (tapes c)) \<subseteq> \<Sigma>"
-  using at_least_one_tape by (elim wf_configE list_all_last) force
+  using at_least_one_tape by (elim wf_configE Ball_set_last) force
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
@@ -779,8 +779,8 @@ proof (elim wf_configE, intro wf_configI)
   assume q: "?q \<in> Q" and l[simp]: "length ?tps = k" and wf: "wf_hds ?hds"
   from l have l': "length ?tps' = k" by (fact step_nf_l_tps)
 
-  assume valid_tps: "list_all (\<lambda>tp::'s tape. set_tape tp \<subseteq> \<Sigma>) ?tps"
-  then show "list_all (\<lambda>tp::'s tape. set_tape tp \<subseteq> \<Sigma>) ?tps'" unfolding list_all_length l l'
+  assume valid_tps: "\<forall>tp\<in>set ?tps. set_tape tp \<subseteq> \<Sigma>"
+  then show "\<forall>tp\<in>set ?tps'. set_tape tp \<subseteq> \<Sigma>" unfolding all_set_conv_all_nth l l'
   proof (elim cond_All_mono)
     fix i assume [simp]: "i < k"
     have "set_tape (?tps' ! i) = set_tape (tape_action (\<delta>\<^sub>a ?q ?hds ! i) (?tps ! i))"
@@ -789,7 +789,7 @@ proof (elim wf_configE, intro wf_configI)
     also have "... \<subseteq> \<Sigma>"
     proof (rule Un_least)
       from q and valid_tps and wf and \<open>i < k\<close> show "set_option (\<delta>\<^sub>w ?q ?hds i) \<subseteq> \<Sigma>" by blast
-      from valid_tps show "set_tape (?tps ! i) \<subseteq> \<Sigma>" by (simp add: list_all_iff)
+      from valid_tps show "set_tape (?tps ! i) \<subseteq> \<Sigma>" by simp
     qed
     finally show "set_tape (?tps' ! i) \<subseteq> \<Sigma>" .
   qed

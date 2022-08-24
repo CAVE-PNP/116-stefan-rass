@@ -200,8 +200,8 @@ lemma ends_in_drop[dest]:
   shows "ends_in x (drop k xs)"
   using assms by force
 
-lemma list_all_set_map[iff?]: "set (map f xs) \<subseteq> A \<longleftrightarrow> list_all (\<lambda>x. f x \<in> A) xs"
-  by (auto iff: list_all_iff)
+lemma Ball_set_map[iff?]: "set (map f xs) \<subseteq> A \<longleftrightarrow> (\<forall>x\<in>set xs. f x \<in> A)"
+  unfolding set_map by (fact image_subset_iff)
 
 lemma map_inv_into_map_id:
   fixes f::"'a \<Rightarrow> 'b"
@@ -414,10 +414,12 @@ lemma finite_type_lists_length_le: "finite {xs::('s::finite list). length xs \<l
   using finite_lists_length_le[OF finite, of UNIV] by simp
 
 
-lemma list_all_last[elim]:
-  assumes "list_all P xs"
+lemma Ball_set_last[dest]:
+  assumes "\<forall>x\<in>set xs. P x"
     and "xs \<noteq> []"
   shows "P (last xs)"
-  using assms by (simp add: list_all_iff)
+  using assms by simp
+
+lemmas list_all_last[elim] = Ball_set_last[folded list_all_iff]
 
 end
