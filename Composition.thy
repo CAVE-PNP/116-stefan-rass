@@ -206,7 +206,7 @@ lemma reorder_tapes_rec_simps: "reorder_tapes_rec = \<lparr>
 
 definition "M' \<equiv> Abs_TM reorder_tapes_rec"
 
-lemma M'_valid: "is_valid_TM reorder_tapes_rec" unfolding reorder_tapes_rec_simps
+lemma M'_valid: "valid_TM reorder_tapes_rec" unfolding reorder_tapes_rec_simps
 proof (rule valid_TM_I)
   from at_least_one_tape and k_k' show "1 \<le> k'" by simp
 
@@ -653,7 +653,7 @@ definition map_alph_rec :: "('q, 's2) TM_record"
 lemma valid_tape_symbol_helper[intro]: "x \<in> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> f' x \<in> options \<Sigma>'"
   unfolding set_options_eq using range_f by blast
 
-lemma M'_valid: "is_valid_TM map_alph_rec" unfolding map_alph_rec_def
+lemma M'_valid: "valid_TM map_alph_rec" unfolding map_alph_rec_def
 proof (rule valid_TM_I)
   from finite_symbols show "finite \<Sigma>'" .
   from range_f show "\<Sigma>' \<noteq> {}" using symbol_axioms(2) by blast
@@ -857,7 +857,7 @@ definition comp_rec :: "('q1 + 'q2, 's) TM_record"
   \<rparr>"
 
 
-lemma M_valid: "is_valid_TM comp_rec" unfolding comp_rec_def
+lemma M_valid: "valid_TM comp_rec" unfolding comp_rec_def
 proof (rule valid_TM_I)
   show "(if M1.q\<^sub>0 \<in> M1.F then Inr M2.q\<^sub>0 else Inl M1.q\<^sub>0) \<in> Inl ` M1.Q \<union> Inr ` M2.Q"
     by (rule if_cases) blast+
