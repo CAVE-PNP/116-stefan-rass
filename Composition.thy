@@ -860,7 +860,7 @@ definition comp_rec :: "('q1 + 'q2, 's) TM_record"
 lemma M_valid: "valid_TM comp_rec" unfolding comp_rec_def
 proof (rule valid_TM_I)
   show "(if M1.q\<^sub>0 \<in> M1.F then Inr M2.q\<^sub>0 else Inl M1.q\<^sub>0) \<in> Inl ` M1.Q \<union> Inr ` M2.Q"
-    by (rule if_cases) blast+
+    by (rule ifI) blast+
 
   fix q hds
   assume "length hds = M1.k" and "set hds \<subseteq> M1.\<Sigma>\<^sub>t\<^sub>p"
@@ -873,12 +873,12 @@ proof (rule valid_TM_I)
     case (Inl q1)
     then have "q1 \<in> M1.Q" by blast
     with wf_hds have "M1.\<delta>\<^sub>q q1 hds \<in> M1.Q" by blast
-    then show ?case unfolding Let_def by (induction rule: if_cases) blast+
+    then show ?case unfolding Let_def by (induction rule: ifI) blast+
   next
     case (Inr q2)
     then have "q2 \<in> M2.Q" by blast
     with wf_hds have "M2.\<delta>\<^sub>q q2 hds \<in> M2.Q" by blast
-    then show ?case unfolding Let_def by (induction rule: if_cases) blast+
+    then show ?case unfolding Let_def by (induction rule: ifI) blast+
   qed
 
   fix i

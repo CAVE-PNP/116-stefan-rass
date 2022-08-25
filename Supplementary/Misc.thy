@@ -27,8 +27,6 @@ qed
 lemma inj_altdef: "inj f \<longleftrightarrow> (\<forall>a b. a \<noteq> b \<longrightarrow> f a \<noteq> f b)" unfolding inj_def by blast
 
 
-lemma if_cases[case_names True False]: "P a \<Longrightarrow> P b \<Longrightarrow> P (If c a b)" by presburger
-
 lemma ifI[case_names True False]:
   assumes "c \<Longrightarrow> P a"
     and "\<not>c \<Longrightarrow> P b"
