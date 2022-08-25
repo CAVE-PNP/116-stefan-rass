@@ -228,7 +228,7 @@ proof (rule valid_TM_I)
     with \<open>i < k'\<close> have "is ! i = Some y" unfolding nth_or_def by simp
     from \<open>i < k'\<close> have "Some y \<in> set is" by (fold \<open>is ! i = Some y\<close>) (fact nth_mem)
     with items_match have "y < k" unfolding in_these_eq[symmetric] by simp
-    then show "\<delta>\<^sub>w q (r\<inverse> hds) y \<in> \<Sigma>\<^sub>t\<^sub>p" using \<open>set (r\<inverse> hds) \<subseteq> \<Sigma>\<^sub>t\<^sub>p\<close> and \<open>q \<in> Q\<close> and wf_hdsI by simp
+    then show "\<delta>\<^sub>w q (r\<inverse> hds) y \<in> \<Sigma>\<^sub>t\<^sub>p" using \<open>set (r\<inverse> hds) \<subseteq> \<Sigma>\<^sub>t\<^sub>p\<close> and \<open>q \<in> Q\<close> by simp
   qed
 qed (fact TM_axioms)+
 
@@ -662,7 +662,7 @@ proof (rule valid_TM_I)
   assume "q \<in> Q" and "length hds = k" and "set hds \<subseteq> ?\<Sigma>\<^sub>t\<^sub>p"
 
   then have *[dest]: "wf_hds ?hds'" if "set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p"
-  proof (intro wf_hdsI)
+  proof (intro conjI)
     from \<open>set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p\<close> have "set ?hds' \<subseteq> f'_inv ` f' ` \<Sigma>\<^sub>t\<^sub>p" ..
     also have "... \<subseteq> \<Sigma>\<^sub>t\<^sub>p" by force
     finally show "set ?hds' \<subseteq> \<Sigma>\<^sub>t\<^sub>p" .
@@ -824,7 +824,7 @@ begin
 sublocale M1: TM M1 .
 sublocale M2: TM M2 .
 
-lemma wf_hds_eq[iff]: "M1.wf_hds hds \<longleftrightarrow> M2.wf_hds hds" by (simp add: TM.wf_hds_altdef)
+lemma wf_hds_eq: "M1.wf_hds hds \<longleftrightarrow> M2.wf_hds hds" by simp
 
 
 text\<open>Note: the current definition will not work correctly when execution starts from one of
@@ -872,7 +872,7 @@ proof (rule valid_TM_I)
   proof (induction q rule: case_sum_cases)
     case (Inl q1)
     then have "q1 \<in> M1.Q" by blast
-    with wf_hds have "M1.\<delta>\<^sub>q q1 hds \<in> M1.Q" by blast
+    with wf_hds have "M1.\<delta>\<^sub>q q1 hds \<in> M1.Q" by simp
     then show ?case unfolding Let_def by (induction rule: ifI) blast+
   next
     case (Inr q2)
@@ -884,7 +884,7 @@ proof (rule valid_TM_I)
   fix i
   assume "i < M1.k"
   then show "(case q of Inl q1 \<Rightarrow> M1.\<delta>\<^sub>w q1 hds i | Inr q2 \<Rightarrow> M2.\<delta>\<^sub>w q2 hds i) \<in> M1.\<Sigma>\<^sub>t\<^sub>p"
-    using wf_hds q_valid
+    using wf_hds q_valid unfolding wf_hds_eq[symmetric]
   proof (induction q rule: case_sum_cases)
     case (Inl q1)
     then show ?case by blast

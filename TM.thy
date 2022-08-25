@@ -322,13 +322,10 @@ lemma next_actions_simps[simp]:
 
 
 (* TODO document *)
-definition wf_hds :: "'s option list \<Rightarrow> bool"
-  where "wf_hds = wf_hds_rec M_rec"
+abbreviation (input) "wf_hds hds \<equiv> length hds = k \<and> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
 
-lemma wf_hds_altdef[simp]: "wf_hds hds \<longleftrightarrow> length hds = k \<and> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
-  unfolding wf_hds_def wf_hds_rec_def TM_fields_defs ..
-
-mk_ide wf_hds_altdef |intro wf_hdsI[intro]| |elim wf_hdsE[elim]| |dest wf_hdsD[dest]|
+lemma wf_hds_M_rec[simp]: "wf_hds_rec M_rec = wf_hds"
+  unfolding wf_hds_rec_def TM_fields_defs ..
 
 
 subsubsection\<open>Properties\<close>
@@ -339,10 +336,13 @@ lemmas at_least_one_tape = at_least_one_tape[folded TM_fields_defs]
 lemma at_least_one_tape': "k \<ge> 1" using at_least_one_tape unfolding One_nat_def by (fact Suc_leI)
 lemmas symbol_axioms = symbol_axioms[folded TM_fields_defs]
 lemmas state_axioms = state_axioms[folded TM_fields_defs]
-lemma next_state_valid: "q \<in> Q \<Longrightarrow> wf_hds hds \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q" unfolding wf_hds_def TM_fields_defs by (fact next_state_valid)
-lemma next_write_valid: "q \<in> Q \<Longrightarrow> wf_hds hds \<Longrightarrow> i < k \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>\<^sub>t\<^sub>p" unfolding wf_hds_def TM_fields_defs by (rule next_write_valid)
+lemma transition_axioms:
+  assumes "q \<in> Q" and "length hds = k" and "set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
+  shows next_state_valid: "\<delta>\<^sub>q q hds \<in> Q"
+    and next_write_valid: "i < k \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>\<^sub>t\<^sub>p"
+  using assms unfolding TM_fields_defs by (blast intro: next_state_valid next_write_valid)+
 
-lemmas TM_axioms = at_least_one_tape at_least_one_tape' state_axioms symbol_axioms next_state_valid next_write_valid
+lemmas TM_axioms = at_least_one_tape at_least_one_tape' state_axioms symbol_axioms transition_axioms
 lemmas (in -) TM_axioms[simp, intro] = TM.TM_axioms
 
 lemma final_states_valid[dest]: "q \<in> F \<Longrightarrow> q \<in> Q" using state_axioms(3) by blast
@@ -577,12 +577,15 @@ lemma tapes_heads_valid:
   shows "set (heads c) \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
   using assms unfolding Ball_set_map by blast
 
-lemma wf_config_hds: "wf_config c \<Longrightarrow> wf_hds (heads c)"
-  unfolding wf_config_def by (intro wf_hdsI tapes_heads_valid) auto
+lemma wf_config_hds:
+  assumes "wf_config c"
+  shows "length (heads c) = k"
+    and "set (heads c) \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
+  using assms unfolding wf_config_def by (simp, blast intro!: tapes_heads_valid)
 
 lemma wf_config_iff: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k
     \<and> (\<forall>tp\<in>set (tapes c). set_tape tp \<subseteq> \<Sigma>) \<and> wf_hds (heads c)"
-  by (intro iffI conjI wf_config_hds; (assumption | unfold wf_config_def, blast))
+  by (intro iffI conjI wf_configI) (use wf_config_def[iff] in \<open>blast intro!: wf_config_hds\<close>)+
 
 mk_ide wf_config_iff |dest wf_configD[dest]| |elim wf_configE[elim]|
 
@@ -787,7 +790,7 @@ proof (elim wf_configE, intro wf_configI)
   let ?q = "state c" and ?tps = "tapes c" and ?hds = "heads c"
     and ?tps' = "tapes (step_not_final c)"
 
-  assume q: "?q \<in> Q" and l[simp]: "length ?tps = k" and wf: "wf_hds ?hds"
+  assume q: "?q \<in> Q" and l[simp]: "length ?tps = k" and wf: "length ?hds = k" "set ?hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
   from l have l': "length ?tps' = k" by (fact step_nf_l_tps)
 
   assume valid_tps: "\<forall>tp\<in>set ?tps. set_tape tp \<subseteq> \<Sigma>"
