@@ -164,12 +164,12 @@ lemma is_not_only_None: "\<not> (set is \<subseteq> {None})"
 proof
   assume "set is \<subseteq> {None}"
   then have "Option.these (set is) = {}" unfolding these_empty_eq by (fact subset_singletonD)
-  with items_match and at_least_one_tape show False by simp
+  with items_match show False by simp
 qed
-lemma is_not_empty: "is \<noteq> []" using items_match at_least_one_tape these_not_empty_eq by fastforce
+lemma is_not_empty: "is \<noteq> []" using items_match these_not_empty_eq by fastforce
 
 lemma h1[simp]: "Suc (Max (someset is)) = k"
-  unfolding items_match using at_least_one_tape by (simp add: Max_atLeastLessThan_nat)
+  unfolding items_match by (simp add: Max_atLeastLessThan_nat)
 
 lemma r_inv_len[simp]: "length (reorder_inv is ys) = k"
   unfolding reorder_inv_def using is_not_only_None by simp
@@ -208,7 +208,7 @@ definition "M' \<equiv> Abs_TM reorder_tapes_rec"
 
 lemma M'_valid: "valid_TM reorder_tapes_rec" unfolding reorder_tapes_rec_simps
 proof (rule valid_TM_I)
-  from at_least_one_tape and k_k' show "1 \<le> k'" by simp
+  from at_least_one_tape and k_k' show "k' > 0" by linarith
 
   fix q hds assume "q \<in> Q" and "length hds = k'" and "set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
   from \<open>length hds = k'\<close> have "set (r\<inverse> hds) \<subseteq> set hds" by (fact r_inv_set)
@@ -386,7 +386,7 @@ proof (rule TM_config_eq)
       with assms have "is ! Suc i \<noteq> Some 0" by blast
 
       have h1: "k' = Suc (k' - 1)" using M'.at_least_one_tape
-        unfolding M'_fields by (intro Suc_pred') linarith
+        unfolding M'_fields(1) by simp
       have h2: "\<langle>\<rangle> \<up> k' = \<langle>\<rangle> # \<langle>\<rangle> \<up> (k' - 1)" by (subst h1) simp
 
       from \<open>Suc i < k'\<close> have h3: "(\<langle>\<rangle> \<up> k') ! Suc i = \<langle>\<rangle>" by simp
@@ -596,7 +596,7 @@ proof (intro allI impI)
     also from \<open>\<not> i < k\<close> have "... = (None \<up> b) ! (i - k)" by (subst nth_append) fastforce
     also from \<open>i - k < b\<close> have "... = None" by (rule nth_replicate)
     finally have "is ! i \<noteq> Some 0" by simp
-    moreover from \<open>\<not> i < k\<close> and at_least_one_tape have "i \<noteq> 0" by simp
+    moreover from \<open>\<not> i < k\<close> and at_least_one_tape have "i \<noteq> 0" by meson
     ultimately show ?thesis by blast
   qed
 qed
@@ -705,7 +705,7 @@ proof (cases "is_final c") (* TODO extract this pattern as lemma *)
     from \<open>wf_config c\<close> have "set ?hds' \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p" by (intro map_image) blast
     then have \<delta>_If: "\<And>x y. (if set ?hds' \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then x else y) = x" by (fact if_P)
     from \<open>wf_config c\<close> have f_inv_f: "map f'\<inverse> (map f' ?hds) = ?hds" by (fast intro: map_f'_inv)
-    note * = M'_fields(8-10) \<delta>_If f_inv_f
+    note * = M'_fields(7-9) \<delta>_If f_inv_f
 
     have "state (M'.step_not_final ?c') = M'.\<delta>\<^sub>q ?q ?hds'" by simp
     also have "... = \<delta>\<^sub>q ?q ?hds" by (simp only: *)
@@ -916,7 +916,7 @@ lemma next_moves_simps[simp]:
 lemma next_actions_simps[simp]:
   shows "\<delta>\<^sub>a (Inl q1) hds = M1.\<delta>\<^sub>a q1 hds"
     and "\<delta>\<^sub>a (Inr q2) hds = M2.\<delta>\<^sub>a q2 hds"
-  by (simp_all add: TM.next_actions_altdef M_fields(9-10))
+  by (simp_all add: TM.next_actions_altdef M_fields(8-9))
 
 definition "cl \<equiv> map_conf_state Inl"
 definition "cr \<equiv> map_conf_state Inr"
@@ -1118,8 +1118,10 @@ locale IO_TM_comp = TM_abbrevs + M1: TM M1 + M2: TM M2
   assumes symbols_eq: "TM.symbols M1 = TM.symbols M2"
 begin
 
-abbreviation "k1 \<equiv> TM.tape_count M1"
-abbreviation "k2 \<equiv> TM.tape_count M2"
+definition "k1 \<equiv> TM.tape_count M1"
+definition "k2 \<equiv> TM.tape_count M2"
+lemmas Mx_k_simps[simp] = k1_def[symmetric] k2_def[symmetric]
+
 sublocale M1: TM_tape_offset M1 0 "k2 - 1" .
 sublocale M2: TM_tape_offset M2 "k1 - 1" 0 .
 
@@ -1127,17 +1129,17 @@ abbreviation "M1' \<equiv> M1.M'"
 abbreviation "M2' \<equiv> M2.M'"
 
 lemma M1'_M2'_k: "M1.M'.k = M2.M'.k" unfolding M1.M'_fields(1) M2.M'_fields(1)
-  using M1.at_least_one_tape M2.at_least_one_tape by simp
+  using M1.at_least_one_tape' M2.at_least_one_tape' by simp
 lemma symbols_eq': "M1.M'.\<Sigma> = M2.M'.\<Sigma>"
   unfolding M1.M'_fields(2) M2.M'_fields(2) symbols_eq ..
 
 sublocale simple_TM_comp M1' M2' using M1'_M2'_k symbols_eq' by unfold_locales
 
 lemma k_def: "k = k1 + k2 - 1"
-  unfolding M_fields(1) M1.M'_fields(1) using M2.at_least_one_tape by simp
+  unfolding M_fields(1) M1.M'_fields(1) using M2.at_least_one_tape' by simp
 
 lemma M1'_k[simp]: "M1.M'.k = k" unfolding k_def M1.M'_fields M1.tape_offset_length
-  using M2.at_least_one_tape by simp
+  using M2.at_least_one_tape' by simp
 lemma M2'_k[simp]: "M2.M'.k = k" using M1'_k unfolding M1'_M2'_k .
 
 lemma M1_is_len[simp]: "length M1.is = k" using M1'_k unfolding M1.M'_fields .
@@ -1148,7 +1150,7 @@ lemma k_simps[simp]:
     and "k - k1 = k2 - Suc 0"
     and "k1 - Suc 0 + k2 = k"
     and "k2 + (k1 - Suc 0) = k"
-  unfolding k_def using M1.at_least_one_tape M2.at_least_one_tape by auto
+  unfolding k_def using M1.at_least_one_tape' M2.at_least_one_tape' by auto
 
 lemma init_conf1:
   assumes "M1.q\<^sub>0 \<notin> M1.F"
@@ -1171,7 +1173,7 @@ proof -
     also have "... = (<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (M1.k - 1)) @ (\<langle>\<rangle> \<up> (M2.k - 1))"
       unfolding append_same_eq M1.initial_config_def by simp
     also have "... = <w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1)" unfolding append_Cons replicate_add[symmetric]
-      using M1.at_least_one_tape M2.at_least_one_tape by simp
+      using M1.at_least_one_tape' M2.at_least_one_tape' by simp
     finally show "<w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k - 1) = tapes (M1.M'.c\<^sub>0 w)" ..
   qed
   finally show ?thesis .
@@ -1221,7 +1223,7 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
       unfolding reorder_config_def by simp
     also have "... = TM_config (Inr M2.q\<^sub>0) (tapes (M2.c\<^sub>0 w'))"
       by (subst M2.tape_offset_simps2) (unfold TM.init_conf_len M1'_k k_def, unfold \<open>k1 = 1\<close>, auto)
-    also have "... = c\<^sub>0 w" unfolding \<open>w' = w\<close> TM.initial_config_def TM_config.sel TM_config.inject
+    also have "... = c\<^sub>0 w" unfolding \<open>w' = w\<close> TM.initial_config_def TM_config.sel TM_config.inject Mx_k_simps
     proof (intro conjI)
       from q0_f show "Inr M2.q\<^sub>0 = q\<^sub>0" unfolding M_fields M1.M'_fields M2.M'_fields by simp
 
@@ -1231,7 +1233,7 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
     finally show "c\<^sub>0 w = cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w'))" ..
   next
     assume "k1 \<noteq> 1"
-    with M1.at_least_one_tape have "k1 > 1" by simp
+    with M1.at_least_one_tape' have "k1 > 1" by simp
     then have "k1 - 1 \<noteq> 0" by simp
 
     note input_tape.simps(1)
@@ -1247,7 +1249,7 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
       unfolding TM.initial_config_def TM_config.sel take_Cons' if_not_P[OF \<open>k1 - 1 \<noteq> 0\<close>]
       unfolding take_replicate by argo
 
-    have ***: "k1 - 1 - 1 + k2 = k - 1" unfolding k_def using \<open>1 < M1.k\<close> by simp
+    have ***: "k1 - 1 - 1 + k2 = k - 1" unfolding k_def using \<open>1 < k1\<close> by simp
 
     have "cr (M2.rc (tapes (M1.M'.c\<^sub>0 w)) (M2.c\<^sub>0 w')) =
             TM_config (Inr M2.q\<^sub>0) (M2.r (tapes (M1.M'.c\<^sub>0 w)) (tapes (M2.c\<^sub>0 w')))"
@@ -1360,10 +1362,10 @@ proof -
   let ?tps = "tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.compute w))"
   have "run (?t1 + t2) w = cr (M2.rc ?tps (M2.run t2 w'))" unfolding io_comp_run[OF assms(1-4)] ..
   also have "... = TM_config ?q2 ((take (M1.k - 1) ?tps) @ ?tps2)"
-    unfolding reorder_config_def cr_simps TM_config.sel c2_def
+    unfolding reorder_config_def cr_simps TM_config.sel c2_def Mx_k_simps
     by (subst M2.tape_offset_simps2) (simp, simp, blast+)
   also have "... = TM_config ?q2 (butlast ?tps1 @ ?tps2)"
-    unfolding reorder_config_tapes take_reorder_le' c1_def ..
+    unfolding reorder_config_tapes take_reorder_le' c1_def Mx_k_simps ..
   finally show ?thesis .
 qed
 

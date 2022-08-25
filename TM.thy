@@ -144,7 +144,7 @@ text\<open>To use TMs conveniently, we setup a type and a locale as follows:
 
 locale valid_TM =
   fixes M :: "('q, 's) TM_record"
-  assumes at_least_one_tape: "1 \<le> tape_count M" (* TODO motivate this assm. "why is this necessary?" edit: initial_config would have to be defined differently *)
+  assumes at_least_one_tape: "tape_count M > 0" (* TODO motivate this assm. "why is this necessary?" edit: initial_config would have to be defined differently *)
     and symbol_axioms: "finite (symbols M)" "symbols M \<noteq> {}"
     and state_axioms: "finite (states M)" "initial_state M \<in> states M"
       "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
@@ -163,7 +163,7 @@ lemma valid_TM_I:
     states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sub>A,
     next_state = \<delta>\<^sub>q, next_write = \<delta>\<^sub>w, next_move = \<delta>\<^sub>m \<rparr>"
   defines "\<Sigma>\<^sub>t\<^sub>p \<equiv> options \<Sigma>"
-  assumes at_least_one_tape: "1 \<le> k"
+  assumes at_least_one_tape: "k > 0"
     and symbol_axioms: "finite \<Sigma>" "\<Sigma> \<noteq> {}"
     and state_axioms: "finite Q" "q\<^sub>0 \<in> Q" "F \<subseteq> Q" "F\<^sub>A \<subseteq> F"
     and next_state_valid: "\<And>q hds. q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q"
@@ -180,7 +180,7 @@ qed (fact assms)+
 
 lemma valid_TM_finiteI:
   fixes M :: "('q, 's::finite) TM_record"
-  assumes at_least_one_tape: "1 \<le> tape_count M"
+  assumes at_least_one_tape: "tape_count M > 0"
     and symbols_UNIV: "symbols M = UNIV"
     and state_axioms: "finite (states M)" "initial_state M \<in> states M"
       "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
@@ -201,7 +201,7 @@ lemma valid_TM_finiteI':
   defines "(M :: ('q, 's::finite) TM_record) \<equiv> \<lparr> TM_record.tape_count = k, symbols = UNIV,
     states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sub>A,
     next_state = \<delta>\<^sub>q, next_write = \<delta>\<^sub>w, next_move = \<delta>\<^sub>m \<rparr>"
-  assumes at_least_one_tape: "1 \<le> k"
+  assumes at_least_one_tape: "k > 0"
     and state_axioms: "finite Q" "q\<^sub>0 \<in> Q" "F \<subseteq> Q" "F\<^sub>A \<subseteq> F"
     and next_state_valid: "\<And>q hds. q \<in> Q \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q"
   shows "valid_TM M"
@@ -255,7 +255,7 @@ definition next_write where "next_write \<equiv> TM_record.next_write M_rec"
 definition next_move  where "next_move  \<equiv> TM_record.next_move  M_rec"
 
 lemmas TM_fields_defs = tape_count_def symbols_def
-  states_def initial_state_def final_states_def accepting_states_def rejecting_states_def
+  states_def initial_state_def final_states_def accepting_states_def
   next_state_def next_write_def next_move_def
 
 declare rejecting_states_def[simp]
@@ -332,12 +332,13 @@ subsubsection\<open>Properties\<close>
 sublocale valid_TM M_rec using Rep_TM .. \<comment> \<open>The axioms of \<^locale>\<open>valid_TM\<close> hold by definition.\<close>
 
 lemmas at_least_one_tape = at_least_one_tape[folded TM_fields_defs]
+lemma at_least_one_tape': "k \<ge> 1" using at_least_one_tape unfolding One_nat_def by (fact Suc_leI)
 lemmas symbol_axioms = symbol_axioms[folded TM_fields_defs]
 lemmas state_axioms = state_axioms[folded TM_fields_defs]
 lemma next_state_valid: "q \<in> Q \<Longrightarrow> wf_hds hds \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q" unfolding wf_hds_def TM_fields_defs by (fact next_state_valid)
 lemma next_write_valid: "q \<in> Q \<Longrightarrow> wf_hds hds \<Longrightarrow> i < k \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>\<^sub>t\<^sub>p" unfolding wf_hds_def TM_fields_defs by (rule next_write_valid)
 
-lemmas TM_axioms = at_least_one_tape state_axioms symbol_axioms next_state_valid next_write_valid
+lemmas TM_axioms = at_least_one_tape at_least_one_tape' state_axioms symbol_axioms next_state_valid next_write_valid
 lemmas (in -) TM_axioms[simp, intro] = TM.TM_axioms
 
 lemma final_states_valid[dest]: "q \<in> F \<Longrightarrow> q \<in> Q" using state_axioms(3) by blast
@@ -584,11 +585,17 @@ mk_ide wf_config_iff |dest wf_configD[dest]| |elim wf_configE[elim]|
 lemma (in typed_TM) wf_config_def: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k"
   unfolding wf_config_def by simp
 
-lemma wf_config_tapes_nonempty[intro,dest]: "wf_config c \<Longrightarrow> tapes c \<noteq> []"
-  using at_least_one_tape by force
+lemma
+  assumes "wf_config c"
+  shows wf_config_tapes_nonempty'[dest]: "0 < length (tapes c)"
+    and wf_config_tapes_nonempty[dest?]: "tapes c \<noteq> []"
+proof -
+  from \<open>wf_config c\<close> have "length (tapes c) = k" ..
+  then show "0 < length (tapes c)" by simp
+  then show "tapes c \<noteq> []" by simp
+qed
 
-lemma wf_config_last[intro]: "wf_config c \<Longrightarrow> set_tape (last (tapes c)) \<subseteq> \<Sigma>"
-  using at_least_one_tape by (elim wf_configE Ball_set_last) force
+lemma wf_config_last[dest, intro]: "wf_config c \<Longrightarrow> set_tape (last (tapes c)) \<subseteq> \<Sigma>" by auto
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 

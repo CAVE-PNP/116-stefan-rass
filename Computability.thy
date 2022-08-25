@@ -84,7 +84,7 @@ lemmas init_conf_simps[simp] = init_conf_len init_conf_state
 lemma init_conf_last[simp, intro]:
   shows "k = 1 \<Longrightarrow> last (tapes (c\<^sub>0 w)) = <w>\<^sub>t\<^sub>p"
     and "k \<noteq> 1 \<Longrightarrow> last (tapes (c\<^sub>0 w)) = \<langle>\<rangle>"
-  using at_least_one_tape by (simp_all add: initial_config_def)
+  using at_least_one_tape' by (simp_all add: initial_config_def)
 
 lemma all_initial_tapes_helperI[intro]:
   assumes "P <w>\<^sub>t\<^sub>p" and "P \<langle>\<rangle>"
@@ -112,7 +112,7 @@ corollary (in typed_TM) wf_config_run[intro!, simp]: "wf_config (run n w)" by au
 
 corollary run_tapes_len[simp]: "length (tapes (steps n (c\<^sub>0 w))) = k" by (simp add: steps_l_tps)
 corollary run_tapes_non_empty[simp, intro]: "tapes (run n w) \<noteq> []"
-  using at_least_one_tape by (fold length_0_conv) (simp add: steps_l_tps)
+  using run_tapes_len by (fold length_0_conv) simp
 
 lemma final_le_run[dest]: "is_final (run n w) \<Longrightarrow> n \<le> m \<Longrightarrow> run m w = run n w"
   unfolding run_def by (fact final_le_steps)
