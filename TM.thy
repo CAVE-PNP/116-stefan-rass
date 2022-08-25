@@ -83,6 +83,10 @@ record ('q, 's) TM_record =
   next_move  :: "'q \<Rightarrow> 's tp_symbol list \<Rightarrow> nat \<Rightarrow> head_move" \<comment> \<open>Maps the current state, read symbols and tape index
     to the head movement to perform before transitioning to the next state.\<close>
 
+abbreviation "TM k \<Sigma> Q q\<^sub>0 F F\<^sub>A \<delta>\<^sub>q \<delta>\<^sub>w \<delta>\<^sub>m \<equiv> \<lparr> TM_record.tape_count = k, symbols = \<Sigma>,
+    states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sub>A,
+    next_state = \<delta>\<^sub>q, next_write = \<delta>\<^sub>w, next_move = \<delta>\<^sub>m \<rparr>"
+
 text\<open>The elements of type \<^typ>\<open>'s\<close> comprise the TM's input alphabet,
   and the wrapper \<^typ>\<open>'s tp_symbol\<close> represent its working alphabet, including the \<^const>\<open>blank_symbol\<close>.
 
