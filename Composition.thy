@@ -25,6 +25,24 @@ lemma reorder_nth[simp]:
   shows "reorder is xs ys ! i = (case is ! i of None \<Rightarrow> xs ! i | Some j \<Rightarrow> nth_or (xs ! i) j ys)"
   using assms unfolding reorder_def by (subst nth_map2) auto
 
+lemma reorder_in_set:
+  assumes [simp]: "i < length xs"
+  obtains "reorder is xs ys ! i \<in> set xs" | "reorder is xs ys ! i \<in> set ys"
+proof -
+  have "reorder is xs ys ! i \<in> set xs \<union> set ys"
+  proof (induction "is ! i")
+    case None
+    then show ?case by simp
+  next
+    case (Some j)
+    note [simp] = \<open>Some j = is ! i\<close>[symmetric]
+
+    have "nth_or (xs ! i) j ys \<in> set xs \<union> set ys" by (simp split: nth_or_split)
+    then show ?case by simp
+  qed
+  with that show ?thesis by blast
+qed
+
 lemma reorder_map[simp]: "map f (reorder is xs ys) = reorder is (map f xs) (map f ys)"
 proof -
   let ?m = "\<lambda>d i x. case is ! i of None \<Rightarrow> d x | Some j \<Rightarrow> nth_or (d x) j (map f ys)"
@@ -189,20 +207,20 @@ qed
 
 definition reorder_tapes_rec :: "('q, 's) TM_record"
   where "reorder_tapes_rec \<equiv>
-    M_rec \<lparr>
+    TM_default_wrapper (M_rec \<lparr>
       tape_count := k',
       next_state := \<lambda>q hds. \<delta>\<^sub>q q (r\<inverse> hds),
       next_write := \<lambda>q hds i. case nth_or None i is of Some i \<Rightarrow> (\<delta>\<^sub>w q (r\<inverse> hds) i) | None \<Rightarrow> nth_or None i hds,
       next_move  := \<lambda>q hds i. case nth_or None i is of Some i \<Rightarrow> (\<delta>\<^sub>m q (r\<inverse> hds) i) | None \<Rightarrow> No_Shift
-    \<rparr>"
+    \<rparr>)"
 
-lemma reorder_tapes_rec_simps: "reorder_tapes_rec = \<lparr>
+lemma reorder_tapes_rec_simps: "reorder_tapes_rec = TM_default_wrapper \<lparr>
   TM_record.tape_count = k', symbols = \<Sigma>,
   states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
   next_state = \<lambda>q hds. \<delta>\<^sub>q q (r\<inverse> hds),
   next_write = \<lambda>q hds i. case nth_or None i is of Some i \<Rightarrow> (\<delta>\<^sub>w q (r\<inverse> hds) i) | None \<Rightarrow> nth_or None i hds,
   next_move  = \<lambda>q hds i. case nth_or None i is of Some i \<Rightarrow> (\<delta>\<^sub>m q (r\<inverse> hds) i) | None \<Rightarrow> No_Shift
-\<rparr>" unfolding reorder_tapes_rec_def by simp
+\<rparr>" unfolding reorder_tapes_rec_def M_rec by simp
 
 definition "M' \<equiv> Abs_TM reorder_tapes_rec"
 
@@ -235,12 +253,39 @@ qed (fact TM_axioms)+
 sublocale M': TM M' .
 
 lemma M'_rec: "M'.M_rec = reorder_tapes_rec" using Abs_TM_inverse M'_valid by (auto simp add: M'_def)
-lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec reorder_tapes_rec_simps TM_record.simps]
+lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec reorder_tapes_rec_simps TM_record.simps TM_default_wrapper_simps]
 lemmas [simp] = M'_fields(1-6)
+
+lemma M'_wf_config[intro?]:
+  assumes "wf_config c"
+    and "length tps' = k'"
+    and "\<forall>tp\<in>set tps'. set_tape tp \<subseteq> \<Sigma>"
+  shows "M'.wf_config (rc tps' c)"
+proof (intro M'.wf_configI, unfold M'_fields)
+  from \<open>wf_config c\<close> show "state (rc tps' c) \<in> Q" by auto
+  from \<open>length tps' = k'\<close> show "length (tapes (rc tps' c)) = k'" by simp
+  show "\<forall>tp\<in>set (tapes (rc tps' c)). set_tape tp \<subseteq> \<Sigma>"
+    unfolding reorder_config_simps all_set_conv_all_nth reorder_length
+  proof (intro allI impI)
+    fix n
+    assume "n < length tps'"
+    then show "set_tape (r tps' (tapes c) ! n) \<subseteq> \<Sigma>"
+    proof (rule reorder_in_set)
+      assume "r tps' (tapes c) ! n \<in> set tps'"
+      with \<open>\<forall>tp\<in>set tps'. set_tape tp \<subseteq> \<Sigma>\<close> show "set_tape (r tps' (tapes c) ! n) \<subseteq> \<Sigma>"
+        unfolding list_all_iff by blast
+    next
+      assume "r tps' (tapes c) ! n \<in> set (tapes c)"
+      with \<open>wf_config c\<close> show "set_tape (r tps' (tapes c) ! n) \<subseteq> \<Sigma>"
+        using list_all_iff[iff] by blast
+    qed
+  qed
+qed
 
 lemma reorder_step:
   assumes "wf_config c"
     and l_tps': "length tps' = k'"
+    and wf_tps': "\<forall>tp\<in>set tps'. set_tape tp \<subseteq> \<Sigma>"
   shows "M'.step (rc tps' c) = rc tps' (step c)"
     (is "M'.step (?rc c) = ?rc (step c)")
 proof (cases "is_final c")
@@ -261,27 +306,30 @@ next
   moreover have "someset is = {0..<length ?hds}" unfolding l_hds items_match ..
   ultimately have r_inv_hds[simp]: "reorder_inv is ?hds' = ?hds" by (rule reorder_inv)
 
+  from \<open>wf_config c\<close> and l_tps' wf_tps' have "M'.wf_config ?c'" by (fact M'_wf_config)
+
   assume "\<not> is_final c"
   then have "M'.step ?c' = M'.step_not_final ?c'" by simp
   also have "... = ?rc (step_not_final c)"
   proof (intro TM_config.expand conjI)
-    have "state (M'.step_not_final ?c') = M'.\<delta>\<^sub>q ?q ?hds'"
-      unfolding M'.step_not_final_def by (simp add: Let_def)
-    also have "... = \<delta>\<^sub>q ?q ?hds" unfolding M'_fields by simp
+    have "state (M'.step_not_final ?c') = M'.\<delta>\<^sub>q (state ?c') (heads ?c')"
+      unfolding M'.step_not_final_def unfolding Let_def TM_config.sel by (simp add: Let_def)
+    also have "... = \<delta>\<^sub>q ?q ?hds" unfolding M'_fields(7)
+      by (subst M'.next_fun_wrapper_simps(2)[OF \<open>M'.wf_config ?c'\<close>, unfolded M'_fields]) simp
     also have "... = state (?rc (step_not_final c))" by simp
     finally show "state (M'.step_not_final ?c') = state (?rc (step_not_final c))" .
 
     from k_k' have min_k_k': "min k M'.k = k" by simp
     have lr: "length (r tps' x) = M'.k" for x by (simp add: l_tps')
 
-    have "tapes (M'.step_not_final ?c') = map2 tape_action (M'.\<delta>\<^sub>a ?q ?hds') ?tps'"
+    have "tapes (M'.step_not_final ?c') = map2 tape_action (M'.\<delta>\<^sub>a ?q' (heads ?c')) ?tps'"
       unfolding M'.step_not_final_def by (simp add: Let_def)
     also have "... = r tps' (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps)"
     proof (rule M'.step_not_final_eqI)
       fix i assume "i < M'.k"
       then have [simp]: "i < k'" by simp
 
-      show "tape_action (M'.\<delta>\<^sub>w ?q ?hds' i, M'.\<delta>\<^sub>m ?q ?hds' i) (?tps' ! i) =
+      show "tape_action (M'.\<delta>\<^sub>w ?q' (heads ?c') i, M'.\<delta>\<^sub>m ?q' (heads ?c') i) (?tps' ! i) =
         ?rt (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps) ! i"
       proof (induction "is ! i")
         case None
@@ -291,7 +339,9 @@ next
         note * = this[OF l_tps'] this[OF l_hds']
         from \<open>i < k'\<close> have [simp]: "map head tps' ! i = head (tps' ! i)"
           by (intro nth_map) (unfold l_tps')
-        show ?case unfolding M'_fields * using l_hds' by auto
+        show ?case unfolding M'_fields * using l_hds'
+          unfolding M'.next_fun_wrapper_simps(1)[OF \<open>M'.wf_config ?c'\<close>, OF \<open>i < k'\<close>[folded M'_fields], unfolded M'_fields]
+          by auto
       next
         case (Some i')
         then have [simp]: "is ! i = Some i'" ..
