@@ -338,6 +338,10 @@ lemma nth_or_cases:
   shows "P (nth_or x n xs)"
   unfolding nth_or_def using assms by (fact ifI)
 
+lemma nth_or_split:
+  "P (nth_or x n xs) \<longleftrightarrow> (n < length xs \<longrightarrow> P (xs ! n)) \<and> (\<not> (n < length xs) \<longrightarrow> P x)"
+  unfolding nth_or_def by presburger
+
 
 text\<open>Force a list to a given length; truncate if too long, and pad with the default value if too short.\<close>
 
