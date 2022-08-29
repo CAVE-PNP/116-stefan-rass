@@ -717,7 +717,7 @@ qed
 
 lemma wf_config_last[dest, intro]: "wf_config c \<Longrightarrow> set_tape (last (tapes c)) \<subseteq> \<Sigma>" by auto
 
-lemma next_fun_wrapper_simps[simplified, simp]:
+lemma next_fun_wrapper_simps:
   fixes f val c
   defines "q \<equiv> state c"
     and "hds \<equiv> heads c"

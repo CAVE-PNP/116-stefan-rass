@@ -255,6 +255,7 @@ sublocale M': TM M' .
 lemma M'_rec: "M'.M_rec = reorder_tapes_rec" using Abs_TM_inverse M'_valid by (auto simp add: M'_def)
 lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec reorder_tapes_rec_simps TM_record.simps TM_default_wrapper_simps]
 lemmas [simp] = M'_fields(1-6)
+lemmas M'_next_fun_wrapper_simps[simp] = M'.next_fun_wrapper_simps[unfolded M'_fields]
 
 lemma M'_wf_config[intro?]:
   assumes "wf_config c"
@@ -284,7 +285,7 @@ qed
 
 lemma reorder_step:
   assumes "wf_config c"
-    and l_tps': "length tps' = k'"
+    and l_tps'[simp]: "length tps' = k'"
     and wf_tps': "\<forall>tp\<in>set tps'. set_tape tp \<subseteq> \<Sigma>"
   shows "M'.step (rc tps' c) = rc tps' (step c)"
     (is "M'.step (?rc c) = ?rc (step c)")
@@ -292,56 +293,57 @@ proof (cases "is_final c")
   assume "is_final c"
   then show ?thesis by simp
 next
-  let ?c' = "?rc c"
-  let ?q = "state c" and ?q' = "state ?c'"
-  let ?tps = "tapes c" and ?hds = "heads c"
+  define c' where "c' \<equiv> ?rc c"
+
+  let ?q  = "state c"  and ?tps  = "tapes c"  and ?hds  = "heads c"
+  let ?q' = "state c'" and ?tps' = "tapes c'" and ?hds' = "heads c'"
+
+  have q': "?q' = ?q" unfolding c'_def by simp
 
   let ?rt = "r tps'" and ?rh = "r (map head tps')"
-  let ?tps' = "?rt ?tps" and ?hds' = "?rh ?hds"
+  have  tps': "?tps' = ?rt ?tps"
+    and hds': "?hds' = ?rh ?hds" unfolding c'_def by simp_all
+
+  from l_tps' have l_tps''[simp]: "length ?tps' = k'" unfolding c'_def by simp
 
   from \<open>wf_config c\<close> have l_tps: "length (tapes c) = k" by blast
   then have l_hds: "length (heads c) = k" by simp
-  from l_tps' have l_hds': "length (map head tps') = k'" by simp
+  have l_hds': "length (map head tps') = k'" by simp
 
   moreover have "someset is = {0..<length ?hds}" unfolding l_hds items_match ..
-  ultimately have r_inv_hds[simp]: "reorder_inv is ?hds' = ?hds" by (rule reorder_inv)
+  ultimately have r_inv_hds[simp]: "reorder_inv is ?hds' = ?hds" unfolding hds' by (rule reorder_inv)
 
-  from \<open>wf_config c\<close> and l_tps' wf_tps' have "M'.wf_config ?c'" by (fact M'_wf_config)
+  from \<open>wf_config c\<close> and l_tps' wf_tps' have [simp]: "M'.wf_config c'"
+    unfolding c'_def by (fact M'_wf_config)
 
   assume "\<not> is_final c"
-  then have "M'.step ?c' = M'.step_not_final ?c'" by simp
+  then have "M'.step c' = M'.step_not_final c'" by (simp add: q')
   also have "... = ?rc (step_not_final c)"
   proof (intro TM_config.expand conjI)
-    have "state (M'.step_not_final ?c') = M'.\<delta>\<^sub>q (state ?c') (heads ?c')"
-      unfolding M'.step_not_final_def unfolding Let_def TM_config.sel by (simp add: Let_def)
-    also have "... = \<delta>\<^sub>q ?q ?hds" unfolding M'_fields(7)
-      by (subst M'.next_fun_wrapper_simps(2)[OF \<open>M'.wf_config ?c'\<close>, unfolded M'_fields]) simp
-    also have "... = state (?rc (step_not_final c))" by simp
-    finally show "state (M'.step_not_final ?c') = state (?rc (step_not_final c))" .
+    have "state (M'.step_not_final c') = M'.\<delta>\<^sub>q ?q' ?hds'" by simp
+    also from \<open>M'.wf_config c'\<close> have "... = \<delta>\<^sub>q ?q' ?hds" unfolding M'_fields(7) by simp
+    also have "... = state (?rc (step_not_final c))" unfolding q' by simp
+    finally show "state (M'.step_not_final c') = state (?rc (step_not_final c))" .
 
     from k_k' have min_k_k': "min k M'.k = k" by simp
-    have lr: "length (r tps' x) = M'.k" for x by (simp add: l_tps')
+    have lr: "length (r tps' x) = M'.k" for x by simp
 
-    have "tapes (M'.step_not_final ?c') = map2 tape_action (M'.\<delta>\<^sub>a ?q' (heads ?c')) ?tps'"
-      unfolding M'.step_not_final_def by (simp add: Let_def)
+    have "tapes (M'.step_not_final c') = map2 tape_action (M'.\<delta>\<^sub>a ?q' ?hds') ?tps'" by simp
     also have "... = r tps' (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps)"
     proof (rule M'.step_not_final_eqI)
       fix i assume "i < M'.k"
       then have [simp]: "i < k'" by simp
 
-      show "tape_action (M'.\<delta>\<^sub>w ?q' (heads ?c') i, M'.\<delta>\<^sub>m ?q' (heads ?c') i) (?tps' ! i) =
+      show "tape_action (M'.\<delta>\<^sub>w ?q' ?hds' i, M'.\<delta>\<^sub>m ?q' ?hds' i) (?tps' ! i) =
         ?rt (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps) ! i"
       proof (induction "is ! i")
         case None
         then have [simp]: "is ! i = None" ..
-        from \<open>i < k'\<close> have "reorder is xs ys ! i = xs ! i" if "length xs = k'" for xs ys :: "'x list"
+        have [simp]: "reorder is xs ys ! i = xs ! i" if "length xs = k'" for xs ys :: "'x list"
           using that by simp
-        note * = this[OF l_tps'] this[OF l_hds']
-        from \<open>i < k'\<close> have [simp]: "map head tps' ! i = head (tps' ! i)"
-          by (intro nth_map) (unfold l_tps')
-        show ?case unfolding M'_fields * using l_hds'
-          unfolding M'.next_fun_wrapper_simps(1)[OF \<open>M'.wf_config ?c'\<close>, OF \<open>i < k'\<close>[folded M'_fields], unfolded M'_fields]
-          by auto
+        have [simp]: "?tps' ! i = tps' ! i" unfolding c'_def by simp
+
+        from \<open>i < k'\<close> show ?case unfolding M'_fields using l_tps' by simp
       next
         case (Some i')
         then have [simp]: "is ! i = Some i'" ..
@@ -351,67 +353,70 @@ next
         then have "i' \<in> {0..<k}" unfolding items_match[symmetric] in_these_eq .
         then have [simp]: "i' < k" by simp
 
-        then have nth_i': "nth_or x i' xs = xs ! i'" if "length xs = k" for x :: 'x and xs
-          unfolding nth_or_def \<open>length xs = k\<close> by (rule if_P)
-        from \<open>i < k'\<close> have "i < length tps'" unfolding l_tps' .
-        then have r_nth_or: "?rt tps ! i = nth_or (tps' ! i) i' tps" for tps
-          by simp
+        then have nth_i': "nth_or x i' xs = xs ! i'" if "length xs = k" for x :: 'x and xs using that by simp
+        from \<open>i < k'\<close> have "i < length tps'" by simp
+        then have r_nth_or: "?rt tps ! i = nth_or (tps' ! i) i' tps" for tps by simp
 
-        have \<delta>\<^sub>w': "M'.\<delta>\<^sub>w ?q ?hds' i = \<delta>\<^sub>w (state c) (heads c) i'"
-         and \<delta>\<^sub>m': "M'.\<delta>\<^sub>m ?q ?hds' i = \<delta>\<^sub>m (state c) (heads c) i'"
-          unfolding M'_fields by simp_all
+        have \<delta>\<^sub>w': "M'.\<delta>\<^sub>w ?q' ?hds' i = \<delta>\<^sub>w (state c) (heads c) i'"
+         and \<delta>\<^sub>m': "M'.\<delta>\<^sub>m ?q' ?hds' i = \<delta>\<^sub>m (state c) (heads c) i'"
+          unfolding M'_fields q'[symmetric] by simp_all
 
-        have "tape_action (M'.\<delta>\<^sub>w ?q ?hds' i, M'.\<delta>\<^sub>m ?q ?hds' i) (?tps' ! i) =
-              tape_action (   \<delta>\<^sub>w ?q ?hds i',    \<delta>\<^sub>m ?q ?hds i') (?tps ! i')"
-          unfolding \<delta>\<^sub>w' \<delta>\<^sub>m' unfolding r_nth_or nth_i'[OF l_tps] ..
+        have "tape_action (M'.\<delta>\<^sub>w ?q' ?hds' i, M'.\<delta>\<^sub>m ?q' ?hds' i) (?tps' ! i) =
+              tape_action (   \<delta>\<^sub>w ?q  ?hds i',    \<delta>\<^sub>m ?q  ?hds i') (?tps ! i')"
+          unfolding \<delta>\<^sub>w' \<delta>\<^sub>m' unfolding tps' r_nth_or nth_i'[OF l_tps] ..
         also have "... = tape_action (\<delta>\<^sub>a ?q ?hds ! i') (?tps ! i')" by simp
         also have "... = map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps ! i'" by (auto simp add: l_tps)
         also have "... = ?rt (map2 tape_action (\<delta>\<^sub>a ?q ?hds) ?tps) ! i"
           unfolding r_nth_or by (rule nth_i'[symmetric]) (simp add: l_tps)
         finally show ?case .
       qed
-    qed (fact lr)+
+    qed ((unfold tps')?, fact lr)+
     also have "... = tapes (?rc (step_not_final c))" by (simp add: Let_def)
-    finally show "tapes (M'.step_not_final ?c') = tapes (?rc (step_not_final c))" .
+    finally show "tapes (M'.step_not_final c') = tapes (?rc (step_not_final c))" .
   qed
   also from \<open>\<not> is_final c\<close> have "... = ?rc (step c)" by simp
-  finally show ?thesis .
+  finally show ?thesis unfolding c'_def .
 qed
 
 corollary reorder_steps:
   assumes wfc: "wf_config c"
-    and wfc': "length tps' = k'"
+    and l_tps': "length tps' = k'"
+    and wf_tps': "\<forall>tp\<in>set tps'. set_tape tp \<subseteq> \<Sigma>"
   shows "M'.steps n (rc tps' c) = rc tps' (steps n c)"
 proof (induction n)
   case (Suc n)
   from \<open>wf_config c\<close> have wfcs: "wf_config (steps n c)" by blast
-  show ?case unfolding funpow.simps comp_def Suc.IH reorder_step[OF wfcs wfc'] ..
+  show ?case unfolding funpow.simps comp_def Suc.IH unfolding reorder_step[OF wfcs l_tps' wf_tps'] ..
 qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
 corollary reorder_final_iff:
   assumes wfc: "wf_config c"
-    and wfc': "length tps' = k'"
+    and l_tps': "length tps' = k'"
+    and wf_tps': "\<forall>tp\<in>set tps'. set_tape tp \<subseteq> \<Sigma>"
   shows "M'.is_final (M'.steps n (rc tps' c)) = is_final (steps n c)"
-  unfolding reorder_steps[OF wfc wfc'] by simp
+  unfolding reorder_steps[OF assms] by simp
 
 corollary reorder_halts:
   assumes wfc: "wf_config c"
-    and wfc': "length tps' = k'"
+    and l_tps': "length tps' = k'"
+    and wf_tps': "\<forall>tp\<in>set tps'. set_tape tp \<subseteq> \<Sigma>"
   shows "M'.halts_config (rc tps' c) \<longleftrightarrow> halts_config c"
   unfolding TM.halts_config_def reorder_final_iff[OF assms] ..
 
 corollary reorder_config_time:
-  fixes c c' :: "('q, 's) TM_config"
+  fixes c :: "('q, 's) TM_config"
   assumes wfc: "wf_config c"
-    and wfc': "length (tapes c') = k'"
-  shows "M'.config_time (rc (tapes c') c) = config_time c"
-  unfolding TM.config_time_def reorder_final_iff[OF wfc wfc'] ..
+    and l_tps': "length tps' = k'"
+    and wf_tps': "\<forall>tp\<in>set tps'. set_tape tp \<subseteq> \<Sigma>"
+  shows "M'.config_time (rc tps' c) = config_time c"
+  unfolding TM.config_time_def reorder_final_iff[OF assms] ..
 
 corollary reorder_run':
-  fixes c' :: "('q, 's) TM_config"
-  assumes wwf: "wf_input w" and tpl: "length (tapes c') = k'"
-  shows "M'.steps n (rc (tapes c') (initial_config w)) = rc (tapes c') (run n w)"
-  unfolding run_def using reorder_steps[OF wf_initial_config tpl, OF wwf] .
+  assumes wwf: "wf_input w"
+    and l_tps': "length tps' = k'"
+    and wf_tps': "\<forall>tp\<in>set tps'. set_tape tp \<subseteq> \<Sigma>"
+  shows "M'.steps n (rc tps' (c\<^sub>0 w)) = rc tps' (run n w)"
+  unfolding run_def using assms by (blast intro: reorder_steps)
 
 lemma init_conf_eq:
   assumes "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
@@ -467,7 +472,6 @@ proof (rule TM_config_eq)
 qed simp
 
 corollary reorder_run:
-  fixes c' :: "('q, 's) TM_config"
   assumes "wf_input w"
     and tape0_id: "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0" \<comment> \<open>the first tape is only mapped to the first tape\<close>
   shows "M'.run n w = rc (\<langle>\<rangle> \<up> k') (run n w)"
@@ -480,7 +484,6 @@ proof -
 qed
 
 corollary reorder_time:
-  fixes c' :: "('q, 's) TM_config"
   assumes "wf_input w"
     and tape0_id: "\<forall>i<k'. i = 0 \<longleftrightarrow> is ! i = Some 0"
   shows "M'.time w = time w"
@@ -496,11 +499,12 @@ definition reorder_tapes :: "nat option list \<Rightarrow> ('q, 's) TM"
   where "reorder_tapes is \<equiv> TM_reorder_tapes.M' M is"
 
 corollary reorder_tapes_steps:
-  fixes c c' :: "('q, 's) TM_config"
+  fixes c :: "('q, 's) TM_config"
   assumes "wf_config c"
-    and "length (tapes c') = length is"
+    and "length tps' = length is"
+    and wf_tps': "\<forall>tp\<in>set tps'. set_tape tp \<subseteq> \<Sigma>"
     and "someset is = {0..<k}"
-  shows "TM.steps (reorder_tapes is) n (reorder_config is (tapes c') c) = reorder_config is (tapes c') (steps n c)"
+  shows "TM.steps (reorder_tapes is) n (reorder_config is tps' c) = reorder_config is tps' (steps n c)"
   unfolding reorder_tapes_def using assms
   by (intro TM_reorder_tapes.reorder_steps) (unfold_locales)
 
@@ -610,8 +614,9 @@ theorem tape_offset_steps:
     and a b :: nat
   defines "is \<equiv> tape_offset a b"
   assumes "wf_config c"
-    and "length (tapes c') = length is"
-  shows "TM.steps (reorder_tapes is) n (reorder_config is (tapes c') c) = reorder_config is (tapes c') (steps n c)"
+    and "length tps' = length is"
+    and wf_tps': "\<forall>tp\<in>set tps'. set_tape tp \<subseteq> \<Sigma>"
+  shows "TM.steps (reorder_tapes is) n (reorder_config is tps' c) = reorder_config is tps' (steps n c)"
   using assms tape_offset_valid unfolding reorder_tapes_def is_def
   by (intro TM_reorder_tapes.reorder_steps) (unfold_locales)
 
