@@ -12,6 +12,12 @@ begin
 text\<open>Extends \<^theory>\<open>HOL.Fun\<close>, \<^theory>\<open>HOL.Set\<close>, and \<^theory>\<open>HOL.Orderings\<close>.\<close>
 
 
+lemma Ball_transferE[elim?]:
+  assumes "\<forall>x\<in>A. P x"
+    and "\<And>x. x\<in>A \<Longrightarrow> P x \<Longrightarrow> Q x"
+  shows "\<forall>x\<in>A. Q x"
+  using assms by blast
+
 lemma cond_All_mono:
   assumes "\<forall>i. P i \<longrightarrow> Q i"
     and "\<And>i. P i \<Longrightarrow> Q i \<Longrightarrow> R i"

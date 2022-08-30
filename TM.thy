@@ -174,13 +174,13 @@ locale valid_TM = valid_TM_not_uniq +
 
       We choose the second approach as we suspect it will integrate better with simple definitions.\<close>
   assumes next_state_default: "\<And>q hds. q \<notin> states M \<Longrightarrow> next_state M q hds = q"
-    "\<And>q hds. \<not> wf_hds_rec M hds \<Longrightarrow> next_state M q hds = q"
+                              "\<And>q hds. \<not> wf_hds_rec M hds \<Longrightarrow> next_state M q hds = q"
     and next_write_default:   "\<And>q hds i. q \<notin> states M \<Longrightarrow> next_write M q hds i = hds ! i" (* TODO evaluate if this works out. should make things a bit easier, but could lead to unprovable goals *)
-    "\<And>q hds i. \<not> wf_hds_rec M hds \<Longrightarrow> next_write M q hds i = hds ! i"
-    "\<And>q hds i. \<not> i < tape_count M \<Longrightarrow> next_write M q hds i = hds ! i"
+                              "\<And>q hds i. \<not> wf_hds_rec M hds \<Longrightarrow> next_write M q hds i = hds ! i"
+                              "\<And>q hds i. \<not> i < tape_count M \<Longrightarrow> next_write M q hds i = hds ! i"
     and next_move_default:    "\<And>q hds i. q \<notin> states M \<Longrightarrow> next_move M q hds i = No_Shift"
-    "\<And>q hds i. \<not> wf_hds_rec M hds \<Longrightarrow> next_move M q hds i = No_Shift"
-    "\<And>q hds i. \<not> i < tape_count M \<Longrightarrow> next_move M q hds i = No_Shift"
+                              "\<And>q hds i. \<not> wf_hds_rec M hds \<Longrightarrow> next_move M q hds i = No_Shift"
+                              "\<And>q hds i. \<not> i < tape_count M \<Longrightarrow> next_move M q hds i = No_Shift"
 
 
 lemma "wf_hds_rec M hds \<Longrightarrow> i < tape_count M \<Longrightarrow> hds ! i \<in> tape_symbols_rec M" by force
@@ -462,6 +462,40 @@ lemma final_states_valid[dest]: "q \<in> F \<Longrightarrow> q \<in> Q" using st
 lemma accepting_states_final[dest]: "q \<in> F\<^sub>A \<Longrightarrow> q \<in> F" using state_axioms(4) by blast
 lemma rejecting_states_final[dest]: "q \<in> F\<^sub>R \<Longrightarrow> q \<in> F" unfolding rejecting_states_def by blast
 
+
+lemma next_state_default: "q \<notin> Q \<Longrightarrow> \<delta>\<^sub>q q hds = q"
+                          "length hds \<noteq> k \<Longrightarrow> \<delta>\<^sub>q q hds = q"
+                          "\<not> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> \<delta>\<^sub>q q hds = q"
+  using next_state_default[folded TM_fields_defs, unfolded wf_hds_M_rec] by blast+
+lemma next_write_default: "q \<notin> Q \<Longrightarrow> \<delta>\<^sub>w q hds i = hds ! i"
+                          "length hds \<noteq> k \<Longrightarrow> \<delta>\<^sub>w q hds i = hds ! i"
+                          "\<not> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> \<delta>\<^sub>w q hds i = hds ! i"
+                          "\<not> i < k \<Longrightarrow> \<delta>\<^sub>w q hds i = hds ! i"
+  using next_write_default[folded TM_fields_defs, unfolded wf_hds_M_rec] by blast+
+lemma next_move_default:  "q \<notin> Q \<Longrightarrow> \<delta>\<^sub>m q hds i = No_Shift"
+                          "length hds \<noteq> k \<Longrightarrow> \<delta>\<^sub>m q hds i = No_Shift"
+                          "\<not> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> \<delta>\<^sub>m q hds i = No_Shift"
+                          "\<not> i < k \<Longrightarrow> \<delta>\<^sub>m q hds i = No_Shift"
+  using next_move_default[folded TM_fields_defs, unfolded wf_hds_M_rec] by blast+
+
+lemma next_state_valid':
+  assumes [intro]: "q \<in> Q"
+  shows "\<delta>\<^sub>q q hds \<in> Q"
+proof (cases "wf_hds hds")
+  case False
+  then have "\<delta>\<^sub>q q hds = q" using next_state_default[where q=q and hds=hds] by blast
+  then show ?thesis by auto
+qed (blast intro: next_state_valid)
+
+lemma next_write_valid':
+  assumes [intro]: "hds ! i \<in> \<Sigma>\<^sub>t\<^sub>p"
+  shows "\<delta>\<^sub>w q hds i \<in> \<Sigma>\<^sub>t\<^sub>p"
+proof (cases "q\<in>Q \<and> wf_hds hds \<and> i < k")
+  case False
+  then have "\<delta>\<^sub>w q hds i = hds ! i" using next_write_default[where q=q and hds=hds and i=i] by blast
+  then show ?thesis by auto
+qed (blast intro: next_write_valid)
+
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
 
@@ -730,6 +764,15 @@ proof -
     unfolding assms by (subst next_fun_wrapper_simps) blast+
   then show "f' q hds 0 = f q hds 0" by blast
 qed
+
+lemma wf_config_transferI:
+  assumes "wf_config c"
+    and q: "state c \<in> Q \<Longrightarrow> state (f c) \<in> TM.states M'"
+    and l: "length (tapes c) = k \<Longrightarrow> length (tapes (f c)) = TM.tape_count M'"
+    and s: "\<forall>tp\<in>set (tapes c). set_tape tp \<subseteq> \<Sigma> \<Longrightarrow> \<forall>tp\<in>set (tapes (f c)). set_tape tp \<subseteq> TM.symbols M'"
+  shows "TM.wf_config M' (f c)"
+  using \<open>wf_config c\<close>
+  by (elim wf_configE) (intro TM.wf_configI q l s)
 
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>

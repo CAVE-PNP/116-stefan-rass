@@ -97,6 +97,7 @@ next
   thus "option_map f" unfolding option_map_def by blast
 qed
 
+
 definition options :: "'a set \<Rightarrow> 'a option set"
   where "options A = insert None (Some ` A)"
 
@@ -111,5 +112,14 @@ lemma empty_options[simp]: "options {} = {None}"
 lemma options_UNIV_iff[iff]: "options A = UNIV \<longleftrightarrow> A = UNIV" by auto
 
 lemma set_options_eq: "x \<in> options A \<longleftrightarrow> set_option x \<subseteq> A" by (induction x) blast+
+
+lemma options_map_option[simp]: "map_option f ` options A = options (f ` A)"
+proof (rule set_eqI)
+  show "x \<in> map_option f ` options A \<longleftrightarrow> x \<in> options (f ` A)" for x
+    by (induction x) (auto simp add: options_def comp_def image_image)
+qed
+
+lemma options_set_option[simp]: "\<Union> (set_option ` options A) = A" by blast
+
 
 end
