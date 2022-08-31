@@ -181,6 +181,48 @@ locale valid_TM = valid_TM_not_uniq +
     and next_move_default:    "\<And>q hds i. q \<notin> states M \<Longrightarrow> next_move M q hds i = No_Shift"
                               "\<And>q hds i. \<not> wf_hds_rec M hds \<Longrightarrow> next_move M q hds i = No_Shift"
                               "\<And>q hds i. \<not> i < tape_count M \<Longrightarrow> next_move M q hds i = No_Shift"
+begin
+
+lemma next_state_default': "q \<notin> states M \<or> \<not> wf_hds_rec M hds \<Longrightarrow> next_state M q hds = q"
+  by (elim disjE) (fact next_state_default)+
+
+lemma next_write_default': "q \<notin> states M \<or> \<not> wf_hds_rec M hds \<or> \<not> i < tape_count M \<Longrightarrow> next_write M q hds i = hds ! i"
+  by (elim disjE) (fact next_write_default)+
+
+lemma next_move_default': "q \<notin> states M \<or> \<not> wf_hds_rec M hds \<or> \<not> i < tape_count M \<Longrightarrow> next_move M q hds i = No_Shift"
+  by (elim disjE) (fact next_move_default)+
+
+lemmas next_fun_default' = next_state_default' next_write_default' next_move_default'
+
+end
+
+
+lemma valid_TM_rec_eqI:
+  fixes M1 M2 :: "('q, 's) TM_record"
+  assumes [simp]: "valid_TM M1" "valid_TM M2"
+    "tape_count M1 = tape_count M2"
+    "symbols M1 = symbols M2"
+    "states M1 = states M2"
+    "initial_state M1 = initial_state M2"
+    "final_states M1 = final_states M2"
+    "accepting_states M1 = accepting_states M2"
+    "\<And>q hds i. q \<in> states M1 \<Longrightarrow> wf_hds_rec M1 hds \<Longrightarrow> next_state M1 q hds = next_state M2 q hds"
+    "\<And>q hds i. q \<in> states M1 \<Longrightarrow> wf_hds_rec M1 hds \<Longrightarrow> i < tape_count M1 \<Longrightarrow> next_write M1 q hds i = next_write M2 q hds i"
+    "\<And>q hds i. q \<in> states M1 \<Longrightarrow> wf_hds_rec M1 hds \<Longrightarrow> i < tape_count M1 \<Longrightarrow> next_move M1 q hds i = next_move M2 q hds i"
+    "more M1 = more M2"
+  shows "M1 = M2"
+proof (intro TM_record.equality ext)
+  have [simp]: "wf_hds_rec M1 hds = wf_hds_rec M2 hds" for hds unfolding wf_hds_rec_def by simp
+  note [simp] = valid_TM.next_fun_default'
+
+  fix q hds i
+  let ?P = "q \<in> states M1 \<and> wf_hds_rec M1 hds"
+  let ?P' = "?P \<and> i < tape_count M1"
+
+  show "next_state M1 q hds = next_state M2 q hds" by (cases ?P) auto
+  show "next_write M1 q hds i = next_write M2 q hds i" by (cases ?P') auto
+  show "next_move M1 q hds i = next_move M2 q hds i" by (cases ?P') auto
+qed (fact assms)+
 
 
 lemma "wf_hds_rec M hds \<Longrightarrow> i < tape_count M \<Longrightarrow> hds ! i \<in> tape_symbols_rec M" by force
