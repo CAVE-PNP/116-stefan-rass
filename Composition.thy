@@ -169,7 +169,7 @@ lemma reorder_config_simps[simp]:
 
 locale TM_reorder_tapes = TM M for M :: "('q, 's) TM" +
   fixes "is" :: "nat option list"
-  assumes items_match: "someset is = {0..<TM.tape_count M}"
+  assumes items_match: "someset is = {0..<k}"
 begin
 
 abbreviation "k' \<equiv> length is"
@@ -669,9 +669,9 @@ subsubsection\<open>Change Alphabet\<close>
 
 locale TM_map_alphabet = TM M for M :: "('q, 's1) TM" +
   fixes f :: "'s1 \<Rightarrow> 's2"
-    and \<Sigma>' :: "'s2 set" \<comment> \<open>this is not necessarily \<^term>\<open>f ` TM.symbols M\<close>.\<close>
-  assumes inj_f: "inj_on f (TM.symbols M)"
-    and range_f: "f ` TM.symbols M \<subseteq> \<Sigma>'"
+    and \<Sigma>' :: "'s2 set" \<comment> \<open>this is not necessarily \<^term>\<open>f ` \<Sigma>\<close>.\<close>
+  assumes inj_f: "inj_on f \<Sigma>"
+    and range_f: "f ` \<Sigma> \<subseteq> \<Sigma>'"
     and finite_symbols: "finite \<Sigma>'"
 begin
 
@@ -886,16 +886,14 @@ end
 
 subsubsection\<open>Simple Composition\<close>
 
-locale simple_TM_comp = TM_abbrevs +
-  fixes M1 :: "('q1, 's) TM"
-    and M2 :: "('q2, 's) TM"
-  assumes k[simp]: "TM.tape_count M1 = TM.tape_count M2"
-    and symbols_eq[simp]: "TM.symbols M1 = TM.symbols M2"
+locale simple_TM_comp = TM_abbrevs + M1: TM M1 + M2: TM M2
+  for M1 :: "('q1, 's) TM"
+    and M2 :: "('q2, 's) TM" +
+  assumes k[simp]: "M1.k = M2.k"
+    and symbols_eq[simp]: "M1.\<Sigma> = M2.\<Sigma>"
 begin
-sublocale M1: TM M1 .
-sublocale M2: TM M2 .
 
-lemma wf_hds_eq: "M1.wf_hds hds \<longleftrightarrow> M2.wf_hds hds" by simp
+lemma wf_hds_eq[simp]: "M1.wf_hds hds \<longleftrightarrow> M2.wf_hds hds" by simp
 
 
 text\<open>Note: the current definition will not work correctly when execution starts from one of
@@ -1186,11 +1184,11 @@ text\<open>Combine \<^locale>\<open>simple_TM_comp\<close> and \<^locale>\<open>
 
 locale IO_TM_comp = TM_abbrevs + M1: TM M1 + M2: TM M2
   for M1 :: "('q1, 's) TM" and M2 :: "('q2, 's) TM" +
-  assumes symbols_eq: "TM.symbols M1 = TM.symbols M2"
+  assumes symbols_eq: "M1.\<Sigma> = M2.\<Sigma>"
 begin
 
-definition "k1 \<equiv> TM.tape_count M1"
-definition "k2 \<equiv> TM.tape_count M2"
+definition "k1 \<equiv> M1.k"
+definition "k2 \<equiv> M2.k"
 lemmas Mx_k_simps[simp] = k1_def[symmetric] k2_def[symmetric]
 
 sublocale M1: TM_tape_offset M1 0 "k2 - 1" .
