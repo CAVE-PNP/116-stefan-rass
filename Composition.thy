@@ -697,11 +697,11 @@ lemma fc_simps[simp]:
   unfolding fc_def TM_config.map_sel by (rule refl)+
 
 definition map_alph_rec :: "('q, 's2) TM_record"
-  where "map_alph_rec \<equiv> \<lparr>
+  where "map_alph_rec \<equiv> TM_default_wrapper \<lparr>
     TM_record.tape_count = k, symbols = \<Sigma>',
     states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
     next_state = \<lambda>q hds. if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then \<delta>\<^sub>q q (map f'_inv hds) else q,
-    next_write = \<lambda>q hds i. if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then f' (\<delta>\<^sub>w q (map f'_inv hds) i) else Bk,
+    next_write = \<lambda>q hds i. if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then f' (\<delta>\<^sub>w q (map f'_inv hds) i) else hds ! i,
     next_move  = \<lambda>q hds i. if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then \<delta>\<^sub>m q (map f'_inv hds) i else No_Shift
   \<rparr>"
 
@@ -713,9 +713,14 @@ proof (rule valid_TM_I)
   from finite_symbols show "finite \<Sigma>'" .
   from range_f show "\<Sigma>' \<noteq> {}" using symbol_axioms(2) by blast
 
-  fix q hds let ?\<Sigma>\<^sub>t\<^sub>p = "options \<Sigma>'" and ?hds' = "map f'\<inverse> hds"
-  assume "q \<in> Q" and "length hds = k" and "set hds \<subseteq> ?\<Sigma>\<^sub>t\<^sub>p"
+  fix q hds
+  assume "q \<in> Q"
+  then show "(if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then \<delta>\<^sub>q q (map f'\<inverse> hds) else q) \<in> Q"
+    by (cases rule: ifI) (rule next_state_valid')
 
+  let ?\<Sigma>\<^sub>t\<^sub>p' = "options \<Sigma>'" and ?hds' = "map f'\<inverse> hds"
+  fix i
+  assume "i < k" and "length hds = k" and "set hds \<subseteq> ?\<Sigma>\<^sub>t\<^sub>p'"
   then have *[dest]: "wf_hds ?hds'" if "set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p"
   proof (intro conjI)
     from \<open>set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p\<close> have "set ?hds' \<subseteq> f'_inv ` f' ` \<Sigma>\<^sub>t\<^sub>p" ..
@@ -723,68 +728,79 @@ proof (rule valid_TM_I)
     finally show "set ?hds' \<subseteq> \<Sigma>\<^sub>t\<^sub>p" .
   qed simp
 
-  from \<open>q \<in> Q\<close> show "(if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then \<delta>\<^sub>q q ?hds' else q) \<in> Q"
-    by (cases rule: ifI) blast+
-
-  fix i
-  assume "i < k"
-  with \<open>q \<in> Q\<close> show "(if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then f' (\<delta>\<^sub>w q ?hds' i) else Bk) \<in> ?\<Sigma>\<^sub>t\<^sub>p" by auto
+  moreover from \<open>i < k\<close> and \<open>length hds = k\<close> and \<open>set hds \<subseteq> ?\<Sigma>\<^sub>t\<^sub>p'\<close> have "hds ! i \<in> ?\<Sigma>\<^sub>t\<^sub>p'" by force
+  ultimately show "(if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then f' (\<delta>\<^sub>w q ?hds' i) else hds ! i) \<in> ?\<Sigma>\<^sub>t\<^sub>p'"
+    using \<open>q \<in> Q\<close> and \<open>i < k\<close> by (cases rule: ifI) blast+
 qed (fact TM_axioms)+
 
 definition "M' \<equiv> Abs_TM map_alph_rec"
 sublocale M': TM M' .
 
 lemma M'_rec: "M'.M_rec = map_alph_rec" using Abs_TM_inverse M'_valid by (auto simp add: M'_def)
-lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec map_alph_rec_def TM_record.simps]
+lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec map_alph_rec_def TM_record.simps TM_default_wrapper_simps]
 lemmas [simp] = M'_fields(1-6)
+lemmas M'_next_fun_wrapper_simps[simp] = M'.next_fun_wrapper_simps[unfolded M'_fields]
 
-lemma M'_tape_symbols: "f' ` \<Sigma>\<^sub>t\<^sub>p \<subseteq> M'.\<Sigma>\<^sub>t\<^sub>p" by auto
+lemma M'_tape_symbols: "f' ` \<Sigma>\<^sub>t\<^sub>p \<subseteq> M'.\<Sigma>\<^sub>t\<^sub>p" by force
+
+lemma map_wf_config[intro,dest]: "wf_config c \<Longrightarrow> M'.wf_config (fc c)"
+proof (elim wf_config_transferI)
+  from range_f have "set_tape tp \<subseteq> \<Sigma> \<Longrightarrow> set_tape (map_tape f tp) \<subseteq> \<Sigma>'" for tp
+    unfolding tape.set_map by blast
+  then show "\<forall>tp\<in>set (tapes c). set_tape tp \<subseteq> \<Sigma> \<Longrightarrow> \<forall>tp\<in>set (tapes (fc c)). set_tape tp \<subseteq> M'.\<Sigma>"
+    by simp
+qed simp_all
 
 lemma map_step:
   assumes [intro]: "wf_config c"
-  shows "M'.step (fc c) = fc (step c)"
+  defines "c' \<equiv> fc c"
+  shows "M'.step c' = fc (step c)"
 proof (cases "is_final c") (* TODO extract this pattern as lemma *)
-  let ?c' = "fc c"
-  let ?q = "state c" and ?q' = "state ?c'"
-  let ?tps = "tapes c" and ?hds = "heads c"
+  let ?q  = "state c"  and ?tps  = "tapes c"  and ?hds  = "heads c"
+  let ?q' = "state c'" and ?tps' = "tapes c'" and ?hds' = "heads c'"
 
   let ?ft = "map (map_tape f)"
-  let ?hds' = "map f' ?hds" and ?tps' = "?ft ?tps"
+  have  tps': "?tps' = ?ft ?tps"
+    and hds': "?hds' = map f' ?hds" unfolding c'_def by simp_all
 
   from \<open>wf_config c\<close> have [simp]: "length ?tps = k" ..
+  from \<open>wf_config c\<close> have [simp]: "M'.wf_config c'" unfolding c'_def ..
+
+  have c'_simps[simp]: "?q' = ?q" "length ?tps' = k" unfolding c'_def by simp_all
 
   assume "\<not> is_final c"
-  then have "M'.step ?c' = M'.step_not_final ?c'" by simp
+  then have "M'.step c' = M'.step_not_final c'" by simp
   also have "... = fc (step_not_final c)"
   proof (rule TM_config_eq)
-    from \<open>wf_config c\<close> have "set ?hds' \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p" by (intro map_image) blast
+    from \<open>wf_config c\<close> have "set ?hds' \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p" unfolding hds' by (intro map_image) blast
     then have \<delta>_If: "\<And>x y. (if set ?hds' \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then x else y) = x" by (fact if_P)
-    from \<open>wf_config c\<close> have f_inv_f: "map f'\<inverse> (map f' ?hds) = ?hds" by (fast intro: map_f'_inv)
-    note * = M'_fields(7-9) \<delta>_If f_inv_f
+    from \<open>wf_config c\<close> have f_inv_f[simp]: "map f'\<inverse> ?hds' = ?hds"
+      unfolding hds' by (blast intro: map_f'_inv)
+    note * = M'_fields(7-9) \<delta>_If f_inv_f M'_next_fun_wrapper_simps[OF \<open>M'.wf_config c'\<close>]
 
-    have "state (M'.step_not_final ?c') = M'.\<delta>\<^sub>q ?q ?hds'" by simp
-    also have "... = \<delta>\<^sub>q ?q ?hds" by (simp only: *)
+    have "state (M'.step_not_final c') = M'.\<delta>\<^sub>q ?q' ?hds'" by simp
+    also have "... = \<delta>\<^sub>q ?q' ?hds" unfolding M'_fields(7-9) by (simp only: *)
     also have "... = state (fc (step_not_final c))" by simp
-    finally show "state (M'.step_not_final ?c') = state (fc (step_not_final c))" .
+    finally show "state (M'.step_not_final c') = state (fc (step_not_final c))" .
 
-    show "tapes (M'.step_not_final ?c') = tapes (fc (step_not_final c))"
+    show "tapes (M'.step_not_final c') = tapes (fc (step_not_final c))"
       unfolding TM.step_not_final_simps
     proof (intro TM.step_not_final_eqI, unfold fc_simps map_head_tapes)
       fix i assume "i < M'.k"
-      then have [simp]: "i < k" by simp (* [simp] by simp necessary/useful here *)
+      then have [simp]: "i < k" by simp
 
-      have "tape_action (M'.\<delta>\<^sub>w ?q ?hds' i, M'.\<delta>\<^sub>m ?q ?hds' i) (?tps' ! i)
-          = tape_action (f' (\<delta>\<^sub>w ?q ?hds i), \<delta>\<^sub>m ?q ?hds i) (?tps' ! i)" by (simp only: *)
-      also have "... = tape_action (f' (\<delta>\<^sub>w ?q ?hds i), \<delta>\<^sub>m ?q ?hds i) (map_tape f (?tps ! i))" by simp
+      have "tape_action (M'.\<delta>\<^sub>w ?q' ?hds' i, M'.\<delta>\<^sub>m ?q' ?hds' i) (?tps' ! i)
+          = tape_action (f' (\<delta>\<^sub>w ?q' ?hds i), \<delta>\<^sub>m ?q' ?hds i) (?tps' ! i)" by (simp only: * \<open>i < k\<close>)
+      also have "... = tape_action (f' (\<delta>\<^sub>w ?q ?hds i), \<delta>\<^sub>m ?q ?hds i) (map_tape f (?tps ! i))" by (simp add: c'_def)
       also have "... = map_tape f (tape_action (\<delta>\<^sub>w ?q ?hds i, \<delta>\<^sub>m ?q ?hds i) (?tps ! i))" by simp
       also have "... = ?ft (tapes (step_not_final c)) ! i" by simp
-      finally show "tape_action (M'.\<delta>\<^sub>w ?q ?hds' i, M'.\<delta>\<^sub>m ?q ?hds' i) (?tps' ! i) =
+      finally show "tape_action (M'.\<delta>\<^sub>w ?q' ?hds' i, M'.\<delta>\<^sub>m ?q' ?hds' i) (?tps' ! i) =
          ?ft (tapes (step_not_final c)) ! i" .
     qed simp_all
   qed
   also from \<open>\<not> is_final c\<close> have "... = fc (step c)" by simp
   finally show ?thesis .
-qed simp
+qed \<comment> \<open>case \<open>is_final c\<close> by\<close> (simp add: c'_def)
 
 corollary map_steps[simp]:
   assumes "wf_config c"

@@ -121,5 +121,7 @@ qed
 
 lemma options_set_option[simp]: "\<Union> (set_option ` options A) = A" by blast
 
+lemma options_subset_mono[iff]: "options A \<subseteq> options B \<longleftrightarrow> A \<subseteq> B" unfolding options_def by auto
+
 
 end
