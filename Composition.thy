@@ -43,6 +43,20 @@ proof -
   with that show ?thesis by blast
 qed
 
+lemma reorder_in_set':
+  assumes "x \<in> set (reorder is xs ys)"
+  obtains "x \<in> set xs" | "x \<in> set ys"
+proof -
+  from assms obtain i where l: "i < length xs" and x: "reorder is xs ys ! i = x"
+    unfolding in_set_conv_nth reorder_length by blast
+  show ?thesis
+  proof (rule reorder_in_set)
+    from l show "i < length xs" .
+    show  "reorder is xs ys ! i \<in> set xs \<Longrightarrow> thesis"
+      and "reorder is xs ys ! i \<in> set ys \<Longrightarrow> thesis" unfolding x by (fact that)+
+  qed
+qed
+
 lemma reorder_map[simp]: "map f (reorder is xs ys) = reorder is (map f xs) (map f ys)"
 proof -
   let ?m = "\<lambda>d i x. case is ! i of None \<Rightarrow> d x | Some j \<Rightarrow> nth_or (d x) j (map f ys)"
@@ -1009,7 +1023,7 @@ lemma next_fun_cr_simps[simplified,simp]:
     and "i < k \<Longrightarrow> \<delta>\<^sub>w q' hds' i = M2.\<delta>\<^sub>w q hds i"
   unfolding M_fields assms by (simp del: cr_simps, simp)+
 
-lemma next_actions_simps[simp]: (* TODO remove *)
+lemma next_actions_simps[simp]:
   shows "M1.wf_config c1 \<Longrightarrow> \<delta>\<^sub>a (Inl (state c1)) (heads c1) = M1.\<delta>\<^sub>a (state c1) (heads c1)"
     and "M2.wf_config c2 \<Longrightarrow> \<delta>\<^sub>a (Inr (state c2)) (heads c2) = M2.\<delta>\<^sub>a (state c2) (heads c2)"
   unfolding TM.next_actions_altdef by auto
@@ -1231,8 +1245,8 @@ definition "k1 \<equiv> M1.k"
 definition "k2 \<equiv> M2.k"
 lemmas Mx_k_simps[simp] = k1_def[symmetric] k2_def[symmetric]
 
-sublocale M1: TM_tape_offset M1 0 "k2 - 1" .
-sublocale M2: TM_tape_offset M2 "k1 - 1" 0 .
+sublocale M1: TM_tape_offset M1 0 "k2 - (Suc 0)" .
+sublocale M2: TM_tape_offset M2 "k1 - (Suc 0)" 0 .
 
 abbreviation "M1' \<equiv> M1.M'"
 abbreviation "M2' \<equiv> M2.M'"
@@ -1244,11 +1258,11 @@ lemma symbols_eq': "M1.M'.\<Sigma> = M2.M'.\<Sigma>"
 
 sublocale simple_TM_comp M1' M2' using M1'_M2'_k symbols_eq' by unfold_locales
 
-lemma k_def: "k = k1 + k2 - 1"
-  unfolding M_fields(1) M1.M'_fields(1) using M2.at_least_one_tape' by simp
+declare M_fields(1)[simp del]
 
-lemma M1'_k[simp]: "M1.M'.k = k" unfolding k_def M1.M'_fields M1.tape_offset_length
-  using M2.at_least_one_tape' by simp
+lemma k_def: "k = k1 + k2 - (Suc 0)" using M1.at_least_one_tape' by (simp add: M_fields(1))
+
+lemma M1'_k[simp]: "M1.M'.k = k" using M2.at_least_one_tape' by (simp add: k_def)
 lemma M2'_k[simp]: "M2.M'.k = k" using M1'_k unfolding M1'_M2'_k .
 
 lemma M1_is_len[simp]: "length M1.is = k" using M1'_k unfolding M1.M'_fields .
@@ -1309,7 +1323,7 @@ corollary take_reorder_le'[simp]:
 
 lemma io_comp_run1:
   assumes comp_w: "M1.computes_word w w'"
-    and "M1.wf_input w"
+    and wfw[simp]: "M1.wf_input w"
   shows "run (M1.time w) w = cr (M2.rc (tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.compute w))) (M2.c\<^sub>0 w'))"
 proof (cases "M1.q\<^sub>0 \<in> M1.F")
   assume q0_f: "M1.q\<^sub>0 \<in> M1.F"
@@ -1343,7 +1357,7 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
   next
     assume "k1 \<noteq> 1"
     with M1.at_least_one_tape' have "k1 > 1" by simp
-    then have "k1 - 1 \<noteq> 0" by simp
+    then have "k1 - Suc 0 \<noteq> 0" by simp
 
     note input_tape.simps(1)
     also from \<open>k1 > 1\<close> have "\<langle>\<rangle> = last (tapes (M1.compute w))" unfolding ** by simp
@@ -1352,10 +1366,10 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
     have *: "tapes (M2.c\<^sub>0 w') = \<langle>\<rangle> \<up> k2" unfolding TM.initial_config_def TM_config.sel \<open>w' = []\<close>
       unfolding input_tape.simps replicate_Suc[symmetric] using M2.at_least_one_tape by simp
 
-    have "min (k1 - 1 - 1) (M1.M'.k - 1) = k1 - 1 - 1"
+    have "min (k1 - Suc 0 - 1) (M1.M'.k - 1) = k1 - Suc 0 - 1"
       unfolding M1'_k k_def by (intro min_absorb1) simp
-    then have **: "take (k1 - 1) (tapes (M1.M'.c\<^sub>0 w)) = <w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k1 - 1 - 1)"
-      unfolding TM.initial_config_def TM_config.sel take_Cons' if_not_P[OF \<open>k1 - 1 \<noteq> 0\<close>]
+    then have **: "take (k1 - Suc 0) (tapes (M1.M'.c\<^sub>0 w)) = <w>\<^sub>t\<^sub>p # \<langle>\<rangle> \<up> (k1 - Suc 0 - 1)"
+      unfolding TM.initial_config_def TM_config.sel take_Cons' if_not_P[OF \<open>k1 - (Suc 0) \<noteq> 0\<close>]
       unfolding take_replicate by argo
 
     have ***: "k1 - 1 - 1 + k2 = k - 1" unfolding k_def using \<open>1 < k1\<close> by simp
@@ -1392,13 +1406,13 @@ next
       by (subst M1.reorder_halts, unfold M1_is_len) auto
     then show "M1.M'.halts_config (M1.M'.c\<^sub>0 w)"
       by (subst M1.init_conf_offset_eq, unfold M1_is_len) blast+
-  qed blast
+  qed (use wfw in force)+
   also have "... = TM_config (Inr M2.M'.q\<^sub>0) (tapes (M1.rc (\<langle>\<rangle> \<up> k) ?c1))"
     unfolding init_conf1' TM.run_def unfolding M2.M'_fields(3)
   proof (subst M1.reorder_steps)
     from \<open>M1.wf_input w\<close> show "M1.wf_config (M1.c\<^sub>0 w)" by blast
     show "length (\<langle>\<rangle> \<up> k) = length M1.is" unfolding M1_is_len by simp
-  qed simp
+  qed simp_all
   also have "... = cr (M2.rc (tapes (M1.rc (\<langle>\<rangle> \<up> k) ?c1)) (M2.c\<^sub>0 w'))"
   proof (rule TM_config_eq, unfold TM_config.sel cr_simps reorder_config_simps)
     show "Inr M2.M'.q\<^sub>0 = Inr (state (M2.c\<^sub>0 w'))" unfolding TM.init_conf_simps M2.M'_fields(4) ..
@@ -1420,8 +1434,8 @@ next
       from \<open>M1.computes_word w w'\<close> have l_tp: "last (tapes (M1.compute w)) = <w'>\<^sub>t\<^sub>p" by blast
       show ?thesis unfolding same_append_eq M2.initial_config_def TM_config.sel unfolding l_tp by simp
     qed
-    also have "... = M2.r ?r1 (tapes (M2.c\<^sub>0 w'))"
-      by (subst M2.tape_offset_simps2) (simp, simp, blast+)
+    also have "... = M2.r ?r1 (tapes (M2.c\<^sub>0 w'))" unfolding One_nat_def
+      by (subst M2.tape_offset_simps2) (simp, simp, blast)
     finally show "?r1 = ..." .
   qed
   finally show ?thesis .
@@ -1429,14 +1443,16 @@ qed
 
 lemma io_comp_steps2:
   assumes "M2.halts w"
-    and "M2.wf_input w"
-    and "length tps = k"
+    and wfw[simp]: "M2.wf_input w"
+    and l_tps: "length tps = k"
+    and wf_tps: "\<forall>tp\<in>set tps. set_tape tp \<subseteq> M2.\<Sigma>"
   shows "steps t2 (cr (M2.rc tps (M2.c\<^sub>0 w))) = cr (M2.rc tps (M2.run t2 w))"
   (is "steps t2 (cr ?c\<^sub>0') = cr (M2.rc tps ?c)")
 proof -
-  have "steps t2 (cr ?c\<^sub>0') = cr (M2.M'.steps t2 ?c\<^sub>0')" unfolding comp_steps2 ..
-  have "steps t2 (cr ?c\<^sub>0') = cr (M2.M'.steps t2 ?c\<^sub>0')" unfolding comp_steps2 ..
-  also have "... = cr (M2.rc tps ?c)" unfolding M2.run_def using \<open>length tps = k\<close> and \<open>M2.wf_input w\<close>
+  from l_tps have l_tps': "length tps = length M2.is" unfolding TM.tape_offset_length Mx_k_simps k_simps add_0_right .
+  with wfw wf_tps have "M2.M'.wf_config (M2.rc tps (M2.c\<^sub>0 w))" by (intro M2.M'_wf_config) blast+
+  then have "steps t2 (cr ?c\<^sub>0') = cr (M2.M'.steps t2 ?c\<^sub>0')" by (subst comp_steps2) blast+
+  also have "... = cr (M2.rc tps ?c)" unfolding M2.run_def using wfw l_tps' wf_tps
     by (subst M2.reorder_steps, unfold M2_is_len) blast+
   finally show ?thesis .
 qed
@@ -1453,7 +1469,21 @@ proof -
   have "run (?t1 + t2) w = steps t2 (run ?t1 w)" unfolding run_def using steps_plus ..
   also from assms(1-2) have "... = steps t2 (cr (M2.rc ?tps (M2.c\<^sub>0 w')))"
     by (subst io_comp_run1) blast+
-  also from assms(3-4) have "... = cr (M2.rc ?tps ?c2)" by (subst io_comp_steps2) auto
+  also from assms(3-4) have "... = cr (M2.rc ?tps ?c2)"
+  proof (subst io_comp_steps2)
+    show "\<forall>tp\<in>set ?tps. set_tape tp \<subseteq> M2.\<Sigma>"
+    proof (intro ballI)
+      fix tp
+      assume "tp \<in> set ?tps"
+      then show "set_tape tp \<subseteq> M2.\<Sigma>" unfolding reorder_config_tapes
+      proof (cases rule: reorder_in_set')
+        assume "tp \<in> set (tapes (M1.compute w))"
+        moreover from \<open>M1.wf_input w\<close> have "M1.wf_config (M1.compute w)" by blast
+        ultimately have "set_tape tp \<subseteq> M1.\<Sigma>" by fast
+        then show "set_tape tp \<subseteq> M2.\<Sigma>" using symbols_eq by simp
+      qed simp
+    qed
+  qed auto
   finally show ?thesis .
 qed
 
@@ -1471,7 +1501,7 @@ proof -
   let ?tps = "tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.compute w))"
   have "run (?t1 + t2) w = cr (M2.rc ?tps (M2.run t2 w'))" unfolding io_comp_run[OF assms(1-4)] ..
   also have "... = TM_config ?q2 ((take (M1.k - 1) ?tps) @ ?tps2)"
-    unfolding reorder_config_def cr_simps TM_config.sel c2_def Mx_k_simps
+    unfolding reorder_config_def cr_simps TM_config.sel c2_def Mx_k_simps One_nat_def
     by (subst M2.tape_offset_simps2) (simp, simp, blast+)
   also have "... = TM_config ?q2 (butlast ?tps1 @ ?tps2)"
     unfolding reorder_config_tapes take_reorder_le' c1_def Mx_k_simps ..
