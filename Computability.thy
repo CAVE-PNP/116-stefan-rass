@@ -321,10 +321,15 @@ subsubsection\<open>The Rejecting TM\<close>
 
 text\<open>Based on the example TM \<^const>\<open>rejecting_TM_rec\<close> defined for \<^typ>\<open>('q, 's) TM\<close>.\<close>
 
-locale Rej_TM = TM "rejecting_TM q0 s" for q0 :: 'q and s :: 's
+definition "rejecting_TM q0 \<Sigma> \<equiv> Abs_TM (rejecting_TM_rec q0 \<Sigma>)"
+
+locale Rej_TM = TM "rejecting_TM q0 \<Sigma>" for q0 :: 'q and \<Sigma> :: "'s set" +
+  assumes finite_symbols: "finite \<Sigma>"
+    and nonempty_symbols: "\<Sigma> \<noteq> {}"
 begin
 
-lemma M_rec: "M_rec = rejecting_TM_rec q0 s" unfolding rejecting_TM_def
+lemma M_rec: "M_rec = rejecting_TM_rec q0 \<Sigma>" unfolding rejecting_TM_def
+  using finite_symbols nonempty_symbols
   by (blast intro: Abs_TM_inverse rejecting_TM_valid)
 lemmas M_fields = TM_fields_defs[unfolded M_rec rejecting_TM_rec_def TM_record.simps]
 lemmas [simp] = M_fields(1-6)

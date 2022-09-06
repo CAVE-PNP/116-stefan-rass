@@ -336,59 +336,43 @@ proof (unfold_locales, unfold M_def TM_record.simps wf_hds_rec_simps)
   with next_write_valid and \<open>q \<in> Q\<close> and wf show "\<delta>\<^sub>w q hds i \<in> options \<Sigma>" unfolding \<Sigma>\<^sub>t\<^sub>p_def by blast
 qed (fact assms)+
 
-lemma valid_TM_finiteI:
-  fixes M :: "('q, 's::finite) TM_record"
-  assumes at_least_one_tape: "tape_count M > 0"
-    and symbols_UNIV: "symbols M = UNIV"
-    and state_axioms: "finite (states M)" "initial_state M \<in> states M"
-    "final_states M \<subseteq> states M" "accepting_states M \<subseteq> final_states M"
-    and next_state_valid: "\<And>q hds. q \<in> states M \<Longrightarrow> next_state M q hds \<in> states M"
-  shows "valid_TM (TM_default_wrapper M)"
-  unfolding valid_TM_wrapper
-proof
-  show "finite (symbols M)" by (fact finite_class.finite)
-  show "symbols M \<noteq> {}" unfolding symbols_UNIV by (fact UNIV_not_empty)
-
-  fix q hds i
-  assume q: "q \<in> states M"
-  then show "next_state M q hds \<in> states M" by (fact next_state_valid)
-  show "next_write M q hds i \<in> tape_symbols_rec M" unfolding symbols_UNIV by simp
-qed (fact assms)+
-
-lemma valid_TM_finiteI'[intro]:
-  fixes k Q q\<^sub>0 F F\<^sub>A \<delta>\<^sub>q \<delta>\<^sub>w \<delta>\<^sub>m
-  defines "(M :: ('q, 's::finite) TM_record) \<equiv> \<lparr> TM_record.tape_count = k, symbols = UNIV,
-    states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sub>A,
-    next_state = \<delta>\<^sub>q, next_write = \<delta>\<^sub>w, next_move = \<delta>\<^sub>m \<rparr>"
+lemma valid_TM_finiteI[intro]:
+  fixes k Q q\<^sub>0 F F\<^sub>A \<delta>\<^sub>q \<delta>\<^sub>w \<delta>\<^sub>m and M :: "('q, 's::finite) TM_record"
+  defines "M \<equiv> TM k UNIV Q q\<^sub>0 F F\<^sub>A \<delta>\<^sub>q \<delta>\<^sub>w \<delta>\<^sub>m"
   assumes at_least_one_tape: "k > 0"
     and state_axioms: "finite Q" "q\<^sub>0 \<in> Q" "F \<subseteq> Q" "F\<^sub>A \<subseteq> F"
     and next_state_valid: "\<And>q hds. q \<in> Q \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q"
   shows "valid_TM (TM_default_wrapper M)"
-proof (intro valid_TM_finiteI, unfold M_def TM_record.simps)
-  show "UNIV = UNIV" ..
+  unfolding valid_TM_wrapper
+proof (unfold_locales, unfold M_def TM_record.simps)
+  show "finite (UNIV::'s set)" by (fact finite_class.finite_UNIV)
+  show "UNIV \<noteq> {}" by (fact UNIV_not_empty)
+
+  fix q hds i
+  show "\<delta>\<^sub>w q hds i \<in> options UNIV" by simp
+  assume q: "q \<in> Q"
+  then show "\<delta>\<^sub>q q hds \<in> Q" by (fact next_state_valid)
 qed (fact assms)+
 
 
 text\<open>To define a type, we must prove that it is inhabited (there exist elements that have this type).
   For this we define the trivial ``rejecting TM'', and prove it to be valid.\<close>
 
-definition rejecting_TM_rec :: "'q \<Rightarrow> 's \<Rightarrow> ('q, 's) TM_record"
-  where "rejecting_TM_rec q0 s \<equiv> TM_default_wrapper \<lparr>
-  tape_count = 1, symbols = {s},
+definition rejecting_TM_rec :: "'q \<Rightarrow> 's set \<Rightarrow> ('q, 's) TM_record"
+  where "rejecting_TM_rec q0 \<Sigma> \<equiv> \<lparr>
+  tape_count = 1, symbols = \<Sigma>,
   states = {q0}, initial_state = q0, final_states = {q0}, accepting_states = {},
-  next_state = (\<lambda>q hds. q0), next_write = (\<lambda>q hds i. blank_symbol), next_move = (\<lambda>q hds i. No_Shift)
+  next_state = (\<lambda>q hds. q), next_write = (\<lambda>q hds i. hds ! i), next_move = (\<lambda>q hds i. No_Shift)
 \<rparr>"
 
-lemma rejecting_TM_valid: "valid_TM (rejecting_TM_rec q0 s)"
-  unfolding rejecting_TM_rec_def by blast
+lemma rejecting_TM_valid: "finite \<Sigma> \<Longrightarrow> \<Sigma> \<noteq> {} \<Longrightarrow> valid_TM (rejecting_TM_rec q0 \<Sigma>)"
+  unfolding rejecting_TM_rec_def by (unfold_locales) (auto simp: subset_eq)
 
 text\<open>The type \<open>TM\<close> is then defined as the set of valid \<open>TM_record\<close>s.\<close>
 (* TODO elaborate on the implications of this *)
 
 typedef ('q, 's) TM = "{M :: ('q, 's) TM_record. valid_TM M}"
   using rejecting_TM_valid by fast
-
-definition "rejecting_TM q0 s \<equiv> Abs_TM (rejecting_TM_rec q0 s)" (* TODO move this somewhere else *)
 
 locale TM = TM_abbrevs +
   fixes M :: "('q, 's) TM"
