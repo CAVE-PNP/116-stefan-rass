@@ -66,17 +66,12 @@ lemma Alm_all_natE':
   obtains n\<^sub>0 where "\<And>n::nat. n\<ge>n\<^sub>0 \<Longrightarrow> P n"
   using assms unfolding Alm_all_nat_altdef by blast
 
-method ae_nat_elim uses add =
-  insert add,
-  (fold Alm_all_nat_altdef)?,
-  (elim eventually_rev_mp)?,
-  intro Alm_all_natI' impI
-
 text\<open>To solve goals like \<open>\<lbrakk>\<forall>\<^sub>\<infinity>n. P\<^sub>1 n; \<forall>\<^sub>\<infinity>n. P\<^sub>2 n; ...\<rbrakk> \<Longrightarrow> \<forall>\<^sub>\<infinity>n. Q n\<close>, where \<open>n :: nat\<close>,
-  apply @{method ae_nat_elim}, then prove the resulting goal
+  apply \<open>ae_nat_elim\<close>, then prove the resulting goal
   of the form \<open>\<And>n. \<lbrakk>n\<ge>n\<^sub>0; A n; B n; ...\<rbrakk> \<Longrightarrow> P n\<close>.
   The additional premise \<open>n\<ge>n\<^sub>0\<close> allows specifying an arbitrary minimum,
   as many lemmas require proving \<open>n>0\<close> or similar.
+  The variant \<open>ae_nat_param_elim\<close> allows to fix \<open>n\<^sub>0\<close> in advance.
 
   Supply input facts via the parameter \<open>ae_nat_elim add: some_fact\<close>,
   or by chaining them into \<open>ae_nat_elim\<close>
@@ -86,6 +81,20 @@ text\<open>To solve goals like \<open>\<lbrakk>\<forall>\<^sub>\<infinity>n. P\<
   Note that this is somewhat similar to @{method eventually_elim},
   but tailored to statements over the naturals.
   Crucially, @{method eventually_elim} does not provide the additional premise \<open>n\<ge>n\<^sub>0\<close>.\<close>
+
+method ae_nat_elim uses add =
+  (intro eventually_subst)?,
+  insert add,
+  (fold Alm_all_nat_altdef)?,
+  (elim eventually_rev_mp)?,
+  intro Alm_all_natI' impI
+
+method ae_nat_param_elim for n\<^sub>0 :: nat uses add =
+  (intro eventually_subst)?,
+  insert add,
+  (fold Alm_all_nat_altdef)?,
+  (elim eventually_rev_mp)?,
+  intro Alm_all_natI'[where n\<^sub>0=n\<^sub>0] impI
 
 
 text\<open>Equivalence of different \<^emph>\<open>sufficiently large\<close> definitions as simple and general rewrite rule.
@@ -361,16 +370,78 @@ lemma superlinearE':
   using assms by (elim superlinearE) blast
 
 
-(* TODO general versions of these definitions? *)
-definition unbounded :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "unbounded f \<equiv> \<forall>S. \<forall>\<^sub>\<infinity>n. S \<le> f n"
+definition unbounded :: "('a :: linorder \<Rightarrow> 'b :: linorder) \<Rightarrow> bool"
+  where "unbounded f \<equiv> \<forall>S. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. S \<le> f n"
 
 lemma unboundedD[dest]:
   assumes "unbounded f"
   obtains n0 where "\<And>n. n \<ge> n0 \<Longrightarrow> S \<le> f n"
   using assms unfolding unbounded_def by blast
 
-abbreviation superlinear :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "superlinear f \<equiv> unbounded (\<lambda>n. f n div n)"
+(* TODO assess if \<open>HOL-Library.BigO\<close> save effort here. *)
+definition superlinear :: "('a :: {linorder,semiring_1} \<Rightarrow> 'b :: {linorder,semiring_1}) \<Rightarrow> bool"
+  where "superlinear f \<equiv> \<forall>C. \<forall>\<^sub>\<infinity>n. of_nat (C * n) \<le> f (of_nat n)"
+
+lemma superlinear_altdef_lf: \<comment> \<open>for \<^typ>\<open>real\<close>\<close>
+  fixes f :: "'a :: linordered_field \<Rightarrow> 'b :: linordered_field"
+  shows "superlinear f \<longleftrightarrow> (\<forall>C. \<forall>\<^sub>\<infinity>n. (of_nat C) \<le> f (of_nat n) / (of_nat n))"
+  unfolding superlinear_def of_nat_mult
+  by (intro all_cong1, ae_nat_param_elim 1, intro pos_le_divide_eq[symmetric]) simp
+
+lemma superlinear_altdef_nat:
+  fixes f :: "nat \<Rightarrow> nat"
+  shows "superlinear f \<longleftrightarrow> (\<forall>C. \<forall>\<^sub>\<infinity>n. C * n \<le> f n)"
+  by (auto simp: superlinear_def)
+
+lemma superlinear_altdef_nat':
+  fixes f :: "nat \<Rightarrow> nat"
+  shows "superlinear f \<longleftrightarrow> (\<forall>C. \<forall>\<^sub>\<infinity>n. C \<le> f n div n)"
+  unfolding superlinear_altdef_nat
+  by (intro all_cong1, ae_nat_param_elim 1, intro less_eq_div_iff_mult_less_eq[symmetric]) simp
+
+lemma superlinear_of_nat[simp]:
+  fixes f :: "nat \<Rightarrow> nat" and f' :: "nat \<Rightarrow> 'a :: linordered_nonzero_semiring"
+  defines "f' x \<equiv> of_nat (f x)" (is "\<And>x. f' x \<equiv> ?of_nat (f x)")
+  shows "superlinear f' = superlinear f"
+  unfolding superlinear_def of_nat_id f'_def of_nat_le_iff ..
+
+lemma superlinear_factor[simp]:
+  fixes f :: "'a :: {linorder,semiring_1} \<Rightarrow> 'b :: floor_ceiling"
+  assumes "c > 0"
+  shows "superlinear (\<lambda>x. c * f x) \<longleftrightarrow> superlinear f"
+  unfolding superlinear_def
+proof (intro iffI allI; elim allE; ae_nat_elim)
+  fix C n :: nat
+  let ?C = "Suc C"
+  assume "n \<ge> 1"
+
+  from \<open>c > 0\<close> have "c * of_nat (C * n) \<le> c * of_nat (?C * n)" by simp
+  also have "... \<le> of_nat (nat \<lceil>c\<rceil>) * of_nat (?C * n)"
+  proof (subst mult_le_cancel_iff1)
+    from \<open>c > 0\<close> and \<open>n \<ge> 1\<close> show "(0::'b) < of_nat (Suc C * n)"
+      unfolding of_nat_0_less_iff by simp
+    show "c \<le> of_nat (nat \<lceil>c\<rceil>)" by (fact of_nat_ceiling)
+  qed
+  also have "... \<le> of_nat (nat \<lceil>c\<rceil> * ?C * n)" unfolding of_nat_mult mult.assoc ..
+  also assume "of_nat (nat \<lceil>c\<rceil> * ?C * n) \<le> c * f (of_nat n)"
+  finally show "of_nat (C * n) \<le> f (of_nat n)" using \<open>c > 0\<close> by simp
+next
+  fix C n :: nat
+  define d where "d \<equiv> nat \<lceil>1 / c\<rceil>"
+  assume asm: "of_nat (d * C * n) \<le> f (of_nat n)"
+
+  have "of_nat (C * n) = 1 * of_nat (C * n)" by simp
+  also have "1 * of_nat (C * n) \<le> c * of_nat d * of_nat (C * n)"
+  proof (rule mult_right_mono)
+    from \<open>c > 0\<close> have "1 \<le> c * (1/c)" by simp
+    also from \<open>c > 0\<close> have "... \<le> c * of_nat d"
+      unfolding d_def by (intro mult_left_mono) (simp_all add: of_nat_ceiling)
+    finally show  "c * of_nat d \<ge> 1" .
+  qed simp
+  also have "c * of_nat d * of_nat (C * n) = c * of_nat (d * C * n)" unfolding of_nat_mult mult.assoc ..
+  also from asm and \<open>c > 0\<close> have "... \<le> c * f (of_nat n)" by (subst mult_le_cancel_iff2)
+  finally show "of_nat (C * n) \<le> c * f (of_nat n)" .
+qed
+
 
 end

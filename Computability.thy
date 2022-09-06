@@ -84,19 +84,22 @@ lemmas init_conf_simps[simp] = init_conf_len init_conf_state
 lemma init_conf_last[simp, intro]:
   shows "k = 1 \<Longrightarrow> last (tapes (c\<^sub>0 w)) = <w>\<^sub>t\<^sub>p"
     and "k \<noteq> 1 \<Longrightarrow> last (tapes (c\<^sub>0 w)) = \<langle>\<rangle>"
-  using at_least_one_tape by (simp_all add: initial_config_def)
+  using at_least_one_tape' by (simp_all add: initial_config_def)
+
+lemma all_initial_tapes_helperI[intro]:
+  assumes "P <w>\<^sub>t\<^sub>p" and "P \<langle>\<rangle>"
+  shows "\<forall>tp\<in>set (tapes (c\<^sub>0 w)). P tp"
+  unfolding initial_config_def TM_config.sel
+  unfolding list.pred_inject(2)[unfolded list_all_iff]
+  unfolding Ball_set_replicate using assms by blast
 
 
 abbreviation "wf_input w \<equiv> w \<in> \<Sigma>*"
 
 lemma wf_initial_config[simp, intro]: "wf_input w \<Longrightarrow> wf_config (initial_config w)"
-proof (intro wf_configI)
-  assume "w \<in> \<Sigma>*"
-  then show "list_all (\<lambda>tp. set_tape tp \<subseteq> \<Sigma>) (tapes (c\<^sub>0 w))"
-    unfolding initial_config_def TM_config.sel list.pred_inject(2) by (intro conjI) (simp, force)
-qed simp_all
+  by (intro wf_configI all_initial_tapes_helperI) auto
 
-lemma (in typed_TM) wf_initial_config[intro!]: "wf_config (initial_config w)" by force
+lemma (in typed_TM) wf_initial_config[intro!]: "wf_config (initial_config w)" by simp
 
 
 subsubsection\<open>Running a TM Program\<close>
@@ -109,7 +112,7 @@ corollary (in typed_TM) wf_config_run[intro!, simp]: "wf_config (run n w)" by au
 
 corollary run_tapes_len[simp]: "length (tapes (steps n (c\<^sub>0 w))) = k" by (simp add: steps_l_tps)
 corollary run_tapes_non_empty[simp, intro]: "tapes (run n w) \<noteq> []"
-  using at_least_one_tape by (fold length_0_conv) (simp add: steps_l_tps)
+  using run_tapes_len by (fold length_0_conv) simp
 
 lemma final_le_run[dest]: "is_final (run n w) \<Longrightarrow> n \<le> m \<Longrightarrow> run m w = run n w"
   unfolding run_def by (fact final_le_steps)
@@ -318,10 +321,15 @@ subsubsection\<open>The Rejecting TM\<close>
 
 text\<open>Based on the example TM \<^const>\<open>rejecting_TM_rec\<close> defined for \<^typ>\<open>('q, 's) TM\<close>.\<close>
 
-locale Rej_TM = TM "rejecting_TM q0 s" for q0 :: 'q and s :: 's
+definition "rejecting_TM q0 \<Sigma> \<equiv> Abs_TM (rejecting_TM_rec q0 \<Sigma>)"
+
+locale Rej_TM = TM "rejecting_TM q0 \<Sigma>" for q0 :: 'q and \<Sigma> :: "'s set" +
+  assumes finite_symbols: "finite \<Sigma>"
+    and nonempty_symbols: "\<Sigma> \<noteq> {}"
 begin
 
-lemma M_rec: "M_rec = rejecting_TM_rec q0 s" unfolding rejecting_TM_def
+lemma M_rec: "M_rec = rejecting_TM_rec q0 \<Sigma>" unfolding rejecting_TM_def
+  using finite_symbols nonempty_symbols
   by (blast intro: Abs_TM_inverse rejecting_TM_valid)
 lemmas M_fields = TM_fields_defs[unfolded M_rec rejecting_TM_rec_def TM_record.simps]
 lemmas [simp] = M_fields(1-6)

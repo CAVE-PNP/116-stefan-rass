@@ -469,9 +469,9 @@ proof (intro sh_msbI)
   have "lo < 2 ^ k" unfolding lo using zero_less_power pos2 by (intro pos_mod_bound)
   then have "bit_length lo \<le> k" by (rule bit_len_le_pow2)
 
-  from \<open>k \<le> length w\<close> have "k < length w\<^sub>n" unfolding wn_def n len_gn by simp
-  moreover have "ends_in True w\<^sub>n" unfolding wn ..
-  ultimately have "ends_in True ps" unfolding ps by (rule ends_in_drop)
+  have "ends_in True w\<^sub>n" unfolding wn ..
+  moreover from \<open>k \<le> length w\<close> have "k < length w\<^sub>n" unfolding wn_def n len_gn by simp
+  ultimately have "ends_in True ps" unfolding ps ..
 
   have n'_split: "n' = up * 2^k" unfolding up wn_def ps n' lo
     unfolding nat_of_bin_drop nat_bin_nat by (rule minus_mod_eq_div_mult)

@@ -12,6 +12,12 @@ begin
 text\<open>Extends \<^theory>\<open>HOL.Fun\<close>, \<^theory>\<open>HOL.Set\<close>, and \<^theory>\<open>HOL.Orderings\<close>.\<close>
 
 
+lemma Ball_transferE[elim?]:
+  assumes "\<forall>x\<in>A. P x"
+    and "\<And>x. x\<in>A \<Longrightarrow> P x \<Longrightarrow> Q x"
+  shows "\<forall>x\<in>A. Q x"
+  using assms by blast
+
 lemma cond_All_mono:
   assumes "\<forall>i. P i \<longrightarrow> Q i"
     and "\<And>i. P i \<Longrightarrow> Q i \<Longrightarrow> R i"
@@ -26,8 +32,6 @@ qed
 
 lemma inj_altdef: "inj f \<longleftrightarrow> (\<forall>a b. a \<noteq> b \<longrightarrow> f a \<noteq> f b)" unfolding inj_def by blast
 
-
-lemma if_cases[case_names True False]: "P a \<Longrightarrow> P b \<Longrightarrow> P (If c a b)" by presburger
 
 lemma ifI[case_names True False]:
   assumes "c \<Longrightarrow> P a"
@@ -68,6 +72,9 @@ lemma bij_betw_obtain_preimage:
 lemma singleton_image[simp]: "f ` {x} = {f x}" by blast
 
 lemma image_Collect_compose: "f ` {g x | x. P x} = {f (g x) | x. P x}" by blast
+
+lemma map_image[intro]: "set xs \<subseteq> A \<Longrightarrow> set (map g xs) \<subseteq> g ` A"
+  unfolding set_map by (fact image_mono)
 
 lemma finite_imp_inj_to_nat_fix_one:
   fixes A::"'a set" and x::'a and y::nat

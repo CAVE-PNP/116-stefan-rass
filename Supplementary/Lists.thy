@@ -157,22 +157,20 @@ proof -
   then show "infinite X" using finite_maxlen by (rule contrapos_nn)
 qed
 
-(* TODO this should be a definition *)
-abbreviation pad :: "nat \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a list"
+
+definition pad :: "nat \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a list"
   where "pad n x xs \<equiv> xs @ x \<up> (n - length xs)"
 
-lemma pad_length: "length (pad n x xs) = max n (length xs)" by simp
-lemma pad_le_length[simp]: "length xs \<le> n \<Longrightarrow> length (pad n x xs) = n" by simp
-lemma pad_ge_length[simp]: "length xs \<ge> n \<Longrightarrow> pad n x xs = xs" by simp
+lemma pad_length[simp]: "length (pad n x xs) = max n (length xs)" by (simp add: pad_def)
+lemma pad_ge_length[simp]: "length xs \<ge> n \<Longrightarrow> pad n x xs = xs" by (simp add: pad_def)
 
-lemma pad_prefix: "prefix xs (pad n x xs)" by simp
+lemma pad_prefix: "prefix xs (pad n x xs)" by (simp add: pad_def)
 
 
-(* TODO this should be a definition *)
 abbreviation (input) ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" \<comment> \<open>an alternative to \<^const>\<open>last\<close>.\<close>
   where "ends_in x xs \<equiv> (\<exists>ys. xs = ys @ [x])"
 
-lemma ends_inI[intro]: "ends_in x (xs @ [x])" by blast
+lemma ends_inI[intro?]: "ends_in x (xs @ [x])" by blast
 
 lemma ends_in_Cons: "ends_in y (x # xs) \<Longrightarrow> xs \<noteq> [] \<Longrightarrow> ends_in y xs"
   by (simp add: Cons_eq_append_conv)
@@ -196,14 +194,14 @@ proof (cases "ys = []")
   finally show ?thesis .
 qed \<comment> \<open>case \<open>ys = []\<close> by\<close> simp
 
-lemma ends_in_drop:
-  assumes "k < length xs"
-    and "ends_in x xs"
+lemma ends_in_drop[dest]:
+  assumes "ends_in x xs"
+    and "k < length xs"
   shows "ends_in x (drop k xs)"
   using assms by force
 
-declare list_all_iff[iff]
-lemma list_all_set_map[iff]: "set (map f xs) \<subseteq> A \<longleftrightarrow> list_all (\<lambda>x. f x \<in> A) xs" by auto
+lemma Ball_set_map[iff?]: "set (map f xs) \<subseteq> A \<longleftrightarrow> (\<forall>x\<in>set xs. f x \<in> A)"
+  unfolding set_map by (fact image_subset_iff)
 
 lemma map_inv_into_map_id:
   fixes f::"'a \<Rightarrow> 'b"
@@ -340,6 +338,10 @@ lemma nth_or_cases:
   shows "P (nth_or x n xs)"
   unfolding nth_or_def using assms by (fact ifI)
 
+lemma nth_or_split:
+  "P (nth_or x n xs) \<longleftrightarrow> (n < length xs \<longrightarrow> P (xs ! n)) \<and> (\<not> (n < length xs) \<longrightarrow> P x)"
+  unfolding nth_or_def by presburger
+
 
 text\<open>Force a list to a given length; truncate if too long, and pad with the default value if too short.\<close>
 
@@ -357,7 +359,7 @@ proof (cases "length xs \<ge> n")
 next
   assume "\<not> length xs \<ge> n" hence "length xs < n" by simp
   then have *: "take n xs = xs" by simp
-  show ?thesis unfolding take_or_def * ..
+  show ?thesis unfolding take_or_def * pad_def ..
 qed
 
 
@@ -416,11 +418,12 @@ lemma finite_type_lists_length_le: "finite {xs::('s::finite list). length xs \<l
   using finite_lists_length_le[OF finite, of UNIV] by simp
 
 
-lemma list_all_last[elim]:
-  assumes "list_all P xs"
+lemma Ball_set_last[dest]:
+  assumes "\<forall>x\<in>set xs. P x"
     and "xs \<noteq> []"
   shows "P (last xs)"
   using assms by simp
 
+lemmas list_all_last[elim] = Ball_set_last[folded list_all_iff]
 
 end
