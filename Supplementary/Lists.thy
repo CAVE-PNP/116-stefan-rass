@@ -447,6 +447,8 @@ lemma chunks_0[simp]: "xs \<noteq> [] \<Longrightarrow> chunks 0 xs = [xs]" by (
 lemma chunks_Split: "n > 0 \<Longrightarrow> xs \<noteq> [] \<Longrightarrow> chunks n xs = (take n xs) # chunks n (drop n xs)"
   by (cases "(n, xs)" rule: chunks.cases) auto
 
+lemma chunks_len_neq_Nil[dest]: "i < length (chunks n xs) \<Longrightarrow> xs \<noteq> []" by force
+
 lemma concat_chunks: "concat (chunks n xs) = xs" by (induction rule: chunks.induct) auto
 
 lemma length_chunks_not_dvd:
@@ -521,10 +523,10 @@ corollary length_chunks_bounds:
   unfolding length_chunks by (rule ifI; linarith)+
 
 
-lemma chunks_drop1: "n > 0 \<Longrightarrow> chunks n (drop n xs) = drop 1 (chunks n xs)"
+lemma chunks_drop1[simp]: "n > 0 \<Longrightarrow> chunks n (drop n xs) = drop 1 (chunks n xs)"
   by (cases "(n, xs)" rule: chunks.cases) simp_all
 
-lemma chunks_drop:
+lemma chunks_drop[simp]:
   assumes "n > 0"
   shows "chunks n (drop (n * i) xs) = drop i (chunks n xs)"
 proof (induction i)
@@ -582,6 +584,13 @@ proof (cases rule: chunks_cases[where n=n and xs=xs])
 qed force+
 
 
+corollary chunks_length_le:
+  assumes "n > 0"
+    and "i < length (chunks n xs)"
+  shows "length (chunks n xs ! i) \<le> n"
+  unfolding nth_chunks[OF assms] length_take by (fact min.cobounded2)
+
+
 lemma div_imp_mult_less:
   fixes a b c :: nat
   assumes "a < b div c"
@@ -598,7 +607,7 @@ proof -
   finally show ?thesis .
 qed
 
-lemma chunks_length:
+lemma chunks_length_eq:
   assumes "n > 0"
     and "i < length xs div n"
   shows "length (chunks n xs ! i) = n"
