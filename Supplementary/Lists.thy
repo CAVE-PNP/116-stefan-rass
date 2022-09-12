@@ -426,4 +426,192 @@ lemma Ball_set_last[dest]:
 
 lemmas list_all_last[elim] = Ball_set_last[folded list_all_iff]
 
+
+subsection\<open>Split lists into chunks of \<open>n\<close> elements\<close>
+
+fun chunks :: "nat \<Rightarrow> 'a list \<Rightarrow> 'a list list" where
+  "chunks n [] = []"
+| "chunks 0 xs = [xs]"
+| "chunks n xs = (take n xs) # chunks n (drop n xs)"
+
+lemmas chunks_induct = chunks.induct[params n and x xs and n x xs, case_names Nil 0 Split]
+lemma chunks_cases[case_names Nil 0 Split]:
+  fixes n :: nat and xs :: "'a list"
+  obtains            "xs = []"
+    |    x xs' where "xs = x # xs'" and "n = 0"
+    | n' x xs' where "xs = x # xs'" and "n = Suc n'"
+  by (cases "(n, xs)" rule: chunks.cases) blast+
+
+
+lemma chunks_0[simp]: "xs \<noteq> [] \<Longrightarrow> chunks 0 xs = [xs]" by (induction xs) auto
+lemma chunks_Split: "n > 0 \<Longrightarrow> xs \<noteq> [] \<Longrightarrow> chunks n xs = (take n xs) # chunks n (drop n xs)"
+  by (cases "(n, xs)" rule: chunks.cases) auto
+
+lemma concat_chunks: "concat (chunks n xs) = xs" by (induction rule: chunks.induct) auto
+
+lemma length_chunks_not_dvd:
+  assumes "xs \<noteq> []"
+    and "\<not> n dvd length xs"
+  shows "length (chunks n xs) = length xs div n + 1"
+  using assms
+proof (induction n xs rule: chunks_induct)
+  case (Split n x xs)
+  let ?n = "Suc n" and ?xs = "x # xs" let ?lxs = "length ?xs"
+  show ?case
+  proof (cases ?lxs ?n rule: linorder_cases)
+    case greater
+    then have ge: "?lxs \<ge> ?n" by (fact less_imp_le_nat)
+    from greater have h1: "drop ?n ?xs \<noteq> []" by simp
+    from ge and \<open>\<not> ?n dvd ?lxs\<close> have h2: "\<not> ?n dvd length (drop ?n ?xs)"
+      unfolding length_drop by (subst less_eq_dvd_minus[symmetric]) auto
+
+    note Split(1)[OF h1 h2, simplified, simp]
+    have "length (chunks ?n ?xs) = Suc (Suc ((?lxs - ?n) div ?n))" by simp
+    also from ge have "... = ?lxs div ?n + 1" by (subst div_geq[symmetric]) auto
+    finally show ?thesis .
+  next
+    case less
+    then have le: "?lxs \<le> ?n" by (fact less_imp_le_nat)
+    then have "length (chunks ?n ?xs) = 1" by simp
+    also from less have "... = ?lxs div ?n + 1" by simp
+    finally show ?thesis .
+  next
+    case equal
+    with \<open>\<not> ?n dvd ?lxs\<close> show ?thesis by simp
+  qed
+qed simp_all
+
+lemma length_chunks_dvd:
+  assumes "n dvd length xs"
+  shows "length (chunks n xs) = length xs div n"
+  using assms
+proof (induction n xs rule: chunks_induct)
+  case (Split n x xs)
+  let ?n = "Suc n" and ?xs = "x # xs" let ?lxs = "length ?xs"
+  show ?case
+  proof (cases ?lxs ?n rule: linorder_cases)
+    case greater
+    then have ge: "?lxs \<ge> ?n" by (fact less_imp_le_nat)
+    from ge and \<open>?n dvd ?lxs\<close> have h2: "?n dvd length (drop ?n ?xs)"
+      unfolding length_drop by (subst less_eq_dvd_minus[symmetric]) auto
+
+    note Split(1)[OF h2, simplified, simp]
+    have "length (chunks ?n ?xs) = Suc ((?lxs - ?n) div ?n)" by simp
+    also from ge have "... = ?lxs div ?n" by (subst div_geq[symmetric]) auto
+    finally show ?thesis .
+  next
+    case less
+    then have "\<not> ?n dvd ?lxs" using nat_dvd_not_less by simp
+    with \<open>?n dvd ?lxs\<close> show ?thesis by contradiction
+  next
+    case equal
+    then show ?thesis by simp
+  qed
+qed simp_all
+
+lemma length_chunks: "length (chunks n xs) = length xs div n + (if xs = [] \<or> n dvd length xs then 0 else 1)"
+proof (induction rule: ifI)
+  case True   with length_chunks_dvd     show ?case by auto  next
+  case False  with length_chunks_not_dvd show ?case by blast
+qed
+
+corollary length_chunks_bounds:
+  shows "length (chunks n xs) \<ge> length xs div n"
+    and "length (chunks n xs) \<le> length xs div n + 1"
+  unfolding length_chunks by (rule ifI; linarith)+
+
+
+lemma chunks_drop1: "n > 0 \<Longrightarrow> chunks n (drop n xs) = drop 1 (chunks n xs)"
+  by (cases "(n, xs)" rule: chunks.cases) simp_all
+
+lemma chunks_drop:
+  assumes "n > 0"
+  shows "chunks n (drop (n * i) xs) = drop i (chunks n xs)"
+proof (induction i)
+  case (Suc i)
+  have "chunks n (drop (n * Suc i) xs) = chunks n (drop n (drop (n * i) xs))" by simp
+  also from \<open>n > 0\<close> have "... = drop 1 (chunks n (drop (n * i) xs))" by (fact chunks_drop1)
+  also have "... = drop (Suc i) (chunks n xs)" unfolding Suc.IH by simp
+  finally show ?case .
+qed simp
+
+
+lemma div_times_less:
+  fixes n l ::  nat
+  assumes "\<not> n dvd l"
+    and "l \<noteq> 0"
+  shows "l div n * n < l"
+  using assms by (metis dvd_triv_right less_mult_imp_div_less nat_neq_iff) (* TODO understand wtf happens here *)
+
+lemma nth_chunks_helper:
+  assumes "n > 0"
+    and "i < length (chunks n xs)"
+  shows "n * i < length xs"
+proof (cases "n dvd length xs")
+  assume "n dvd length xs"
+  then have "length (chunks n xs) = length xs div n" by (fact length_chunks_dvd)
+  with \<open>i < length (chunks n xs)\<close> have "i < length xs div n" by argo
+  with \<open>n > 0\<close> have "n * i < length xs div n * n" by simp
+  also have "... \<le> length xs" by simp
+  finally show "n * i < length xs" .
+next
+  from \<open>i < length (chunks n xs)\<close> have "xs \<noteq> []" by force
+  moreover assume "\<not> n dvd length xs"
+  ultimately have "length (chunks n xs) = length xs div n + 1" by (fact length_chunks_not_dvd)
+  with \<open>i < length (chunks n xs)\<close> have "i \<le> length xs div n" by linarith
+  then have "n * i \<le> length xs div n * n" by simp
+  also from \<open>\<not> n dvd length xs\<close> and \<open>xs \<noteq> []\<close> have "... < length xs" by (intro div_times_less) blast+
+  finally show "n * i < length xs" .
+qed
+
+lemma nth_chunks:
+  assumes "n > 0"
+    and "i < length (chunks n xs)"
+  shows "chunks n xs ! i = take n (drop (n * i) xs)"
+  using assms
+proof (cases rule: chunks_cases[where n=n and xs=xs])
+  case (Split n' x xs')
+  from assms have "chunks n xs ! i = hd (chunks n (drop (n * i) xs))"
+    by (simp only: hd_drop_conv_nth chunks_drop)
+  also from \<open>n > 0\<close> have "... = take n (drop (n * i) xs)"
+  proof (subst chunks_Split)
+    from assms have "n * i < length xs" by (fact nth_chunks_helper)
+    then show "drop (n * i) xs \<noteq> []" by simp
+  qed (simp_all only: list.sel)
+  finally show ?thesis .
+qed force+
+
+
+lemma div_imp_mult_less:
+  fixes a b c :: nat
+  assumes "a < b div c"
+  shows "a * c < b"
+proof -
+  have "c \<noteq> 0"
+  proof (rule ccontr, unfold not_not)
+    assume "c = 0"
+    with \<open>a < b div c\<close> show False by simp
+  qed
+
+  with assms have "a * c < b div c * c" by simp
+  also from \<open>c \<noteq> 0\<close> have "... \<le> b" by simp
+  finally show ?thesis .
+qed
+
+lemma chunks_length:
+  assumes "n > 0"
+    and "i < length xs div n"
+  shows "length (chunks n xs ! i) = n"
+proof -
+  from \<open>i < length xs div n\<close> have "i < length (chunks n xs)" unfolding length_chunks by (fact trans_less_add1)
+  with \<open>n > 0\<close> have "length (chunks n xs ! i) = length (take n (drop (n * i) xs))" by (simp only: nth_chunks)
+  also have "... = n" unfolding length_take
+  proof (rule min_absorb2)
+    from \<open>i < length xs div n\<close> have "Suc i \<le> length xs div n" by (fact Suc_leI)
+    with \<open>n > 0\<close> have "n * Suc i \<le> length xs" by (simp add: less_eq_div_iff_mult_less_eq mult.commute)
+    then show "n \<le> length (drop (n * i) xs)" unfolding length_drop by (simp add: mult.commute)
+  qed
+  finally show ?thesis .
+qed
+
 end
