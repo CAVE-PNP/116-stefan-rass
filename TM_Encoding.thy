@@ -254,7 +254,7 @@ text\<open>From @{cite \<open>ch.~3.1\<close> rassOwf2017}:
 
   1. every string over \<open>{0, 1}\<^sup>*\<close> represents some TM [...],''\<close>
 
-theorem dec_pad_wf: "is_valid_TM (Rep_TM (dec_pad w))"
+theorem dec_pad_wf: "valid_TM (Rep_TM (dec_pad w))"
   unfolding dec_pad_def using Rep_TM by blast
 
 
