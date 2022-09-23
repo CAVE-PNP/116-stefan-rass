@@ -662,7 +662,7 @@ text\<open>We define the size of a tape as the number of cells the TM has visite
   is not of use in this case, since it applies \<^const>\<open>size\<close> recursively,
   such that the \<^const>\<open>size\<close> of the tape depends on the \<^const>\<open>size\<close> of the tape symbols and not just their number.\<close>
 
-definition tape_size :: "'s tape \<Rightarrow> nat"
+definition (in -) tape_size :: "'s tape \<Rightarrow> nat"
   where "tape_size tp \<equiv> length (left tp) + length (right tp) + 1"
 
 lemma tape_size_simps[simp]: "tape_size \<langle>l|h|r\<rangle> = length l + length r + 1"

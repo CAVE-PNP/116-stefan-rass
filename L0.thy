@@ -24,13 +24,13 @@ locale UTM = UTM: TM M\<^sub>U + UTM_Encoding enc\<^sub>U is_valid_enc\<^sub>U d
   for M\<^sub>U :: "('q, bool) TM" (* TODO make 'q = nat ? *)
     and enc\<^sub>U :: "('q, nat) TM \<times> nat list \<Rightarrow> bool list"
     and is_valid_enc\<^sub>U dec\<^sub>U +
-  assumes halts_iff: "\<And>M w. TM.halts   M w \<longleftrightarrow> UTM.halts   (enc\<^sub>U (M, w))"
-    and accepts_iff: "\<And>M w. TM.accepts M w \<longleftrightarrow> UTM.accepts (enc\<^sub>U (M, w))"
+  assumes halts_iff: "\<And>M w. TM.halts   M w \<longleftrightarrow> TM.halts   M\<^sub>U (enc\<^sub>U (M, w))"
+    and accepts_iff: "\<And>M w. TM.accepts M w \<longleftrightarrow> TM.accepts M\<^sub>U (enc\<^sub>U (M, w))"
 
 locale timed_UTM = UTM M\<^sub>U for M\<^sub>U :: "(nat, bool) TM" +
   fixes T\<^sub>U :: "nat \<Rightarrow> nat" \<comment> \<open>Simulation time overhead of \<^term>\<open>M\<^sub>U\<close>.\<close>
   assumes sim_overhead: "\<And>M::(nat, nat) TM. \<And>w. TM.halts M w \<Longrightarrow>
-    UTM.time (enc\<^sub>U (M, w)) \<le> T\<^sub>U (TM.time M w)"
+    TM.time M\<^sub>U (enc\<^sub>U (M, w)) \<le> T\<^sub>U (TM.time M w)"
     and overhead_min: "T\<^sub>U n \<ge> n" \<comment> \<open>This should be trivially true, but is required for the THT.\<close>
 
 
@@ -38,7 +38,7 @@ subsection\<open>The Time Hierarchy Theorem\<close>
 
 locale tht_assms = TM_Encoding + timed_UTM +
   fixes T t :: "nat \<Rightarrow> nat"
-  assumes fully_tconstr_T: "fully_tconstr TYPE(bool) T"
+  assumes fully_tconstr_T: "fully_time_constr T"
 
   \<comment> \<open>This assumption represents the statements containing \<open>lim\<close> @{cite rassOwf2017} and \<open>lim inf\<close> @{cite hopcroftAutomata1979}.
       \<^const>\<open>LIMSEQ\<close> (\<^term>\<open>X \<longlonglongrightarrow> x\<close>) was chosen, as it seems to match the intended meaning
@@ -90,14 +90,14 @@ text\<open>\<open>L\<^sub>D\<close>, defined as part of the proof for the Time H
   @{cite rassOwf2017}\<close>
 
 definition L\<^sub>D :: "bool lang"
-  where LD_def[simp]: "L\<^sub>D \<equiv> Lang UNIV (\<lambda>w. let M\<^sub>w = dec w in
+  where "L\<^sub>D \<equiv> Lang UNIV (\<lambda>w. let M\<^sub>w = dec_TM_pad w in
                   TM.rejects M\<^sub>w w \<and> TM.time_bounded_word M\<^sub>w T w)"
 
 \<comment> \<open>In the above definition, membership is dependent on the whole word \<open>w\<close>,
   as this is the input for \<open>M\<^sub>w\<close>.
   Since no assumptions can be made about the inner workings of \<open>M\<^sub>w\<close>,
   the result of its computation on \<open>w\<close> could depend on the contents of the padding.
-  Therefore, the membership of some \<open>w'\<close> with \<open>TM_decode_pad w' = M\<^sub>w\<close>
+  Therefore, the membership of some \<open>w'\<close> with \<open>dec_TM_pad w' = M\<^sub>w\<close>
   is not equivalent to that of \<open>w\<close>.
 
   To illustrate this, consider a TM that decides words only based on the value of their last bit;
@@ -107,16 +107,16 @@ definition L\<^sub>D :: "bool lang"
 text\<open>Alternative formulation: \<open>L\<^sub>D' := {w \<in> \<Sigma>\<^sup>*: M\<^sub>w halts and rejects w' within \<le> T(len(w)) steps}\<close>,
   where \<open>w' := strip_al_prefix (strip_exp_pad w)\<close>.\<close>
 
-definition L\<^sub>D' :: "'b lang"
-  where LD'_def[simp]: "L\<^sub>D' \<equiv> Lang UNIV (\<lambda>w. let w' = strip_al_prefix (strip_exp_pad w); M\<^sub>w = dec w' in
-                  rejects M\<^sub>w w' \<and> time_bounded_word T M\<^sub>w w')"
+definition L\<^sub>D' :: "bool lang"
+  where "L\<^sub>D' \<equiv> Lang UNIV (\<lambda>w. let w' = strip_al_prefix (strip_exp_pad w); M\<^sub>w = dec_TM w' in
+                  TM.rejects M\<^sub>w w' \<and> TM.time_bounded_word M\<^sub>w T w')"
 
-theorem time_hierarchy: "L\<^sub>D \<in> DTIME TYPE('a) T - DTIME TYPE('a) t"
+theorem time_hierarchy: "L\<^sub>D \<in> DTIME T - DTIME t"
 proof
-  \<comment> \<open>Part 1: \<^term>\<open>L\<^sub>D \<in> DTIME TYPE('a) T\<close>
+  \<comment> \<open>Part 1: \<^term>\<open>L\<^sub>D \<in> DTIME T\<close>
 
     \<open>M\<close> is a modified universal TM that executes two TMs in parallel upon an input word \<open>w\<close>.
-    \<open>M\<^sub>w\<close> is the input word \<open>w\<close> treated as a TM (\<open>M\<^sub>w \<equiv> TM_decode_pad w\<close>).
+    \<open>M\<^sub>w\<close> is the input word \<open>w\<close> treated as a TM (\<open>M\<^sub>w \<equiv> dec_TM_pad w\<close>).
     \<open>M\<^sub>T\<close> is a "stopwatch", that halts after exactly \<open>tcomp\<^sub>w T w\<close> steps.
     Its existence is assured by the assumption @{thm fully_tconstr_T}.
     Both machines are simulated with input word \<open>w\<close>.
@@ -127,26 +127,26 @@ proof
     If \<open>M\<^sub>w\<close> accepts, then \<open>M\<close> rejects \<open>w\<close>. If \<open>M\<^sub>w\<close> rejects, then \<open>M\<close> accepts \<open>w\<close>.
     Thus \<open>M\<close> accepts \<open>w\<close>, iff \<open>M\<^sub>w\<close> rejects \<open>w\<close> in time \<open>tcomp\<^sub>w T w\<close>.\<close>
 
-  define L\<^sub>D_P where "L\<^sub>D_P \<equiv> \<lambda>w. let M\<^sub>w = TM_decode_pad w in
+  define L\<^sub>D_P where "L\<^sub>D_P \<equiv> \<lambda>w. let M\<^sub>w = dec_TM_pad w in
     TM.rejects M\<^sub>w w \<and> TM.time_bounded_word M\<^sub>w T w"
+  then have L\<^sub>D[simp]: "L\<^sub>D = Lang UNIV L\<^sub>D_P" unfolding L\<^sub>D_def by simp
 
-  obtain M where "TM.time_bounded M T"
+  obtain M :: "(nat, bool) TM" where "TM.symbols M = UNIV" and "TM.time_bounded M T"
     and *: "\<And>w. if L\<^sub>D_P w then TM.accepts M w else TM.rejects M w" sorry (* probably out of scope *)
-  have "TM.decides M L\<^sub>D"
-    unfolding decides_altdef4 LD_def mem_Collect_eq L\<^sub>D_P_def[symmetric] using * ..
-  with \<open>TM.time_bounded M T\<close> show "L\<^sub>D \<in> DTIME TYPE('a) T" by blast
+  then have "TM.decides M L\<^sub>D" unfolding TM.decides_altdef4 by simp
+  with \<open>TM.time_bounded M T\<close> show "L\<^sub>D \<in> DTIME T" by blast
 
-next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME TYPE('a) t\<close>\<close>
-  have "L \<noteq> L\<^sub>D" if "L \<in> DTIME TYPE('a) t" for L::"'b lang"
+next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME t\<close>\<close>
+  have "L \<noteq> L\<^sub>D" if "L \<in> DTIME t" for L
   proof -
-    from \<open>L \<in> DTIME TYPE('a) t\<close> obtain M\<^sub>w::"('a, 'b) TM"
-      where "TM M\<^sub>w" "TM.decides M\<^sub>w L" "TM.time_bounded M\<^sub>w t"  sorry (* .. *)
-    define w' where "w' = encode_TM M\<^sub>w"
+    from \<open>L \<in> DTIME t\<close> obtain M\<^sub>w :: "(nat, bool) TM"
+      where "TM.decides M\<^sub>w L" and "TM.time_bounded M\<^sub>w t" ..
+    interpret TM M\<^sub>w .
 
-    from \<open>TM M\<^sub>w\<close> interpret TM M\<^sub>w .
+    define w' :: "bool list" where "w' = enc_TM M\<^sub>w"
 
-    let ?n = "length (encode_TM M\<^sub>w) + 2"
-    obtain l where "T(2*l) \<ge> t(2*l)" and "clog l \<ge> ?n"
+    let ?n = "length (enc_TM M\<^sub>w) + 2"
+    obtain l where "T l \<ge> t l" and "clog l \<ge> ?n"
     proof -
       obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l > t l" for l using T_ge_t_ae by blast
       obtain l\<^sub>2 :: nat where l2: "l \<ge> l\<^sub>2 \<Longrightarrow> clog l \<ge> ?n" for l
@@ -160,36 +160,31 @@ next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME TYPE('a) 
       qed
 
       let ?l = "max l\<^sub>1 l\<^sub>2"
-      have "T (2*?l) \<ge> t (2*?l)" by (rule less_imp_le, rule l1) force
+      have "T ?l \<ge> t ?l" by (rule less_imp_le, rule l1) force
       moreover have "clog ?l \<ge> ?n" by (rule l2) force
       ultimately show ?thesis by (intro that) fast+
     qed
 
-    obtain w::"'b list" where "length w = l" and dec_w: "TM_decode_pad w = M\<^sub>w"
-      using \<open>TM M\<^sub>w\<close> \<open>clog l \<ge> ?n\<close> by (rule embed_TM_in_len)
+    from \<open>clog l \<ge> ?n\<close> obtain w where [simp]: "length w = l" and dec_w[simp]: "dec_TM_pad w = M\<^sub>w"
+      by (rule embed_TM_in_len)
 
-    have "w \<in> L \<longleftrightarrow> w \<notin> L\<^sub>D"
+    have "w \<in>\<^sub>L L \<longleftrightarrow> w \<notin>\<^sub>L L\<^sub>D" if "alphabet L = UNIV"
     proof
-      assume "w \<in> L"
-      moreover from \<open>TM.decides M\<^sub>w L\<close>
-      have "w \<notin> L \<longleftrightarrow> TM.rejects M\<^sub>w w" unfolding decides_def by blast
-      ultimately have "\<not> TM.rejects M\<^sub>w w" by blast
-      then show "w \<notin> L\<^sub>D" unfolding LD_def mem_Collect_eq dec_w by presburger
+      assume "w \<in>\<^sub>L L"
+      then have "w \<in> (alphabet L)*" ..
+      with \<open>decides L\<close> have "w \<notin>\<^sub>L L \<longleftrightarrow> rejects w" unfolding decides_def by blast
+      with \<open>w \<in>\<^sub>L L\<close> have "\<not> rejects w" by blast
+      then show "w \<notin>\<^sub>L L\<^sub>D" by (simp add: L\<^sub>D_def)
     next
-
-      assume "w \<notin> L\<^sub>D"
-      moreover have "TM.time_bounded_word M\<^sub>w T w"
-      proof (rule time_bounded_word_mono)
-        from \<open>T(2*l) \<ge> t(2*l)\<close> show "real (T (tp_size <w>\<^sub>t\<^sub>p)) \<ge> real (t (tp_size <w>\<^sub>t\<^sub>p))"
-          unfolding tape_size_input \<open>length w = l\<close> by (rule of_nat_mono)
-        from \<open>TM.time_bounded M\<^sub>w t\<close> show "TM.time_bounded_word M\<^sub>w t w" ..
-      qed
-      ultimately have "\<not> rejects M\<^sub>w w" unfolding LD_def dec_w mem_Collect_eq Let_def by blast
-      with \<open>TM.decides M\<^sub>w L\<close> show "w \<in> L" unfolding decides_def by blast
+      assume "w \<notin>\<^sub>L L\<^sub>D"
+      moreover from \<open>T l \<ge> t l\<close> and \<open>time_bounded t\<close> have "time_bounded_word T w" by (fold \<open>length w = l\<close>) fast
+      ultimately have "\<not> rejects w" unfolding L\<^sub>D_def by force
+      with \<open>decides L\<close> show "w \<in>\<^sub>L L" by (auto simp: \<open>alphabet L = UNIV\<close>)
     qed
-    then show "L \<noteq> L\<^sub>D" by blast
+    moreover have "L \<noteq> L\<^sub>D" if "alphabet L \<noteq> UNIV" using that unfolding L\<^sub>D_def by force
+    ultimately show "L \<noteq> L\<^sub>D" by blast
   qed
-  then show "L\<^sub>D \<notin> DTIME TYPE('a) t" by blast
+  then show "L\<^sub>D \<notin> DTIME t" by blast
 qed
 
 
@@ -206,22 +201,19 @@ text\<open>From the proof of Lemma 4.6@{cite rassOwf2017}:
     complexity bound here).''\<close>
 
 locale tht_sq_assms = tht_assms +
-  assumes T_lower_bound: "T n \<ge> n^3"
+  assumes T_lower_bound: "\<forall>\<^sub>\<infinity> n. T n \<ge> n^3"
 begin
 
 
-definition L\<^sub>0 :: lang
-  where L0_def[simp]: "L\<^sub>0 \<equiv> L\<^sub>D \<inter> SQ"
-
-definition L\<^sub>0' :: lang
-  where L0'_def[simp]: "L\<^sub>0' \<equiv> L\<^sub>D' \<inter> SQ"
+definition "L\<^sub>0  \<equiv> L\<^sub>D  \<inter>\<^sub>L SQ"
+definition "L\<^sub>0' \<equiv> L\<^sub>D' \<inter>\<^sub>L SQ"
 
 (* TODO move lemmas that do not depend on locale defs out of locale context *)
 
 lemma adj_sq_exp_pad:
   fixes w
-  defines "l \<equiv> length w"
-    and "w' \<equiv> adj_sq\<^sub>w w"
+  defines l: "l \<equiv> length w"
+    and w': "w' \<equiv> adj_sq\<^sub>w w"
   assumes "l \<ge> 20"
   shows "strip_exp_pad w' = strip_exp_pad w"
 proof -
@@ -238,14 +230,14 @@ qed
 corollary adj_sq_TM_dec:
   fixes w
   assumes "length w \<ge> 20"
-  shows "TM_decode_pad (adj_sq\<^sub>w w) = TM_decode_pad w"
-  unfolding TM_decode_pad_def using assms by (subst adj_sq_exp_pad) fast+
+  shows "dec_TM_pad (adj_sq\<^sub>w w) = dec_TM_pad w"
+  unfolding dec_TM_pad_def using assms by (subst adj_sq_exp_pad) fast+
 
 lemma L\<^sub>D_adj_sq_iff:
   fixes w
   assumes l: "length w \<ge> 20"
   defines w': "w' \<equiv> adj_sq\<^sub>w w"
-  shows "w' \<in> L\<^sub>D \<longleftrightarrow> w \<in> L\<^sub>D"
+  shows "w' \<in>\<^sub>L L\<^sub>D \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D"
 proof -
     \<comment> \<open>Idea: since \<open>w\<close> and \<open>adj_sq\<^sub>w n\<close> share their prefix (@{thm adj_sq_sh_pfx_log}),
   the relevant parts are identical and this lemma should hold.
@@ -253,43 +245,43 @@ proof -
   Note: with the current definition of \<^const>\<open>L\<^sub>D\<close>, this likely does not hold,
         as the whole word \<open>w\<close> is referenced in the definition.\<close>
 
-  from l have dec: "TM_decode_pad w' = TM_decode_pad w" unfolding w' by (rule adj_sq_TM_dec)
+  from l have dec: "dec_TM_pad w' = dec_TM_pad w" unfolding w' by (rule adj_sq_TM_dec)
   from l have pad: "strip_exp_pad w' = strip_exp_pad w" unfolding w' by (rule adj_sq_exp_pad)
-  let ?Mw = "TM_decode_pad w"
+  let ?Mw = "dec_TM_pad w"
+  interpret TM ?Mw .
 
     \<comment> \<open>Both of the following statements are not provable without further assumptions
-        about the contents of \<^term>\<open>w\<close> (and thus \<^term>\<open>?Mw\<close>).\<close>
-  have a: "rejects ?Mw w' = rejects ?Mw w" sorry
-  have b: "time_bounded_word T ?Mw w' = time_bounded_word T ?Mw w" sorry
-  have "w' \<in> L\<^sub>D \<longleftrightarrow> w \<in> L\<^sub>D" unfolding LD_def mem_Collect_eq Let_def
-    unfolding dec pad unfolding a b ..
+        about the contents of \<^term>\<open>w\<close> (and thus \<^term>\<open>dec_TM_pad w\<close>).\<close>
+  have a: "rejects w' = rejects w" sorry
+  have b: "time_bounded_word T w' = time_bounded_word T w" sorry
+  have "w' \<in>\<^sub>L L\<^sub>D \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D" unfolding L\<^sub>D_def by (simp add: dec pad a b Let_def)
   oops
 
 lemma L\<^sub>D'_adj_sq_iff:
   fixes w
   assumes l: "length w \<ge> 20"
   defines w': "w' \<equiv> adj_sq\<^sub>w w"
-  shows "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'"
+  shows "w' \<in>\<^sub>L L\<^sub>D' \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D'"
 proof -
-  from l have dec: "TM_decode_pad w' = TM_decode_pad w" unfolding w' by (rule adj_sq_TM_dec)
+  from l have dec: "dec_TM_pad w' = dec_TM_pad w" unfolding w' by (rule adj_sq_TM_dec)
   from l have pad: "strip_exp_pad w' = strip_exp_pad w" unfolding w' by (rule adj_sq_exp_pad)
-  show "w' \<in> L\<^sub>D' \<longleftrightarrow> w \<in> L\<^sub>D'" unfolding LD'_def mem_Collect_eq unfolding dec pad ..
+  show "w' \<in>\<^sub>L L\<^sub>D' \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D'" unfolding L\<^sub>D'_def member_lang_iff' dec pad by blast
 qed
 
 lemma L\<^sub>D'_L\<^sub>0'_adj_sq_iff:
   fixes w
   assumes l: "length w \<ge> 20"
   defines "w' \<equiv> adj_sq\<^sub>w w"
-  shows "w' \<in> L\<^sub>0' \<longleftrightarrow> w \<in> L\<^sub>D'"
+  shows "w' \<in>\<^sub>L L\<^sub>0' \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D'"
 proof
-  assume "w \<in> L\<^sub>D'"
-  then have "w' \<in> L\<^sub>D'" unfolding w'_def using l by (subst L\<^sub>D'_adj_sq_iff)
-  moreover have "w' \<in> SQ" unfolding w'_def by (rule adj_sq_word_correct)
-  ultimately show "w' \<in> L\<^sub>0'" unfolding L0'_def ..
+  assume "w \<in>\<^sub>L L\<^sub>D'"
+  then have "w' \<in>\<^sub>L L\<^sub>D'" unfolding w'_def using l by (subst L\<^sub>D'_adj_sq_iff)
+  moreover have "w' \<in>\<^sub>L SQ" unfolding w'_def by (rule adj_sq_word_correct)
+  ultimately show "w' \<in>\<^sub>L L\<^sub>0'" unfolding L\<^sub>0'_def by simp
 next
-  assume "w' \<in> L\<^sub>0'"
-  then have "w' \<in> L\<^sub>D'" unfolding L0'_def ..
-  then show "w \<in> L\<^sub>D'" unfolding w'_def using l by (subst (asm) L\<^sub>D'_adj_sq_iff)
+  assume "w' \<in>\<^sub>L L\<^sub>0'"
+  then have "w' \<in>\<^sub>L L\<^sub>D'" unfolding L\<^sub>0'_def by simp
+  then show "w \<in>\<^sub>L L\<^sub>D'" unfolding w'_def using l by (subst (asm) L\<^sub>D'_adj_sq_iff)
 qed
 
 
@@ -299,7 +291,7 @@ lemma L\<^sub>D_L\<^sub>0_adj_sq_iff:
   fixes w
   assumes l: "length w \<ge> 20"
   defines "w' \<equiv> adj_sq\<^sub>w w"
-  shows "w' \<in> L\<^sub>0 \<longleftrightarrow> w \<in> L\<^sub>D"
+  shows "w' \<in>\<^sub>L L\<^sub>0 \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D"
   sorry
 
 
@@ -312,25 +304,28 @@ proof (rule ccontr, unfold not_not)
   assume "L\<^sub>0 \<in> DTIME(t)"
 
   have "L\<^sub>D \<in> DTIME(t)"
-  proof (rule reduce_DTIME)
-    show "almost_everywhere (\<lambda>w. (adj_sq\<^sub>w w \<in> L\<^sub>0) = (w \<in> L\<^sub>D) \<and> length (adj_sq\<^sub>w w) \<le> length w)"
-    proof (intro ae_word_lengthI exI allI impI conjI)
-      fix w :: word assume "length w \<ge> 20"
-      then show "adj_sq\<^sub>w w \<in> L\<^sub>0 \<longleftrightarrow> w \<in> L\<^sub>D" by (fact L\<^sub>D_L\<^sub>0_adj_sq_iff)
+  proof - (* (rule reduce_DTIME) *)
+    have I: "\<forall>\<^sub>\<infinity>w. (adj_sq\<^sub>w w \<in>\<^sub>L L\<^sub>0 \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D) \<and> (length (adj_sq\<^sub>w w) \<le> length w)"
+    proof (intro ae_word_length_finiteI conjI)
+      fix w :: "bool list"
+      assume "length w \<ge> 20"
+      then show "adj_sq\<^sub>w w \<in>\<^sub>L L\<^sub>0 \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D" by (fact L\<^sub>D_L\<^sub>0_adj_sq_iff)
       from \<open>length w \<ge> 20\<close> have "length w \<ge> 9" by simp
       then show "length (adj_sq\<^sub>w w) \<le> length w"
         by (intro eq_imp_le sh_msbD) (fact adj_sq_sh_pfx_half)
     qed
 
-    show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" sorry
+    have II: "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" sorry
     \<comment> \<open>This is not correct, since \<^term>\<open>t\<close> could be arbitrarily small.
       Let \<open>t(n) = n\<close> and \<open>T(n) = n\<^sup>3\<close>. Then \<open>DTIME(t)\<close> is limited by \<open>tcomp t n = n + 1\<close>
       and \<open>DTIME(T)\<close> by \<open>tcomp t n = n\<^sup>3\<close> (for \<open>n > 1\<close>).\<close>
 
-    show "computable_in_time t adj_sq\<^sub>w" sorry
+    have III: "computable_in_time TYPE(nat) t adj_sq\<^sub>w" sorry
     \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed by a TM in time \<open>n\<^sup>3\<close>.\<close>
 
-    show \<open>L\<^sub>0 \<in> DTIME(t)\<close> by fact
+    have IV: \<open>L\<^sub>0 \<in> DTIME(t)\<close> by fact
+
+    from I II III IV show ?thesis sorry
   qed
 
   moreover from time_hierarchy have "L\<^sub>D \<notin> DTIME(t)" ..
@@ -338,7 +333,7 @@ proof (rule ccontr, unfold not_not)
 qed
 
 (* TODO move to Complexity.thy *)
-lemma DTIME_int: "L\<^sub>1 \<in> DTIME(T\<^sub>1) \<Longrightarrow> L\<^sub>2 \<in> DTIME(T\<^sub>2) \<Longrightarrow> L\<^sub>1 \<inter> L\<^sub>2 \<in> DTIME(\<lambda>n. T\<^sub>1 n + T\<^sub>2 n)" sorry
+lemma DTIME_int: "L\<^sub>1 \<in> DTIME(T\<^sub>1) \<Longrightarrow> L\<^sub>2 \<in> DTIME(T\<^sub>2) \<Longrightarrow> L\<^sub>1 \<inter>\<^sub>L L\<^sub>2 \<in> DTIME(\<lambda>n. T\<^sub>1 n + T\<^sub>2 n)" sorry
 
 lemma L0_T: "L\<^sub>0 \<in> DTIME(T)"
 proof -

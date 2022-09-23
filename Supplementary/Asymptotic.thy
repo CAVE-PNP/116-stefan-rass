@@ -182,6 +182,11 @@ next
   with \<open>finite \<Sigma>\<close> show ?lhs by (intro ae_word_lengthI)
 qed
 
+lemma ae_word_length_iff':
+  assumes "finite \<Sigma>"
+  shows "(\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. P w) \<longleftrightarrow> (\<forall>\<^sub>\<infinity>n. \<forall>w\<in>\<Sigma>*. length w = n \<longrightarrow> P w)"
+  unfolding ae_word_length_iff[OF assms] Alm_all_nat_altdef by auto
+
 
 lemma ae_word_rev_mpE: \<comment> \<open>analogous to @{thm eventually_rev_mp}, but does not produce duplicates of \<^term>\<open>w\<in>\<Sigma>*\<close>.\<close>
   assumes "\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. P w"
@@ -189,7 +194,7 @@ lemma ae_word_rev_mpE: \<comment> \<open>analogous to @{thm eventually_rev_mp}, 
   shows "\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. Q w"
   using assms by (elim eventually_rev_mp) simp
 
-method ae_intro_words =
+method ae_words_elim =
   -, (* add chained facts as premises, required for match *)
   match conclusion in "\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. _ w" for \<Sigma> \<Rightarrow> \<open> (* fix the alphabet \<open>\<Sigma>\<close> *)
     match premises in fin[thin]: "finite \<Sigma>" \<Rightarrow> \<open>
