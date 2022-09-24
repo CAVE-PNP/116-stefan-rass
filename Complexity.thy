@@ -165,30 +165,39 @@ text\<open>From @{cite \<open>ch.~12.1\<close> hopcroftAutomata1979}:
       We choose to eliminate them from consideration.''\<close>
 
 definition tcomp :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
-  where [simp]: "tcomp T n \<equiv> max (n + 1) (nat \<lceil>T (of_nat n)\<rceil>)"
+  where "tcomp T n \<equiv> max (n + 1) (nat \<lceil>T (of_nat n)\<rceil>)"
 
 abbreviation (input) tcomp\<^sub>w :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> 's list \<Rightarrow> nat"
   where "tcomp\<^sub>w T w \<equiv> tcomp T (length w)"
 
 
-lemma tcomp_min: "tcomp f n \<ge> n + 1" by simp
+lemma tcomp_min: "tcomp f n \<ge> n + 1" by (simp add: tcomp_def)
 
-lemma tcomp_nat_simp[simp]:
+lemma tcomp_of_nat:
+  shows "tcomp (\<lambda>x. of_nat (f x)) = tcomp f"
+    and "tcomp (\<lambda>n. f (of_nat n)) = tcomp f"
+    and "tcomp (\<lambda>x. of_nat (f (of_nat x))) = tcomp f"
+  unfolding tcomp_def of_nat_id by simp_all
+
+
+lemma tcomp_nat_simps[simp]:
   fixes f :: "nat \<Rightarrow> nat"
-  shows "tcomp f n = max (n + 1) (f n)" by simp
+  shows "tcomp f n = max (n + 1) (f n)"
+    and "tcomp (\<lambda>n. of_nat (f n)) n = max (n + 1) (f n)"
+  by (simp_all add: tcomp_def)
 
-lemma tcomp_nat_id:
+lemma tcomp_nat_id[simp]:
   fixes f :: "nat \<Rightarrow> nat"
   shows "(\<And>n. f n \<ge> n + 1) \<Longrightarrow> tcomp f = f"
-  by (intro ext) (unfold tcomp_nat_simp, rule max_absorb2)
+  by (intro ext) (unfold tcomp_nat_simps, rule max_absorb2)
 
-lemma tcomp_nat_mono:
+lemma tcomp_nat_mono[intro]:
   fixes T t :: "nat \<Rightarrow> 'd::floor_ceiling"
   shows "T n \<ge> t n \<Longrightarrow> tcomp T n \<ge> tcomp t n"
   unfolding Let_def of_nat_id tcomp_def
   by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono le_refl)
 
-lemma tcomp_mono:
+lemma tcomp_mono[intro]:
   fixes T t :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling"
   assumes Tt: "T (of_nat n) \<ge> t (of_nat n)"
   shows "tcomp T n \<ge> tcomp t n"

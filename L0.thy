@@ -204,6 +204,22 @@ locale tht_sq_assms = tht_assms +
   assumes T_lower_bound: "\<forall>\<^sub>\<infinity> n. T n \<ge> n^3"
 begin
 
+lemma T_superlinear: "superlinear T"
+proof -
+  have "superlinear (\<lambda>n::nat. n^3)" by (rule superlinear_poly_nat) auto
+  then show ?thesis by (elim superlinear_ae_mono, ae_nat_elim add: T_lower_bound) simp
+qed
+
+lemma T_ge_tcomp_T_ae: "\<forall>\<^sub>\<infinity> n. T n \<ge> tcomp T n" using T_lower_bound
+proof ae_nat_elim
+  fix n :: nat
+  assume "n \<ge> 2"
+  from \<open>n \<ge> 2\<close> have "n^1 < n^3" using power_strict_increasing_iff[of n 1 3] by simp
+  then have "n + 1 \<le> n^3" by simp
+  also assume "n^3 \<le> T n"
+  finally show "tcomp T n \<le> T n" by simp
+qed
+
 
 definition "L\<^sub>0  \<equiv> L\<^sub>D  \<inter>\<^sub>L SQ"
 definition "L\<^sub>0' \<equiv> L\<^sub>D' \<inter>\<^sub>L SQ"
@@ -337,54 +353,50 @@ lemma DTIME_int: "L\<^sub>1 \<in> DTIME(T\<^sub>1) \<Longrightarrow> L\<^sub>2 \
 
 lemma L0_T: "L\<^sub>0 \<in> DTIME(T)"
 proof -
-  define T' :: "nat \<Rightarrow> real" where "T' \<equiv> \<lambda>n. T n + n^3"
-  have "T' n \<le> 2 * T n" for n unfolding T'_def
-    using T_lower_bound by (intro of_nat_mono) force
-
-  have T_superlinear: "\<forall>N. \<exists>n'. \<forall>n\<ge>n'. T(n)/n \<ge> N"
-  proof (intro allI exI impI)
-    fix N :: real and n :: nat
-    let ?n' = "nat \<lceil>N\<rceil>"
-    assume "?n' \<le> n"
-
-    have "N \<le> ?n'" by (rule real_nat_ceiling_ge)
-    also have "... \<le> n" using \<open>?n' \<le> n\<close> by (rule of_nat_mono)
-    also have "... \<le> n\<^sup>2" by (rule of_nat_mono) (rule power2_nat_le_imp_le, rule le_refl)
-    also have "... = n powr (3 - 1)" by force
-    also have "... = n^3 / n" unfolding powr_diff
-      by (simp only: powr_numeral powr_one of_nat_power)
-    also have "... \<le> T(n)/n" using T_lower_bound by (intro divide_right_mono of_nat_mono) auto
-    finally show "T(n)/n \<ge> N" .
-  qed
+  define T' where "T' \<equiv> \<lambda>n. T n + n^3"
 
   from time_hierarchy have "L\<^sub>D \<in> DTIME T" ..
-  then have "L\<^sub>0 \<in> DTIME(T')" unfolding T'_def L0_def of_nat_add
-    using SQ_DTIME by (rule DTIME_int)
-  with \<open>\<And>n. T' n \<le> 2 * T n\<close> have "L\<^sub>0 \<in> DTIME(\<lambda>n. 2 * T n)" by (rule in_dtime_mono)
-  then show "L\<^sub>0 \<in> DTIME(T)" unfolding of_nat_mult
-    using T_superlinear by (subst (asm) DTIME_speed_up_eq) linarith
+  with SQ_DTIME have "L\<^sub>0 \<in> DTIME(T')" unfolding T'_def L\<^sub>0_def of_nat_add by (intro DTIME_int)
+  then have "L\<^sub>0 \<in> DTIME(tcomp (\<lambda>n. 2 * real (T n)))"
+  proof (rule DTIME_mono_ae)
+    show "\<forall>\<^sub>\<infinity>n. T' n \<le> tcomp (\<lambda>n. 2 * real (T n)) n" unfolding T'_def
+    proof (ae_nat_elim add: T_lower_bound)
+      fix n
+      assume "n \<ge> 2" and "n ^ 3 \<le> T n"
+      then have "T n + n ^ 3 \<le> max (n + 1) (2 * T n)" by linarith
+      also have "... = tcomp (\<lambda>n. real (2 * T n)) n" unfolding tcomp_nat_simps ..
+      also have "... = tcomp (\<lambda>n. 2 * real (T n)) n" by simp
+      finally show "T n + n ^ 3 \<le> tcomp (\<lambda>n. 2 * real (T n)) n" .
+    qed
+  qed
+  then have "L\<^sub>0 \<in> DTIME(tcomp T)"
+  proof (elim DTIME_speed_up_rev)
+    show "superlinear T" by (fact T_superlinear)
+  qed simp
+  with T_ge_tcomp_T_ae show "L\<^sub>0 \<in> DTIME(T)" by (elim DTIME_mono_ae) ae_nat_elim
 qed
+
 
 \<comment> \<open>Alternative proof for \<open>L\<^sub>0 \<in> DTIME(T)\<close> without the need for the Speed-Up Theorem.
   This version of @{thm DTIME_int} should work, if multiple tapes may be used.\<close>
 
 (* TODO move to Complexity.thy *)
-lemma DTIME_int': "L\<^sub>1 \<in> DTIME(T\<^sub>1) \<Longrightarrow> L\<^sub>2 \<in> DTIME(T\<^sub>2) \<Longrightarrow> L\<^sub>1 \<inter> L\<^sub>2 \<in> DTIME(\<lambda>n. max (T\<^sub>1 n) (T\<^sub>2 n))" sorry
+lemma DTIME_int': "L\<^sub>1 \<in> DTIME(T\<^sub>1) \<Longrightarrow> L\<^sub>2 \<in> DTIME(T\<^sub>2) \<Longrightarrow> L\<^sub>1 \<inter>\<^sub>L L\<^sub>2 \<in> DTIME(\<lambda>n. max (T\<^sub>1 n) (T\<^sub>2 n))" sorry
 
 lemma L0_T': "L\<^sub>0 \<in> DTIME(T)"
 proof -
-  let ?T' = "\<lambda>n. real (max (T n) (n^3))"
-  from T_lower_bound have "?T' = T" by (intro ext, unfold of_nat_eq_iff) (rule max_absorb1)
-
   from time_hierarchy have "L\<^sub>D \<in> DTIME T" ..
-  then have "L\<^sub>0 \<in> DTIME(?T')" using SQ_DTIME unfolding L0_def of_nat_max by (rule DTIME_int')
-  then show "L\<^sub>0 \<in> DTIME(T)" unfolding \<open>?T' = T\<close> .
+  with SQ_DTIME have "L\<^sub>0 \<in> DTIME(\<lambda>n. max (T n) (n^3))" unfolding L\<^sub>0_def by (intro DTIME_int')
+  then show "L\<^sub>0 \<in> DTIME(T)"
+  proof (rule DTIME_mono_ae)
+    show "\<forall>\<^sub>\<infinity>n. max (T n) (n^3) \<le> T n" by (ae_nat_elim add: T_lower_bound) simp
+  qed
 qed
 
 theorem L0_time_hierarchy: "L\<^sub>0 \<in> DTIME(T) - DTIME(t)" using L0_T L0_t ..
 
 theorem dens_L0: "dens L\<^sub>0 n \<le> dsqrt n"
-  unfolding L0_def dens_SQ[symmetric]
+  unfolding L\<^sub>0_def dens_SQ[symmetric]
   using dens_intersect_le .
 
 lemmas lemma4_6 = L0_time_hierarchy dens_L0
