@@ -147,7 +147,7 @@ lemma time_eqI[intro]:
   using assms unfolding TM.time_def TM.run_def TM.halts_def by (fact config_time_eqI)
 
 
-lemma (in Rej_TM) rej_tm_time: "time w = 0" by simp
+lemma (in Rej_TM) rej_tm_time: "time w = 0" by (simp add: is_final_def)
 
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
 

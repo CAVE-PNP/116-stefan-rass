@@ -727,11 +727,11 @@ begin
 
 paragraph\<open>Final configurations\<close>
 
-abbreviation (in TM) is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
+definition (in TM) is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
   "is_final c \<equiv> state c \<in> F"
 
 lemma (in TM) is_final_altdef: "is_final c \<longleftrightarrow> state c \<in> F\<^sup>+ \<or> state c \<in> F\<^sup>-"
-  using state_axioms(4) unfolding rejecting_states_def by blast
+  using state_axioms(4) unfolding rejecting_states_def is_final_def by blast
 
 
 paragraph\<open>Well-formed configurations\<close>
@@ -929,7 +929,7 @@ abbreviation "steps n \<equiv> step ^^ n"
 corollary step_simps[intro, simp]:
   shows step_final: "is_final c \<Longrightarrow> step c = c"
     and step_not_final: "\<not> is_final c \<Longrightarrow> step c = step_not_final c"
-  unfolding step_def by auto
+  unfolding step_def is_final_def by auto
 
 corollary steps_plus[simp]: "steps n2 (steps n1 c) = steps (n1 + n2) c"
   unfolding add.commute[of n1 n2] funpow_add comp_def ..

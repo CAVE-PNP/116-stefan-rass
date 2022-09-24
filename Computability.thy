@@ -271,7 +271,7 @@ proof (rule iffI)
 next
   assume "\<exists>n. state (run n w) \<in> F\<^sub>A"
   then obtain n where "state (run n w) \<in> F\<^sub>A" ..
-  then have "is_final (run n w)" ..
+  then have "is_final (run n w)" unfolding is_final_def ..
   with \<open>state (run n w) \<in> F\<^sub>A\<close> show "accepts w" unfolding accepts_def by simp
 qed
 
@@ -282,7 +282,7 @@ proof (rule iffI)
 next
   assume "\<exists>n. state (run n w) \<in> F\<^sub>R"
   then obtain n where "state (run n w) \<in> F\<^sub>R" ..
-  then have "is_final (run n w)" ..
+  then have "is_final (run n w)" unfolding is_final_def ..
   with \<open>state (run n w) \<in> F\<^sub>R\<close> show "rejects w" unfolding rejects_def by fastforce
 qed
 
@@ -334,7 +334,7 @@ lemma M_rec: "M_rec = rejecting_TM_rec q0 \<Sigma>" unfolding rejecting_TM_def
 lemmas M_fields = TM_fields_defs[unfolded M_rec rejecting_TM_rec_def TM_record.simps]
 lemmas [simp] = M_fields(1-6)
 
-lemma rejects: "rejects w" by (simp add: rejects_altdef)
+lemma rejects: "rejects w" by (simp add: rejects_altdef is_final_def)
 
 end
 
