@@ -177,7 +177,7 @@ next \<comment> \<open>Part 2: \<^term>\<open>L\<^sub>D \<notin> DTIME t\<close>
       then show "w \<notin>\<^sub>L L\<^sub>D" by (simp add: L\<^sub>D_def)
     next
       assume "w \<notin>\<^sub>L L\<^sub>D"
-      moreover from \<open>T l \<ge> t l\<close> and \<open>time_bounded t\<close> have "time_bounded_word T w" by (fold \<open>length w = l\<close>) fast
+      moreover from \<open>T l \<ge> t l\<close> and \<open>time_bounded t\<close> have "time_bounded_word T w" by (fold \<open>length w = l\<close>) blast
       ultimately have "\<not> rejects w" unfolding L\<^sub>D_def by force
       with \<open>decides L\<close> show "w \<in>\<^sub>L L" by (auto simp: \<open>alphabet L = UNIV\<close>)
     qed

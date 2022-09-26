@@ -730,6 +730,14 @@ paragraph\<open>Final configurations\<close>
 definition (in TM) is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
   "is_final c \<equiv> state c \<in> F"
 
+mk_ide (in -) TM.is_final_def |intro is_finalI[intro]| |dest is_finalD[dest]|
+
+lemma (in -) is_final_cong[cong]: "state c = state c' \<Longrightarrow> TM.is_final M c = TM.is_final M c'"
+  by (simp add: TM.is_final_def)
+
+lemma (in -) is_final_cong'[cong]: "state c \<in> TM.F M1 \<longleftrightarrow> state c' \<in> TM.F M2 \<Longrightarrow> TM.is_final M1 c = TM.is_final M2 c'"
+  by (simp add: TM.is_final_def)
+
 lemma (in TM) is_final_altdef: "is_final c \<longleftrightarrow> state c \<in> F\<^sup>+ \<or> state c \<in> F\<^sup>-"
   using state_axioms(4) unfolding rejecting_states_def is_final_def by blast
 
