@@ -186,21 +186,21 @@ proof (rule ccontr, unfold not_not)
       than for @{thm tht_sq_assms.L0_t}.
       Since the length of \<^term>\<open>reduce_LD_LD'' w\<close> is always greater than the length of \<^term>\<open>w\<close>
       (@{thm reduce_LD_LD''_len}),
-      the existing @{thm reduce_time_bounded} does not hold in this case.
+      the existing \<open>@{thm reduce_time_bounded}\<close> does not hold in this case.
 
       Evaluating the time complexity given the differing word-lengths yields a new
       \<open>t'(n) := T\<^sub>R(n) + t(4n + 11)\<close>.
       The speed-up theorem does not help here, since for super-polynomial \<open>t\<close>,
       \<open>t(4n + 11)\<close> is not proportional to \<open>t(n)\<close>.\<close>
-    show "almost_everywhere (\<lambda>w. (reduce_LD_LD'' w \<in> L\<^sub>D'') = (w \<in> L\<^sub>D) \<and> length (reduce_LD_LD'' w) \<le> length w)"
+    show "\<forall>\<^sub>\<infinity>w. (reduce_LD_LD'' w \<in>\<^sub>L L\<^sub>D'' \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D) \<and> length (reduce_LD_LD'' w) \<le> length w"
       sorry
 
-    show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" sorry
+    show "superlinear t" sorry
     \<comment> \<open>With the current assumptions, \<open>t\<close> is not necessarily super-linear.
       A similar problem exists in the proof of @{thm L0_t} (and \<open>L0''_t\<close>, see below),
       that requires \<open>t\<close> to be at least cubic.\<close>
 
-    show "computable_in_time t reduce_LD_LD''" sorry
+    show "computable_in_time TYPE(nat) t reduce_LD_LD''" sorry
     \<comment> \<open>Assume that \<^const>\<open>reduce_LD_LD''\<close> can be computed by a TM in time \<open>O(n)\<close>.\<close>
 
     from assm show \<open>L\<^sub>D'' \<in> DTIME(t)\<close> .
@@ -223,18 +223,18 @@ proof (rule reduce_DTIME)
     The different time-bound could lead to differences in membership;
     False positives when increased time-bounds allow \<open>M\<^sub>v\<close> compute additional steps and reject \<open>v\<close>,
     or false negatives when shorter time-bounds do not afford \<open>M\<^sub>v\<close> enough time.\<close>
-  have "f\<^sub>R w \<in> L\<^sub>D \<longleftrightarrow> w \<in> L\<^sub>D''" for w
+  have "f\<^sub>R w \<in>\<^sub>L L\<^sub>D \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D''" for w
   proof -
-    have "f\<^sub>R w \<in> L\<^sub>D \<longleftrightarrow> (let (l, x) = decode_pair w; v = drop (length x - l) x; M\<^sub>v = TM_decode_pad v
-           in rejects M\<^sub>v v \<and> time_bounded_word T M\<^sub>v v)"
-      unfolding LD_def mem_Collect_eq unfolding f\<^sub>R_def Let_def prod.case ..
-    also have "... \<longleftrightarrow> (let (l, x) = decode_pair w; v = drop (length x - l) x; M\<^sub>v = TM_decode_pad v
-           in rejects M\<^sub>v v \<and> is_final (steps0 (1, <v>\<^sub>t\<^sub>p) M\<^sub>v (tcomp\<^sub>w T v)))"
-      unfolding time_bounded_altdef ..
-    also have "... \<longleftrightarrow> (let (l, x) = decode_pair w; v = drop (length x - l) x; M\<^sub>v = TM_decode_pad v
-           in rejects M\<^sub>v v \<and> is_final (steps0 (1, <v>\<^sub>t\<^sub>p) M\<^sub>v (tcomp\<^sub>w T x)))" sorry \<comment> \<open>not possible\<close>
-    also have "... \<longleftrightarrow> w \<in> L\<^sub>D''"
-      unfolding L\<^sub>D''_def mem_Collect_eq time_bounded_def ..
+    have "f\<^sub>R w \<in>\<^sub>L L\<^sub>D \<longleftrightarrow> (let (l, x) = decode_pair w; v = drop (length x - l) x; M\<^sub>v = dec_TM_pad v
+           in TM.rejects M\<^sub>v v \<and> TM.time_bounded_word M\<^sub>v T v)"
+      unfolding L\<^sub>D_def member_lang_UNIV unfolding f\<^sub>R_def Let_def prod.case ..
+    also have "... \<longleftrightarrow> (let (l, x) = decode_pair w; v = drop (length x - l) x; M\<^sub>v = dec_TM_pad v
+           in TM.rejects M\<^sub>v v \<and> TM.is_final M\<^sub>v (TM.run M\<^sub>v (T (length v)) v))"
+      unfolding TM.time_bounded_word_def ..
+    also have "... \<longleftrightarrow> (let (l, x) = decode_pair w; v = drop (length x - l) x; M\<^sub>v = dec_TM_pad v
+           in TM.rejects M\<^sub>v v \<and> TM.is_final M\<^sub>v (TM.run M\<^sub>v (T (length x)) v))" sorry \<comment> \<open>not possible\<close>
+    also have "... \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D''"
+      unfolding L\<^sub>D''_def member_lang_UNIV TM.time_bounded_word_def ..
     finally show ?thesis .
   qed
   moreover have "length (f\<^sub>R w) \<le> length w" for w
@@ -245,12 +245,11 @@ proof (rule reduce_DTIME)
     also have "... \<le> length w" unfolding strip_sq_pad_def by simp
     finally show ?thesis .
   qed
-  ultimately show "almost_everywhere (\<lambda>w. (f\<^sub>R w \<in> L\<^sub>D) = (w \<in> L\<^sub>D'') \<and> length (f\<^sub>R w) \<le> length w)"
-    by blast
+  ultimately show "\<forall>\<^sub>\<infinity>w. (f\<^sub>R w \<in>\<^sub>L L\<^sub>D \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D'') \<and> length (f\<^sub>R w) \<le> length w" by simp
 
-  show "computable_in_time T f\<^sub>R" sorry
+  show "computable_in_time TYPE(nat) T f\<^sub>R" sorry
 
-  show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> T m / m" sorry \<comment> \<open>not correct with current assumptions\<close>
+  show "superlinear T" sorry \<comment> \<open>not correct with current assumptions\<close>
 qed
 
 
@@ -263,20 +262,20 @@ proof (rule ccontr, unfold not_not)
 
   have "L\<^sub>D'' \<in> DTIME(t)"
   proof (rule reduce_DTIME)
-    show "almost_everywhere (\<lambda>w. (adj_sq\<^sub>w w \<in> L\<^sub>0'') = (w \<in> L\<^sub>D'') \<and> length (adj_sq\<^sub>w w) \<le> length w)"
-    proof (intro ae_word_lengthI exI allI impI conjI)
+    show "\<forall>\<^sub>\<infinity>w. (adj_sq\<^sub>w w \<in>\<^sub>L L\<^sub>0'' \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D'') \<and> length (adj_sq\<^sub>w w) \<le> length w"
+    proof (intro ae_word_length_finiteI exI allI impI conjI)
       fix w :: "bool list" assume len: "length w \<ge> 9"
-      from len show "adj_sq\<^sub>w w \<in> L\<^sub>0'' \<longleftrightarrow> w \<in> L\<^sub>D''" by (fact L\<^sub>D''_L\<^sub>0''_adj_sq_iff)
+      from len show "adj_sq\<^sub>w w \<in>\<^sub>L L\<^sub>0'' \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D''" by (fact L\<^sub>D''_L\<^sub>0''_adj_sq_iff)
       from len show "length (adj_sq\<^sub>w w) \<le> length w"
         by (intro eq_imp_le sh_msbD) (fact adj_sq_sh_pfx_half)
     qed
 
     \<comment> \<open>Not correct, \<^term>\<open>t\<close> could be arbitrarily small.\<close>
-    show "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" sorry
+    show "superlinear t" sorry
 
     \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed in time \<^term>\<open>t\<close>.
       Assuming the computation of \<^const>\<open>adj_sq\<^sub>w\<close> requires \<open>n^3\<close> steps, this is not correct.\<close>
-    show "computable_in_time t adj_sq\<^sub>w" sorry
+    show "computable_in_time TYPE(nat) t adj_sq\<^sub>w" sorry
 
     show \<open>L\<^sub>0'' \<in> DTIME(t)\<close> by fact
   qed
@@ -287,21 +286,21 @@ qed
 
 lemma L0''_T: "L\<^sub>0'' \<in> DTIME(T)"
 proof -
-  let ?T' = "\<lambda>n. real (max (T n) (n^3))"
-  from T_lower_bound have "?T' = T" by (intro ext, unfold of_nat_eq_iff) (rule max_absorb1)
-
-  from L\<^sub>D''_T and SQ_DTIME have "L\<^sub>0'' \<in> DTIME(?T')"
+  from L\<^sub>D''_T and SQ_DTIME have "L\<^sub>0'' \<in> DTIME(\<lambda>n. max (T n) (n^3))"
     unfolding L\<^sub>0''_def of_nat_max by (rule DTIME_int')
-  then show "L\<^sub>0'' \<in> DTIME(T)" unfolding \<open>?T' = T\<close> .
+  then show "L\<^sub>0'' \<in> DTIME(T)"
+  proof (elim DTIME_mono_ae)
+    show "\<forall>\<^sub>\<infinity>n. max (T n) (n^3) \<le> T n" by (ae_nat_elim add: T_lower_bound) simp
+  qed
 qed
 
 theorem L0''_time_hierarchy: "L\<^sub>0'' \<in> DTIME(T) - DTIME(t)" using L0''_T L0''_t ..
 
 theorem dens_L0'': "dens L\<^sub>0'' n \<le> dsqrt n"
 proof -
-  have "dens L\<^sub>0'' n = dens (L\<^sub>D'' \<inter> SQ) n" unfolding L\<^sub>0''_def ..
-  also have "... \<le> dens SQ n" by (subst Int_commute) (rule dens_intersect_le)
-  also have "... = dsqrt n" by (rule dens_SQ)
+  have "dens L\<^sub>0'' n = dens (L\<^sub>D'' \<inter>\<^sub>L SQ) n" unfolding L\<^sub>0''_def ..
+  also have "... \<le> dens SQ n" ..
+  also have "... = dsqrt n" by (fact dens_SQ)
   finally show ?thesis .
 qed
 

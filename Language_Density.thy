@@ -66,7 +66,7 @@ proof -
   with card_mono bounded_lang_finite show ?thesis unfolding dens_def .
 qed
 
-theorem dens_intersect_le: "dens (L\<^sub>1 \<inter>\<^sub>L L\<^sub>2) x \<le> dens L\<^sub>2 x"
+theorem dens_intersect_le[simp, intro]: "dens (L\<^sub>1 \<inter>\<^sub>L L\<^sub>2) x \<le> dens L\<^sub>2 x"
   by (intro dens_mono) simp
 
 end

@@ -1576,4 +1576,18 @@ qed
 
 end \<comment> \<open>\<^locale>\<open>arb_TM_comp\<close>\<close>
 
+
+subsection\<open>Reductions\<close>
+
+lemma reduce_DTIME:
+  fixes L1 L2
+    and f\<^sub>R
+    and T :: "nat \<Rightarrow> nat"
+  assumes "L1 \<in> DTIME T"
+    and "\<forall>\<^sub>\<infinity>w. (f\<^sub>R w \<in>\<^sub>L L1) = (w \<in>\<^sub>L L2) \<and> length (f\<^sub>R w) \<le> length w"
+    and "computable_in_time TYPE(nat) T f\<^sub>R"
+    and "superlinear T"
+  shows "L2 \<in> DTIME T"
+  sorry (* TODO (!) *)
+
 end

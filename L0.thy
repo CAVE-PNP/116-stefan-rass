@@ -1,7 +1,7 @@
 section\<open>The Time Hierarchy Theorem and the Language \<open>L\<^sub>0\<close>\<close>
 
 theory L0
-  imports SQ Complexity TM_Encoding
+  imports SQ Complexity TM_Encoding Composition
 begin
 
 
@@ -320,8 +320,8 @@ proof (rule ccontr, unfold not_not)
   assume "L\<^sub>0 \<in> DTIME(t)"
 
   have "L\<^sub>D \<in> DTIME(t)"
-  proof - (* (rule reduce_DTIME) *)
-    have I: "\<forall>\<^sub>\<infinity>w. (adj_sq\<^sub>w w \<in>\<^sub>L L\<^sub>0 \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D) \<and> (length (adj_sq\<^sub>w w) \<le> length w)"
+  proof (rule reduce_DTIME)
+    show "\<forall>\<^sub>\<infinity>w. (adj_sq\<^sub>w w \<in>\<^sub>L L\<^sub>0 \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D) \<and> (length (adj_sq\<^sub>w w) \<le> length w)"
     proof (intro ae_word_length_finiteI conjI)
       fix w :: "bool list"
       assume "length w \<ge> 20"
@@ -331,17 +331,15 @@ proof (rule ccontr, unfold not_not)
         by (intro eq_imp_le sh_msbD) (fact adj_sq_sh_pfx_half)
     qed
 
-    have II: "\<forall>N. \<exists>n. \<forall>m\<ge>n. N \<le> t m / m" sorry
+    show "superlinear t" sorry
     \<comment> \<open>This is not correct, since \<^term>\<open>t\<close> could be arbitrarily small.
       Let \<open>t(n) = n\<close> and \<open>T(n) = n\<^sup>3\<close>. Then \<open>DTIME(t)\<close> is limited by \<open>tcomp t n = n + 1\<close>
       and \<open>DTIME(T)\<close> by \<open>tcomp t n = n\<^sup>3\<close> (for \<open>n > 1\<close>).\<close>
 
-    have III: "computable_in_time TYPE(nat) t adj_sq\<^sub>w" sorry
+    show "computable_in_time TYPE(nat) t adj_sq\<^sub>w" sorry
     \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed by a TM in time \<open>n\<^sup>3\<close>.\<close>
 
-    have IV: \<open>L\<^sub>0 \<in> DTIME(t)\<close> by fact
-
-    from I II III IV show ?thesis sorry
+    show \<open>L\<^sub>0 \<in> DTIME(t)\<close> by fact
   qed
 
   moreover from time_hierarchy have "L\<^sub>D \<notin> DTIME(t)" ..
