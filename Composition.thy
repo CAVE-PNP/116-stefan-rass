@@ -995,6 +995,9 @@ definition cr :: "('q2, 's) TM_config \<Rightarrow> ('q1 + 'q2, 's) TM_config" w
 lemma cl_simps[simp]: "state (cl c) = Inl (state c)" "tapes (cl c) = tapes c" "cl (TM_config q tps) = TM_config (Inl q) tps" unfolding cl_def by auto
 lemma cr_simps[simp]: "state (cr c) = Inr (state c)" "tapes (cr c) = tapes c" "cr (TM_config q tps) = TM_config (Inr q) tps" unfolding cr_def by auto
 
+lemma is_final_cl[simp]: "is_final (cl c) \<longleftrightarrow> False" by (auto simp: is_final_def)
+lemma is_final_cr[simp]: "is_final (cr c) \<longleftrightarrow> M2.is_final c" by (auto simp: is_final_def)
+
 lemma wf_config_simps[simp]:
   shows wf_config_cl: "wf_config (cl c1) \<longleftrightarrow> M1.wf_config c1"
     and wf_config_cr: "wf_config (cr c2) \<longleftrightarrow> M2.wf_config c2"
@@ -1039,7 +1042,7 @@ proof -
   then have "step ?c = step_not_final ?c" by blast
   also have "... = cl (M1.step_not_final c)"
   proof (rule TM_config_eq)
-    from step_nf have "M1.\<delta>\<^sub>q (state c) (heads c) \<notin> M1.F" using nf' by simp
+    from step_nf have "M1.\<delta>\<^sub>q (state c) (heads c) \<notin> M1.F" using nf' by auto
     then show "state (step_not_final ?c) = state (cl (M1.step_not_final c))" by simp
     show "tapes (step_not_final ?c) = tapes (cl (M1.step_not_final c))" by simp
   qed
@@ -1087,7 +1090,7 @@ proof -
   then have "step ?c = step_not_final ?c" by blast
   also have "... = ?c\<^sub>0 (M1.step_not_final c)"
   proof (rule TM_config_eq, unfold TM_config.sel)
-    from step_final have "M1.\<delta>\<^sub>q (state c) (heads c) \<in> M1.F" using nf' by simp
+    from step_final have "M1.\<delta>\<^sub>q (state c) (heads c) \<in> M1.F" using nf' by force
     then show "state (step_not_final ?c) = Inr M2.q\<^sub>0" by simp
     show "tapes (step_not_final ?c) = tapes (M1.step_not_final c)" by simp
   qed
@@ -1164,7 +1167,7 @@ proof -
   from wfc1 have wfc2[simp]: "M2.wf_config c_init2" unfolding c_init2_def c_fin1_def by blast
 
   from cf2 have "is_final (steps (n2 + ?n1') ?c0)"
-    unfolding funpow_add comp_def unfolding steps_n1' c_fin2_def by (force simp: comp_steps2)
+    unfolding funpow_add comp_def unfolding steps_n1' c_fin2_def by (subst comp_steps2) auto
   moreover from \<open>?n1' \<le> n1\<close> have "n2 + ?n1' \<le> ?n" by simp
   ultimately have "steps ?n ?c0 = steps (n2 + ?n1') ?c0" by (rule final_le_steps)
 
@@ -1191,7 +1194,7 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
   also have "... = cr (M2.steps ?n (M2.c\<^sub>0 w))" using wfw by (simp add: comp_steps2)
   also have "... = cr (M2.steps ?n c_init2)"
   proof -
-    from q0f have [simp]: "c_fin1 = M1.initial_config w" unfolding c_fin1_def M1.run_def by simp
+    from q0f have [simp]: "c_fin1 = M1.initial_config w" unfolding c_fin1_def M1.run_def by (simp add: TM.is_final_def)
     have "M2.initial_config w = c_init2" unfolding c_init2_def by (simp add: TM.initial_config_def)
     then show ?thesis by (rule arg_cong)
   qed
@@ -1202,7 +1205,7 @@ next
   assume "M1.q\<^sub>0 \<notin> M1.F"
   then have *: "run n w = steps n (cl (M1.initial_config w))" for n w
     unfolding cl_def run_def by (simp add: TM.initial_config_def)
-  from \<open>M1.q\<^sub>0 \<notin> M1.F\<close> have "\<not> M1.is_final (M1.initial_config w)" by simp
+  from \<open>M1.q\<^sub>0 \<notin> M1.F\<close> have "\<not> M1.is_final (M1.initial_config w)" by (simp add: TM.is_final_def)
   with cf1 cf2 wfw show ?thesis unfolding assms * M1.run_def
     by (intro comp_steps_final M1.wf_initial_config)
 qed
@@ -1327,10 +1330,11 @@ lemma io_comp_run1:
   shows "run (M1.time w) w = cr (M2.rc (tapes (M1.rc (\<langle>\<rangle> \<up> k) (M1.compute w))) (M2.c\<^sub>0 w'))"
 proof (cases "M1.q\<^sub>0 \<in> M1.F")
   assume q0_f: "M1.q\<^sub>0 \<in> M1.F"
-  then have "M1.time w = 0" and "M1.halts w" by auto
+  then have q0_f': "M1.is_final (M1.c\<^sub>0 w)" by auto
+  then have "M1.time w = 0" and "M1.halts w" by (auto simp: TM.halts_def)
   then have *[simp]: "TM.run M (M1.time w) w = TM.c\<^sub>0 M w" for M :: "('x, 's) TM"
     unfolding TM.run_def by simp
-  with q0_f have **[simp]: "M1.compute w = M1.c\<^sub>0 w" by simp
+  with q0_f' have **[simp]: "M1.compute w = M1.c\<^sub>0 w" by simp
 
   from q0_f have q0: "q\<^sub>0 = Inr M2.q\<^sub>0" unfolding M_fields(4) M1.M'_fields(4-5) M2.M'_fields(4) by simp
 
@@ -1398,7 +1402,7 @@ next
     unfolding init_conf1[OF q0_nf]
   proof (subst comp_steps1_final, fold M1.M'.time_def time1 TM.run_def)
     from q0_nf show "\<not> M1.M'.is_final (M1.M'.c\<^sub>0 w)"
-      unfolding M1.M'.initial_config_def M1.M'_fields by simp
+      unfolding M1.M'.initial_config_def M1.M'_fields by (simp add: TM.is_final_def)
 
     from \<open>M1.computes_word w w'\<close> have "M1.halts w" by blast
     then have "M1.halts_config (M1.c\<^sub>0 w)" by (simp add: M1.halts_def)
@@ -1571,5 +1575,19 @@ proof -
 qed
 
 end \<comment> \<open>\<^locale>\<open>arb_TM_comp\<close>\<close>
+
+
+subsection\<open>Reductions\<close>
+
+lemma reduce_DTIME:
+  fixes L1 L2
+    and f\<^sub>R
+    and T :: "nat \<Rightarrow> nat"
+  assumes "L1 \<in> DTIME T"
+    and "\<forall>\<^sub>\<infinity>w. (f\<^sub>R w \<in>\<^sub>L L1) = (w \<in>\<^sub>L L2) \<and> length (f\<^sub>R w) \<le> length w"
+    and "computable_in_time TYPE(nat) T f\<^sub>R"
+    and "superlinear T"
+  shows "L2 \<in> DTIME T"
+  sorry (* TODO (!) *)
 
 end

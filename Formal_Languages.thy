@@ -20,8 +20,9 @@ lemma member_lang_iff: "w \<in>\<^sub>L L \<longleftrightarrow> w\<in>(alphabet 
   unfolding words_def by blast
 
 corollary member_lang_iff'[simp]: "w \<in>\<^sub>L Lang \<Sigma> P \<longleftrightarrow> w\<in>\<Sigma>* \<and> P w" by (simp add: member_lang_iff)
+corollary member_lang_UNIV[simp]: "w \<in>\<^sub>L Lang UNIV P \<longleftrightarrow> P w" by simp
 
-mk_ide member_lang_iff' |intro member_langI[intro]| |dest member_langD[dest]| |elim member_langE[elim]|
+mk_ide member_lang_iff |intro member_langI[intro]| |dest member_langD[dest]| |elim member_langE[elim]|
 
 
 text\<open>Defining complement and intersection analogous to sets.

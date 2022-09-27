@@ -662,7 +662,7 @@ text\<open>We define the size of a tape as the number of cells the TM has visite
   is not of use in this case, since it applies \<^const>\<open>size\<close> recursively,
   such that the \<^const>\<open>size\<close> of the tape depends on the \<^const>\<open>size\<close> of the tape symbols and not just their number.\<close>
 
-definition tape_size :: "'s tape \<Rightarrow> nat"
+definition (in -) tape_size :: "'s tape \<Rightarrow> nat"
   where "tape_size tp \<equiv> length (left tp) + length (right tp) + 1"
 
 lemma tape_size_simps[simp]: "tape_size \<langle>l|h|r\<rangle> = length l + length r + 1"
@@ -727,11 +727,19 @@ begin
 
 paragraph\<open>Final configurations\<close>
 
-abbreviation (in TM) is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
+definition (in TM) is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
   "is_final c \<equiv> state c \<in> F"
 
+mk_ide (in -) TM.is_final_def |intro is_finalI[intro]| |dest is_finalD[dest]|
+
+lemma (in -) is_final_cong[cong]: "state c = state c' \<Longrightarrow> TM.is_final M c = TM.is_final M c'"
+  by (simp add: TM.is_final_def)
+
+lemma (in -) is_final_cong'[cong]: "state c \<in> TM.F M1 \<longleftrightarrow> state c' \<in> TM.F M2 \<Longrightarrow> TM.is_final M1 c = TM.is_final M2 c'"
+  by (simp add: TM.is_final_def)
+
 lemma (in TM) is_final_altdef: "is_final c \<longleftrightarrow> state c \<in> F\<^sup>+ \<or> state c \<in> F\<^sup>-"
-  using state_axioms(4) unfolding rejecting_states_def by blast
+  using state_axioms(4) unfolding rejecting_states_def is_final_def by blast
 
 
 paragraph\<open>Well-formed configurations\<close>
@@ -929,7 +937,7 @@ abbreviation "steps n \<equiv> step ^^ n"
 corollary step_simps[intro, simp]:
   shows step_final: "is_final c \<Longrightarrow> step c = c"
     and step_not_final: "\<not> is_final c \<Longrightarrow> step c = step_not_final c"
-  unfolding step_def by auto
+  unfolding step_def is_final_def by auto
 
 corollary steps_plus[simp]: "steps n2 (steps n1 c) = steps (n1 + n2) c"
   unfolding add.commute[of n1 n2] funpow_add comp_def ..

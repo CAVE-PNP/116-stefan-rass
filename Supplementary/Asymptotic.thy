@@ -182,6 +182,11 @@ next
   with \<open>finite \<Sigma>\<close> show ?lhs by (intro ae_word_lengthI)
 qed
 
+lemma ae_word_length_iff':
+  assumes "finite \<Sigma>"
+  shows "(\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. P w) \<longleftrightarrow> (\<forall>\<^sub>\<infinity>n. \<forall>w\<in>\<Sigma>*. length w = n \<longrightarrow> P w)"
+  unfolding ae_word_length_iff[OF assms] Alm_all_nat_altdef by auto
+
 
 lemma ae_word_rev_mpE: \<comment> \<open>analogous to @{thm eventually_rev_mp}, but does not produce duplicates of \<^term>\<open>w\<in>\<Sigma>*\<close>.\<close>
   assumes "\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. P w"
@@ -189,7 +194,7 @@ lemma ae_word_rev_mpE: \<comment> \<open>analogous to @{thm eventually_rev_mp}, 
   shows "\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. Q w"
   using assms by (elim eventually_rev_mp) simp
 
-method ae_intro_words =
+method ae_words_elim =
   -, (* add chained facts as premises, required for match *)
   match conclusion in "\<forall>\<^sub>\<infinity>w\<in>\<Sigma>*. _ w" for \<Sigma> \<Rightarrow> \<open> (* fix the alphabet \<open>\<Sigma>\<close> *)
     match premises in fin[thin]: "finite \<Sigma>" \<Rightarrow> \<open>
@@ -443,5 +448,85 @@ next
   finally show "of_nat (C * n) \<le> c * f (of_nat n)" .
 qed
 
+
+lemma superlinear_ae_mono:
+  fixes f g
+  assumes "superlinear f"
+    and "\<forall>\<^sub>\<infinity>x. f (of_nat x) \<le> g (of_nat x)"
+  shows "superlinear g"
+proof -
+  from \<open>superlinear f\<close> show "superlinear g" unfolding superlinear_def
+  proof (intro allI, elim allE, ae_nat_elim add: \<open>\<forall>\<^sub>\<infinity>x. f (of_nat x) \<le> g (of_nat x)\<close>)
+    fix C n :: nat
+    assume "of_nat (C * n) \<le> f (of_nat n)"
+    also assume "f (of_nat n) \<le> g (of_nat n)"
+    finally show "of_nat (C * n) \<le> g (of_nat n)" .
+  qed
+qed
+
+
+lemma superlinear_poly_powr:
+  fixes c :: real
+  assumes "c > 1"
+  shows "superlinear (\<lambda>x. x powr c)"
+  unfolding superlinear_def
+proof (intro allI)
+  fix C
+  show "\<forall>\<^sub>\<infinity>n. of_nat (C * n) \<le> of_nat n powr c"
+  proof (cases "C = 0")
+    assume [simp]: "C \<noteq> 0"
+    show ?thesis
+    proof (rule Alm_all_natI')
+      fix n :: nat
+      assume asm: "n \<ge> max 2 (nat \<lceil>C powr (1 / (c-1))\<rceil>)"
+      then have "n \<ge> 2" by (rule max.boundedE)
+
+      have "ln C / (c - 1) = ln C * (1 / (c-1))" by simp
+      also have "... = ln (C powr (1 / (c-1)))" by (simp add: ln_powr)
+      also from asm have "... \<le> ln n" by force
+      finally have "ln C / (c - 1) \<le> ln n" .
+      with \<open>c > 1\<close> have "ln C \<le> ln n * (c - 1)" by (simp add: pos_divide_le_eq)
+      then have *: "exp (ln C) \<le> exp (ln n * (c - 1))" ..
+
+      from \<open>C \<noteq> 0\<close> have "C = exp (ln C)" by (subst exp_ln) force+
+      also note *
+      also have "exp (ln n * (c - 1)) = n powr (c - 1)" unfolding powr_def using \<open>n \<ge> 2\<close> by simp
+      finally have "n * C \<le> n * n powr (c - 1)" using \<open>n \<ge> 2\<close> by simp
+      also have "... = n powr c" using \<open>c > 1\<close> by (simp add: powr_mult_base)
+      finally show "C * n \<le> n powr c" by (simp add: mult.commute)
+    qed
+  qed \<comment> \<open>case \<open>C = 0\<close> by\<close> simp
+qed
+
+lemma superlinear_poly_realpow:
+  fixes c :: nat and f :: "real \<Rightarrow> real"
+  defines "f n \<equiv> n ^ c"
+  assumes "c > 1"
+  shows "superlinear f"
+proof -
+  from \<open>c > 1\<close> have "superlinear (\<lambda>n. n powr c)" by (simp add: superlinear_poly_powr)
+  then show "superlinear f" unfolding f_def
+  proof (elim superlinear_ae_mono, intro Alm_all_natI')
+    fix n :: nat
+    assume "n \<ge> 1"
+    then show "real n powr real c \<le> real n ^ c" by (simp add: powr_realpow)
+  qed
+qed
+
+lemma superlinear_poly_nat:
+  fixes c :: nat and f :: "nat \<Rightarrow> nat"
+  defines "f n \<equiv> n ^ c"
+  assumes "c > 1"
+  shows "superlinear f"
+proof -
+  from \<open>c > 1\<close> have "superlinear (\<lambda>n::real. n ^ c)" by (fact superlinear_poly_realpow)
+  then show "superlinear f" unfolding f_def superlinear_def of_nat_id
+  proof (intro allI, elim allE, ae_nat_elim)
+    fix C n
+    assume "real (C * n) \<le> real n ^ c"
+    also have "... = real (n ^ c)" by simp
+    finally show "C * n \<le> n ^ c" unfolding of_nat_le_iff .
+  qed
+qed
 
 end

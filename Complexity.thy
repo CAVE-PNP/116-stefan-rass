@@ -147,7 +147,7 @@ lemma time_eqI[intro]:
   using assms unfolding TM.time_def TM.run_def TM.halts_def by (fact config_time_eqI)
 
 
-lemma (in Rej_TM) rej_tm_time: "time w = 0" by simp
+lemma (in Rej_TM) rej_tm_time: "time w = 0" by (simp add: is_final_def)
 
 end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
 
@@ -165,30 +165,39 @@ text\<open>From @{cite \<open>ch.~12.1\<close> hopcroftAutomata1979}:
       We choose to eliminate them from consideration.''\<close>
 
 definition tcomp :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> nat \<Rightarrow> nat"
-  where [simp]: "tcomp T n \<equiv> max (n + 1) (nat \<lceil>T (of_nat n)\<rceil>)"
+  where "tcomp T n \<equiv> max (n + 1) (nat \<lceil>T (of_nat n)\<rceil>)"
 
 abbreviation (input) tcomp\<^sub>w :: "('c::semiring_1 \<Rightarrow> 'd::floor_ceiling) \<Rightarrow> 's list \<Rightarrow> nat"
   where "tcomp\<^sub>w T w \<equiv> tcomp T (length w)"
 
 
-lemma tcomp_min: "tcomp f n \<ge> n + 1" by simp
+lemma tcomp_min: "tcomp f n \<ge> n + 1" by (simp add: tcomp_def)
 
-lemma tcomp_nat_simp[simp]:
+lemma tcomp_of_nat:
+  shows "tcomp (\<lambda>x. of_nat (f x)) = tcomp f"
+    and "tcomp (\<lambda>n. f (of_nat n)) = tcomp f"
+    and "tcomp (\<lambda>x. of_nat (f (of_nat x))) = tcomp f"
+  unfolding tcomp_def of_nat_id by simp_all
+
+
+lemma tcomp_nat_simps[simp]:
   fixes f :: "nat \<Rightarrow> nat"
-  shows "tcomp f n = max (n + 1) (f n)" by simp
+  shows "tcomp f n = max (n + 1) (f n)"
+    and "tcomp (\<lambda>n. of_nat (f n)) n = max (n + 1) (f n)"
+  by (simp_all add: tcomp_def)
 
-lemma tcomp_nat_id:
+lemma tcomp_nat_id[simp]:
   fixes f :: "nat \<Rightarrow> nat"
   shows "(\<And>n. f n \<ge> n + 1) \<Longrightarrow> tcomp f = f"
-  by (intro ext) (unfold tcomp_nat_simp, rule max_absorb2)
+  by (intro ext) (unfold tcomp_nat_simps, rule max_absorb2)
 
-lemma tcomp_nat_mono:
+lemma tcomp_nat_mono[intro]:
   fixes T t :: "nat \<Rightarrow> 'd::floor_ceiling"
   shows "T n \<ge> t n \<Longrightarrow> tcomp T n \<ge> tcomp t n"
   unfolding Let_def of_nat_id tcomp_def
   by (intro nat_mono max.mono of_nat_mono add_right_mono ceiling_mono le_refl)
 
-lemma tcomp_mono:
+lemma tcomp_mono[intro]:
   fixes T t :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling"
   assumes Tt: "T (of_nat n) \<ge> t (of_nat n)"
   shows "tcomp T n \<ge> tcomp t n"
@@ -296,7 +305,7 @@ context TM begin
 
 (* TODO extract general version \<open>halts_within n w \<equiv> is_final (run n w)\<close> (maybe abbrev?) *)
 definition time_bounded_word :: "(nat \<Rightarrow> nat) \<Rightarrow> 's list \<Rightarrow> bool"
-  where [simp]: "time_bounded_word T w \<equiv> is_final (run (T (length w)) w)"
+  where "time_bounded_word T w \<equiv> is_final (run (T (length w)) w)"
 
 abbreviation time_bounded :: "(nat \<Rightarrow> nat) \<Rightarrow> bool"
   where "time_bounded T \<equiv> \<forall>w. time_bounded_word T w"
@@ -372,10 +381,11 @@ definition typed_DTIME :: "'q itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rig
 abbreviation DTIME where
   "DTIME \<equiv> typed_DTIME TYPE(nat)"
 
-lemma (in TM) in_dtimeI[intro]:
-  assumes "alphabet L \<subseteq> \<Sigma>"
-    and "decides L"
-    and "time_bounded T"
+lemma in_dtimeI[intro]:
+  fixes M :: "('q, 's) TM"
+  assumes "alphabet L \<subseteq> TM.\<Sigma> M"
+    and "TM.decides M L"
+    and "TM.time_bounded M T"
   shows "L \<in> typed_DTIME TYPE('q) T"
   unfolding typed_DTIME_def using assms by blast
 
@@ -399,7 +409,7 @@ corollary in_dtime_mono[dest]:
   assumes "L \<in> typed_DTIME TYPE('q) t"
     and "\<And>n. t n \<le> T n"
   shows "L \<in> typed_DTIME TYPE('q) T"
-  using assms TM.time_bounded_mono by (elim in_dtimeE, intro TM.in_dtimeI) blast+
+  using assms TM.time_bounded_mono by (elim in_dtimeE, intro in_dtimeI) blast+
 
 
 subsection\<open>Classical Results\<close>
@@ -434,39 +444,49 @@ lemma DTIME_ae:
 
 lemma (in TM) DTIME_aeI:
   assumes valid_alphabet: "alphabet L \<subseteq> \<Sigma>"
-    and [intro]: "\<And>w. n \<le> length w \<Longrightarrow> w \<in> (alphabet L)* \<Longrightarrow> decides_word L w"
-    and [intro]: "\<And>w. n \<le> length w \<Longrightarrow> w \<in> (alphabet L)* \<Longrightarrow> time_bounded_word T w"
+    and "\<forall>\<^sub>\<infinity>w\<in>(alphabet L)*. decides_word L w \<and> time_bounded_word T w"
   shows "L \<in> typed_DTIME TYPE('q) T"
 proof (intro DTIME_ae exI[of _ M] conjI)
   from valid_alphabet show "alphabet L \<subseteq> \<Sigma>" .
+  with symbol_axioms(1) have fin: "finite (alphabet L)" by (fact rev_finite_subset)
+  with assms(2) show "\<forall>\<^sub>\<infinity>w\<in>(alphabet L)*. decides_word L w \<and> time_bounded_word T w"
+    by (fastforce elim!: ae_word_rev_mpE intro!: ae_word_lengthI)
+qed
 
-  from valid_alphabet and symbol_axioms(1) have "finite (alphabet L)" by (fact finite_subset)
-  then show "\<forall>\<^sub>\<infinity>w\<in>(alphabet L)*. decides_word L w \<and> time_bounded_word T w"
-    by (rule ae_word_lengthI) blast
+lemma (in TM) DTIME_aeI':
+  assumes valid_alphabet: "alphabet L \<subseteq> \<Sigma>"
+    and [intro]: "\<And>w. n \<le> length w \<Longrightarrow> w \<in> (alphabet L)* \<Longrightarrow> decides_word L w"
+    and [intro]: "\<And>w. n \<le> length w \<Longrightarrow> w \<in> (alphabet L)* \<Longrightarrow> time_bounded_word T w"
+  shows "L \<in> typed_DTIME TYPE('q) T"
+proof -
+  from valid_alphabet have "finite (alphabet L)" using finite_subset by blast
+  with valid_alphabet show ?thesis by (intro DTIME_aeI ae_word_lengthI) blast+
 qed
 
 lemma DTIME_mono_ae[dest]:
   fixes L :: "'s lang"
   assumes "L \<in> typed_DTIME TYPE('q) t"
-    and Tt: "\<And>n. N \<le> n \<Longrightarrow> T n \<ge> t n"
+    and Tt: "\<forall>\<^sub>\<infinity>n. T n \<ge> t n"
   shows "L \<in> typed_DTIME TYPE('q) T"
 proof -
   from \<open>L \<in> typed_DTIME TYPE('q) t\<close> obtain M :: "('q, 's) TM"
     where symbols: "alphabet L \<subseteq> TM.symbols M"
       and decides: "TM.decides M L"
       and tbounded: "TM.time_bounded M t" ..
-
   interpret TM M .
 
-  from symbols show ?thesis
-  proof (rule DTIME_aeI)
-    fix w
+  from symbols have fin: "finite (alphabet L)" using finite_subset by blast
+  from Tt have "\<forall>\<^sub>\<infinity>w\<in>(alphabet L)*. decides_word L w \<and> time_bounded_word T w"
+    unfolding ae_word_length_iff'[OF fin]
+  proof (ae_nat_elim, intro ballI impI conjI)
+    fix w n
     assume "w \<in> (alphabet L)*"
     with decides show "decides_word L w" by blast
 
-    assume "N \<le> length w"
-    with Tt and tbounded show "time_bounded_word T w" by blast
+    assume "length w = n" and "t n \<le> T n"
+    with tbounded show "time_bounded_word T w" by blast
   qed
+  with \<open>alphabet L \<subseteq> \<Sigma>\<close> show ?thesis by (fact DTIME_aeI)
 qed
 
 

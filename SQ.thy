@@ -63,7 +63,7 @@ proof -
 
     show "w = gn_inv (gn w)" unfolding gn_inv_id ..
 
-    from \<open>w \<in>\<^sub>L SQ\<close> obtain z where "gn w = z\<^sup>2" unfolding SQ_def by blast
+    from \<open>w \<in>\<^sub>L SQ\<close> obtain z where "gn w = z\<^sup>2" unfolding SQ_def by auto
     then have "z = dsqrt (gn w)" by simp
     then show "gn w = (dsqrt (gn w))\<^sup>2" using \<open>gn w = z\<^sup>2\<close> by blast
 
@@ -79,7 +79,7 @@ proof -
     from zw have "gn w = gn (gn_inv (z\<^sup>2))" by blast
     also have "... = z\<^sup>2" using inv_gn_id zero_less_power \<open>z > 0\<close> .
     finally have "gn w = z\<^sup>2" .
-    then show "w \<in>\<^sub>L SQ" unfolding SQ_def by blast
+    then show "w \<in>\<^sub>L SQ" unfolding SQ_def by simp
     from \<open>gn w = z\<^sup>2\<close> and \<open>z \<le> dsqrt x\<close> show "gn w \<le> x" using le_sqrt_iff by simp
   qed
 

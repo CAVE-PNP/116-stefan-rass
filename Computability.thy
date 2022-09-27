@@ -132,6 +132,8 @@ definition halts_config :: "('q, 's) TM_config \<Rightarrow> bool"
 
 mk_ide (in -) TM.halts_config_def |intro halts_confI[intro]| |dest halts_confD[dest]|
 
+lemma halts_config_final[simp, dest?]: "is_final c \<Longrightarrow> halts_config c" by blast
+
 
 definition halts :: "'s list \<Rightarrow> bool"
   where "halts w \<equiv> halts_config (c\<^sub>0 w)"
@@ -271,8 +273,8 @@ proof (rule iffI)
 next
   assume "\<exists>n. state (run n w) \<in> F\<^sub>A"
   then obtain n where "state (run n w) \<in> F\<^sub>A" ..
-  then have "is_final (run n w)" ..
-  with \<open>state (run n w) \<in> F\<^sub>A\<close> show "accepts w" unfolding accepts_def by simp
+  then have "is_final (run n w)" unfolding is_final_def ..
+  with \<open>state (run n w) \<in> F\<^sub>A\<close> show "accepts w" unfolding accepts_def by force
 qed
 
 lemma rejects_altdef: "rejects w \<longleftrightarrow> (\<exists>n. state (run n w) \<in> F\<^sub>R)"
@@ -282,8 +284,8 @@ proof (rule iffI)
 next
   assume "\<exists>n. state (run n w) \<in> F\<^sub>R"
   then obtain n where "state (run n w) \<in> F\<^sub>R" ..
-  then have "is_final (run n w)" ..
-  with \<open>state (run n w) \<in> F\<^sub>R\<close> show "rejects w" unfolding rejects_def by fastforce
+  then have "is_final (run n w)" unfolding is_final_def ..
+  with \<open>state (run n w) \<in> F\<^sub>R\<close> show "rejects w" unfolding rejects_def by (force simp del: rejecting_states_def)
 qed
 
 
@@ -334,7 +336,7 @@ lemma M_rec: "M_rec = rejecting_TM_rec q0 \<Sigma>" unfolding rejecting_TM_def
 lemmas M_fields = TM_fields_defs[unfolded M_rec rejecting_TM_rec_def TM_record.simps]
 lemmas [simp] = M_fields(1-6)
 
-lemma rejects: "rejects w" by (simp add: rejects_altdef)
+lemma rejects: "rejects w" by (simp add: rejects_altdef is_final_def)
 
 end
 
