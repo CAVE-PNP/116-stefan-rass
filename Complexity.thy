@@ -494,12 +494,6 @@ subsubsection\<open>Linear Speed-Up\<close>
 
 text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
 
-lemma decides_altdef4: "decides_word L w \<longleftrightarrow> (if w \<in> L then accepts w else rejects w)"
-  unfolding decides_def using acc_not_rej by (cases "w \<in> L") auto
-
-lemma decides_altdef3: "decides_word L w \<longleftrightarrow> wf_word w \<and> hoare_halt (init w) (\<lambda>c. state c \<in> accepting_states M \<longleftrightarrow> w\<in>L)"
-  unfolding decides_altdef4 accepts_def rejects_def
-  by (cases "w\<in>L") (simp add: hoare_halt_def del: initial_config_def)+
  ``\<^bold>\<open>Theorem 12.3\<close>  If \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>T(n)\<close> time-bounded Turing machine
   \<open>M\<^sub>1\<close>, then \<open>L\<close> is accepted by a \<open>k\<close>-tape \<open>cT(n)\<close> time-bounded TM \<open>M\<^sub>2\<close> for any \<open>c > 0\<close>,
   provided that \<open>k > 1\<close> and \<open>inf\<^sub>n\<^sub>\<rightarrow>\<^sub>\<infinity> T(n)/n = \<infinity>\<close>.''\<close>
