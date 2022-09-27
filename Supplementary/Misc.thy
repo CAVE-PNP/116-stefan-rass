@@ -11,7 +11,27 @@ begin
 
 text\<open>Extends \<^theory>\<open>HOL.Fun\<close>, \<^theory>\<open>HOL.Set\<close>, and \<^theory>\<open>HOL.Orderings\<close>.\<close>
 
-lemma if_cases[case_names True False]: "P a \<Longrightarrow> P b \<Longrightarrow> P (If c a b)" by presburger
+
+lemma Ball_transferE[elim?]:
+  assumes "\<forall>x\<in>A. P x"
+    and "\<And>x. x\<in>A \<Longrightarrow> P x \<Longrightarrow> Q x"
+  shows "\<forall>x\<in>A. Q x"
+  using assms by blast
+
+lemma cond_All_mono:
+  assumes "\<forall>i. P i \<longrightarrow> Q i"
+    and "\<And>i. P i \<Longrightarrow> Q i \<Longrightarrow> R i"
+  shows "\<forall>i. P i \<longrightarrow> R i"
+proof (intro allI impI)
+  fix i
+  assume "P i"
+  with \<open>\<forall>i. P i \<longrightarrow> Q i\<close> have "Q i" by blast
+  with assms(2) and \<open>P i\<close> show "R i" .
+qed
+
+
+lemma inj_altdef: "inj f \<longleftrightarrow> (\<forall>a b. a \<noteq> b \<longrightarrow> f a \<noteq> f b)" unfolding inj_def by blast
+
 
 lemma ifI[case_names True False]:
   assumes "c \<Longrightarrow> P a"
@@ -32,16 +52,14 @@ lemma Max_atLeastLessThan_nat:
   shows "Max {x..<y} = y-1"
   using assms
 proof (induction y)
-  case 0 thus ?case by blast
-next
   case (Suc y)
   from \<open>x < Suc y\<close> have "x \<le> y" by auto
   then show ?case unfolding atLeastLessThanSuc_atLeastAtMost diff_Suc_1
     by (rule Max_atLeastAtMost_nat)
-qed
+qed blast
 
+lemma inj_imp_inj_on[dest]: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_def)
 
-lemma inj_imp_inj_on: "inj f \<Longrightarrow> inj_on f A" by (simp add: inj_on_def)
 
 lemma inv_into_onto: "inj_on f A \<Longrightarrow> inv_into A f ` f ` A = A" by simp
 
@@ -54,6 +72,9 @@ lemma bij_betw_obtain_preimage:
 lemma singleton_image[simp]: "f ` {x} = {f x}" by blast
 
 lemma image_Collect_compose: "f ` {g x | x. P x} = {f (g x) | x. P x}" by blast
+
+lemma map_image[intro]: "set xs \<subseteq> A \<Longrightarrow> set (map g xs) \<subseteq> g ` A"
+  unfolding set_map by (fact image_mono)
 
 lemma finite_imp_inj_to_nat_fix_one:
   fixes A::"'a set" and x::'a and y::nat
@@ -115,8 +136,7 @@ proof -
 qed
 
 lemma max_cases:
-  assumes "P a"
-    and "P b"
+  assumes "P a" and "P b"
   shows "P (max a b)"
   using assms unfolding max_def by simp
 
@@ -132,8 +152,14 @@ lemma funpow_induct: "P x \<Longrightarrow> (\<And>x. P x \<Longrightarrow> P (f
 lemma funpow_fixpoint: "f x = x \<Longrightarrow> (f^^n) x = x" by (rule funpow_induct) auto
 
 
-lemma isl_not_def: "\<not> isl x \<longleftrightarrow> (\<exists>x2. x = Inr x2)" \<comment> \<open>analogous to\<close> thm isl_def
-  by (induction x) auto
+lemma isl_not_def: "\<not> isl x \<longleftrightarrow> (\<exists>x2. x = Inr x2)" \<comment> \<open>analogous to @{thm isl_def}\<close>
+  by (cases x) auto
+
+lemma case_sum_cases[case_names Inl Inr]:
+  assumes "\<And>l. x = Inl l \<Longrightarrow> P (f l)"
+    and "\<And>r. x = Inr r \<Longrightarrow> P (g r)"
+  shows "P (case x of Inl l \<Rightarrow> f l | Inr r \<Rightarrow> g r)"
+  using assms using sum.split_sel by blast
 
 
 end

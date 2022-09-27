@@ -107,7 +107,7 @@ proof (cases "n > 0")
   from Suc_sqrt_power2_gt have "n < (dsqrt n + 1)\<^sup>2" by simp
   then have "n < (dsqrt (n - 1) + 1)\<^sup>2" by (unfold *)
   then show ?thesis by simp
-qed (* case "n = 0" by *) simp
+qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
 lemma next_sq_correct2: "n \<le> next_square n"
 proof (cases "n > 0")
@@ -119,7 +119,7 @@ proof (cases "n > 0")
     case False
     with next_sq_gt[of n] and \<open>n > 0\<close> show ?thesis by (intro less_imp_le_nat)
   qed
-qed (* case "n = 0" by *) simp
+qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
 corollary prev_sq_le_next_sq: "prev_square n \<le> next_square n"
   using le_trans and sqrt_power2_le and next_sq_correct2 .

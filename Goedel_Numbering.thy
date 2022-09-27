@@ -4,6 +4,29 @@ theory Goedel_Numbering
   imports Binary
 begin
 
+class goedel_numbering =
+  fixes gn :: "'a list \<Rightarrow> nat"
+  assumes inj_gn: "inj gn"
+
+
+instantiation bool :: goedel_numbering
+begin
+definition gn_bool :: "bool list \<Rightarrow> nat"
+  where "gn w = nat_of_bin (w @ [True])"
+
+instance
+proof intro_classes
+  have gn_comp: "nat_of_bin \<circ> (\<lambda>w. w @ [True]) = gn" unfolding gn_bool_def by force
+  have range_appT: "range (\<lambda>w. w @ [True]) = {w. ends_in True w}" by fast
+
+  have "inj_on nat_of_bin (range (\<lambda>w. w @ [True]))" unfolding range_appT by (rule inj_on_nat_of_bin)
+  then have "inj (nat_of_bin \<circ> (\<lambda>w. w @ [True]))" using inj_append_L by (subst comp_inj_on_iff[symmetric])
+  then show "inj (gn::bool list \<Rightarrow> nat)" unfolding gn_comp .
+qed
+
+end
+
+
 type_synonym word = "bin"
 
 
@@ -21,14 +44,14 @@ definition gn_inv :: "nat \<Rightarrow> word" where "gn_inv n = butlast (bin_of_
 
 abbreviation (input) is_gn :: "nat \<Rightarrow> bool" where "is_gn n \<equiv> n > 0"
 
-lemmas gn_defs[simp] = gn_def gn_inv_def
+lemmas gn_defs = gn_def gn_inv_def
 
 
 subsection\<open>Basic Properties\<close>
 
-lemma gn_gt_0: "gn w > 0" unfolding gn_def by (fold bin_of_nat_end_True) simp
+lemma gn_gt_0[simp, intro]: "gn w > 0" unfolding gn_def by simp
 
-corollary gn_inv_id [simp]: "gn_inv (gn (x)) = x" by simp
+corollary gn_inv_id [simp]: "gn_inv (gn (x)) = x" unfolding gn_defs by simp
 
 corollary inv_gn_id [simp]: "is_gn n \<Longrightarrow> gn (gn_inv n) = n"
 proof -
@@ -90,7 +113,7 @@ fun word_of_num :: "num \<Rightarrow> word" where
 lemma word_num_word_id [simp]: "word_of_num (num_of_word x) = x"
 proof (induction x)
   case (Cons a x) thus ?case by (induction a) simp_all
-qed (* case "x = []" by *) simp
+qed \<comment> \<open>case \<open>x = []\<close> by\<close> simp
 
 lemma num_word_num_id [simp]: "num_of_word (word_of_num x) = x"
   by (induction x) auto
@@ -109,9 +132,9 @@ proof -
 qed
 
 
-lemma gn_altdef: "gn w = nat_of_num (num_of_word w)" by (induction w) auto
+lemma gn_altdef: "gn w = nat_of_num (num_of_word w)" by (induction w) (auto simp add: gn_def)
 
-lemma bin_of_gn[simp]: "bin_of_nat (gn w) = w @ [True]" by force
+lemma bin_of_gn[simp]: "bin_of_nat (gn w) = w @ [True]" by (simp add: gn_def)
 
 lemma gn_inv_of_bin[simp]: "is_gn n \<Longrightarrow> gn_inv n @ [True] = bin_of_nat n"
 proof -
@@ -123,7 +146,7 @@ qed
 
 lemma len_gn[simp]: "bit_length (gn w) = length w + 1" by force
 
-lemma len_gn_inv[simp]: "length (gn_inv n) = length (bin_of_nat n) - 1" by force
+lemma len_gn_inv[simp]: "length (gn_inv n) = length (bin_of_nat n) - 1" by (simp add: gn_inv_def)
 
 
 end

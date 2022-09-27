@@ -94,7 +94,7 @@ proof (induction n rule: nat_induct_non_zero)
   also have "... = False # inc (bin_of_nat n)" using inc_inc by simp
   also have "... = False # bin_of_nat (Suc n)" by simp
   finally show ?case .
-qed (* case 1 by *) (simp add: numeral_2_eq_2)
+qed \<comment> \<open>case \<^term>\<open>n = 1\<close> by\<close> (simp add: numeral_2_eq_2)
 
 corollary bin_of_nat_double_p1: "bin_of_nat (2 * n + 1) = True # (bin_of_nat n)"
   using bin_of_nat_double by (cases "n > 0") auto
@@ -110,7 +110,7 @@ proof (induction k)
   also have "... = ?n xs div (2 ^ k * 2)" unfolding div_mult2_eq ..
   also have "... = ?n xs div 2 ^ Suc k" unfolding power_Suc2 ..
   finally show ?case .
-qed (* case "k = 0" by *) simp
+qed \<comment> \<open>case \<^term>\<open>k = 0\<close> by\<close> simp
 
 
 subsection\<open>Addressing Leading Zeroes\<close>
@@ -139,14 +139,14 @@ proof (induction xs)
     with Cons.IH obtain zs' where h2: "inc xs' = zs' @ [True]" by auto
     then show ?thesis by (cases a) (auto simp add: h1 h2)
   qed
-qed (* case "xs = []" by *) simp
+qed \<comment> \<open>case \<^term>\<open>xs = []\<close> by\<close> simp
 
 lemma bin_of_nat_gt_0_end_True[simp]: "n > 0 \<Longrightarrow> ends_in True (bin_of_nat n)"
 proof (induction n rule: nat_induct_non_zero)
   case (Suc n)
   from \<open>ends_in True (bin_of_nat n)\<close> show ?case
     unfolding bin_of_nat.simps by (rule inc_end_True)
-qed (* case "n = 1" by *) simp
+qed \<comment> \<open>case \<^term>\<open>n = 1\<close> by\<close> simp
 
 lemma nat_of_bin_gt_0_end_True[simp]:
   assumes eTw: "ends_in True w"
@@ -202,7 +202,7 @@ proof (induction n rule: nat_induct_non_zero)
   also have "... \<le> length (inc (bin_of_nat n))" by (rule inc_len)
   also have "... = length (bin_of_nat (Suc n))" by simp
   finally show ?case .
-qed (* case "n = 1" by *) simp
+qed \<comment> \<open>case \<^term>\<open>n = 1\<close> by\<close> simp
 
 lemma bit_len_eq_0_iff[iff]: "bit_length n = 0 \<longleftrightarrow> n = 0" using bin_of_nat_len_gt_0
 proof (intro iffI)
@@ -210,7 +210,7 @@ proof (intro iffI)
   then have "\<not> bit_length n > 0" ..
   then have "\<not> n > 0" using bin_of_nat_len_gt_0 by (rule contrapos_nn)
   then show "n = 0" ..
-qed (* direction "\<longleftarrow>" by *) simp
+qed \<comment> \<open>direction \<open>\<longleftarrow>\<close> by\<close> simp
 
 corollary bit_len_gt_0_iff[iff]: "bit_length n > 0 \<longleftrightarrow> n > 0" using bit_len_eq_0_iff by simp
 
@@ -237,7 +237,7 @@ proof (induction n)
   also have "... = Suc (?nbn n)" using inc_Suc by simp
   also have "... = Suc n" using Suc.IH by simp
   finally show ?case .
-qed (* case "n = 0" by *) simp
+qed \<comment> \<open>case \<^term>\<open>n = 0\<close> by\<close> simp
 
 corollary surj_nat_of_bin: "surj nat_of_bin" using nat_bin_nat by (intro surjI)
 
@@ -272,7 +272,7 @@ proof (induction w)
       finally show ?thesis .
     qed
   qed
-qed (* case "w = []" by *) simp
+qed \<comment> \<open>case \<^term>\<open>w = []\<close> by\<close> simp
 
 corollary inj_on_nat_of_bin: "inj_on nat_of_bin {w. ends_in True w}"
   by (intro inj_on_inverseI, elim CollectE) (rule bin_nat_bin)
@@ -301,7 +301,7 @@ proof (induction w rule: rev_induct)
   next
     case False thus ?case unfolding nat_of_bin_app0 by force
   qed
-qed (* case "w = []" by *) simp
+qed \<comment> \<open>case \<^term>\<open>w = []\<close> by\<close> simp
 
 lemma len_bin_nat_bin: "length (bin_of_nat (nat_of_bin w)) \<le> length w"
 proof -
@@ -390,7 +390,7 @@ proof (induction n)
   also have "\<dots> = nat_of_bin xs * 2^(Suc n) + 2^(Suc n) - 2 + 1" unfolding power_Suc mult.assoc ..
   also have "\<dots> = nat_of_bin xs * 2^(Suc n) + 2^(Suc n) - 1" by (subst h3) simp_all
   finally show ?case .
-qed (* case "n = 0" by *) simp
+qed \<comment> \<open>case \<^term>\<open>n = 0\<close> by\<close> simp
 
 lemma bin_of_nat_end_True[iff]: "ends_in True (bin_of_nat n) \<longleftrightarrow> n > 0" (is "?lhs \<longleftrightarrow> ?rhs")
 proof (intro iffI)
@@ -429,8 +429,8 @@ proof (induction w arbitrary: k)
       also have "... = (take k (False # w))\<^sub>2" by (subst (2) \<open>k = k - 1 + 1\<close>) force
       finally show ?case .
     qed
-  qed (* case "k = 0" by *) simp
-qed (* case "w = []" by *) simp
+  qed \<comment> \<open>case \<^term>\<open>k = 0\<close> by\<close> simp
+qed \<comment> \<open>case \<^term>\<open>w = []\<close> by\<close> simp
 
 
 subsection\<open>Log and Bit-Length\<close>
@@ -444,7 +444,7 @@ proof (induction n rule: log_induct)
   also have "... = dlog (n div 2) + 1 + 1" unfolding double.IH ..
   also have "... = dlog (n) + 1" using log_rec[of n] and \<open>n \<ge> 2\<close> by presburger
   finally show "bit_length n = dlog n + 1" .
-qed (* case "n = 1" by *) force
+qed \<comment> \<open>case \<^term>\<open>n = 1\<close> by\<close> force
 
 lemma bit_length_eq_log:
   assumes "n > 0"

@@ -2,6 +2,7 @@ section\<open>Lists\<close>
 
 theory Lists
   imports Main Misc "HOL-Library.Sublist"
+    "HOL-Eisbach.Eisbach"
 begin
 
 text\<open>Extends \<^theory>\<open>HOL.List\<close>.\<close>
@@ -9,11 +10,22 @@ text\<open>Extends \<^theory>\<open>HOL.List\<close>.\<close>
 lemma takeWhile_True[simp]: "takeWhile (\<lambda>x. True) = (\<lambda>x. x)" by fastforce
 
 
+notation lists ("(_*)" [1000] 999) \<comment> \<open>Priorities taken from \<^const>\<open>rtrancl\<close>,
+  to force parentheses on terms like \<^term>\<open>x \<in> (f A)*\<close>.
+  Introducing an abbreviation would be nicer, since Ctrl+Click then shows the abbreviation,
+  instead of directly jumping to \<^const>\<open>lists\<close>,
+  but the abbreviation completely replaces references to \<^const>\<open>lists\<close>, which is confusing.\<close>
+(*(* abbreviation kleene_star ("(_*)" [1000] 999) where "\<Sigma>* \<equiv> lists \<Sigma>" *)
+
+lemma lists_member[iff]: "xs \<in> X* \<longleftrightarrow> set xs \<subseteq> X" by blast
+
+
 \<comment> \<open>From \<^session>\<open>Universal_Turing_Machine\<close>.\<close>
-abbreviation replicate_exponent :: "'a \<Rightarrow> nat \<Rightarrow> 'a list" ("_ \<up> _" [100, 99] 100)
+abbreviation replicate_exponent :: "'a \<Rightarrow> nat \<Rightarrow> 'a list" (infixr "\<up>" 100)
   where "x \<up> n \<equiv> replicate n x"
 
-lemma set_replicate_subset: "set (x \<up> n) \<subseteq> {x}" by auto
+lemma set_replicate_subset: "set (x \<up> n) \<subseteq> {x}"
+  unfolding set_replicate_conv_if by simp
 
 lemma map2_replicate: "map2 f (x \<up> n) ys = map (f x) (take n ys)"
   unfolding zip_replicate1 map_map by simp
@@ -145,22 +157,20 @@ proof -
   then show "infinite X" using finite_maxlen by (rule contrapos_nn)
 qed
 
-(* TODO this should be a definition *)
-abbreviation pad :: "nat \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a list"
+
+definition pad :: "nat \<Rightarrow> 'a \<Rightarrow> 'a list \<Rightarrow> 'a list"
   where "pad n x xs \<equiv> xs @ x \<up> (n - length xs)"
 
-lemma pad_length: "length (pad n x xs) = max n (length xs)" by simp
-lemma pad_le_length[simp]: "length xs \<le> n \<Longrightarrow> length (pad n x xs) = n" by simp
-lemma pad_ge_length[simp]: "length xs \<ge> n \<Longrightarrow> pad n x xs = xs" by simp
+lemma pad_length[simp]: "length (pad n x xs) = max n (length xs)" by (simp add: pad_def)
+lemma pad_ge_length[simp]: "length xs \<ge> n \<Longrightarrow> pad n x xs = xs" by (simp add: pad_def)
 
-lemma pad_prefix: "prefix xs (pad n x xs)" by simp
+lemma pad_prefix: "prefix xs (pad n x xs)" by (simp add: pad_def)
 
 
-(* TODO this should be a definition *)
 abbreviation (input) ends_in :: "'a \<Rightarrow> 'a list \<Rightarrow> bool" \<comment> \<open>an alternative to \<^const>\<open>last\<close>.\<close>
   where "ends_in x xs \<equiv> (\<exists>ys. xs = ys @ [x])"
 
-lemma ends_inI[intro]: "ends_in x (xs @ [x])" by blast
+lemma ends_inI[intro?]: "ends_in x (xs @ [x])" by blast
 
 lemma ends_in_Cons: "ends_in y (x # xs) \<Longrightarrow> xs \<noteq> [] \<Longrightarrow> ends_in y xs"
   by (simp add: Cons_eq_append_conv)
@@ -171,7 +181,7 @@ proof (intro iffI)
   from \<open>xs \<noteq> []\<close> have "butlast xs @ [last xs] = xs"
     unfolding snoc_eq_iff_butlast by (intro conjI) auto
   then show "ends_in x xs" unfolding \<open>last xs = x\<close> by (intro exI) (rule sym)
-qed (* direction "\<longrightarrow>" by *) force
+qed \<comment> \<open>direction \<open>\<longrightarrow>\<close> by\<close> force
 
 lemma ends_in_append: "ends_in x (xs @ ys) \<longleftrightarrow> (if ys = [] then ends_in x xs else ends_in x ys)"
 proof (cases "ys = []")
@@ -182,16 +192,16 @@ proof (cases "ys = []")
   also have "... \<longleftrightarrow> ends_in x ys" using ends_in_last[symmetric] \<open>ys \<noteq> []\<close> .
   also have "... \<longleftrightarrow> (if ys = [] then ends_in x xs else ends_in x ys)" using \<open>ys \<noteq> []\<close> by simp
   finally show ?thesis .
-qed (* case "ys = []" by *) simp
+qed \<comment> \<open>case \<open>ys = []\<close> by\<close> simp
 
-lemma ends_in_drop:
-  assumes "k < length xs"
-    and "ends_in x xs"
+lemma ends_in_drop[dest]:
+  assumes "ends_in x xs"
+    and "k < length xs"
   shows "ends_in x (drop k xs)"
   using assms by force
 
-declare list_all_iff[iff]
-lemma list_all_set_map[iff]: "set (map f xs) \<subseteq> A \<longleftrightarrow> list_all (\<lambda>x. f x \<in> A) xs" by auto
+lemma Ball_set_map[iff?]: "set (map f xs) \<subseteq> A \<longleftrightarrow> (\<forall>x\<in>set xs. f x \<in> A)"
+  unfolding set_map by (fact image_subset_iff)
 
 lemma map_inv_into_map_id:
   fixes f::"'a \<Rightarrow> 'b"
@@ -322,6 +332,16 @@ lemma nth_or_simps[simp]:
 
 lemma nth_or_map: "f (nth_or x n xs) = nth_or (f x) n (map f xs)" by (cases "n < length xs") auto
 
+lemma nth_or_cases:
+  assumes "n < length xs \<Longrightarrow> P (xs ! n)"
+    and "\<not> (n < length xs) \<Longrightarrow> P x"
+  shows "P (nth_or x n xs)"
+  unfolding nth_or_def using assms by (fact ifI)
+
+lemma nth_or_split:
+  "P (nth_or x n xs) \<longleftrightarrow> (n < length xs \<longrightarrow> P (xs ! n)) \<and> (\<not> (n < length xs) \<longrightarrow> P x)"
+  unfolding nth_or_def by presburger
+
 
 text\<open>Force a list to a given length; truncate if too long, and pad with the default value if too short.\<close>
 
@@ -339,7 +359,7 @@ proof (cases "length xs \<ge> n")
 next
   assume "\<not> length xs \<ge> n" hence "length xs < n" by simp
   then have *: "take n xs = xs" by simp
-  show ?thesis unfolding take_or_def * ..
+  show ?thesis unfolding take_or_def * pad_def ..
 qed
 
 
@@ -396,5 +416,211 @@ qed
 
 lemma finite_type_lists_length_le: "finite {xs::('s::finite list). length xs \<le> n}"
   using finite_lists_length_le[OF finite, of UNIV] by simp
+
+
+lemma Ball_set_last[dest]:
+  assumes "\<forall>x\<in>set xs. P x"
+    and "xs \<noteq> []"
+  shows "P (last xs)"
+  using assms by simp
+
+lemmas list_all_last[elim] = Ball_set_last[folded list_all_iff]
+
+
+subsection\<open>Split lists into chunks of \<open>n\<close> elements\<close>
+
+fun chunks :: "nat \<Rightarrow> 'a list \<Rightarrow> 'a list list" where
+  "chunks n [] = []"
+| "chunks 0 xs = [xs]"
+| "chunks n xs = (take n xs) # chunks n (drop n xs)"
+
+lemmas chunks_induct = chunks.induct[params n and x xs and n x xs, case_names Nil 0 Split]
+lemma chunks_cases[case_names Nil 0 Split]:
+  fixes n :: nat and xs :: "'a list"
+  obtains            "xs = []"
+    |    x xs' where "xs = x # xs'" and "n = 0"
+    | n' x xs' where "xs = x # xs'" and "n = Suc n'"
+  by (cases "(n, xs)" rule: chunks.cases) blast+
+
+
+lemma chunks_0[simp]: "xs \<noteq> [] \<Longrightarrow> chunks 0 xs = [xs]" by (induction xs) auto
+lemma chunks_Split: "n > 0 \<Longrightarrow> xs \<noteq> [] \<Longrightarrow> chunks n xs = (take n xs) # chunks n (drop n xs)"
+  by (cases "(n, xs)" rule: chunks.cases) auto
+
+lemma chunks_len_neq_Nil[dest]: "i < length (chunks n xs) \<Longrightarrow> xs \<noteq> []" by force
+
+lemma concat_chunks: "concat (chunks n xs) = xs" by (induction rule: chunks.induct) auto
+
+lemma length_chunks_not_dvd:
+  assumes "xs \<noteq> []"
+    and "\<not> n dvd length xs"
+  shows "length (chunks n xs) = length xs div n + 1"
+  using assms
+proof (induction n xs rule: chunks_induct)
+  case (Split n x xs)
+  let ?n = "Suc n" and ?xs = "x # xs" let ?lxs = "length ?xs"
+  show ?case
+  proof (cases ?lxs ?n rule: linorder_cases)
+    case greater
+    then have ge: "?lxs \<ge> ?n" by (fact less_imp_le_nat)
+    from greater have h1: "drop ?n ?xs \<noteq> []" by simp
+    from ge and \<open>\<not> ?n dvd ?lxs\<close> have h2: "\<not> ?n dvd length (drop ?n ?xs)"
+      unfolding length_drop by (subst less_eq_dvd_minus[symmetric]) auto
+
+    note Split(1)[OF h1 h2, simplified, simp]
+    have "length (chunks ?n ?xs) = Suc (Suc ((?lxs - ?n) div ?n))" by simp
+    also from ge have "... = ?lxs div ?n + 1" by (subst div_geq[symmetric]) auto
+    finally show ?thesis .
+  next
+    case less
+    then have le: "?lxs \<le> ?n" by (fact less_imp_le_nat)
+    then have "length (chunks ?n ?xs) = 1" by simp
+    also from less have "... = ?lxs div ?n + 1" by simp
+    finally show ?thesis .
+  next
+    case equal
+    with \<open>\<not> ?n dvd ?lxs\<close> show ?thesis by simp
+  qed
+qed simp_all
+
+lemma length_chunks_dvd:
+  assumes "n dvd length xs"
+  shows "length (chunks n xs) = length xs div n"
+  using assms
+proof (induction n xs rule: chunks_induct)
+  case (Split n x xs)
+  let ?n = "Suc n" and ?xs = "x # xs" let ?lxs = "length ?xs"
+  show ?case
+  proof (cases ?lxs ?n rule: linorder_cases)
+    case greater
+    then have ge: "?lxs \<ge> ?n" by (fact less_imp_le_nat)
+    from ge and \<open>?n dvd ?lxs\<close> have h2: "?n dvd length (drop ?n ?xs)"
+      unfolding length_drop by (subst less_eq_dvd_minus[symmetric]) auto
+
+    note Split(1)[OF h2, simplified, simp]
+    have "length (chunks ?n ?xs) = Suc ((?lxs - ?n) div ?n)" by simp
+    also from ge have "... = ?lxs div ?n" by (subst div_geq[symmetric]) auto
+    finally show ?thesis .
+  next
+    case less
+    then have "\<not> ?n dvd ?lxs" using nat_dvd_not_less by simp
+    with \<open>?n dvd ?lxs\<close> show ?thesis by contradiction
+  next
+    case equal
+    then show ?thesis by simp
+  qed
+qed simp_all
+
+lemma length_chunks: "length (chunks n xs) = length xs div n + (if xs = [] \<or> n dvd length xs then 0 else 1)"
+proof (induction rule: ifI)
+  case True   with length_chunks_dvd     show ?case by auto  next
+  case False  with length_chunks_not_dvd show ?case by blast
+qed
+
+corollary length_chunks_bounds:
+  shows "length (chunks n xs) \<ge> length xs div n"
+    and "length (chunks n xs) \<le> length xs div n + 1"
+  unfolding length_chunks by (rule ifI; linarith)+
+
+
+lemma chunks_drop1[simp]: "n > 0 \<Longrightarrow> chunks n (drop n xs) = drop 1 (chunks n xs)"
+  by (cases "(n, xs)" rule: chunks.cases) simp_all
+
+lemma chunks_drop[simp]:
+  assumes "n > 0"
+  shows "chunks n (drop (n * i) xs) = drop i (chunks n xs)"
+proof (induction i)
+  case (Suc i)
+  have "chunks n (drop (n * Suc i) xs) = chunks n (drop n (drop (n * i) xs))" by simp
+  also from \<open>n > 0\<close> have "... = drop 1 (chunks n (drop (n * i) xs))" by (fact chunks_drop1)
+  also have "... = drop (Suc i) (chunks n xs)" unfolding Suc.IH by simp
+  finally show ?case .
+qed simp
+
+
+lemma div_times_less:
+  fixes n l ::  nat
+  assumes "\<not> n dvd l"
+    and "l \<noteq> 0"
+  shows "l div n * n < l"
+  using assms by (metis dvd_triv_right less_mult_imp_div_less nat_neq_iff) (* TODO understand wtf happens here *)
+
+lemma nth_chunks_helper:
+  assumes "n > 0"
+    and "i < length (chunks n xs)"
+  shows "n * i < length xs"
+proof (cases "n dvd length xs")
+  assume "n dvd length xs"
+  then have "length (chunks n xs) = length xs div n" by (fact length_chunks_dvd)
+  with \<open>i < length (chunks n xs)\<close> have "i < length xs div n" by argo
+  with \<open>n > 0\<close> have "n * i < length xs div n * n" by simp
+  also have "... \<le> length xs" by simp
+  finally show "n * i < length xs" .
+next
+  from \<open>i < length (chunks n xs)\<close> have "xs \<noteq> []" by force
+  moreover assume "\<not> n dvd length xs"
+  ultimately have "length (chunks n xs) = length xs div n + 1" by (fact length_chunks_not_dvd)
+  with \<open>i < length (chunks n xs)\<close> have "i \<le> length xs div n" by linarith
+  then have "n * i \<le> length xs div n * n" by simp
+  also from \<open>\<not> n dvd length xs\<close> and \<open>xs \<noteq> []\<close> have "... < length xs" by (intro div_times_less) blast+
+  finally show "n * i < length xs" .
+qed
+
+lemma nth_chunks:
+  assumes "n > 0"
+    and "i < length (chunks n xs)"
+  shows "chunks n xs ! i = take n (drop (n * i) xs)"
+  using assms
+proof (cases rule: chunks_cases[where n=n and xs=xs])
+  case (Split n' x xs')
+  from assms have "chunks n xs ! i = hd (chunks n (drop (n * i) xs))"
+    by (simp only: hd_drop_conv_nth chunks_drop)
+  also from \<open>n > 0\<close> have "... = take n (drop (n * i) xs)"
+  proof (subst chunks_Split)
+    from assms have "n * i < length xs" by (fact nth_chunks_helper)
+    then show "drop (n * i) xs \<noteq> []" by simp
+  qed (simp_all only: list.sel)
+  finally show ?thesis .
+qed force+
+
+
+corollary chunks_length_le:
+  assumes "n > 0"
+    and "i < length (chunks n xs)"
+  shows "length (chunks n xs ! i) \<le> n"
+  unfolding nth_chunks[OF assms] length_take by (fact min.cobounded2)
+
+
+lemma div_imp_mult_less:
+  fixes a b c :: nat
+  assumes "a < b div c"
+  shows "a * c < b"
+proof -
+  have "c \<noteq> 0"
+  proof (rule ccontr, unfold not_not)
+    assume "c = 0"
+    with \<open>a < b div c\<close> show False by simp
+  qed
+
+  with assms have "a * c < b div c * c" by simp
+  also from \<open>c \<noteq> 0\<close> have "... \<le> b" by simp
+  finally show ?thesis .
+qed
+
+lemma chunks_length_eq:
+  assumes "n > 0"
+    and "i < length xs div n"
+  shows "length (chunks n xs ! i) = n"
+proof -
+  from \<open>i < length xs div n\<close> have "i < length (chunks n xs)" unfolding length_chunks by (fact trans_less_add1)
+  with \<open>n > 0\<close> have "length (chunks n xs ! i) = length (take n (drop (n * i) xs))" by (simp only: nth_chunks)
+  also have "... = n" unfolding length_take
+  proof (rule min_absorb2)
+    from \<open>i < length xs div n\<close> have "Suc i \<le> length xs div n" by (fact Suc_leI)
+    with \<open>n > 0\<close> have "n * Suc i \<le> length xs" by (simp add: less_eq_div_iff_mult_less_eq mult.commute)
+    then show "n \<le> length (drop (n * i) xs)" unfolding length_drop by (simp add: mult.commute)
+  qed
+  finally show ?thesis .
+qed
 
 end
