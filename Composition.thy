@@ -1579,15 +1579,29 @@ end \<comment> \<open>\<^locale>\<open>arb_TM_comp\<close>\<close>
 
 subsection\<open>Reductions\<close>
 
-lemma reduce_DTIME:
-  fixes L1 L2
-    and f\<^sub>R
+lemma reduce_DTIME':
+  fixes L\<^sub>1 L\<^sub>2
+    and f\<^sub>R \<comment> \<open>the reduction\<close>
     and T :: "nat \<Rightarrow> nat"
-  assumes "L1 \<in> DTIME T"
-    and "\<forall>\<^sub>\<infinity>w. (f\<^sub>R w \<in>\<^sub>L L1) = (w \<in>\<^sub>L L2) \<and> length (f\<^sub>R w) \<le> length w"
+    and l\<^sub>R :: "nat \<Rightarrow> nat" \<comment> \<open>length bound of the reduction\<close>
+  assumes "L\<^sub>1 \<in> DTIME(T)"
+    and f\<^sub>R_MOST: "\<forall>\<^sub>\<infinity>w. (f\<^sub>R w \<in>\<^sub>L L\<^sub>1 \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> l\<^sub>R (length w))"
     and "computable_in_time TYPE(nat) T f\<^sub>R"
     and "superlinear T"
-  shows "L2 \<in> DTIME T"
+    and T_l\<^sub>R_mono: "\<forall>\<^sub>\<infinity>n. T (l\<^sub>R n) \<ge> T(n)" \<comment> \<open>allows reasoning about \<^term>\<open>T\<close> and \<^term>\<open>l\<^sub>R\<close> as if both were \<^const>\<open>mono\<close>.\<close>
+  shows "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
   sorry (* TODO (!) *)
+
+lemma reduce_DTIME:
+  fixes L\<^sub>1 L\<^sub>2
+    and f\<^sub>R
+    and T :: "nat \<Rightarrow> nat"
+  assumes "L\<^sub>1 \<in> DTIME T"
+    and "\<forall>\<^sub>\<infinity>w. (f\<^sub>R w \<in>\<^sub>L L\<^sub>1 \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>2) \<and> length (f\<^sub>R w) \<le> length w"
+    and "computable_in_time TYPE(nat) T f\<^sub>R"
+    and "superlinear T"
+  shows "L\<^sub>2 \<in> DTIME T"
+  using \<open>L\<^sub>1 \<in> DTIME T\<close>
+  by (elim reduce_DTIME'[where l\<^sub>R="\<lambda>x. x"]) (fact+, simp)
 
 end

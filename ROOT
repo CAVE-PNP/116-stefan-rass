@@ -4,6 +4,10 @@ session "116_stefan_rass" = "HOL-Library" +
     Intro_Dest_Elim
     "HOL-Eisbach"
   directories
+    (* This allows unqualified imports (\<open>Misc\<close> instead of \<open>"Supplementary/Misc"\<close>),
+     * but only if this session is registered in Isabelle's component list.
+     * To avoid inconsistent behaviour for users inspecting the code,
+     * we hence use qualified imports where applicable. *)
     Supplementary
   theories [quick_and_dirty] (* allow `sorry` *)
     (* Supplementary theories *)
@@ -25,7 +29,6 @@ session "116_stefan_rass" = "HOL-Library" +
     TM_Encoding
     Complexity
     L0
-    LD_Issues
   document_files
     "root.tex"
     "root.bib"

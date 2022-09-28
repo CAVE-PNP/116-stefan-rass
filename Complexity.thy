@@ -659,10 +659,25 @@ proof -
 qed
 *)
 
-context TM_abbrevs
-begin
+subsubsection\<open>Intersection of Languages\<close>
+
+text\<open>A TM that decides the intersection of two languages \<open>L\<^sub>i\<close> could be constructed as follows:
+  From the membership in \<open>DTIME(T\<^sub>i)\<close> obtain TMs \<open>M\<^sub>i\<close> (with \<open>k\<^sub>i\<close> tapes).
+  Construct \<open>M\<close> as \<open>k\<^sub>1+k\<^sub>2\<close>-tape TM.
+  Copy the input from tape \<open>1\<close> to tape \<open>k\<^sub>1+1\<close> (and reset the head on tape \<open>1\<close> to the start of the input).
+  Assign tapes \<open>1..k\<^sub>1\<close> to \<open>M\<^sub>1\<close> and tapes \<open>k\<^sub>1+1..k\<^sub>1+k\<^sub>2\<close> to \<open>M\<^sub>2\<close> and run both TMs.
+  When both TMs have terminated, accept the word if both TMs have accepted, and reject otherwise.\<close>
+
+lemma DTIME_int:
+  assumes "L\<^sub>1 \<in> DTIME(T\<^sub>1)"
+    and "L\<^sub>2 \<in> DTIME(T\<^sub>2)"
+  shows "L\<^sub>1 \<inter>\<^sub>L L\<^sub>2 \<in> DTIME(\<lambda>n. max (T\<^sub>1 n) (T\<^sub>2 n))" sorry
+
 
 subsection\<open>Reductions\<close> (* currently broken *)
+
+context TM_abbrevs
+begin
 
 (*
 lemma reduce_decides:
@@ -731,15 +746,17 @@ lemma exists_ge_eq:
 lemma ball_eq_simp: "(\<forall>n\<ge>x. \<forall>m. f m = n \<longrightarrow> P m) = (\<forall>m. f m \<ge> x \<longrightarrow> P m)" by blast
 
 (*
-lemma reduce_DTIME: (* TODO clean up and tidy assumptions *)
-  fixes T\<^sub>B T\<^sub>R T :: "'c::semiring_1 \<Rightarrow> 'd::floor_ceiling"
-    and f\<^sub>R :: "('s) list \<Rightarrow> 's list"
-    and L1 L2 :: "'s list set"
-  assumes f\<^sub>R_ae: "\<forall>\<^sub>\<infinity>n. \<forall>w. length w = n \<longrightarrow> (f\<^sub>R w \<in> L1) = (w \<in> L2) \<and> length (f\<^sub>R w) \<le> length w"
-    and "computable_in_time TYPE('q0) T f\<^sub>R"
-    and "superlinear T"
-    and "L1 \<in> typed_DTIME TYPE('q1) T"
-  shows "L2 \<in> typed_DTIME TYPE('q0 + 'q1) T"
+lemma reduce_DTIME':
+  fixes T :: "nat \<Rightarrow> real"
+    and L\<^sub>1 L\<^sub>2 :: lang
+    and f\<^sub>R :: "word \<Rightarrow> word" \<comment> \<open>the reduction\<close>
+    and l\<^sub>R :: "nat \<Rightarrow> nat" \<comment> \<open>length bound of the reduction\<close>
+  assumes "L\<^sub>1 \<in> DTIME(T)"
+    and f\<^sub>R_MOST: "MOST w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> l\<^sub>R (length w))"
+    and "computable_in_time T f\<^sub>R"
+    and T_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
+    and T_l\<^sub>R_mono: "MOST n. T (l\<^sub>R n) \<ge> T(n)" \<comment> \<open>allows reasoning about \<^term>\<open>T\<close> and \<^term>\<open>l\<^sub>R\<close> as if both were \<^const>\<open>mono\<close>.\<close>
+  shows "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
 proof -
   from \<open>computable_in_time TYPE('q0) T f\<^sub>R\<close> obtain M\<^sub>R :: "('q0, 's) TM"
     where "TM.computes M\<^sub>R f\<^sub>R" "TM.time_bounded M\<^sub>R T" "TM M\<^sub>R"
@@ -751,20 +768,17 @@ proof -
   have "symbols M\<^sub>R = symbols M1" sorry
   with \<open>TM M\<^sub>R\<close> \<open>TM M1\<close> have "TM M" unfolding M_def by (fact wf_tm_comp)
 
-  let ?T  = "\<lambda>n. T (of_nat n)"
-  let ?T' = "\<lambda>n. of_nat (tcomp T n + tcomp T n) :: 'd"
-
-  from f\<^sub>R_ae obtain n
-    where f\<^sub>R_correct: "f\<^sub>R w \<in> L1 \<longleftrightarrow> w \<in> L2"
-      and f\<^sub>R_len: "length (f\<^sub>R w) \<le> length w"
-    if "length w \<ge> n" for w
-    unfolding MOST_nat_le ball_eq_simp by blast
+  from f\<^sub>R_MOST obtain l\<^sub>0
+    where f\<^sub>R_correct: "f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2"
+      and f\<^sub>R_len: "length (f\<^sub>R w) \<le> l\<^sub>R (length w)"
+    if "length w \<ge> l\<^sub>0" for w by blast
 
   text\<open>Prove \<^term>\<open>M\<close> to be \<^term>\<open>T\<close>-time-bounded.
     Part 1: show a time-bound for \<^term>\<open>M\<close>.\<close>
-  have "L2 \<in> typed_DTIME TYPE('q0+'q1) ?T'"
-  proof (rule TM.DTIME_aeI)
-    show "TM M" by fact
+  have "L\<^sub>2 \<in> DTIME(?T')"
+  proof (rule DTIME_MOSTI)
+    fix w :: word
+    assume min_len: "length w \<ge> l\<^sub>0"
 
     fix w :: "'s list"
     assume min_len: "n \<le> length w"
@@ -789,25 +803,13 @@ proof -
 
   (* TODO (?) split proof here *)
 
-  text\<open>Part 2: bound the run-time of M (\<^term>\<open>?T'\<close>) by a multiple of the desired time-bound \<^term>\<open>T\<close>.\<close>
-  have "\<exists>n0. \<forall>n\<ge>n0. \<lceil>?T n\<rceil> \<ge> (2 * n) \<and> n \<ge> 1"
-  proof (rule exists_ge, rule ex_reg, intro allI impI)
-    from \<open>superlinear T\<close> show "\<exists>n0. \<forall>n\<ge>n0. of_nat 2 * of_nat n \<le> ?T n"
-      by (rule superlinearE')
-
-    fix n0 n
-    assume "n0 \<le> n" and "\<forall>n\<ge>n0. of_nat 2 * of_nat n \<le> ?T n"
-    then have h1: "of_nat (2 * n) \<le> ?T n" unfolding of_nat_mult by blast
-
-    have "int (2 * n) = \<lceil>of_nat (2 * n) :: 'd\<rceil>" unfolding ceiling_of_nat ..
-    also from h1 have "... \<le> \<lceil>?T n\<rceil>" by (fact ceiling_mono)
-    finally show "\<lceil>?T n\<rceil> \<ge> int (2 * n)" .
-  qed
-  then obtain n0 where n0: "\<lceil>?T n\<rceil> \<ge> 2*n" "n \<ge> 1" if "n \<ge> n0" for n by blast
-
-  have "?T' n \<le> 4 * ?T n" if "n \<ge> n0" for n
-  proof -
-    from \<open>n \<ge> n0\<close> have "n \<ge> 1" and "\<lceil>?T n\<rceil> \<ge> 2*n" by (fact n0)+
+  \<comment> \<open>Part 2: bound the run-time of M (\<open>?T'\<close>) by a multiple of the desired time-bound \<^term>\<open>T\<close>.\<close>
+  from T_superlinear have "MOST n. T n \<ge> 2 * n"
+    unfolding MOST_suff_large_iff of_nat_mult by (fact superlinearE')
+  with T_l\<^sub>R_mono have "MOST n. ?T' n \<le> 4 * T (l\<^sub>R n)"
+  proof (MOST_intro)
+    fix n :: nat
+    assume "n \<ge> 1" and "T n \<ge> 2*n" and "T (l\<^sub>R n) \<ge> T(n)"
     then have "n + 1 \<le> 2 * n" by simp
     also have "2 * n = nat \<lceil>2 * n\<rceil>" unfolding ceiling_of_nat nat_int ..
 
@@ -815,22 +817,46 @@ proof -
     also have "... = nat \<lceil>?T n\<rceil>" unfolding ceiling_of_int ..
     finally have *: "tcomp T n = nat \<lceil>?T n\<rceil>" unfolding tcomp_def max_def by (subst if_P) auto
 
-    from \<open>\<lceil>?T n\<rceil> \<ge> 2*n\<close> \<open>n \<ge> 1\<close> have "\<lceil>?T n\<rceil> \<ge> 2" by linarith
-    then have "\<lceil>?T n\<rceil> \<ge> 1" "?T n \<ge> 1" by simp+
-    have "(of_nat (nat \<lceil>?T n\<rceil>) :: 'd) = of_int \<lceil>?T n\<rceil>" using \<open>\<lceil>?T n\<rceil> \<ge> 1\<close> by (intro of_nat_nat) simp
-    also have "... \<le> ?T n + 1" by (fact of_int_ceiling_le_add_one)
-    also have "... \<le> 2 * ?T n" unfolding mult_2 using \<open>?T n \<ge> 1\<close> by (fact add_left_mono)
-    finally have "?T' n \<le> 2 * (2 * ?T n)" unfolding * of_nat_add mult_2 by (intro add_mono)
-    also have "... = 4 * ?T n" by simp
-    finally show ?thesis .
+    have "real (?T' n) \<le> real (2 * nat \<lceil>T (l\<^sub>R n)\<rceil>)" unfolding mult_2 h1 h2
+      by (intro of_nat_mono add_left_mono) (fact \<open>nat \<lceil>T n\<rceil> \<le> nat \<lceil>T (l\<^sub>R n)\<rceil>\<close>)
+    also have "... \<le> 2 * (2 * T (l\<^sub>R n))" unfolding of_nat_mult of_nat_numeral
+    proof (intro mult_left_mono)
+      from \<open>T n \<ge> 2*n\<close> \<open>n \<ge> 1\<close> \<open>T (l\<^sub>R n) \<ge> T(n)\<close> have "T (l\<^sub>R n) \<ge> 1" by simp
+      have "nat \<lceil>T (l\<^sub>R n)\<rceil> = real_of_int \<lceil>T (l\<^sub>R n)\<rceil>" using \<open>T (l\<^sub>R n) \<ge> 1\<close> by (intro of_nat_nat) simp
+      also have "\<lceil>T (l\<^sub>R n)\<rceil> \<le> T (l\<^sub>R n) + 1" by (fact of_int_ceiling_le_add_one)
+      also have "... \<le> 2 * T (l\<^sub>R n)" unfolding mult_2 using \<open>T (l\<^sub>R n) \<ge> 1\<close> by (fact add_left_mono)
+      finally show "nat \<lceil>T (l\<^sub>R n)\<rceil> \<le> 2 * T (l\<^sub>R n)" .
+    qed simp
+    also have "... = 4 * T (l\<^sub>R n)" by simp
+    finally show "?T' n \<le> 4 * T (l\<^sub>R n)" .
   qed
-  then have "\<And>n. n \<ge> n0 \<Longrightarrow> ?T' (of_nat n) \<le> 4 * ?T n" unfolding of_nat_id .
+  with \<open>L\<^sub>2 \<in> DTIME(?T')\<close> have "L\<^sub>2 \<in> DTIME(\<lambda>n. 4 * T (l\<^sub>R n))" by (rule DTIME_mono_MOST)
 
-  from this and \<open>L2 \<in> typed_DTIME TYPE('q0+'q1) ?T'\<close>
-  have "L2 \<in> typed_DTIME TYPE('q0+'q1) (\<lambda>n. 4 * T n)" by (fact DTIME_mono_ae)
-  with \<open>superlinear T\<close> show "L2 \<in> typed_DTIME TYPE('q0+'q1) T"
-    by (intro DTIME_speed_up_rev[where T=T]) auto
+  then show "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))"
+  proof (rule DTIME_speed_up_rev)
+    {
+      fix N
+      from T_superlinear have "MOST n. T(n)/n \<ge> N" unfolding MOST_suff_large_iff ..
+      with T_l\<^sub>R_mono have "MOST n. T(l\<^sub>R n)/n \<ge> N"
+      proof (MOST_intro)
+        fix n
+        assume "T(l\<^sub>R n) \<ge> T(n)"
+        assume "N \<le> T(n)/n"
+        also from \<open>T(l\<^sub>R n) \<ge> T(n)\<close> have "... \<le> T(l\<^sub>R n)/n" by (rule divide_right_mono) simp
+        finally show "N \<le> T(l\<^sub>R n)/n" .
+      qed
+    }
+    then show "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(l\<^sub>R n)/n \<ge> N" unfolding MOST_suff_large_iff ..
+  qed \<comment> \<open>\<^term>\<open>0 < 4\<close> by\<close> simp
 qed
+
+lemma reduce_DTIME: \<comment> \<open>Version of \<open>reduce_DTIME'\<close> with constant length bound (\<^term>\<open>l\<^sub>R = Fun.id\<close>).\<close>
+  assumes "L\<^sub>1 \<in> DTIME(T)"
+    and f\<^sub>R_MOST: "MOST w. (f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> length w)"
+    and "computable_in_time T f\<^sub>R"
+    and T_superlinear: "\<forall>N. \<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. T(n)/n \<ge> N"
+  shows "L\<^sub>2 \<in> DTIME(T)" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
+  using assms by (rule reduce_DTIME') blast
 *)
 
 end \<comment> \<open>context \<^locale>\<open>TM_abbrevs\<close>\<close>

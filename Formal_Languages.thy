@@ -46,4 +46,6 @@ lemma inter_lang_commute: "L\<^sub>1 \<inter>\<^sub>L L\<^sub>2 = L\<^sub>2 \<in
 lemma inter_lang_words[simp]: "words (L\<^sub>1 \<inter>\<^sub>L L\<^sub>2) = words L\<^sub>1 \<inter> words L\<^sub>2"
   unfolding inf_lang_def by (induction L\<^sub>1, induction L\<^sub>2) auto
 
+lemma inter_lang_member[iff]: "w \<in>\<^sub>L (L\<^sub>1 \<inter>\<^sub>L L\<^sub>2) \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>1 \<and> w \<in>\<^sub>L L\<^sub>2" by simp
+
 end
