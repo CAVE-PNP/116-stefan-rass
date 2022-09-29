@@ -1,8 +1,6 @@
 session "116_stefan_rass" = "HOL-Library" +
   options [document = pdf, document_output = "output"]
   sessions
-    Universal_Turing_Machine
-    "HOL-Computational_Algebra"
     Intro_Dest_Elim
     "HOL-Eisbach"
   directories
@@ -16,14 +14,16 @@ session "116_stefan_rass" = "HOL-Library" +
     "Supplementary/Misc"
     "Supplementary/Lists"
     "Supplementary/Sublists"
+    "Supplementary/Option_S"
     "Supplementary/Discrete_Log"
     "Supplementary/Discrete_Sqrt"
     "Supplementary/Asymptotic"
-    "Supplementary/UF_Code"
     (* Definitions and Preliminaries *)
     Binary
     Goedel_Numbering
     Language_Density
+    TM
+    Composition
     (* A Hard Language with a Known Density Bound *)
     SQ
     TM_Encoding

@@ -12,41 +12,41 @@ begin
 text\<open>SQ is an overloaded identifier in @{cite rassOwf2017}.
   However, the more common notion is the language as opposed to the set of natural numbers.\<close>
 
-definition SQ :: lang \<comment> \<open>The language of non-zero square numbers, represented by binary strings without leading ones.\<close>
-  where [simp]: "SQ \<equiv> {w. \<exists>x. gn w = x\<^sup>2}"
+definition SQ :: "bool lang" \<comment> \<open>The language of non-zero square numbers, represented by binary strings without leading ones.\<close>
+  where "SQ \<equiv> Lang UNIV (\<lambda>w. \<exists>x. gn w = x\<^sup>2)"
 
 definition SQ_nat :: "nat set" \<comment> \<open>The analogous set \<open>SQ \<subseteq> \<nat>\<close>, as defined in @{cite \<open>ch.~4.1\<close> rassOwf2017}.\<close>
-  where "SQ_nat \<equiv> {y. y \<noteq> 0 \<and> (\<exists>x. y = x\<^sup>2)}"
+  where [simp]: "SQ_nat \<equiv> {y. y \<noteq> 0 \<and> (\<exists>x. y = x\<^sup>2)}"
+
+
+lemma member_SQ[simp]: "w \<in>\<^sub>L SQ \<longleftrightarrow> (\<exists>x. gn w = x\<^sup>2)" by (simp add: SQ_def)
 
 lemma SQ_nat_zero:
 	"insert 0 SQ_nat = {y. \<exists>x. y = x ^ 2}"
 	"SQ_nat = {y. \<exists>x. y = x ^ 2} - {0}"
-	by (auto simp add: SQ_nat_def)
+	by auto
 
 text\<open>Relating \<^const>\<open>SQ\<close> and \<^const>\<open>SQ_nat\<close>:\<close>
-lemma SQ_SQ_nat:
-  shows SQ_nat_vim: "SQ = gn -` SQ_nat"
-    and SQ_nat_eq: "SQ = {w. gn w \<in> SQ_nat}"
-  unfolding SQ_def SQ_nat_def by simp_all
+lemma SQ_SQ_nat_eq: "words SQ = {w. gn w \<in> SQ_nat}" by auto
 
-lemma SQ_nat_im: "SQ_nat = gn ` SQ"
+lemma SQ_nat_im: "SQ_nat = gn ` words SQ"
 proof (intro subset_antisym subsetI image_eqI CollectI)
   fix n assume "n \<in> SQ_nat"
-  then have "n > 0" by (simp add: SQ_nat_def)
-  with sym inv_gn_id show "n = gn (gn_inv n)" .
-  from \<open>n \<in> SQ_nat\<close> have "\<exists>x. n = x ^ 2" by (simp add: SQ_nat_def)
+  then have "n > 0" by simp
+  then show "n = gn (gn_inv n)" by simp
+
+  from \<open>n \<in> SQ_nat\<close> have "\<exists>x. n = x ^ 2" by simp
   then obtain x where b: "n = x ^ 2" ..
-  then show "gn_inv n \<in> SQ" unfolding SQ_def
-    by (intro image_eqI CollectI exI) (fold \<open>n = gn (gn_inv n)\<close>)
+  with \<open>n > 0\<close> show "gn_inv n \<in>\<^sub>L SQ" by simp
 next
   fix n
-  assume "n \<in> gn ` SQ"
+  assume "n \<in> gn ` words SQ"
   then have "n > 0" using gn_gt_0 by blast
-  from \<open>n \<in> gn ` SQ\<close> have "n \<in> {n. \<exists>x. gn (gn_inv n) = x ^ 2}" using gn_inv_id by fastforce
+  from \<open>n \<in> gn ` words SQ\<close> have "n \<in> {n. \<exists>x. gn (gn_inv n) = x ^ 2}" using gn_inv_id by fastforce
   then have "\<exists>x. gn (gn_inv n) = x ^ 2" by blast
   then obtain x where "gn (gn_inv n) = x ^ 2" ..
   with \<open>n > 0\<close> have "n = x ^ 2" using inv_gn_id by simp
-  with \<open>n > 0\<close> show "n \<in> SQ_nat" by (simp add: SQ_nat_def)
+  with \<open>n > 0\<close> show "n \<in> SQ_nat" by simp
 qed
 
 
@@ -55,15 +55,15 @@ text\<open>``Lemma 4.2 @{cite rassOwf2017}. The language of squares \<open>SQ = 
 
 theorem dens_SQ: "dens SQ x = dsqrt x"
 proof -
-  have eq: "{w\<in>SQ. gn w \<le> x} = gn_inv ` power2 ` {0<..dsqrt x}"
+  have eq: "{w\<in> words SQ. gn w \<le> x} = gn_inv ` power2 ` {0<..dsqrt x}"
   proof (intro subset_antisym subsetI image_eqI CollectI conjI)
     fix w
-    assume "w \<in> {w \<in> SQ. gn w \<le> x}"
-    then have "w \<in> SQ" and "gn w \<le> x" by blast+
+    assume "w \<in> {w \<in> words SQ. gn w \<le> x}"
+    then have "w \<in>\<^sub>L SQ" and "gn w \<le> x" by blast+
 
     show "w = gn_inv (gn w)" unfolding gn_inv_id ..
 
-    from \<open>w \<in> SQ\<close> obtain z where "gn w = z\<^sup>2" unfolding SQ_def by blast
+    from \<open>w \<in>\<^sub>L SQ\<close> obtain z where "gn w = z\<^sup>2" unfolding SQ_def by auto
     then have "z = dsqrt (gn w)" by simp
     then show "gn w = (dsqrt (gn w))\<^sup>2" using \<open>gn w = z\<^sup>2\<close> by blast
 
@@ -79,7 +79,7 @@ proof -
     from zw have "gn w = gn (gn_inv (z\<^sup>2))" by blast
     also have "... = z\<^sup>2" using inv_gn_id zero_less_power \<open>z > 0\<close> .
     finally have "gn w = z\<^sup>2" .
-    then show "w \<in> SQ" unfolding SQ_def by blast
+    then show "w \<in>\<^sub>L SQ" unfolding SQ_def by simp
     from \<open>gn w = z\<^sup>2\<close> and \<open>z \<le> dsqrt x\<close> show "gn w \<le> x" using le_sqrt_iff by simp
   qed
 
@@ -167,7 +167,7 @@ proof (cases "x > 0")
   also have "nat (\<lfloor>x\<rfloor> + 1) = nat (int (nat \<lfloor>x\<rfloor>) + int 1)" unfolding int_nat_x of_nat_1 ..
   also have "... = nat \<lfloor>x\<rfloor> + 1" using nat_int_add .
   finally show "nat \<lceil>x\<rceil> \<le> nat \<lfloor>x\<rfloor> + 1" .
-qed (* case "x \<le> 0" by *) simp
+qed \<comment> \<open>case \<open>x \<le> 0\<close> by\<close> simp
 
 
 subsection\<open>Length of Prefix\<close>
@@ -254,7 +254,7 @@ proof (cases "n > 0")
 
   also have "... \<le> 2 ^ (4 + bit_length n div 2)" using \<open>n > 0\<close> by (subst bit_len_eq_dlog) simp_all
   finally show ?thesis .
-qed (* case "n = 0" by *) simp
+qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
 lemma adj_sq_diff: "next_square n - prev_square n < 2 ^ (4 + bit_length n div 2)"
   using adj_sq_diff_pow2 next_prev_sq_diff by (rule dual_order.strict_trans2)
@@ -275,22 +275,22 @@ lemma suffix_min_len: "length w \<ge> 9 \<Longrightarrow> suffix_len w \<le> len
  * That is, the prefix concatenated with zeroes to have the same length as \<open>n\<close>.
  *)
 definition adj_square :: "nat \<Rightarrow> nat"
-  where adj_sq_def[simp]: "adj_square n = next_square (n - n mod 2^(suffix_len (gn_inv n)))"
+  where "adj_square n = next_square (n - n mod 2^(suffix_len (gn_inv n)))"
 
-lemma adj_sq_gt_0: "adj_square n > 0" unfolding adj_sq_def by (rule next_sq_gt0)
+lemma adj_sq_gt_0: "adj_square n > 0" unfolding adj_square_def by (rule next_sq_gt0)
 
 lemma adj_sq_correct: "is_square (adj_square n)"
-  unfolding adj_sq_def using next_sq_correct1 .
+  unfolding adj_square_def using next_sq_correct1 .
 
-lemma adj_sq_correct': "gn_inv (adj_square n) \<in> SQ" unfolding SQ_def
-  using adj_sq_gt_0 adj_sq_correct by (intro CollectI) (subst inv_gn_id)
+lemma adj_sq_correct': "gn_inv (adj_square n) \<in>\<^sub>L SQ"
+  using adj_sq_gt_0 adj_sq_correct by simp
 
 
 definition adj_sq\<^sub>w :: "word \<Rightarrow> word"
-  where adj_sq_word_def[simp]: "adj_sq\<^sub>w w \<equiv> gn_inv (adj_square (gn w))"
+  where [simp]: "adj_sq\<^sub>w w \<equiv> gn_inv (adj_square (gn w))"
 
-lemma adj_sq_word_correct: "adj_sq\<^sub>w w \<in> SQ" unfolding adj_sq_word_def SQ_def
-  using adj_sq_correct and adj_sq_gt_0 by (intro CollectI) (subst inv_gn_id)
+theorem adj_sq_word_correct: "adj_sq\<^sub>w w \<in>\<^sub>L SQ" unfolding adj_sq\<^sub>w_def
+  using adj_sq_correct and adj_sq_gt_0 by simp
 
 
 subsection\<open>Shared Prefix\<close>
@@ -326,8 +326,6 @@ qed
 
 lemma sh_msb_comm: "shared_MSBs l a b \<Longrightarrow> shared_MSBs l b a" unfolding shared_MSBs_def by argo
 
-
-
 lemma bit_len_le_pow2: "n < 2 ^ k \<Longrightarrow> bit_length n \<le> k"
 proof (cases "n > 0", cases "k > 0")
   assume "n > 0" and "k > 0" and "n < 2 ^ k"
@@ -338,22 +336,21 @@ proof (cases "n > 0", cases "k > 0")
     using \<open>n \<le> 2 ^ k - 1\<close> by (rule log_le_iff)
   also have "... = k" unfolding log_exp_m1 using \<open>k > 0\<close> by simp
   finally show ?thesis .
-qed (* cases "n = 0" and "k = 0" by *) fastforce+
+qed \<comment> \<open>cases \<open>n = 0\<close> and \<open>k = 0\<close> by\<close> fastforce+
 
 (* suppl *)
 lemma pow2_min: "0 < n \<Longrightarrow> n < 2^k \<Longrightarrow> k > 0" for n k :: nat by (cases "k > 0") force+
 
-
 lemma add_suffix_bin:
   fixes up lo k :: nat
   assumes "lo < 2^k"
-  shows "up * 2^k + lo = ((bin_of_nat lo) @ (replicate (k - (bit_length lo)) False) @ (bin_of_nat up))\<^sub>2"
+  shows "up * 2^k + lo = ((bin_of_nat lo) @ (False \<up> (k - (bit_length lo))) @ (bin_of_nat up))\<^sub>2"
     (is "?lhs = (?lo @ ?zs @ ?up)\<^sub>2")
 proof (cases "up > 0", cases "lo > 0")
   assume "up > 0" and "lo > 0"
   let ?n = nat_of_bin
     and ?b = bin_of_nat
-    and ?z = "\<lambda>l. replicate l False"
+    and ?z = "\<lambda>l. False \<up> l"
 
   have "k > 0" using \<open>lo > 0\<close> \<open>lo < 2^k\<close> by (rule pow2_min)
   have "bit_length lo \<le> k" using \<open>lo < 2^k\<close> by (rule bit_len_le_pow2)
@@ -364,13 +361,13 @@ proof (cases "up > 0", cases "lo > 0")
   also have "... = up * 2 ^ length (?lo @ ?zs) + lo" unfolding nat_of_bin_app by simp
   also have "... = ?lhs" unfolding lloz ..
   finally show ?thesis by (rule sym)
-qed (* cases "up = 0" and "lo = 0" by *) (simp_all add: nat_of_bin_app_0s)
+qed \<comment> \<open>cases \<open>up = 0\<close> and \<open>lo = 0\<close> by\<close> (simp_all add: nat_of_bin_app_0s)
 
 corollary add_suffix_bin':
   fixes up lo k :: nat
   assumes "up > 0" \<comment> \<open>required to prevent leading zeroes\<close>
     and "lo < 2^k"
-  shows "bin_of_nat (up * 2^k + lo) = (bin_of_nat lo) @ (replicate (k - (length (bin_of_nat lo))) False) @ (bin_of_nat up)"
+  shows "bin_of_nat (up * 2^k + lo) = (bin_of_nat lo) @ (False \<up> (k - (length (bin_of_nat lo)))) @ (bin_of_nat up)"
     (is "?lhs = ?lo @ ?zs @ ?up")
 proof -
   from \<open>up > 0\<close> have "ends_in True ?up" unfolding bin_of_nat_end_True .
@@ -393,7 +390,7 @@ proof -
   then have drop_k_lo: "drop k (bin_of_nat (lo)\<^sub>2) = []" by (rule drop_all)
 
   let ?lo = "bin_of_nat (lo)\<^sub>2"
-  let ?loz = "?lo @ replicate (k - length ?lo) False"
+  let ?loz = "?lo @ False \<up> (k - length ?lo)"
 
   have lo_simps: "length ?loz = k" "drop k ?lo = []" using \<open>bit_length (lo)\<^sub>2 \<le> k\<close> by force+
   have split: "?lhs = ?loz @ bin_of_nat (up)\<^sub>2" unfolding append.assoc
@@ -423,7 +420,7 @@ proof (cases "lo > 0")
   qed
 
   let ?up = "bin_of_nat up" and ?lo = "bin_of_nat lo"
-    and ?z = "\<lambda>k. replicate k False" and ?lb = "\<lambda>n. length (bin_of_nat n)"
+    and ?z = "\<lambda>k. False \<up> k" and ?lb = "\<lambda>n. length (bin_of_nat n)"
 
   from \<open>up > 0\<close> have "n' > 0" unfolding n'_def by simp
   then have "n > 0" unfolding n_def by simp
@@ -447,7 +444,7 @@ proof (cases "lo > 0")
     show "bin_of_nat n = ?lo @ ?z (k - ?lb lo) @ ?up" unfolding n_def n'_def using add_suffix_bin' \<open>up > 0\<close> \<open>lo < 2^k\<close> .
   qed
   finally show "?lb n = ?lb n'" ..
-qed (* case "lo = 0" by *) (simp add: assms)
+qed \<comment> \<open>case \<open>lo = 0\<close> by\<close> (simp add: assms)
 
 
 lemma adj_sq_sh_pfx_half:
@@ -472,9 +469,9 @@ proof (intro sh_msbI)
   have "lo < 2 ^ k" unfolding lo using zero_less_power pos2 by (intro pos_mod_bound)
   then have "bit_length lo \<le> k" by (rule bit_len_le_pow2)
 
-  from \<open>k \<le> length w\<close> have "k < length w\<^sub>n" unfolding wn_def n len_gn by simp
-  moreover have "ends_in True w\<^sub>n" unfolding wn ..
-  ultimately have "ends_in True ps" unfolding ps by (rule ends_in_drop)
+  have "ends_in True w\<^sub>n" unfolding wn ..
+  moreover from \<open>k \<le> length w\<close> have "k < length w\<^sub>n" unfolding wn_def n len_gn by simp
+  ultimately have "ends_in True ps" unfolding ps ..
 
   have n'_split: "n' = up * 2^k" unfolding up wn_def ps n' lo
     unfolding nat_of_bin_drop nat_bin_nat by (rule minus_mod_eq_div_mult)
@@ -485,10 +482,10 @@ proof (intro sh_msbI)
 
   define sq where sq: "sq = adj_square n"
   define sq_diff where "sq_diff = sq - n'"
-  have sq_w': "bin_of_nat sq = w' @ [True]" unfolding w' adj_sq_word_def sq n
+  have sq_w': "bin_of_nat sq = w' @ [True]" unfolding w' adj_sq\<^sub>w_def sq n
     by (subst gn_inv_of_bin) (rule adj_sq_gt_0, rule)
 
-  have sq_eq: "sq = next_square n'" unfolding sq adj_sq_def n' lo k n gn_inv_id ..
+  have sq_eq: "sq = next_square n'" unfolding sq adj_square_def n' lo k n gn_inv_id ..
   have sq_split: "sq = up * 2^k + sq_diff" unfolding sq_diff_def n'_split[symmetric] sq_eq
     using next_sq_correct2[of n'] by (subst add_diff_inverse_nat) (elim leD, rule)
   have "sq_diff < 2 ^ (4 + bit_length n' div 2)" unfolding sq_diff_def sq_eq suffix_len_def
@@ -505,7 +502,7 @@ proof (intro sh_msbI)
   also have "... = bit_length n'" by (rule l_eq)
   also have "... = bit_length sq" unfolding n'_split sq_split
     using \<open>up > 0\<close> \<open>sq_diff < 2 ^ k\<close> by (rule suffix_len_eq[symmetric])
-  also have "... = length w' + 1" unfolding w' sq n unfolding adj_sq_word_def len_gn_inv
+  also have "... = length w' + 1" unfolding w' sq n unfolding adj_sq\<^sub>w_def len_gn_inv
     unfolding nat_minus_add_max using * by (subst max_absorb1) blast+
   finally show l: "length w' = length w" by simp
 
@@ -575,25 +572,20 @@ qed
 theorem adj_sq_sh_pfx_log:
   fixes w
   defines "l \<equiv> length w"
-  defines "k \<equiv> clog l"
   defines "w' \<equiv> adj_sq\<^sub>w w"
   assumes "l \<ge> 20" \<comment> \<open>lower bound for \<open>clog l \<le> l div 2 - 5\<close>\<close>
-  shows "shared_MSBs k w w'"
-    and "w' \<in> SQ"
+  shows "shared_MSBs (clog l) w w'"
 proof -
-  show "w' \<in> SQ" unfolding w'_def by (rule adj_sq_word_correct)
-
-  have "k = clog l" using k_def by (rule meta_eq_to_obj_eq)
-  also have "... \<le> l div 2 - 5" using \<open>l \<ge> 20\<close> by (rule sh_pfx_log_ineq')
+  have "clog l \<le> l div 2 - 5" using \<open>l \<ge> 20\<close> by (rule sh_pfx_log_ineq')
   also have "... = l div 2 + l div 2 - l div 2 - 5" unfolding diff_add_inverse2 ..
   also have "... \<le> l - l div 2 - 5" by (intro diff_le_mono) (fold mult_2, simp)
   also have "... = l - (5 + l div 2)" unfolding diff_diff_left by presburger
   also have "... = length w - suffix_len w" unfolding suffix_len_def len_gn l_def[symmetric] ..
-  finally have "k \<le> length w - suffix_len w" .
+  finally have "clog l \<le> length w - suffix_len w" .
 
   moreover have "shared_MSBs (length w - suffix_len w) w (adj_sq\<^sub>w w)" using \<open>l \<ge> 20\<close>
     by (intro adj_sq_sh_pfx_half) (fold l_def, force)
-  ultimately show "shared_MSBs k w w'" by (fold w'_def) (rule sh_msb_le)
+  ultimately show "shared_MSBs (clog l) w w'" by (fold w'_def) (rule sh_msb_le)
 qed
 
 
