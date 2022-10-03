@@ -21,17 +21,17 @@ subsection\<open>Code Description\<close>
 
 type_synonym bin_symbol = "bool option"
 
-type_synonym binTM = "(nat, bool) TM"
+type_synonym binTM = "(nat, bool, bool) TM"
 
 locale TM_Encoding = (* TODO fix bool this early? *)
-  fixes enc_TM :: "(nat, bool) TM \<Rightarrow> bool list"
+  fixes enc_TM :: "binTM \<Rightarrow> bool list"
     and is_valid_enc_TM :: "bool list \<Rightarrow> bool"
-    and dec_TM :: "bool list \<Rightarrow> (nat, bool) TM"
+    and dec_TM :: "bool list \<Rightarrow> binTM"
   assumes valid_enc: "\<And>M. is_valid_enc_TM (enc_TM M)"
     and inj_enc_TM: "inj enc_TM"  (* TODO is this possible? the transition table is defined as a function. similar for \<open>dec_TM (enc_TM M) = M\<close> *)
     and enc_dec_TM:   "\<And>M. dec_TM (enc_TM M) = M"
     and dec_enc_TM: "\<And>x. is_valid_enc_TM x \<Longrightarrow> enc_TM (dec_TM x) = x" (* this should be easy to achieve *)
-    and invalid_enc_TM_rejects: "\<And>x. \<not> is_valid_enc_TM x \<Longrightarrow> TM.rejects (dec_TM x) w" (* a nicer version of: "\<exists>q\<^sub>0 s. dec\<^sub>U x = (rejecting_TM q\<^sub>0 s)" *)
+    and invalid_enc_TM_rejects: "\<And>x. \<not> is_valid_enc_TM x \<Longrightarrow> TM_decider.rejects (dec_TM x) w" (* a nicer version of: "\<exists>q\<^sub>0 s. dec\<^sub>U x = (rejecting_TM q\<^sub>0 s)" *)
 
 (*
 consts bin_TM_enc :: "binTM \<Rightarrow> bin"
@@ -163,7 +163,7 @@ lemma add_alp_min: "add_al_prefix w \<noteq> []"
   and alp_correct: "strip_al_prefix (add_al_prefix w) = w"
   and alp_Nil: "strip_al_prefix [] = []" by force+
 
-lemma replicate_takeWhile: "takeWhile (\<lambda>x. x = a) xs = a \<up> length (takeWhile (\<lambda>x. x = a) xs)" solve_direct
+lemma replicate_takeWhile: "takeWhile (\<lambda>x. x = a) xs = a \<up> length (takeWhile (\<lambda>x. x = a) xs)"
 proof (intro replicate_eqI)
   fix y
   assume "y \<in> set (takeWhile (\<lambda>x. x = a) xs)"

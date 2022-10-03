@@ -332,27 +332,28 @@ text\<open>Notion of time-constructible from @{cite \<open>ch.~12.3\<close> hopc
   bounded multi-tape Turing machine M such that for each n there exists some input
   on which M actually makes T(n) moves.''\<close>
 
-definition typed_time_constr :: "'q itself \<Rightarrow> 's itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "typed_time_constr TYPE('q) TYPE('s) T \<equiv> \<exists>M::('q, 's) TM. \<forall>n. \<exists>w. TM.time M w = T n"
+(* TODO this is getting ridiculous. find a more elegant solution *)
+definition typed_time_constr :: "'q itself \<Rightarrow> 's itself \<Rightarrow> 'l itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "typed_time_constr TYPE('q) TYPE('s) TYPE('l) T \<equiv> \<exists>M::('q, 's, 'l) TM. \<forall>n. \<exists>w. TM.time M w = T n"
 
-abbreviation "time_constr \<equiv> typed_time_constr TYPE(nat) TYPE(nat)"
+abbreviation "time_constr \<equiv> typed_time_constr TYPE(nat) TYPE(nat) TYPE(unit)"
 
 
 text\<open>Fully time-constructible, (@{cite \<open>ch.~12.3\<close> hopcroftAutomata1979}):
   ``We say that T(n) is fully time-constructible if there is a TM
   that uses T(n) time on all inputs of length n.''\<close>
 
-definition typed_fully_time_constr :: "'q itself \<Rightarrow> 's itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
-  where "typed_fully_time_constr TYPE('q) TYPE('s) T \<equiv> \<exists>M::('q, 's) TM. \<forall>w. TM.time M w = T (length w)"
+definition typed_fully_time_constr :: "'q itself \<Rightarrow> 's itself \<Rightarrow> 'l itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> bool"
+  where "typed_fully_time_constr TYPE('q) TYPE('s) TYPE('l) T \<equiv> \<exists>M::('q, 's, 'l) TM. \<forall>w. TM.time M w = T (length w)"
 
-abbreviation "fully_time_constr \<equiv> typed_fully_time_constr TYPE(nat) TYPE(nat)"
+abbreviation "fully_time_constr \<equiv> typed_fully_time_constr TYPE(nat) TYPE(nat) TYPE(unit)"
 
 
 corollary fully_imp_time_constr:
-  assumes "typed_fully_time_constr TYPE('q) TYPE('s) T"
-  shows "typed_time_constr TYPE('q) TYPE('s) T"
+  assumes "typed_fully_time_constr TYPE('q) TYPE('s) TYPE('l) T"
+  shows "typed_time_constr TYPE('q) TYPE('s) TYPE('l) T"
 proof -
-  from assms obtain M :: "('q, 's) TM" where *: "TM.time M w = T (length w)" for w
+  from assms obtain M :: "('q, 's, 'l) TM" where *: "TM.time M w = T (length w)" for w
     unfolding typed_fully_time_constr_def by blast
   then show ?thesis unfolding typed_time_constr_def
   proof (intro exI allI)
@@ -362,38 +363,41 @@ proof -
   qed
 qed
 
-definition computable_in_time :: "'q itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> ('s list \<Rightarrow> 's list) \<Rightarrow> bool"
-  where "computable_in_time TYPE('q) T f \<equiv> \<exists>M::('q, 's) TM. TM.computes M f \<and> TM.time_bounded M T"
+
+definition typed_computable_in_time :: "'q itself \<Rightarrow> 'l itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> ('s list \<Rightarrow> 's list) \<Rightarrow> bool"
+  where "typed_computable_in_time TYPE('q) TYPE('l) T f \<equiv> \<exists>M::('q, 's, 'l) TM. TM.computes M f \<and> TM.time_bounded M T"
+
+abbreviation "computable_in_time \<equiv> typed_computable_in_time TYPE(nat) TYPE(unit)"
 
 lemma computableE[elim]:
-  assumes "computable_in_time TYPE('q) T f"
-  obtains M::"('q, 's) TM" where "TM.computes M f" and "TM.time_bounded M T"
-using assms that unfolding computable_in_time_def by blast
+  assumes "typed_computable_in_time TYPE('q) TYPE('l) T f"
+  obtains M::"('q, 's, 'l) TM" where "TM.computes M f" and "TM.time_bounded M T"
+using assms that unfolding typed_computable_in_time_def by blast
 
 
 subsection\<open>DTIME\<close>
 
 text\<open>\<open>DTIME(T)\<close> is the set of languages decided by TMs in time \<open>T\<close> or less.\<close>
 definition typed_DTIME :: "'q itself \<Rightarrow> (nat \<Rightarrow> nat) \<Rightarrow> 's lang set"
-  where "typed_DTIME TYPE('q) T \<equiv> {L. \<exists>M::('q, 's) TM. TM.decides M L \<and> TM.time_bounded M T}"
+  where "typed_DTIME TYPE('q) T \<equiv> {L. \<exists>M::('q, 's) TM_decider. TM_decider.decides M L \<and> TM.time_bounded M T}"
 
 
 abbreviation DTIME where
   "DTIME \<equiv> typed_DTIME TYPE(nat)"
 
 lemma in_dtimeI[intro]:
-  fixes M :: "('q, 's) TM"
+  fixes M :: "('q, 's) TM_decider"
   assumes "alphabet L \<subseteq> TM.\<Sigma> M"
-    and "TM.decides M L"
+    and "TM_decider.decides M L"
     and "TM.time_bounded M T"
   shows "L \<in> typed_DTIME TYPE('q) T"
   unfolding typed_DTIME_def using assms by blast
 
 lemma in_dtimeE[elim]:
   assumes "L \<in> typed_DTIME TYPE('q) T"
-  obtains M::"('q, 's) TM"
+  obtains M :: "('q, 's) TM_decider"
   where "alphabet L \<subseteq> TM.symbols M"
-    and "TM.decides M L"
+    and "TM_decider.decides M L"
     and "TM.time_bounded M T"
   using assms unfolding typed_DTIME_def by blast
 
@@ -401,7 +405,7 @@ lemma in_dtimeE[elim]:
 lemma in_dtimeD[dest]:
   fixes L :: "'s lang"
   assumes "L \<in> typed_DTIME TYPE('q) T"
-  shows "\<exists>M::('q, 's) TM. TM.decides M L \<and> TM.time_bounded M T"
+  shows "\<exists>M::('q, 's) TM_decider. TM_decider.decides M L \<and> TM.time_bounded M T"
   using assms unfolding typed_DTIME_def ..
 
 corollary in_dtime_mono[dest]:
@@ -437,12 +441,12 @@ text\<open>From @{cite \<open>ch.~12.2\<close> hopcroftAutomata1979}:
   but it seems reasonable that a similar construction works on time bounds.\<close>
 
 lemma DTIME_ae:
-  assumes "\<exists>M::('q, 's) TM. alphabet L \<subseteq> TM.symbols M \<and>
-    (\<forall>\<^sub>\<infinity>w\<in>(alphabet L)*. TM.decides_word M L w \<and> TM.time_bounded_word M T w)"
+  assumes "\<exists>M::('q, 's) TM_decider. alphabet L \<subseteq> TM.symbols M \<and>
+    (\<forall>\<^sub>\<infinity>w\<in>(alphabet L)*. TM_decider.decides_word M L w \<and> TM.time_bounded_word M T w)"
   shows "L \<in> typed_DTIME TYPE('q) T"
   sorry
 
-lemma (in TM) DTIME_aeI:
+lemma (in TM_decider) DTIME_aeI:
   assumes valid_alphabet: "alphabet L \<subseteq> \<Sigma>"
     and "\<forall>\<^sub>\<infinity>w\<in>(alphabet L)*. decides_word L w \<and> time_bounded_word T w"
   shows "L \<in> typed_DTIME TYPE('q) T"
@@ -453,7 +457,7 @@ proof (intro DTIME_ae exI[of _ M] conjI)
     by (fastforce elim!: ae_word_rev_mpE intro!: ae_word_lengthI)
 qed
 
-lemma (in TM) DTIME_aeI':
+lemma (in TM_decider) DTIME_aeI':
   assumes valid_alphabet: "alphabet L \<subseteq> \<Sigma>"
     and [intro]: "\<And>w. n \<le> length w \<Longrightarrow> w \<in> (alphabet L)* \<Longrightarrow> decides_word L w"
     and [intro]: "\<And>w. n \<le> length w \<Longrightarrow> w \<in> (alphabet L)* \<Longrightarrow> time_bounded_word T w"
@@ -469,11 +473,11 @@ lemma DTIME_mono_ae[dest]:
     and Tt: "\<forall>\<^sub>\<infinity>n. T n \<ge> t n"
   shows "L \<in> typed_DTIME TYPE('q) T"
 proof -
-  from \<open>L \<in> typed_DTIME TYPE('q) t\<close> obtain M :: "('q, 's) TM"
+  from \<open>L \<in> typed_DTIME TYPE('q) t\<close> obtain M :: "('q, 's) TM_decider"
     where symbols: "alphabet L \<subseteq> TM.symbols M"
-      and decides: "TM.decides M L"
+      and decides: "TM_decider.decides M L"
       and tbounded: "TM.time_bounded M t" ..
-  interpret TM M .
+  interpret TM_decider M .
 
   from symbols have fin: "finite (alphabet L)" using finite_subset by blast
   from Tt have "\<forall>\<^sub>\<infinity>w\<in>(alphabet L)*. decides_word L w \<and> time_bounded_word T w"
@@ -505,9 +509,9 @@ lemma linear_time_speed_up:
   assumes "c > 0"
   \<comment> \<open>This assumption is stronger than the \<open>lim inf\<close> required by @{cite hopcroftAutomata1979}, but simpler to define in Isabelle.\<close>
     and "superlinear T"
-    and "TM.decides M1 L"
+    and "TM_decider.decides M1 L"
     and "TM.time_bounded M1 T"
-  obtains M2 where "TM.decides M2 L" and "TM.time_bounded M2 (tcomp (\<lambda>n. c * T n))"
+  obtains M2 where "TM_decider.decides M2 L" and "TM.time_bounded M2 (tcomp (\<lambda>n. c * T n))"
   sorry
 
 
@@ -519,10 +523,10 @@ corollary DTIME_speed_up[dest]:
     and "c > 0"
   shows "L \<in> typed_DTIME TYPE('q2) (tcomp (\<lambda>n. c * T n))"
 proof -
-  from \<open>L \<in> typed_DTIME TYPE('q1) T\<close> obtain M1::"('q1, 's) TM"
-    where "TM.decides M1 L" and "TM.time_bounded M1 T" ..
-  with assms(3, 2) obtain M2::"('q2, 's) TM"
-    where "TM.decides M2 L" and "TM.time_bounded M2 (tcomp (\<lambda>n. c * T n))"
+  from \<open>L \<in> typed_DTIME TYPE('q1) T\<close> obtain M1 :: "('q1, 's) TM_decider"
+    where "TM_decider.decides M1 L" and "TM.time_bounded M1 T" ..
+  with assms(3, 2) obtain M2 :: "('q2, 's) TM_decider"
+    where "TM_decider.decides M2 L" and "TM.time_bounded M2 (tcomp (\<lambda>n. c * T n))"
     by (rule linear_time_speed_up)
   then show ?thesis unfolding typed_DTIME_def by blast
 qed
