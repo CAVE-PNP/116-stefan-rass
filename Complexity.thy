@@ -533,7 +533,25 @@ lemma speed_up_rev_helper:
   defines "d \<equiv> 1/(2*c)"
   assumes "c \<ge> 1" (* is this necessary? *)
   shows "nat \<lceil>d * \<lceil>c * n\<rceil>\<rceil> \<le> n"
-  sorry (* @moritz proven on paper, to be formalized as exercise *)
+proof (cases "n = 0")
+  assume "n = 0"
+  then show ?thesis by simp
+
+next 
+  assume "n \<noteq> 0"
+  then have "1 \<le> real n" by force
+
+  from \<open>c \<ge> 1\<close> have *:"d > 0" unfolding d_def by simp
+  then have "d * c = 1 / 2" unfolding d_def by simp
+
+  from * have "d * \<lceil>c * n\<rceil> \<le> d * (c * n + 1)" using of_int_ceiling_le_add_one[of "c * n"] by force
+  also have "... \<le> (d * c) * n + d" unfolding d_def by argo
+  also have "... \<le> 1 / 2 * n + 1/(2 * c)" unfolding d_def by simp
+  also have "... \<le> n/2 + 1/2" using \<open>c \<ge> 1\<close> by auto
+  also have "... \<le> n/2 + n/2" using \<open>1 \<le> real n\<close> unfolding add_le_cancel_left by simp
+  also have "... \<le> n" by simp
+  finally show ?thesis by simp
+qed
 
 lemma speed_up_rev_helper':
   fixes n :: nat and c d :: real
@@ -545,8 +563,7 @@ proof -
   then have *: "real (nat \<lceil>c * n\<rceil>) = real_of_int \<lceil>c * n\<rceil>" by simp
   from speed_up_rev_helper[OF \<open>c \<ge> 1\<close>] show ?thesis unfolding * d_def .
 qed
-
-lemma DTIME_speed_up_rev:
+d *lemma DTIME_speed_up_rev:
   fixes T :: "nat \<Rightarrow> nat" and c :: real
   defines "T' \<equiv> tcomp (\<lambda>n. c * T n)"
   assumes "L \<in> typed_DTIME TYPE('q1) T'"
