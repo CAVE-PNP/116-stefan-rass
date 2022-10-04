@@ -563,7 +563,8 @@ proof -
   then have *: "real (nat \<lceil>c * n\<rceil>) = real_of_int \<lceil>c * n\<rceil>" by simp
   from speed_up_rev_helper[OF \<open>c \<ge> 1\<close>] show ?thesis unfolding * d_def .
 qed
-d *lemma DTIME_speed_up_rev:
+
+lemma DTIME_speed_up_rev:
   fixes T :: "nat \<Rightarrow> nat" and c :: real
   defines "T' \<equiv> tcomp (\<lambda>n. c * T n)"
   assumes "L \<in> typed_DTIME TYPE('q1) T'"
