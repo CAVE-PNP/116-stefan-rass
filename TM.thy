@@ -136,7 +136,7 @@ text\<open>To use TMs conveniently, we setup a type and a locale as follows:
 
   A simpler form of this pattern has been used to define the type of filters (\<^typ>\<open>'a filter\<close>).\<close>
 
-locale valid_TM_not_uniq =
+locale valid_TM =
   fixes M :: "('q, 's, 'l) TM_record"
   assumes at_least_one_tape: "tape_count M > 0" (* TODO motivate this assm. "why is this necessary?" edit: initial_config would have to be defined differently *)
     and symbol_axioms: "finite (symbols M)" "symbols M \<noteq> {}"
@@ -149,162 +149,10 @@ begin
 lemmas axioms = at_least_one_tape symbol_axioms state_axioms next_state_valid next_write_valid
 end
 
-locale valid_TM = valid_TM_not_uniq +
-  \<comment> \<open>Require canonical default values for the transition function outside its intended definition range.
-      There are two simple options for choosing default values:
-
-      \<^bold>\<open>Canonical values\<close>. Use values that are always available in the context of TMs.
-      This would result in the initial state \<open>q\<^sub>0\<close>, the \<open>blank_symbol\<close> and \<open>No_Shift\<close>.
-
-      \<^bold>\<open>No-Op\<close>. Simply output the respective input value.
-      Semantically, this relates to the TM looping endlessly in a constant configuration.
-      This approach is somewhat problematic for \<open>next_write\<close>, as \<open>hds ! i\<close> is not defined for all values.
-      This means that all functions will have to be defined with exactly \<open>hds ! i\<close> for out-of-bounds inputs,
-      as it is the only value for which equality can be shown in Isabelle.
-
-      We choose the second approach as we suspect it will integrate better with simple definitions.\<close>
-  assumes next_state_default: "\<And>q hds. q \<notin> states M \<Longrightarrow> next_state M q hds = q"
-                              "\<And>q hds. \<not> wf_hds_rec M hds \<Longrightarrow> next_state M q hds = q"
-    and next_write_default:   "\<And>q hds i. q \<notin> states M \<Longrightarrow> next_write M q hds i = hds ! i" (* TODO evaluate if this works out. should make things a bit easier, but could lead to unprovable goals *)
-                              "\<And>q hds i. \<not> wf_hds_rec M hds \<Longrightarrow> next_write M q hds i = hds ! i"
-                              "\<And>q hds i. \<not> i < tape_count M \<Longrightarrow> next_write M q hds i = hds ! i"
-    and next_move_default:    "\<And>q hds i. q \<notin> states M \<Longrightarrow> next_move M q hds i = No_Shift"
-                              "\<And>q hds i. \<not> wf_hds_rec M hds \<Longrightarrow> next_move M q hds i = No_Shift"
-                              "\<And>q hds i. \<not> i < tape_count M \<Longrightarrow> next_move M q hds i = No_Shift"
-  (* TODO is it sensible to include a restriction for the labelling function as well?
-          as the type of labels is unrestricted, the only obvious choice for a default value is \<open>undefined\<close>. *)
-begin
-
-lemma next_state_default': "q \<notin> states M \<or> \<not> wf_hds_rec M hds \<Longrightarrow> next_state M q hds = q"
-  by (elim disjE) (fact next_state_default)+
-
-lemma next_write_default': "q \<notin> states M \<or> \<not> wf_hds_rec M hds \<or> \<not> i < tape_count M \<Longrightarrow> next_write M q hds i = hds ! i"
-  by (elim disjE) (fact next_write_default)+
-
-lemma next_move_default': "q \<notin> states M \<or> \<not> wf_hds_rec M hds \<or> \<not> i < tape_count M \<Longrightarrow> next_move M q hds i = No_Shift"
-  by (elim disjE) (fact next_move_default)+
-
-lemmas next_fun_default' = next_state_default' next_write_default' next_move_default'
-
-end
-
-
-lemma valid_TM_rec_eqI:
-  fixes M1 M2 :: "('q, 's, 'l) TM_record"
-  assumes [simp]: "valid_TM M1" "valid_TM M2"
-    "tape_count M1 = tape_count M2"
-    "symbols M1 = symbols M2"
-    "states M1 = states M2"
-    "initial_state M1 = initial_state M2"
-    "final_states M1 = final_states M2"
-    "label M1 = label M2"
-    "\<And>q hds i. q \<in> states M1 \<Longrightarrow> wf_hds_rec M1 hds \<Longrightarrow> next_state M1 q hds = next_state M2 q hds"
-    "\<And>q hds i. q \<in> states M1 \<Longrightarrow> wf_hds_rec M1 hds \<Longrightarrow> i < tape_count M1 \<Longrightarrow> next_write M1 q hds i = next_write M2 q hds i"
-    "\<And>q hds i. q \<in> states M1 \<Longrightarrow> wf_hds_rec M1 hds \<Longrightarrow> i < tape_count M1 \<Longrightarrow> next_move M1 q hds i = next_move M2 q hds i"
-    "more M1 = more M2"
-  shows "M1 = M2"
-proof (intro TM_record.equality ext)
-  have [simp]: "wf_hds_rec M1 hds = wf_hds_rec M2 hds" for hds unfolding wf_hds_rec_def by simp
-  note [simp] = valid_TM.next_fun_default'
-
-  fix q hds i
-  let ?P = "q \<in> states M1 \<and> wf_hds_rec M1 hds"
-  let ?P' = "?P \<and> i < tape_count M1"
-
-  show "next_state M1 q hds = next_state M2 q hds" by (cases ?P) auto
-  show "next_write M1 q hds i = next_write M2 q hds i" by (cases ?P') auto
-  show "next_move M1 q hds i = next_move M2 q hds i" by (cases ?P') auto
-qed auto
-
-
-lemma "wf_hds_rec M hds \<Longrightarrow> i < tape_count M \<Longrightarrow> hds ! i \<in> tape_symbols_rec M" by force
-
-definition next_fun_wrapper :: "['x, nat, 's set, 'q set, 'q \<Rightarrow> 's option list \<Rightarrow> nat \<Rightarrow> 'x, 'q, 's option list, nat] \<Rightarrow> 'x"
-  where "next_fun_wrapper default_val k \<Sigma> Q f q hds i \<equiv> if q \<in> Q \<and> length hds = k \<and> set hds \<subseteq> options \<Sigma> \<and> i < k then f q hds i else default_val"
-
-abbreviation next_state_wrapper :: "[nat, 's set, 'q set, 'q \<Rightarrow> 's option list \<Rightarrow> 'q, 'q, 's option list] \<Rightarrow> 'q"
-  where "next_state_wrapper k \<Sigma> Q f q hds \<equiv> next_fun_wrapper q k \<Sigma> Q (\<lambda>q hds i. f q hds) q hds 0"
-abbreviation next_write_wrapper :: "[nat, 's set, 'q set, 'q \<Rightarrow> 's option list \<Rightarrow> nat \<Rightarrow> 's option, 'q, 's option list, nat] \<Rightarrow> 's option"
-  where "next_write_wrapper k \<Sigma> Q f q hds i \<equiv> next_fun_wrapper (hds ! i) k \<Sigma> Q f q hds i"
-abbreviation next_move_wrapper :: "[nat, 's set, 'q set, 'q \<Rightarrow> 's option list \<Rightarrow> nat \<Rightarrow> head_move, 'q, 's option list, nat] \<Rightarrow> head_move"
-  where "next_move_wrapper k \<Sigma> Q f q hds i \<equiv> next_fun_wrapper No_Shift k \<Sigma> Q f q hds i"
-
-lemma next_fun_wrapper_default[simp]:
-  fixes k \<Sigma> Q f val and M :: "('q, 's, 'l) TM_record"
-  defines "f' \<equiv> next_fun_wrapper val k \<Sigma> Q f"
-  defines "f'' \<equiv> next_fun_wrapper val (tape_count M) (symbols M) (states M) f"
-  shows "q \<notin> Q \<Longrightarrow> f' q hds i = val"
-    and "length hds \<noteq> k \<Longrightarrow> f' q hds i = val"
-    and "\<not> set hds \<subseteq> options \<Sigma> \<Longrightarrow> f' q hds i = val"
-    and "\<not> i < k \<Longrightarrow> f' q hds i = val"
-    and "\<not> wf_hds_rec M hds \<Longrightarrow> f'' q hds i = val"
-  unfolding assms next_fun_wrapper_def by (blast intro!: if_not_P)+
-
-lemma next_fun_wrapper_simps[simp]:
-  fixes k \<Sigma> Q f val and M :: "('q, 's, 'l) TM_record"
-  defines "f' \<equiv> next_fun_wrapper val k \<Sigma> Q f"
-  defines "f'' \<equiv> next_fun_wrapper val (tape_count M) (symbols M) (states M) f"
-  shows "q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> options \<Sigma> \<Longrightarrow> i < k \<Longrightarrow> f' q hds i = f q hds i"
-    and "q \<in> states M \<Longrightarrow> wf_hds_rec M hds \<Longrightarrow> i < tape_count M \<Longrightarrow> f'' q hds i = f q hds i"
-  unfolding assms next_fun_wrapper_def using assms(2-) by (blast intro!: if_P)+
-
-lemma next_state_wrapper_simps[simp]:
-  fixes k \<Sigma> Q f val
-  defines "f' \<equiv> next_fun_wrapper val k \<Sigma> Q f"
-  assumes "q \<in> Q" and "length hds = k" and "set hds \<subseteq> options \<Sigma>"
-  shows "k > 0 =simp=> f' q hds 0 = f q hds 0"
-  using assms unfolding f'_def by (intro simp_impliesI, subst next_fun_wrapper_simps) fastforce+
-
-
-definition TM_default_wrapper :: "('q, 's, 'l) TM_record \<Rightarrow> ('q, 's, 'l) TM_record"
-  where "TM_default_wrapper M \<equiv> M\<lparr>
-    next_state := next_state_wrapper (tape_count M) (symbols M) (states M) (next_state M),
-    next_write := next_write_wrapper (tape_count M) (symbols M) (states M) (next_write M),
-    next_move := next_move_wrapper (tape_count M) (symbols M) (states M) (next_move M)
-  \<rparr>"
-
-lemma TM_default_wrapper_simps[simp]:
-  fixes M :: "('q, 's, 'l) TM_record"
-  defines "M' \<equiv> TM_default_wrapper M"
-  shows "tape_count M' = tape_count M"
-    and "symbols M' = symbols M"
-    and "states M' = states M"
-    and "initial_state M' = initial_state M"
-    and "final_states M' = final_states M"
-    and "label M' = label M"
-    and "next_state M' = next_state_wrapper (tape_count M) (symbols M) (states M) (next_state M)"
-    and "next_write M' = next_write_wrapper (tape_count M) (symbols M) (states M) (next_write M)"
-    and "next_move M' = next_move_wrapper (tape_count M) (symbols M) (states M) (next_move M)"
-    and "wf_hds_rec M' = wf_hds_rec M"
-  unfolding M'_def TM_default_wrapper_def by (induction M) force+
-
 text\<open>Notes on assumptions.
   Many of these assumptions would be trivial to satisfy when explicitly constructing a TM,
   especially the premises of \<open>next_state_valid\<close> and \<open>next_write_valid\<close>.
   They are, however, very useful when constructing TMs from other TMs.\<close>
-
-
-lemma valid_TM_wrapper[simp]: "valid_TM (TM_default_wrapper M) \<longleftrightarrow> valid_TM_not_uniq M"
-  (is "valid_TM ?M' \<longleftrightarrow> _")
-proof -
-  note * = TM_default_wrapper_simps next_fun_wrapper_simps
-  have h1: "valid_TM_axioms ?M'"
-    using next_fun_wrapper_default
-    by (unfold_locales, unfold *)
-  have h2: "valid_TM_not_uniq ?M'" if "valid_TM_not_uniq M"
-    using valid_TM_not_uniq.axioms[OF that]
-    by (unfold_locales, unfold *)
-
-  show ?thesis
-  proof (rule iffI)
-    from h1 h2 show "valid_TM_not_uniq M \<Longrightarrow> valid_TM ?M'" by (intro_locales) blast+
-
-    assume "valid_TM ?M'"
-    then have "valid_TM_not_uniq ?M'" by (fact valid_TM.axioms)
-    note valid_TM_not_uniq.axioms[OF this, simplified]
-    then show "valid_TM_not_uniq M" by (unfold_locales) (unfold next_fun_wrapper_simps)
-  qed
-qed
 
 lemma valid_TM_I[intro]:
   fixes k \<Sigma> Q q\<^sub>0 F lab \<delta>\<^sub>q \<delta>\<^sub>w \<delta>\<^sub>m
@@ -317,8 +165,7 @@ lemma valid_TM_I[intro]:
     and state_axioms: "finite Q" "q\<^sub>0 \<in> Q" "F \<subseteq> Q"
     and next_state_valid: "\<And>q hds. q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q"
     and next_write_valid: "\<And>q hds i. q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> i < k \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>\<^sub>t\<^sub>p"
-  shows "valid_TM (TM_default_wrapper M)"
-  unfolding valid_TM_wrapper
+  shows "valid_TM M"
 proof (unfold_locales, unfold M_def TM_record.simps wf_hds_rec_simps)
   fix q hds
   assume "q \<in> Q" and wf: "length hds = k \<and> set hds \<subseteq> options \<Sigma>"
@@ -334,8 +181,7 @@ lemma valid_TM_finiteI[intro]:
   assumes at_least_one_tape: "k > 0"
     and state_axioms: "finite Q" "q\<^sub>0 \<in> Q" "F \<subseteq> Q"
     and next_state_valid: "\<And>q hds. q \<in> Q \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q"
-  shows "valid_TM (TM_default_wrapper M)"
-  unfolding valid_TM_wrapper
+  shows "valid_TM M"
 proof (unfold_locales, unfold M_def TM_record.simps)
   show "finite (UNIV::'s set)" by (fact finite_class.finite_UNIV)
   show "UNIV \<noteq> {}" by (fact UNIV_not_empty)
@@ -475,39 +321,6 @@ lemmas (in -) TM_axioms[simp, intro] = TM.TM_axioms
 
 lemma final_states_valid[dest]: "q \<in> F \<Longrightarrow> q \<in> Q" using state_axioms(3) by blast
 
-
-lemma next_state_default: "q \<notin> Q \<Longrightarrow> \<delta>\<^sub>q q hds = q"
-                          "length hds \<noteq> k \<Longrightarrow> \<delta>\<^sub>q q hds = q"
-                          "\<not> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> \<delta>\<^sub>q q hds = q"
-  using next_state_default[folded TM_fields_defs, unfolded wf_hds_M_rec] by blast+
-lemma next_write_default: "q \<notin> Q \<Longrightarrow> \<delta>\<^sub>w q hds i = hds ! i"
-                          "length hds \<noteq> k \<Longrightarrow> \<delta>\<^sub>w q hds i = hds ! i"
-                          "\<not> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> \<delta>\<^sub>w q hds i = hds ! i"
-                          "\<not> i < k \<Longrightarrow> \<delta>\<^sub>w q hds i = hds ! i"
-  using next_write_default[folded TM_fields_defs, unfolded wf_hds_M_rec] by blast+
-lemma next_move_default:  "q \<notin> Q \<Longrightarrow> \<delta>\<^sub>m q hds i = No_Shift"
-                          "length hds \<noteq> k \<Longrightarrow> \<delta>\<^sub>m q hds i = No_Shift"
-                          "\<not> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> \<delta>\<^sub>m q hds i = No_Shift"
-                          "\<not> i < k \<Longrightarrow> \<delta>\<^sub>m q hds i = No_Shift"
-  using next_move_default[folded TM_fields_defs, unfolded wf_hds_M_rec] by blast+
-
-lemma next_state_valid':
-  assumes [intro]: "q \<in> Q"
-  shows "\<delta>\<^sub>q q hds \<in> Q"
-proof (cases "wf_hds hds")
-  case False
-  then have "\<delta>\<^sub>q q hds = q" using next_state_default[where q=q and hds=hds] by blast
-  then show ?thesis by auto
-qed (blast intro: next_state_valid)
-
-lemma next_write_valid':
-  assumes [intro]: "hds ! i \<in> \<Sigma>\<^sub>t\<^sub>p"
-  shows "\<delta>\<^sub>w q hds i \<in> \<Sigma>\<^sub>t\<^sub>p"
-proof (cases "q\<in>Q \<and> wf_hds hds \<and> i < k")
-  case False
-  then have "\<delta>\<^sub>w q hds i = hds ! i" using next_write_default[where q=q and hds=hds and i=i] by blast
-  then show ?thesis by auto
-qed (blast intro: next_write_valid)
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
@@ -768,20 +581,6 @@ proof -
 qed
 
 lemma wf_config_last[dest, intro]: "wf_config c \<Longrightarrow> set_tape (last (tapes c)) \<subseteq> \<Sigma>" by auto
-
-lemma next_fun_wrapper_simps:
-  fixes f val c
-  defines "q \<equiv> state c"
-    and "hds \<equiv> heads c"
-    and "f' \<equiv> next_fun_wrapper val k \<Sigma> Q f"
-  assumes "wf_config c"
-  shows "i < k \<Longrightarrow> f' q hds i = f q hds i"
-    and "f' q hds 0 = f q hds 0"
-proof -
-  from \<open>wf_config c\<close> show "i < k \<Longrightarrow> f' q hds i = f q hds i" for i
-    unfolding assms by (subst next_fun_wrapper_simps) blast+
-  then show "f' q hds 0 = f q hds 0" by blast
-qed
 
 lemma wf_config_transferI:
   assumes "wf_config c"
