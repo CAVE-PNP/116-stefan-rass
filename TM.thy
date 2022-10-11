@@ -319,8 +319,8 @@ lemma transition_axioms:
 lemmas TM_axioms = at_least_one_tape at_least_one_tape' state_axioms symbol_axioms transition_axioms
 lemmas (in -) TM_axioms[simp, intro] = TM.TM_axioms
 
-lemma final_states_valid[dest]: "q \<in> F \<Longrightarrow> q \<in> Q" using state_axioms(3) by blast
-
+lemma final_states_valid: "q \<in> F \<Longrightarrow> q \<in> Q" using state_axioms(3) by blast
+declare (in -) TM.final_states_valid[dest]
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
@@ -565,7 +565,8 @@ lemma wf_config_iff: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> l
     \<and> (\<forall>tp\<in>set (tapes c). set_tape tp \<subseteq> \<Sigma>) \<and> wf_hds (heads c)"
   by (intro iffI conjI wf_configI) (use wf_config_def[iff] in \<open>blast intro!: wf_config_hds\<close>)+
 
-mk_ide wf_config_iff |dest wf_configD[dest]| |elim wf_configE[elim]|
+mk_ide wf_config_iff |dest wf_configD| |elim wf_configE|
+declare (in -) TM.wf_configD[dest] TM.wf_configE[elim]
 
 lemma (in typed_TM) wf_config_def: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k"
   unfolding wf_config_def by simp
@@ -688,10 +689,11 @@ definition step_not_final :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_confi
       (next_state q hds)
       (map2 tape_action (next_actions q hds) (tapes c)))"
 
-lemma step_not_final_simps[simp]:
+lemma step_not_final_simps:
   shows "state (step_not_final c) = \<delta>\<^sub>q (state c) (heads c)"
     and "tapes (step_not_final c) = map2 tape_action (\<delta>\<^sub>a (state c) (heads c)) (tapes c)"
   unfolding step_not_final_def by (simp_all add: Let_def)
+declare (in -) TM.step_not_final_simps[simp]
 
 lemma step_not_final_eqI:
   assumes l: "length tps = k"
@@ -709,6 +711,18 @@ proof (rule nth_equalityI, unfold length_map length_zip next_actions_simps l l' 
   finally show "map2 tape_action (\<delta>\<^sub>a q hds) tps ! i = tps' ! i" .
 qed (rule refl)
 
+lemma (in -) step_not_final_eqI1:
+  fixes f\<^sub>q f\<^sub>t\<^sub>p\<^sub>s
+  assumes f_def: "f = (\<lambda>c. case c of TM_config q tps \<Rightarrow> TM_config (f\<^sub>q q) (f\<^sub>t\<^sub>p\<^sub>s tps))"
+  assumes q: "f\<^sub>q (TM.\<delta>\<^sub>q M1 (state c) (heads c)) = TM.\<delta>\<^sub>q M2 (f\<^sub>q (state c)) (map head (f\<^sub>t\<^sub>p\<^sub>s (tapes c)))"
+    and tps: "f\<^sub>t\<^sub>p\<^sub>s (tapes (TM.step_not_final M1 c)) = tapes (TM.step_not_final M2 (f c))"
+  shows "f (TM.step_not_final M1 c) = TM.step_not_final M2 (f c)"
+proof -
+  have [simp]: "state (f c) = f\<^sub>q (state c)" "tapes (f c) = f\<^sub>t\<^sub>p\<^sub>s (tapes c)" for c by (induction c) (auto simp: f_def)
+  from q tps show ?thesis by (intro TM_config_eq) auto
+qed
+
+
 text\<open>If the current state is not final,
   apply the action determined by \<^const>\<open>\<delta>\<close> for the current configuration.
   Otherwise, do not execute any action.\<close>
@@ -724,6 +738,7 @@ corollary step_simps[intro, simp]:
 
 corollary steps_plus[simp]: "steps n2 (steps n1 c) = steps (n1 + n2) c"
   unfolding add.commute[of n1 n2] funpow_add comp_def ..
+
 
 paragraph\<open>Final Steps\<close>
 

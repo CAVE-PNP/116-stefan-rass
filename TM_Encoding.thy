@@ -1,7 +1,7 @@
 section \<open>Encoding TMs as (Binary) Strings\<close>
 
 theory TM_Encoding
-  imports Goedel_Numbering Computability
+  imports Goedel_Numbering Complexity
     "Supplementary/Misc" "HOL-Library.Sublist"
 begin
 
@@ -17,6 +17,173 @@ text\<open>As defined in @{cite \<open>ch.~4.2\<close> rassOwf2017} (outlined in
   which is the \<^emph>\<open>rightmost\<close> one when explicitly referring to lists in Isabelle.\<close>
 
 
+subsection\<open>Canonical Form\<close> (* TODO motivate, document *)
+
+definition next_fun_wrapper :: "['x, nat, 's set, 'q set, 'q \<Rightarrow> 's option list \<Rightarrow> nat \<Rightarrow> 'x, 'q, 's option list, nat] \<Rightarrow> 'x"
+  where "next_fun_wrapper default_val k \<Sigma> Q f q hds i \<equiv> if q \<in> Q \<and> length hds = k \<and> set hds \<subseteq> options \<Sigma> \<and> i < k then f q hds i else default_val"
+
+abbreviation next_state_wrapper :: "[nat, 's set, 'q set, 'q \<Rightarrow> 's option list \<Rightarrow> 'q, 'q, 's option list] \<Rightarrow> 'q"
+  where "next_state_wrapper k \<Sigma> Q f q hds \<equiv> next_fun_wrapper q k \<Sigma> Q (\<lambda>q hds i. f q hds) q hds 0"
+abbreviation next_write_wrapper :: "[nat, 's set, 'q set, 'q \<Rightarrow> 's option list \<Rightarrow> nat \<Rightarrow> 's option, 'q, 's option list, nat] \<Rightarrow> 's option"
+  where "next_write_wrapper k \<Sigma> Q f q hds i \<equiv> next_fun_wrapper (hds ! i) k \<Sigma> Q f q hds i"
+abbreviation next_move_wrapper :: "[nat, 's set, 'q set, 'q \<Rightarrow> 's option list \<Rightarrow> nat \<Rightarrow> head_move, 'q, 's option list, nat] \<Rightarrow> head_move"
+  where "next_move_wrapper k \<Sigma> Q f q hds i \<equiv> next_fun_wrapper No_Shift k \<Sigma> Q f q hds i"
+
+lemma next_fun_wrapper_default[simp]:
+  fixes k \<Sigma> Q f val and M :: "('q, 's, 'l) TM_record"
+  defines "f' \<equiv> next_fun_wrapper val k \<Sigma> Q f"
+  defines "f'' \<equiv> next_fun_wrapper val (tape_count M) (symbols M) (states M) f"
+  shows "q \<notin> Q \<Longrightarrow> f' q hds i = val"
+    and "length hds \<noteq> k \<Longrightarrow> f' q hds i = val"
+    and "\<not> set hds \<subseteq> options \<Sigma> \<Longrightarrow> f' q hds i = val"
+    and "\<not> i < k \<Longrightarrow> f' q hds i = val"
+    and "\<not> wf_hds_rec M hds \<Longrightarrow> f'' q hds i = val"
+  unfolding assms next_fun_wrapper_def by (blast intro!: if_not_P)+
+
+lemma next_fun_wrapper_simps[simp]:
+  fixes k \<Sigma> Q f val and M :: "('q, 's, 'l) TM_record"
+  defines "f' \<equiv> next_fun_wrapper val k \<Sigma> Q f"
+  defines "f'' \<equiv> next_fun_wrapper val (tape_count M) (symbols M) (states M) f"
+  shows "q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> options \<Sigma> \<Longrightarrow> i < k \<Longrightarrow> f' q hds i = f q hds i"
+    and "q \<in> states M \<Longrightarrow> wf_hds_rec M hds \<Longrightarrow> i < tape_count M \<Longrightarrow> f'' q hds i = f q hds i"
+  unfolding assms next_fun_wrapper_def using assms(2-) by (blast intro!: if_P)+
+
+lemma (in TM) next_fun_wrapper_TM_simps:
+  fixes f val c
+  defines "q \<equiv> state c"
+    and "hds \<equiv> heads c"
+    and "f' \<equiv> next_fun_wrapper val k \<Sigma> Q f"
+  assumes "wf_config c"
+  shows "i < k \<Longrightarrow> f' q hds i = f q hds i"
+    and "f' q hds 0 = f q hds 0"
+proof -
+  from \<open>wf_config c\<close> show "i < k \<Longrightarrow> f' q hds i = f q hds i" for i
+    unfolding assms by (subst next_fun_wrapper_simps) blast+
+  then show "f' q hds 0 = f q hds 0" by blast
+qed
+
+
+definition canonical_TM_rec :: "('q, 's, 'l) TM_record \<Rightarrow> ('q, 's, 'l) TM_record"
+  where "canonical_TM_rec M \<equiv> M\<lparr>
+    label := (\<lambda>q. if q \<in> states M then label M q else undefined),
+    next_state := next_state_wrapper (tape_count M) (symbols M) (states M) (next_state M),
+    next_write := next_write_wrapper (tape_count M) (symbols M) (states M) (next_write M),
+    next_move := next_move_wrapper (tape_count M) (symbols M) (states M) (next_move M)
+  \<rparr>"
+
+lemma canonical_TM_rec_simps[simp]:
+  fixes M :: "('q, 's, 'l) TM_record"
+  defines "M' \<equiv> canonical_TM_rec M"
+  shows "tape_count M' = tape_count M"
+    and "symbols M' = symbols M"
+    and "states M' = states M"
+    and "initial_state M' = initial_state M"
+    and "final_states M' = final_states M"
+    and "label M' = (\<lambda>q. if q \<in> states M then label M q else undefined)" (* TODO consider using  *)
+    and "next_state M' = next_state_wrapper (tape_count M) (symbols M) (states M) (next_state M)"
+    and "next_write M' = next_write_wrapper (tape_count M) (symbols M) (states M) (next_write M)"
+    and "next_move M' = next_move_wrapper (tape_count M) (symbols M) (states M) (next_move M)"
+    and "wf_hds_rec M' = wf_hds_rec M"
+  unfolding M'_def canonical_TM_rec_def by (induction M) force+
+
+
+lemma canonical_TM_valid: "valid_TM M \<Longrightarrow> valid_TM (canonical_TM_rec M)"
+proof (unfold_locales, unfold canonical_TM_rec_simps)
+  assume "valid_TM M" then interpret valid_TM .
+
+  fix q hds assume q: "q \<in> states M" and hds: "wf_hds_rec M hds"
+  then show "next_state_wrapper (tape_count M) (symbols M) (states M) (next_state M) q hds \<in> states M"
+    unfolding next_fun_wrapper_simps(2)[OF q hds axioms(1)] by (fact axioms(7))
+  fix i assume i: "i < tape_count M"
+  with q hds show "next_write_wrapper (tape_count M) (symbols M) (states M) (next_write M) q hds i \<in> tape_symbols_rec M"
+    unfolding next_fun_wrapper_simps(2)[OF q hds i] by (fact axioms(8))
+qed (fact valid_TM.axioms)+
+
+
+locale Canonical_TM = TM M for M :: "('q, 's, 'l) TM"
+begin
+
+lemma M'_valid: "valid_TM (canonical_TM_rec M_rec)" using valid_TM_axioms by (fact canonical_TM_valid)
+
+definition "M' \<equiv> Abs_TM (canonical_TM_rec M_rec)"
+
+sublocale M': TM M' .
+
+lemma M'_rec: "M'.M_rec = (canonical_TM_rec M_rec)"
+  unfolding M'_def by (blast intro: Abs_TM_inverse M'_valid)
+lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec canonical_TM_rec_simps TM_record.simps TM_fields_defs[symmetric]]
+lemmas [simp] = M'_fields(1-6)
+lemmas M'_next_fun_wrapper_simps[simp] = M'.next_fun_wrapper_TM_simps[unfolded M'_fields]
+
+lemma wf_config_eq[simp]: "M'.wf_config c \<longleftrightarrow> wf_config c" unfolding TM.wf_config_def M'_fields ..
+
+lemma step_eq[simp]:
+  assumes [simp, intro]: "wf_config c"
+  shows "M'.step c = step c"
+proof (cases "is_final c")
+  let ?q = "state c" and ?tps = "tapes c" and ?hds = "heads c"
+
+  assume "\<not> is_final c"
+  then have "M'.step c = M'.step_not_final c" by simp
+  also have "... = step_not_final c"
+  proof (intro step_not_final_eqI1)
+    show "M'.\<delta>\<^sub>q ?q ?hds = \<delta>\<^sub>q ?q ?hds" unfolding M'_fields by simp
+
+    have "M'.\<delta>\<^sub>a ?q ?hds = \<delta>\<^sub>a ?q ?hds" unfolding TM.next_actions_altdef M'_fields(1)
+    proof (rule list.map_cong0)
+      fix i assume "i \<in> set [0..<k]"
+      then show "(M'.\<delta>\<^sub>w ?q ?hds i, M'.\<delta>\<^sub>m ?q ?hds i) = (\<delta>\<^sub>w ?q ?hds i, \<delta>\<^sub>m ?q ?hds i)"
+        unfolding M'_fields by auto
+    qed
+    then show "tapes (M'.step_not_final c) = tapes (step_not_final c)" by force
+  qed (simp add: TM_config.case_eq_if)
+  also from \<open>\<not> is_final c\<close> have "... = step c" by simp
+  finally show ?thesis .
+qed simp
+
+corollary steps_eq[simp]: "wf_config c \<Longrightarrow> M'.steps n c = steps n c"
+proof (induction n arbitrary: c)
+  case (Suc n)
+  then show "M'.steps (Suc n) c = steps (Suc n) c" unfolding funpow_Suc_right comp_def
+    unfolding step_eq[OF \<open>wf_config c\<close>] by (blast dest: wf_step)
+qed simp
+
+lemma initial_config_eq[simp]: "M'.c\<^sub>0 w = c\<^sub>0 w" by (simp add: TM.initial_config_def)
+corollary run_eq: "wf_input w \<Longrightarrow> M'.run n w = run n w" by simp
+
+corollary compute_eq[simp]: "wf_input w \<Longrightarrow> M'.compute w = compute w"
+  unfolding TM.compute_altdef2 TM.is_final_def by simp
+
+end
+
+abbreviation "canonical_TM \<equiv> Canonical_TM.M'"
+
+lemmas canonical_TM_fields = Canonical_TM.M'_fields
+declare canonical_TM_fields(1-6)[simp]
+
+lemma [simp]:
+  shows canonical_TM_acc: "TM_decider.F\<^sub>A (canonical_TM M) = TM_decider.F\<^sub>A M"
+    and canonical_TM_rej: "TM_decider.F\<^sub>R (canonical_TM M) = TM_decider.F\<^sub>R M"
+proof -
+  let ?M' = "canonical_TM M"
+  have "TM.F ?M' = TM.F M" by simp
+  moreover have "TM.label ?M' q = TM.label M q" if "q \<in> TM.F ?M'" for q using that by auto
+  ultimately show "TM_decider.F\<^sub>A ?M' = TM_decider.F\<^sub>A M" and "TM_decider.F\<^sub>R ?M' = TM_decider.F\<^sub>R M"
+    by (fact acc_eqI, fact rej_eqI)
+qed
+
+lemma [simp]:
+  assumes "TM.wf_input M w"
+  shows canonical_TM_accepts: "TM_decider.accepts (canonical_TM M) w \<longleftrightarrow> TM_decider.accepts M w"
+    and canonical_TM_rejects: "TM_decider.rejects (canonical_TM M) w \<longleftrightarrow> TM_decider.rejects M w"
+  by (auto simp: TM_decider.rejects_def TM_decider.accepts_def Canonical_TM.compute_eq["OF" assms])
+
+lemma canonical_TM_time_bounded[simp]:
+  assumes "TM.wf_input M w"
+  shows "TM.time_bounded_word (canonical_TM M) T w \<longleftrightarrow> TM.time_bounded_word M T w"
+  unfolding TM.time_bounded_word_def using assms by (simp add: Canonical_TM.run_eq)
+
+
 subsection\<open>Code Description\<close>
 
 type_synonym bin_symbol = "bool option"
@@ -29,7 +196,7 @@ locale TM_Encoding = (* TODO fix bool this early? *)
     and dec_TM :: "bool list \<Rightarrow> binTM"
   assumes valid_enc: "\<And>M. is_valid_enc_TM (enc_TM M)"
     and inj_enc_TM: "inj enc_TM"  (* TODO is this possible? the transition table is defined as a function. similar for \<open>dec_TM (enc_TM M) = M\<close> *)
-    and enc_dec_TM:   "\<And>M. dec_TM (enc_TM M) = M"
+    and enc_dec_TM:   "\<And>M. dec_TM (enc_TM M) = canonical_TM M"
     and dec_enc_TM: "\<And>x. is_valid_enc_TM x \<Longrightarrow> enc_TM (dec_TM x) = x" (* this should be easy to achieve *)
     and invalid_enc_TM_rejects: "\<And>x. \<not> is_valid_enc_TM x \<Longrightarrow> TM_decider.rejects (dec_TM x) w" (* a nicer version of: "\<exists>q\<^sub>0 s. dec\<^sub>U x = (rejecting_TM q\<^sub>0 s)" *)
 
@@ -238,11 +405,11 @@ definition enc_TM_pad :: "binTM \<Rightarrow> bool list"
 definition dec_TM_pad :: "bool list \<Rightarrow> binTM"
   where "dec_TM_pad w = dec_TM (strip_al_prefix (strip_exp_pad w))"
 
-lemma TM_codec_TM_pad: "dec_TM_pad (enc_TM_pad M) = M"
+lemma TM_codec_TM_pad: "dec_TM_pad (enc_TM_pad M) = canonical_TM M"
   unfolding dec_TM_pad_def enc_TM_pad_def
   unfolding exp_pad_correct[OF add_alp_min] alp_correct enc_dec_TM ..
 
-lemma wf_TM_has_enc: "\<exists>w. dec_TM_pad w = M"
+lemma wf_TM_has_enc: "\<exists>w. dec_TM_pad w = canonical_TM M"
   using TM_codec_TM_pad by blast
 
 
@@ -260,7 +427,7 @@ theorem dec_TM_pad_wf: "valid_TM (Rep_TM (dec_TM_pad w))"
 
 text\<open>``2. every TM is represented by infinitely many strings. [...]''\<close>
 
-theorem TM_inf_encs: "infinite {w. dec_TM_pad w = M}"
+theorem TM_inf_encs: "infinite {w. dec_TM_pad w = canonical_TM M}"
 proof (intro infinite_lists allI bexI CollectI)
   \<comment> \<open>Proof follows the structure of @{thm infinite_lists}:
     For every \<open>l \<in> \<nat>\<close> there exists a word \<open>w\<close> with \<open>length w \<ge> l\<close> that is also in the set.\<close>
@@ -273,8 +440,8 @@ proof (intro infinite_lists allI bexI CollectI)
   have "dec_TM_pad w = dec_TM (strip_al_prefix w')" unfolding w w' dec_TM_pad_def
     by (subst exp_pad_correct) blast+
   also have "... = dec_TM (enc_TM M)" unfolding w' strip_alp_altdef ..
-  also have "... = M" by (fact enc_dec_TM)
-  finally show "dec_TM_pad w = M" .
+  also have "... = canonical_TM M" by (fact enc_dec_TM)
+  finally show "dec_TM_pad w = canonical_TM M" .
 qed
 
 
@@ -346,7 +513,7 @@ theorem embed_TM_in_len:
         so \<^term>\<open>l > 0\<close> would have to be added to the assumption.\<close>
   obtains w
   where "length w = l"
-    and "dec_TM_pad w = M"
+    and "dec_TM_pad w = canonical_TM M"
 proof
   have "l > 0" by (rule ccontr) (use min_word_len in force)
   hence "clog l \<le> l" by (rule clog_le)
@@ -376,7 +543,7 @@ proof
   have w_correct: "strip_exp_pad w = w'" unfolding strip_exp_pad_def \<open>length w = l\<close> Let_def
     unfolding w_def drop_append dexp exp_len by simp
 
-  show "dec_TM_pad w = M" unfolding dec_TM_pad_def w_correct w'_correct
+  show "dec_TM_pad w = canonical_TM M" unfolding dec_TM_pad_def w_correct w'_correct
     by (fact enc_dec_TM)
 qed
 

@@ -255,24 +255,31 @@ type_synonym ('q, 's) TM_decider = "('q, 's, bool) TM"
 locale TM_decider = TM M for M :: "('q, 's) TM_decider"
 begin
 
-definition accepting_states ("F\<^sup>+") where "accepting_states \<equiv> {q\<in>F. label q = True}"
-definition rejecting_states ("F\<^sup>-") where "rejecting_states \<equiv> {q\<in>F. label q = False}"
+definition accepting_states ("F\<^sup>+") where acc_def: "accepting_states \<equiv> {q\<in>F. label q = True}"
+definition rejecting_states ("F\<^sup>-") where rej_def: "rejecting_states \<equiv> {q\<in>F. label q = False}"
 
 abbreviation "F\<^sub>A \<equiv> accepting_states"
 abbreviation "F\<^sub>R \<equiv> rejecting_states"
 
-lemma final_states_acc_rej[simp]: "F\<^sub>A \<union> F\<^sub>R = F"
-  unfolding accepting_states_def rejecting_states_def by blast
+lemma
+  shows final_states_acc_rej[simp]: "F\<^sub>A \<union> F\<^sub>R = F"
+    and acc_rej_states_disjoint: "F\<^sub>A \<inter> F\<^sub>R = {}"
+    and acc_final[dest]: "q \<in> F\<^sub>A \<Longrightarrow> q \<in> F"
+    and rej_final[dest]: "q \<in> F\<^sub>R \<Longrightarrow> q \<in> F"
+    and accI[intro]: "label q = True  \<Longrightarrow> q \<in> F \<Longrightarrow> q \<in> F\<^sub>A"
+    and rejI[intro]: "label q = False \<Longrightarrow> q \<in> F \<Longrightarrow> q \<in> F\<^sub>R"
+  unfolding acc_def rej_def by blast+
 
-lemma [dest]:
-  shows acc_final: "q \<in> F\<^sub>A \<Longrightarrow> q \<in> F"
-    and rej_final: "q \<in> F\<^sub>R \<Longrightarrow> q \<in> F"
-  unfolding accepting_states_def rejecting_states_def by blast+
-
-lemma [intro]:
-  shows accI: "label q = True  \<Longrightarrow> q \<in> F \<Longrightarrow> q \<in> F\<^sub>A"
-    and rejI: "label q = False \<Longrightarrow> q \<in> F \<Longrightarrow> q \<in> F\<^sub>R"
-  unfolding accepting_states_def rejecting_states_def by blast+
+lemma (in -)
+  assumes "TM.F M1 = TM.F M2"
+    and "\<And>q. q \<in> TM.F M1 \<Longrightarrow> TM.label M1 q = TM.label M2 q"
+  shows acc_eqI: "TM_decider.F\<^sub>A M1 = TM_decider.F\<^sub>A M2"
+    and rej_eqI: "TM_decider.F\<^sub>R M1 = TM_decider.F\<^sub>R M2"
+proof -
+  from assms have *: "{q\<in>TM.F M1. TM.label M1 q = l} = {q\<in>TM.F M2. TM.label M2 q = l}" for l by blast
+  show "TM_decider.F\<^sub>A M1 = TM_decider.F\<^sub>A M2" and "TM_decider.F\<^sub>R M1 = TM_decider.F\<^sub>R M2"
+    unfolding TM_decider.acc_def TM_decider.rej_def * by blast+
+qed
 
 
 definition accepts :: "'s list \<Rightarrow> bool" where "accepts w \<equiv> state (compute w) \<in> F\<^sub>A"
@@ -287,7 +294,7 @@ lemma accepts_halts[dest]: "accepts w \<Longrightarrow> halts w" using halts_iff
 lemma rejects_halts[dest]: "rejects w \<Longrightarrow> halts w" using halts_iff by blast
 
 lemma acc_not_rej: "accepts w \<Longrightarrow> \<not> rejects w"
-  unfolding accepts_def rejects_def accepting_states_def rejecting_states_def by simp
+  unfolding accepts_def rejects_def acc_def rej_def by simp
 
 lemma rejects_accepts:
   "rejects w = (halts w \<and> \<not> accepts w)"

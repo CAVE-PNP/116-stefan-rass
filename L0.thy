@@ -150,21 +150,26 @@ proof -
       ultimately show ?thesis by (intro that) fast+
     qed
 
-    from \<open>clog l \<ge> ?n\<close> obtain w where [simp]: "length w = l" and dec_w[simp]: "dec_TM_pad w = M\<^sub>w"
+    from \<open>clog l \<ge> ?n\<close> obtain w
+      where [simp]: "length w = l" and dec_w[simp]: "dec_TM_pad w = canonical_TM M\<^sub>w"
       by (rule embed_TM_in_len)
 
     have "w \<in>\<^sub>L L \<longleftrightarrow> w \<notin>\<^sub>L L\<^sub>D" if "alphabet L = UNIV"
-    proof
-      assume "w \<in>\<^sub>L L"
-      then have "w \<in> (alphabet L)*" ..
-      with \<open>decides L\<close> have "w \<notin>\<^sub>L L \<longleftrightarrow> rejects w" unfolding decides_def by blast
-      with \<open>w \<in>\<^sub>L L\<close> have "\<not> rejects w" by blast
-      then show "w \<notin>\<^sub>L L\<^sub>D" by (simp add: L\<^sub>D_def)
-    next
-      assume "w \<notin>\<^sub>L L\<^sub>D"
-      moreover from \<open>T l \<ge> t l\<close> and \<open>time_bounded t\<close> have "time_bounded_word T w" by (fold \<open>length w = l\<close>) blast
-      ultimately have "\<not> rejects w" unfolding L\<^sub>D_def by force
-      with \<open>decides L\<close> show "w \<in>\<^sub>L L" by (auto simp: \<open>alphabet L = UNIV\<close>)
+    proof -
+      from \<open>alphabet L = UNIV\<close> have "w \<in> (alphabet L)*" by blast
+      with \<open>decides L\<close> have "wf_input w" by blast
+      show ?thesis
+      proof (rule iffI)
+        assume "w \<in>\<^sub>L L"
+        with \<open>decides L\<close> have "\<not> rejects w" unfolding decides_def by blast
+        with \<open>wf_input w\<close> show "w \<notin>\<^sub>L L\<^sub>D" by (simp add: L\<^sub>D_def)
+      next
+        assume "w \<notin>\<^sub>L L\<^sub>D"
+        moreover from \<open>T l \<ge> t l\<close> and \<open>time_bounded t\<close> have "time_bounded_word T w"
+          by (fold \<open>length w = l\<close>) blast
+        ultimately have "\<not> rejects w" using \<open>wf_input w\<close> by (force simp: L\<^sub>D_def)
+        with \<open>decides L\<close> show "w \<in>\<^sub>L L" by (auto simp: \<open>alphabet L = UNIV\<close>)
+      qed
     qed
     moreover have "L \<noteq> L\<^sub>D" if "alphabet L \<noteq> UNIV" using that unfolding L\<^sub>D_def by force
     ultimately show "L \<noteq> L\<^sub>D" by blast
