@@ -245,14 +245,48 @@ lemma computes_haltsD[dest]: "computes f \<Longrightarrow> halts w" unfolding co
 
 mk_ide computes_def |intro computesI[intro]| |dest computesD[dest]|
 
+end \<comment> \<open>context \<^locale>\<open>TM\<close>\<close>
+
 
 subsection\<open>Deciding Languages\<close>
+
+type_synonym ('q, 's) TM_decider = "('q, 's, bool) TM"
+
+locale TM_decider = TM M for M :: "('q, 's) TM_decider"
+begin
+
+definition accepting_states ("F\<^sup>+") where acc_def: "accepting_states \<equiv> {q\<in>F. label q = True}"
+definition rejecting_states ("F\<^sup>-") where rej_def: "rejecting_states \<equiv> {q\<in>F. label q = False}"
+
+abbreviation "F\<^sub>A \<equiv> accepting_states"
+abbreviation "F\<^sub>R \<equiv> rejecting_states"
+
+lemma
+  shows final_states_acc_rej[simp]: "F\<^sub>A \<union> F\<^sub>R = F"
+    and acc_rej_states_disjoint: "F\<^sub>A \<inter> F\<^sub>R = {}"
+    and acc_final[dest]: "q \<in> F\<^sub>A \<Longrightarrow> q \<in> F"
+    and rej_final[dest]: "q \<in> F\<^sub>R \<Longrightarrow> q \<in> F"
+    and accI[intro]: "label q = True  \<Longrightarrow> q \<in> F \<Longrightarrow> q \<in> F\<^sub>A"
+    and rejI[intro]: "label q = False \<Longrightarrow> q \<in> F \<Longrightarrow> q \<in> F\<^sub>R"
+  unfolding acc_def rej_def by blast+
+
+lemma (in -)
+  assumes "TM.F M1 = TM.F M2"
+    and "\<And>q. q \<in> TM.F M1 \<Longrightarrow> TM.label M1 q = TM.label M2 q"
+  shows acc_eqI: "TM_decider.F\<^sub>A M1 = TM_decider.F\<^sub>A M2"
+    and rej_eqI: "TM_decider.F\<^sub>R M1 = TM_decider.F\<^sub>R M2"
+proof -
+  from assms have *: "{q\<in>TM.F M1. TM.label M1 q = l} = {q\<in>TM.F M2. TM.label M2 q = l}" for l by blast
+  show "TM_decider.F\<^sub>A M1 = TM_decider.F\<^sub>A M2" and "TM_decider.F\<^sub>R M1 = TM_decider.F\<^sub>R M2"
+    unfolding TM_decider.acc_def TM_decider.rej_def * by blast+
+qed
+
 
 definition accepts :: "'s list \<Rightarrow> bool" where "accepts w \<equiv> state (compute w) \<in> F\<^sub>A"
 definition rejects :: "'s list \<Rightarrow> bool" where "rejects w \<equiv> state (compute w) \<in> F\<^sub>R"
 
 lemma halts_iff[iff?]: "halts w \<longleftrightarrow> accepts w \<or> rejects w"
-  unfolding accepts_def rejects_def using is_final_altdef by blast
+  unfolding accepts_def rejects_def using final_states_acc_rej by blast
 
 mk_ide halts_iff |dest halts_acc_rejD[dest]|
 
@@ -260,7 +294,7 @@ lemma accepts_halts[dest]: "accepts w \<Longrightarrow> halts w" using halts_iff
 lemma rejects_halts[dest]: "rejects w \<Longrightarrow> halts w" using halts_iff by blast
 
 lemma acc_not_rej: "accepts w \<Longrightarrow> \<not> rejects w"
-  unfolding accepts_def rejects_def rejecting_states_def by simp
+  unfolding accepts_def rejects_def acc_def rej_def by simp
 
 lemma rejects_accepts:
   "rejects w = (halts w \<and> \<not> accepts w)"
@@ -273,7 +307,7 @@ proof (rule iffI)
 next
   assume "\<exists>n. state (run n w) \<in> F\<^sub>A"
   then obtain n where "state (run n w) \<in> F\<^sub>A" ..
-  then have "is_final (run n w)" unfolding is_final_def ..
+  then have "is_final (run n w)" unfolding is_final_def using final_states_acc_rej by blast
   with \<open>state (run n w) \<in> F\<^sub>A\<close> show "accepts w" unfolding accepts_def by force
 qed
 
@@ -285,7 +319,7 @@ next
   assume "\<exists>n. state (run n w) \<in> F\<^sub>R"
   then obtain n where "state (run n w) \<in> F\<^sub>R" ..
   then have "is_final (run n w)" unfolding is_final_def ..
-  with \<open>state (run n w) \<in> F\<^sub>R\<close> show "rejects w" unfolding rejects_def by (force simp del: rejecting_states_def)
+  with \<open>state (run n w) \<in> F\<^sub>R\<close> show "rejects w" unfolding rejects_def by force
 qed
 
 
@@ -321,38 +355,40 @@ end
 
 subsubsection\<open>The Rejecting TM\<close>
 
-text\<open>Based on the example TM \<^const>\<open>rejecting_TM_rec\<close> defined for \<^typ>\<open>('q, 's) TM\<close>.\<close>
+text\<open>Based on the example TM \<^const>\<open>halting_TM_rec\<close> defined for \<^typ>\<open>('q, 's, 'l) TM\<close>.\<close>
 
-definition "rejecting_TM q0 \<Sigma> \<equiv> Abs_TM (rejecting_TM_rec q0 \<Sigma>)"
+definition rejecting_TM :: "'q \<Rightarrow> 's set \<Rightarrow> ('q, 's) TM_decider"
+  where "rejecting_TM q0 \<Sigma> \<equiv> Abs_TM (halting_TM_rec q0 \<Sigma> False)"
 
-locale Rej_TM = TM "rejecting_TM q0 \<Sigma>" for q0 :: 'q and \<Sigma> :: "'s set" +
+locale Rej_TM = TM_decider "rejecting_TM q0 \<Sigma>" for q0 :: 'q and \<Sigma> :: "'s set" +
   assumes finite_symbols: "finite \<Sigma>"
     and nonempty_symbols: "\<Sigma> \<noteq> {}"
 begin
 
-lemma M_rec: "M_rec = rejecting_TM_rec q0 \<Sigma>" unfolding rejecting_TM_def
+lemma M_rec: "M_rec = halting_TM_rec q0 \<Sigma> False" unfolding rejecting_TM_def
   using finite_symbols nonempty_symbols
-  by (blast intro: Abs_TM_inverse rejecting_TM_valid)
-lemmas M_fields = TM_fields_defs[unfolded M_rec rejecting_TM_rec_def TM_record.simps]
+  by (blast intro: Abs_TM_inverse halting_TM_valid)
+lemmas M_fields = TM_fields_defs[unfolded M_rec halting_TM_rec_def TM_record.simps]
 lemmas [simp] = M_fields(1-6)
 
-lemma rejects: "rejects w" by (simp add: rejects_altdef is_final_def)
+lemma rejects: "rejects w" by (auto simp: rejects_altdef is_final_def)
 
 end
 
 
 subsection\<open>TM Languages\<close>
 
-definition TM_lang :: "('q, 's) TM \<Rightarrow> 's lang" ("L'(_')")
-  where "L(M) \<equiv> Lang (TM.symbols M) (TM.accepts M)"
+definition TM_lang :: "('q, 's) TM_decider \<Rightarrow> 's lang" ("L'(_')")
+  where "L(M) \<equiv> Lang (TM.symbols M) (TM_decider.accepts M)"
 
 lemma TM_lang_simps[simp]:
   shows TM_lang_alphabet: "alphabet L(M) = TM.symbols M"
-    and TM_lang_gen_pred: "gen_pred L(M) = TM.accepts M"
-    and TM_lang_words: "words L(M) = {w\<in>(TM.symbols M)*. TM.accepts M w}"
+    and TM_lang_gen_pred: "gen_pred L(M) = TM_decider.accepts M"
+    and TM_lang_words: "words L(M) = {w\<in>(TM.symbols M)*. TM_decider.accepts M w}"
   unfolding TM_lang_def words_def by auto
 
-context TM begin
+context TM_decider
+begin
 
 lemma decides_TM_lang: "(\<And>w. w \<in> \<Sigma>* \<Longrightarrow> halts w) \<Longrightarrow> decides L(M)"
   by (simp add: TM_lang_def rejects_accepts)
@@ -388,7 +424,7 @@ end
          to find the end-comment, and therefore concludes that the theory is broken. *)
 
 (*
-definition "input_assert (P::'s list \<Rightarrow> bool) \<equiv> \<lambda>c::('q, 's::finite) TM_config.
+definition "input_assert (P::'s list \<Rightarrow> bool) \<equiv> \<lambda>c::('q, 's::finite, 'l) TM_config.
               let tp = hd (tapes c) in P (head tp # right tp) \<and> left tp = []"
 
 lemma hoare_comp:

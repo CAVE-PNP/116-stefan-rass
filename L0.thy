@@ -11,25 +11,28 @@ lemma SQ_DTIME: "SQ \<in> DTIME(\<lambda>n. n^3)" sorry
 
 
 locale UTM_Encoding =
-  fixes enc\<^sub>U :: "('q, 's) TM \<times> 's list \<Rightarrow> bool list"
+  fixes enc\<^sub>U :: "('q, 's, 'l) TM \<times> 's list \<Rightarrow> bool list"
     and is_valid_enc\<^sub>U :: "bool list \<Rightarrow> bool"
-    and dec\<^sub>U :: "bool list \<Rightarrow> ('q, 's) TM \<times> 's list"
+    and dec\<^sub>U :: "bool list \<Rightarrow> ('q, 's, 'l) TM \<times> 's list"
+    and L_invalid :: 'l
   assumes inj_enc\<^sub>U: "inj enc\<^sub>U"
     and valid_enc: "\<And>M w. TM.wf_input M w \<Longrightarrow> is_valid_enc\<^sub>U (enc\<^sub>U (M, w))"
-    and enc_dec:   "\<And>M w. TM.wf_input M w \<Longrightarrow> dec\<^sub>U (enc\<^sub>U (M, w)) = (M, w)"
-    and invalid_rejects: "\<And>x. \<not> is_valid_enc\<^sub>U x \<Longrightarrow> let (M, w) = dec\<^sub>U x in TM.rejects M w" (* a nicer version of: "\<exists>q\<^sub>0 s w. dec\<^sub>U x = (rejecting_TM q\<^sub>0 s, w)" *)
+    and enc_dec:   "\<And>M w. TM.wf_input M w \<Longrightarrow> dec\<^sub>U (enc\<^sub>U (M, w)) = (M, w)" (* TODO again, this is not possible with the current definitions, as label is an unrestricted function *)
+
+      (* TODO is this necessary? could the UTM not just directly output the invalid label when it detects that an encoding is invalid? *)
+    and invalid_rejects: "\<And>x. \<not> is_valid_enc\<^sub>U x \<Longrightarrow> let (M, w) = dec\<^sub>U x; c = TM.compute M w in TM.is_final M c \<and> TM.label M (state c) = L_invalid" (* a nicer version of: "\<exists>q\<^sub>0 s w. dec\<^sub>U x = (rejecting_TM q\<^sub>0 s, w)" *)
     and dec_enc: "\<And>x. is_valid_enc\<^sub>U x \<Longrightarrow> enc\<^sub>U (dec\<^sub>U x) = x" (* this should be easy to achieve *)
 
-locale UTM = UTM: TM M\<^sub>U + UTM_Encoding enc\<^sub>U is_valid_enc\<^sub>U dec\<^sub>U
-  for M\<^sub>U :: "('q, bool) TM" (* TODO make 'q = nat ? *)
-    and enc\<^sub>U :: "('q, nat) TM \<times> nat list \<Rightarrow> bool list"
+locale UTM = UTM: TM M\<^sub>U + UTM_Encoding enc\<^sub>U is_valid_enc\<^sub>U dec\<^sub>U False
+  for M\<^sub>U :: "('q, bool) TM_decider" (* TODO make 'q = nat ? *)
+    and enc\<^sub>U :: "('q, nat) TM_decider \<times> nat list \<Rightarrow> bool list"
     and is_valid_enc\<^sub>U dec\<^sub>U +
   assumes halts_iff: "\<And>M w. TM.halts   M w \<longleftrightarrow> TM.halts   M\<^sub>U (enc\<^sub>U (M, w))"
-    and accepts_iff: "\<And>M w. TM.accepts M w \<longleftrightarrow> TM.accepts M\<^sub>U (enc\<^sub>U (M, w))"
+    and accepts_iff: "\<And>M w. TM_decider.accepts M w \<longleftrightarrow> TM_decider.accepts M\<^sub>U (enc\<^sub>U (M, w))"
 
-locale timed_UTM = UTM M\<^sub>U for M\<^sub>U :: "(nat, bool) TM" +
+locale timed_UTM = UTM M\<^sub>U  for M\<^sub>U :: "(nat, bool) TM_decider" +
   fixes T\<^sub>U :: "nat \<Rightarrow> nat" \<comment> \<open>Simulation time overhead of \<^term>\<open>M\<^sub>U\<close>.\<close>
-  assumes sim_overhead: "\<And>M::(nat, nat) TM. \<And>w. TM.halts M w \<Longrightarrow>
+  assumes sim_overhead: "\<And>M::(nat, nat) TM_decider. \<And>w. TM.halts M w \<Longrightarrow>
     TM.time M\<^sub>U (enc\<^sub>U (M, w)) \<le> T\<^sub>U (TM.time M w)"
     and overhead_min: "T\<^sub>U n \<ge> n" \<comment> \<open>This should be trivially true, but is required for the THT.\<close>
 
@@ -91,7 +94,7 @@ text\<open>\<open>L\<^sub>D\<close>, defined as part of the proof for the Time H
 
 definition L\<^sub>D :: "bool lang"
   where "L\<^sub>D \<equiv> Lang UNIV (\<lambda>w. let M\<^sub>w = dec_TM_pad w in
-                  TM.rejects M\<^sub>w w \<and> TM.time_bounded_word M\<^sub>w T w)"
+                  TM_decider.rejects M\<^sub>w w \<and> TM.time_bounded_word M\<^sub>w T w)"
 
 lemma LD_T: "L\<^sub>D \<in> DTIME(T)"
 proof -
@@ -108,12 +111,12 @@ proof -
     Thus \<open>M\<close> accepts \<open>w\<close>, iff \<open>M\<^sub>w\<close> rejects \<open>w\<close> in time \<open>tcomp\<^sub>w T w\<close>.\<close>
 
   define L\<^sub>D_P where "L\<^sub>D_P \<equiv> \<lambda>w. let M\<^sub>w = dec_TM_pad w in
-    TM.rejects M\<^sub>w w \<and> TM.time_bounded_word M\<^sub>w T w"
+    TM_decider.rejects M\<^sub>w w \<and> TM.time_bounded_word M\<^sub>w T w"
   then have L\<^sub>D[simp]: "L\<^sub>D = Lang UNIV L\<^sub>D_P" unfolding L\<^sub>D_def by simp
 
-  obtain M :: "(nat, bool) TM" where "TM.symbols M = UNIV" and "TM.time_bounded M T"
-    and *: "\<And>w. if L\<^sub>D_P w then TM.accepts M w else TM.rejects M w" sorry (* probably out of scope *)
-  then have "TM.decides M L\<^sub>D" unfolding TM.decides_altdef4 by simp
+  obtain M :: "(nat, bool) TM_decider" where "TM.symbols M = UNIV" and "TM.time_bounded M T"
+    and *: "\<And>w. if L\<^sub>D_P w then TM_decider.accepts M w else TM_decider.rejects M w" sorry (* probably out of scope *)
+  then have "TM_decider.decides M L\<^sub>D" unfolding TM_decider.decides_altdef4 by simp
   with \<open>TM.time_bounded M T\<close> show "L\<^sub>D \<in> DTIME T" by blast
 qed
 
@@ -121,9 +124,9 @@ lemma LD_t: "L\<^sub>D \<notin> DTIME(t)"
 proof -
   have "L \<noteq> L\<^sub>D" if "L \<in> DTIME(t)" for L
   proof -
-    from \<open>L \<in> DTIME t\<close> obtain M\<^sub>w :: "(nat, bool) TM"
-      where "TM.decides M\<^sub>w L" and "TM.time_bounded M\<^sub>w t" ..
-    interpret TM M\<^sub>w .
+    from \<open>L \<in> DTIME t\<close> obtain M\<^sub>w :: "(nat, bool) TM_decider"
+      where "TM_decider.decides M\<^sub>w L" and "TM.time_bounded M\<^sub>w t" ..
+    interpret TM_decider M\<^sub>w .
 
     define w' :: "bool list" where "w' = enc_TM M\<^sub>w"
 
@@ -147,21 +150,26 @@ proof -
       ultimately show ?thesis by (intro that) fast+
     qed
 
-    from \<open>clog l \<ge> ?n\<close> obtain w where [simp]: "length w = l" and dec_w[simp]: "dec_TM_pad w = M\<^sub>w"
+    from \<open>clog l \<ge> ?n\<close> obtain w
+      where [simp]: "length w = l" and dec_w[simp]: "dec_TM_pad w = canonical_TM M\<^sub>w"
       by (rule embed_TM_in_len)
 
     have "w \<in>\<^sub>L L \<longleftrightarrow> w \<notin>\<^sub>L L\<^sub>D" if "alphabet L = UNIV"
-    proof
-      assume "w \<in>\<^sub>L L"
-      then have "w \<in> (alphabet L)*" ..
-      with \<open>decides L\<close> have "w \<notin>\<^sub>L L \<longleftrightarrow> rejects w" unfolding decides_def by blast
-      with \<open>w \<in>\<^sub>L L\<close> have "\<not> rejects w" by blast
-      then show "w \<notin>\<^sub>L L\<^sub>D" by (simp add: L\<^sub>D_def)
-    next
-      assume "w \<notin>\<^sub>L L\<^sub>D"
-      moreover from \<open>T l \<ge> t l\<close> and \<open>time_bounded t\<close> have "time_bounded_word T w" by (fold \<open>length w = l\<close>) blast
-      ultimately have "\<not> rejects w" unfolding L\<^sub>D_def by force
-      with \<open>decides L\<close> show "w \<in>\<^sub>L L" by (auto simp: \<open>alphabet L = UNIV\<close>)
+    proof -
+      from \<open>alphabet L = UNIV\<close> have "w \<in> (alphabet L)*" by blast
+      with \<open>decides L\<close> have "wf_input w" by blast
+      show ?thesis
+      proof (rule iffI)
+        assume "w \<in>\<^sub>L L"
+        with \<open>decides L\<close> have "\<not> rejects w" unfolding decides_def by blast
+        with \<open>wf_input w\<close> show "w \<notin>\<^sub>L L\<^sub>D" by (simp add: L\<^sub>D_def)
+      next
+        assume "w \<notin>\<^sub>L L\<^sub>D"
+        moreover from \<open>T l \<ge> t l\<close> and \<open>time_bounded t\<close> have "time_bounded_word T w"
+          by (fold \<open>length w = l\<close>) blast
+        ultimately have "\<not> rejects w" using \<open>wf_input w\<close> by (force simp: L\<^sub>D_def)
+        with \<open>decides L\<close> show "w \<in>\<^sub>L L" by (auto simp: \<open>alphabet L = UNIV\<close>)
+      qed
     qed
     moreover have "L \<noteq> L\<^sub>D" if "alphabet L \<noteq> UNIV" using that unfolding L\<^sub>D_def by force
     ultimately show "L \<noteq> L\<^sub>D" by blast
@@ -311,7 +319,7 @@ definition L\<^sub>D' :: "bool lang"
       let (l, x) = decode_pair w;
           v = drop (length x - l) x;
           M\<^sub>v = dec_TM_pad v in
-      TM.rejects M\<^sub>v v \<and> TM.is_final M\<^sub>v (TM.run M\<^sub>v (T (length x)) v)
+      TM_decider.rejects M\<^sub>v v \<and> TM.is_final M\<^sub>v (TM.run M\<^sub>v (T (length x)) v)
     )"
 
 
@@ -360,7 +368,7 @@ lemma reduce_LD_LD'_correct:
   shows "w' \<in>\<^sub>L L\<^sub>D' \<longleftrightarrow> w \<in>\<^sub>L tht.L\<^sub>D"
 proof -
   let ?M\<^sub>w = "dec_TM_pad w"
-  interpret TM ?M\<^sub>w .
+  interpret TM_decider ?M\<^sub>w .
 
   have *: "(let (l, x) = decode_pair w';
                   v = drop (length x - l) x;
@@ -391,7 +399,7 @@ proof (rule ccontr, unfold not_not)
 
     show "superlinear t" by (fact t_superlinear)
 
-    show "computable_in_time TYPE(nat) t reduce_LD_LD'" sorry \<comment> \<open>Assume that \<^const>\<open>reduce_LD_LD'\<close> can be computed in time \<open>O(n)\<close>.\<close>
+    show "computable_in_time t reduce_LD_LD'" sorry \<comment> \<open>Assume that \<^const>\<open>reduce_LD_LD'\<close> can be computed in time \<open>O(n)\<close>.\<close>
   qed
 
   moreover from tht.time_hierarchy have "tht.L\<^sub>D \<notin> DTIME(t \<circ> l\<^sub>R)" ..
@@ -417,13 +425,13 @@ proof -
   define LD'_P where "LD'_P \<equiv> \<lambda>w. let (l, x) = decode_pair w;
           v = drop (length x - l) x;
           M\<^sub>v = dec_TM_pad v in
-      TM.rejects M\<^sub>v v \<and> TM.is_final M\<^sub>v (TM.run M\<^sub>v (T (length x)) v)"
+      TM_decider.rejects M\<^sub>v v \<and> TM.is_final M\<^sub>v (TM.run M\<^sub>v (T (length x)) v)"
   have [simp]: "L\<^sub>D' = Lang UNIV LD'_P" unfolding L\<^sub>D'_def LD'_P_def ..
 
-  obtain M :: "(nat, bool) TM" where "TM.symbols M = UNIV"
+  obtain M :: "(nat, bool) TM_decider" where "TM.symbols M = UNIV"
     and "TM.time_bounded M T"
-    and *: "\<And>w. if LD'_P w then TM.accepts M w else TM.rejects M w" sorry (* probably out of scope *)
-  from * have "TM.decides M L\<^sub>D'" unfolding TM.decides_altdef4 \<open>TM.symbols M = UNIV\<close> by simp
+    and *: "\<And>w. if LD'_P w then TM_decider.accepts M w else TM_decider.rejects M w" sorry (* probably out of scope *)
+  from * have "TM_decider.decides M L\<^sub>D'" unfolding TM_decider.decides_altdef4 \<open>TM.symbols M = UNIV\<close> by simp
   with \<open>TM.time_bounded M T\<close> show "L\<^sub>D' \<in> DTIME(T)" by blast
 qed
 
@@ -466,7 +474,7 @@ proof (rule ccontr, unfold not_not)
 
     show "superlinear t" by (fact t_superlinear)
 
-    show "computable_in_time TYPE(nat) t adj_sq\<^sub>w" sorry
+    show "computable_in_time t adj_sq\<^sub>w" sorry
     \<comment> \<open>Assume that \<^const>\<open>adj_sq\<^sub>w\<close> can be computed by a TM in time \<open>n\<^sup>3\<close>.\<close>
   qed
 

@@ -5,9 +5,9 @@ theory TM_Hoare
 begin
 
 
-type_synonym ('q, 's) assert = "('q, 's) TM_config \<Rightarrow> bool"
+type_synonym ('q, 's, 'l) assert = "('q, 's) TM_config \<Rightarrow> bool"
 
-definition hoare_halt :: "('q, 's) assert \<Rightarrow> ('q, 's) TM \<Rightarrow> ('q, 's) assert \<Rightarrow> bool"
+definition hoare_halt :: "('q, 's, 'l) assert \<Rightarrow> ('q, 's, 'l) TM \<Rightarrow> ('q, 's, 'l) assert \<Rightarrow> bool"
   where "hoare_halt P M Q \<equiv>
     (\<forall>c. P c \<longrightarrow> (\<exists>n. let cn = TM.steps M n c in TM.is_final M cn \<and> Q cn))"
 

@@ -181,7 +181,7 @@ lemma reorder_config_simps[simp]:
   unfolding reorder_config_def by simp_all
 
 
-locale TM_reorder_tapes = TM M for M :: "('q, 's) TM" +
+locale TM_reorder_tapes = TM M for M :: "('q, 's, 'l) TM" +
   fixes "is" :: "nat option list"
   assumes items_match: "someset is = {0..<k}"
 begin
@@ -219,18 +219,17 @@ proof -
   finally show "k \<le> k'" .
 qed
 
-definition reorder_tapes_rec :: "('q, 's) TM_record"
-  where "reorder_tapes_rec \<equiv>
-    TM_default_wrapper (M_rec \<lparr>
+definition reorder_tapes_rec :: "('q, 's, 'l) TM_record"
+  where "reorder_tapes_rec \<equiv> M_rec \<lparr>
       tape_count := k',
       next_state := \<lambda>q hds. \<delta>\<^sub>q q (r\<inverse> hds),
       next_write := \<lambda>q hds i. case nth_or None i is of Some i \<Rightarrow> (\<delta>\<^sub>w q (r\<inverse> hds) i) | None \<Rightarrow> nth_or None i hds,
       next_move  := \<lambda>q hds i. case nth_or None i is of Some i \<Rightarrow> (\<delta>\<^sub>m q (r\<inverse> hds) i) | None \<Rightarrow> No_Shift
-    \<rparr>)"
+    \<rparr>"
 
-lemma reorder_tapes_rec_simps: "reorder_tapes_rec = TM_default_wrapper \<lparr>
+lemma reorder_tapes_rec_simps: "reorder_tapes_rec = \<lparr>
   TM_record.tape_count = k', symbols = \<Sigma>,
-  states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
+  states = Q, initial_state = q\<^sub>0, final_states = F, label = lab,
   next_state = \<lambda>q hds. \<delta>\<^sub>q q (r\<inverse> hds),
   next_write = \<lambda>q hds i. case nth_or None i is of Some i \<Rightarrow> (\<delta>\<^sub>w q (r\<inverse> hds) i) | None \<Rightarrow> nth_or None i hds,
   next_move  = \<lambda>q hds i. case nth_or None i is of Some i \<Rightarrow> (\<delta>\<^sub>m q (r\<inverse> hds) i) | None \<Rightarrow> No_Shift
@@ -267,9 +266,8 @@ qed (fact TM_axioms)+
 sublocale M': TM M' .
 
 lemma M'_rec: "M'.M_rec = reorder_tapes_rec" using Abs_TM_inverse M'_valid by (auto simp add: M'_def)
-lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec reorder_tapes_rec_simps TM_record.simps TM_default_wrapper_simps]
+lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec reorder_tapes_rec_simps TM_record.simps]
 lemmas [simp] = M'_fields(1-6)
-lemmas M'_next_fun_wrapper_simps[simp] = M'.next_fun_wrapper_simps[unfolded M'_fields]
 
 lemma M'_wf_config[intro?]:
   assumes "wf_config c"
@@ -509,7 +507,7 @@ end \<comment> \<open>\<^locale>\<open>TM_reorder_tapes\<close>\<close>
 context TM
 begin
 
-definition reorder_tapes :: "nat option list \<Rightarrow> ('q, 's) TM"
+definition reorder_tapes :: "nat option list \<Rightarrow> ('q, 's, 'l) TM"
   where "reorder_tapes is \<equiv> TM_reorder_tapes.M' M is"
 
 corollary reorder_tapes_steps:
@@ -637,7 +635,7 @@ theorem tape_offset_steps:
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
 
-locale TM_tape_offset = TM M for M :: "('q, 's) TM" +
+locale TM_tape_offset = TM M for M :: "('q, 's, 'l) TM" +
   fixes a b :: nat
 begin
 
@@ -681,7 +679,7 @@ end \<comment> \<open>\<^locale>\<open>TM_tape_offset\<close>\<close>
 
 subsubsection\<open>Change Alphabet\<close>
 
-locale TM_map_alphabet = TM M for M :: "('q, 's1) TM" +
+locale TM_map_alphabet = TM M for M :: "('q, 's1, 'l) TM" +
   fixes f :: "'s1 \<Rightarrow> 's2"
     and \<Sigma>' :: "'s2 set" \<comment> \<open>this is not necessarily \<^term>\<open>f ` \<Sigma>\<close>.\<close>
   assumes inj_f: "inj_on f \<Sigma>"
@@ -710,10 +708,10 @@ lemma fc_simps[simp]:
     and "tapes (fc c) = map (map_tape f) (tapes c)"
   unfolding fc_def TM_config.map_sel by (rule refl)+
 
-definition map_alph_rec :: "('q, 's2) TM_record"
-  where "map_alph_rec \<equiv> TM_default_wrapper \<lparr>
+definition map_alph_rec :: "('q, 's2, 'l) TM_record"
+  where "map_alph_rec \<equiv> \<lparr>
     TM_record.tape_count = k, symbols = \<Sigma>',
-    states = Q, initial_state = q\<^sub>0, final_states = F, accepting_states = F\<^sup>+,
+    states = Q, initial_state = q\<^sub>0, final_states = F, label = lab,
     next_state = \<lambda>q hds. if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then \<delta>\<^sub>q q (map f'_inv hds) else q,
     next_write = \<lambda>q hds i. if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then f' (\<delta>\<^sub>w q (map f'_inv hds) i) else hds ! i,
     next_move  = \<lambda>q hds i. if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then \<delta>\<^sub>m q (map f'_inv hds) i else No_Shift
@@ -727,14 +725,9 @@ proof (rule valid_TM_I)
   from finite_symbols show "finite \<Sigma>'" .
   from range_f show "\<Sigma>' \<noteq> {}" using symbol_axioms(2) by blast
 
-  fix q hds
-  assume "q \<in> Q"
-  then show "(if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then \<delta>\<^sub>q q (map f'\<inverse> hds) else q) \<in> Q"
-    by (cases rule: ifI) (rule next_state_valid')
-
+  fix q hds i
   let ?\<Sigma>\<^sub>t\<^sub>p' = "options \<Sigma>'" and ?hds' = "map f'\<inverse> hds"
-  fix i
-  assume "i < k" and "length hds = k" and "set hds \<subseteq> ?\<Sigma>\<^sub>t\<^sub>p'"
+  assume "q \<in> Q" and "length hds = k" and "set hds \<subseteq> ?\<Sigma>\<^sub>t\<^sub>p'"
   then have *[dest]: "wf_hds ?hds'" if "set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p"
   proof (intro conjI)
     from \<open>set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p\<close> have "set ?hds' \<subseteq> f'_inv ` f' ` \<Sigma>\<^sub>t\<^sub>p" ..
@@ -742,8 +735,12 @@ proof (rule valid_TM_I)
     finally show "set ?hds' \<subseteq> \<Sigma>\<^sub>t\<^sub>p" .
   qed simp
 
-  moreover from \<open>i < k\<close> and \<open>length hds = k\<close> and \<open>set hds \<subseteq> ?\<Sigma>\<^sub>t\<^sub>p'\<close> have "hds ! i \<in> ?\<Sigma>\<^sub>t\<^sub>p'" by force
-  ultimately show "(if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then f' (\<delta>\<^sub>w q ?hds' i) else hds ! i) \<in> ?\<Sigma>\<^sub>t\<^sub>p'"
+  from \<open>q \<in> Q\<close> and \<open>length hds = k\<close> and \<open>set hds \<subseteq> ?\<Sigma>\<^sub>t\<^sub>p'\<close>
+  show "(if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then \<delta>\<^sub>q q (map f'\<inverse> hds) else q) \<in> Q" by (cases rule: ifI) blast
+
+  assume "i < k"
+  with \<open>length hds = k\<close> and \<open>set hds \<subseteq> ?\<Sigma>\<^sub>t\<^sub>p'\<close> have "hds ! i \<in> ?\<Sigma>\<^sub>t\<^sub>p'" by force
+  with * show "(if set hds \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then f' (\<delta>\<^sub>w q ?hds' i) else hds ! i) \<in> ?\<Sigma>\<^sub>t\<^sub>p'"
     using \<open>q \<in> Q\<close> and \<open>i < k\<close> by (cases rule: ifI) blast+
 qed (fact TM_axioms)+
 
@@ -751,9 +748,8 @@ definition "M' \<equiv> Abs_TM map_alph_rec"
 sublocale M': TM M' .
 
 lemma M'_rec: "M'.M_rec = map_alph_rec" using Abs_TM_inverse M'_valid by (auto simp add: M'_def)
-lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec map_alph_rec_def TM_record.simps TM_default_wrapper_simps]
+lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec map_alph_rec_def TM_record.simps]
 lemmas [simp] = M'_fields(1-6)
-lemmas M'_next_fun_wrapper_simps[simp] = M'.next_fun_wrapper_simps[unfolded M'_fields]
 
 lemma M'_tape_symbols: "f' ` \<Sigma>\<^sub>t\<^sub>p \<subseteq> M'.\<Sigma>\<^sub>t\<^sub>p" by force
 
@@ -790,7 +786,7 @@ proof (cases "is_final c") (* TODO extract this pattern as lemma *)
     then have \<delta>_If: "\<And>x y. (if set ?hds' \<subseteq> f' ` \<Sigma>\<^sub>t\<^sub>p then x else y) = x" by (fact if_P)
     from \<open>wf_config c\<close> have f_inv_f[simp]: "map f'\<inverse> ?hds' = ?hds"
       unfolding hds' by (blast intro: map_f'_inv)
-    note * = M'_fields(7-9) \<delta>_If f_inv_f M'_next_fun_wrapper_simps[OF \<open>M'.wf_config c'\<close>]
+    note * = M'_fields(7-9) \<delta>_If f_inv_f
 
     have "state (M'.step_not_final c') = M'.\<delta>\<^sub>q ?q' ?hds'" by simp
     also have "... = \<delta>\<^sub>q ?q' ?hds" unfolding M'_fields(7-9) by (simp only: *)
@@ -879,7 +875,7 @@ context TM
 begin
 
 
-abbreviation map_alphabet :: "('s \<Rightarrow> 's2) \<Rightarrow> 's2 set \<Rightarrow> ('q, 's2) TM"
+abbreviation map_alphabet :: "('s \<Rightarrow> 's2) \<Rightarrow> 's2 set \<Rightarrow> ('q, 's2, 'l) TM"
   where "map_alphabet \<equiv> TM_map_alphabet.M' M"
 
 theorem map_alphabet_steps:
@@ -901,8 +897,8 @@ end
 subsubsection\<open>Simple Composition\<close>
 
 locale simple_TM_comp = TM_abbrevs + M1: TM M1 + M2: TM M2
-  for M1 :: "('q1, 's) TM"
-    and M2 :: "('q2, 's) TM" +
+  for M1 :: "('q1, 's, 'l1) TM"
+    and M2 :: "('q2, 's, 'l2) TM" +
   assumes k[simp]: "M1.k = M2.k"
     and symbols_eq[simp]: "M1.\<Sigma> = M2.\<Sigma>"
 begin
@@ -929,13 +925,13 @@ text\<open>Note: the current definition will not work correctly when execution s
   This would cause the running time to be greater than the running time of \<^term>\<open>M1\<close> and \<^term>\<open>M2\<close> combined.\<close>
   (* this "bug" is also present in \<open>tm_comp\<close> for the old TM defs *)
 
-definition comp_rec :: "('q1 + 'q2, 's) TM_record"
-  where "comp_rec \<equiv> TM_default_wrapper \<lparr>
+definition comp_rec :: "('q1 + 'q2, 's, 'l2) TM_record"
+  where "comp_rec \<equiv> \<lparr>
     TM_record.tape_count = M2.k, symbols = M2.\<Sigma>,
     states = Inl ` M1.Q \<union> Inr ` M2.Q,
     initial_state = if M1.q\<^sub>0 \<in> M1.F then Inr M2.q\<^sub>0 else Inl M1.q\<^sub>0,
     final_states = Inr ` M2.F,
-    accepting_states = Inr ` M2.F\<^sub>A,
+    label = \<lambda>q. case q of Inr q2 \<Rightarrow> M2.lab q2,
     next_state = \<lambda>q hds. case q of Inl q1 \<Rightarrow> let q1' = M1.\<delta>\<^sub>q q1 hds in
                                              if q1' \<in> M1.F then Inr M2.q\<^sub>0 else Inl q1'
                                  | Inr q2 \<Rightarrow> Inr (M2.\<delta>\<^sub>q q2 hds),
@@ -979,16 +975,15 @@ proof (rule valid_TM_I)
     case (Inr q2)
     then show ?case by fastforce
   qed
-qed (use M2.symbol_axioms(2) M2.state_axioms(3-4) in blast)+
+qed (use M2.symbol_axioms(2) M2.state_axioms(3) in blast)+
 
 definition "M \<equiv> Abs_TM comp_rec"
 
 sublocale TM M .
 
 lemma M_rec: "M_rec = comp_rec" unfolding M_def using M_valid by (intro Abs_TM_inverse CollectI)
-lemmas M_fields = TM_fields_defs[unfolded M_rec comp_rec_def TM_record.simps Let_def TM_default_wrapper_simps]
+lemmas M_fields = TM_fields_defs[unfolded M_rec comp_rec_def TM_record.simps Let_def]
 lemmas [simp] = M_fields(1-6)
-lemmas next_fun_wrapper_simps[simp] = next_fun_wrapper_simps[simplified]
 
 definition cl :: "('q1, 's) TM_config \<Rightarrow> ('q1 + 'q2, 's) TM_config" where "cl \<equiv> map_conf_state Inl"
 definition cr :: "('q2, 's) TM_config \<Rightarrow> ('q1 + 'q2, 's) TM_config" where "cr \<equiv> map_conf_state Inr"
@@ -1015,7 +1010,7 @@ lemma next_fun_cl_simps[simplified,simp]:
     and "M1.\<delta>\<^sub>q q hds \<notin> M1.F \<Longrightarrow> \<delta>\<^sub>q q' hds' = Inl (M1.\<delta>\<^sub>q q hds)"
     and "i < k \<Longrightarrow> \<delta>\<^sub>m q' hds' i = M1.\<delta>\<^sub>m q hds i"
     and "i < k \<Longrightarrow> \<delta>\<^sub>w q' hds' i = M1.\<delta>\<^sub>w q hds i"
-  unfolding M_fields assms by (simp del: cl_simps, simp)+
+  unfolding M_fields assms by auto
 
 lemma next_fun_cr_simps[simplified,simp]:
   assumes [simp]: "M2.wf_config c"
@@ -1024,7 +1019,7 @@ lemma next_fun_cr_simps[simplified,simp]:
   shows "\<delta>\<^sub>q q' hds' = Inr (M2.\<delta>\<^sub>q q hds)"
     and "i < k \<Longrightarrow> \<delta>\<^sub>m q' hds' i = M2.\<delta>\<^sub>m q hds i"
     and "i < k \<Longrightarrow> \<delta>\<^sub>w q' hds' i = M2.\<delta>\<^sub>w q hds i"
-  unfolding M_fields assms by (simp del: cr_simps, simp)+
+  unfolding M_fields assms by auto
 
 lemma next_actions_simps[simp]:
   shows "M1.wf_config c1 \<Longrightarrow> \<delta>\<^sub>a (Inl (state c1)) (heads c1) = M1.\<delta>\<^sub>a (state c1) (heads c1)"
@@ -1110,13 +1105,13 @@ proof -
   then obtain n' where "n = Suc n'" by (rule lessE)
   then have "n' < n" by blast
 
-  have *: "TM.steps M n c = TM.step M (TM.steps M n' c)" for M :: "('x, 'y) TM" and c
+  have *: "TM.steps M n c = TM.step M (TM.steps M n' c)" for M :: "('x, 'y, 'z) TM" and c
     unfolding \<open>n = Suc n'\<close> funpow.simps comp_def ..
   from \<open>n' < n\<close> and wfc have **: "steps n' (cl c) = cl (M1.steps n' c)"
     unfolding n_def by (rule comp_steps1_non_final')
 
   show ?thesis unfolding * **
-  proof (intro comp_step1_next_final)
+  proof (rule comp_step1_next_final)
     from \<open>n' < n\<close> show "\<not> M1.is_final (M1.steps n' c)" unfolding n_def by blast
     from \<open>M1.halts_config c\<close> show "M1.is_final (M1.step (M1.steps n' c))"
       unfolding *[symmetric] n_def by blast
@@ -1212,11 +1207,11 @@ qed
 
 end
 
-definition TM_comp :: "('q1, 's) TM \<Rightarrow> ('q2, 's) TM \<Rightarrow> ('q1 + 'q2, 's) TM"
+definition TM_comp :: "('q1, 's, 'l1) TM \<Rightarrow> ('q2, 's, 'l2) TM \<Rightarrow> ('q1 + 'q2, 's, 'l2) TM"
   where "TM_comp M1 M2 \<equiv> simple_TM_comp.M M1 M2"
 
 theorem TM_comp_steps_final:
-  fixes M1 :: "('q1, 's) TM" and M2 :: "('q2, 's) TM"
+  fixes M1 :: "('q1, 's, 'l1) TM" and M2 :: "('q2, 's, 'l2) TM"
     and c_init1 :: "('q1, 's) TM_config"
     and n1 n2 :: nat
   assumes k: "TM.tape_count M1 = TM.tape_count M2"
@@ -1240,7 +1235,7 @@ text\<open>Combine \<^locale>\<open>simple_TM_comp\<close> and \<^locale>\<open>
   where the output of the first TM becomes the input for the second one.\<close>
 
 locale IO_TM_comp = TM_abbrevs + M1: TM M1 + M2: TM M2
-  for M1 :: "('q1, 's) TM" and M2 :: "('q2, 's) TM" +
+  for M1 :: "('q1, 's, 'l1) TM" and M2 :: "('q2, 's, 'l2) TM" +
   assumes symbols_eq: "M1.\<Sigma> = M2.\<Sigma>"
 begin
 
@@ -1332,7 +1327,7 @@ proof (cases "M1.q\<^sub>0 \<in> M1.F")
   assume q0_f: "M1.q\<^sub>0 \<in> M1.F"
   then have q0_f': "M1.is_final (M1.c\<^sub>0 w)" by auto
   then have "M1.time w = 0" and "M1.halts w" by (auto simp: TM.halts_def)
-  then have *[simp]: "TM.run M (M1.time w) w = TM.c\<^sub>0 M w" for M :: "('x, 's) TM"
+  then have *[simp]: "TM.run M (M1.time w) w = TM.c\<^sub>0 M w" for M :: "('x, 's, 'y) TM"
     unfolding TM.run_def by simp
   with q0_f' have **[simp]: "M1.compute w = M1.c\<^sub>0 w" by simp
 
@@ -1523,8 +1518,8 @@ text\<open>This is designed to allow composition of TMs that we do not know anyt
 
 
 locale arb_TM_comp = M1a: TM_map_alphabet M1 f1 + M2a: TM_map_alphabet M2 f2
-  for M1 :: "('q1, 's1) TM"
-    and M2 :: "('q2, 's2) TM"
+  for M1 :: "('q1, 's1, 'l1) TM"
+    and M2 :: "('q2, 's2, 'l2) TM"
     and f1 :: "('s1 \<Rightarrow> 's)"
     and f2 :: "('s2 \<Rightarrow> 's)" +
   assumes symbols_eq_a: "f1 ` M1a.\<Sigma> = f2 ` M2a.\<Sigma>"
@@ -1586,7 +1581,7 @@ lemma reduce_DTIME':
     and l\<^sub>R :: "nat \<Rightarrow> nat" \<comment> \<open>length bound of the reduction\<close>
   assumes "L\<^sub>1 \<in> DTIME(T)"
     and f\<^sub>R_MOST: "\<forall>\<^sub>\<infinity>w. (f\<^sub>R w \<in>\<^sub>L L\<^sub>1 \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>2) \<and> (length (f\<^sub>R w) \<le> l\<^sub>R (length w))"
-    and "computable_in_time TYPE(nat) T f\<^sub>R"
+    and "computable_in_time T f\<^sub>R"
     and "superlinear T"
     and T_l\<^sub>R_mono: "\<forall>\<^sub>\<infinity>n. T (l\<^sub>R n) \<ge> T(n)" \<comment> \<open>allows reasoning about \<^term>\<open>T\<close> and \<^term>\<open>l\<^sub>R\<close> as if both were \<^const>\<open>mono\<close>.\<close>
   shows "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
@@ -1598,7 +1593,7 @@ lemma reduce_DTIME:
     and T :: "nat \<Rightarrow> nat"
   assumes "L\<^sub>1 \<in> DTIME T"
     and "\<forall>\<^sub>\<infinity>w. (f\<^sub>R w \<in>\<^sub>L L\<^sub>1 \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>2) \<and> length (f\<^sub>R w) \<le> length w"
-    and "computable_in_time TYPE(nat) T f\<^sub>R"
+    and "computable_in_time T f\<^sub>R"
     and "superlinear T"
   shows "L\<^sub>2 \<in> DTIME T"
   using \<open>L\<^sub>1 \<in> DTIME T\<close>

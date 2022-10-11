@@ -4,6 +4,8 @@ begin
 
 datatype ('s) lang = Lang (alphabet: "'s set") (gen_pred: "'s list \<Rightarrow> bool")
 
+abbreviation "ULang \<equiv> Lang UNIV"
+
 definition words :: "'s lang \<Rightarrow> 's list set"
   where "words L = {w\<in>(alphabet L)*. gen_pred L w}"
 
