@@ -511,6 +511,9 @@ abbreviation (in TM_abbrevs) "map_conf_state f \<equiv> map_TM_config f (\<lambd
 abbreviation (in TM_abbrevs) "map_conf_tapes f \<equiv> map_TM_config (\<lambda>q. q) f"
 
 
+abbreviation (in TM) "conf_label c \<equiv> label (state c)"
+
+
 paragraph\<open>Symbols currently under the TM-heads\<close>
 
 abbreviation heads :: "('q, 's) TM_config \<Rightarrow> 's tp_symbol list"
@@ -563,23 +566,35 @@ lemma wf_config_hds:
 
 lemma wf_config_iff: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k
     \<and> (\<forall>tp\<in>set (tapes c). set_tape tp \<subseteq> \<Sigma>) \<and> wf_hds (heads c)"
-  by (intro iffI conjI wf_configI) (use wf_config_def[iff] in \<open>blast intro!: wf_config_hds\<close>)+
+  unfolding wf_config_def by auto
 
-mk_ide wf_config_iff |dest wf_configD| |elim wf_configE|
+mk_ide wf_config_iff |dest wf_configD[dest]| |elim wf_configE[elim]|
 declare (in -) TM.wf_configD[dest] TM.wf_configE[elim]
 
 lemma (in typed_TM) wf_config_def: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k"
   unfolding wf_config_def by simp
 
+(* automation utterly fail on these two seemingly simple lemmas *)
 lemma
   assumes "wf_config c"
   shows wf_config_tapes_nonempty'[dest]: "0 < length (tapes c)"
-    and wf_config_tapes_nonempty[dest?]: "tapes c \<noteq> []"
+    and wf_config_tapes_nonempty[dest]: "tapes c \<noteq> []"
 proof -
   from \<open>wf_config c\<close> have "length (tapes c) = k" ..
   then show "0 < length (tapes c)" by simp
   then show "tapes c \<noteq> []" by simp
 qed
+
+lemma wf_config_hd_hds_valid[dest]:
+  assumes "wf_config c"
+  shows "hd (heads c) \<in> \<Sigma>\<^sub>t\<^sub>p"
+proof (rule set_mp)
+  from \<open>wf_config c\<close> show "set (heads c) \<subseteq> \<Sigma>\<^sub>t\<^sub>p" by (rule wf_config_hds)
+  from \<open>wf_config c\<close> have "heads c \<noteq> []" by blast
+  then show "hd (heads c) \<in> set (heads c)" by (fact hd_in_set)
+qed
+
+lemma wf_config_hd_hds[simp]: "wf_config c \<Longrightarrow> head (hd (tapes c)) = hd (heads c)" by (force simp: hd_map)
 
 lemma wf_config_last[dest, intro]: "wf_config c \<Longrightarrow> set_tape (last (tapes c)) \<subseteq> \<Sigma>" by auto
 
@@ -648,6 +663,8 @@ definition tape_write :: "'s tp_symbol \<Rightarrow> 's tape \<Rightarrow> 's ta
 corollary tape_write_simps[simp]: "tape_write s \<langle>l|h|r\<rangle> = \<langle>l|s|r\<rangle>" unfolding tape_write_def by simp
 corollary tape_write_id[simp]: "tape_write (head tp) tp = tp" by (induction tp) simp
 
+lemma tape_write_id'[simp]: "i < length tps \<Longrightarrow> tape_write (map head tps ! i) (tps ! i) = (tps ! i)" by simp
+
 lemma tape_write_map[simp]:
   "tape_write (map_option f s) (map_tape f tp) = map_tape f (tape_write s tp)"
   by (induction tp) simp
@@ -666,8 +683,11 @@ definition tape_action :: "('s tp_symbol \<times> head_move) \<Rightarrow> 's ta
 corollary tape_action_altdef: "tape_action (s, m) = tape_shift m \<circ> tape_write s"
   unfolding tape_action_def by auto
 
-lemma tape_action_id[simp]: "tape_action (head tp, No_Shift) tp = tp"
-  unfolding tape_action_altdef by simp
+lemma tape_action_simps[simp]:
+  shows tape_action_no_write: "tape_action (head tp, m) tp = tape_shift m tp"
+    and tape_action_no_write': "i < length tps \<Longrightarrow> tape_action (map head tps ! i, m) (tps ! i) = tape_shift m (tps ! i)"
+    and tape_action_no_move: "tape_action (s, No_Shift) tp = tape_write s tp"
+  unfolding tape_action_altdef by auto
 
 lemma tape_action_map[simp]:
   "tape_action (map_option f s, m) (map_tape f tp) = map_tape f (tape_action (s, m) tp)"
