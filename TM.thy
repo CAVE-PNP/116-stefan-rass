@@ -164,7 +164,7 @@ lemma valid_TM_I[intro]:
     and symbol_axioms: "finite \<Sigma>" "\<Sigma> \<noteq> {}"
     and state_axioms: "finite Q" "q\<^sub>0 \<in> Q" "F \<subseteq> Q"
     and next_state_valid: "\<And>q hds. q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q"
-    and next_write_valid: "\<And>q hds i. q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> i < k \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>\<^sub>t\<^sub>p"
+    and next_write_valid: "\<And>q hds i. q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> i < k \<Longrightarrow> hds ! i \<in> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>\<^sub>t\<^sub>p"
   shows "valid_TM M"
 proof (unfold_locales, unfold M_def TM_record.simps wf_hds_rec_simps)
   fix q hds
@@ -172,7 +172,9 @@ proof (unfold_locales, unfold M_def TM_record.simps wf_hds_rec_simps)
   with next_state_valid show "\<delta>\<^sub>q q hds \<in> Q" unfolding \<Sigma>\<^sub>t\<^sub>p_def by blast
   fix i
   assume "i < k"
-  with next_write_valid and \<open>q \<in> Q\<close> and wf show "\<delta>\<^sub>w q hds i \<in> options \<Sigma>" unfolding \<Sigma>\<^sub>t\<^sub>p_def by blast
+  with wf have "hds ! i \<in> \<Sigma>\<^sub>t\<^sub>p" by force
+  with next_write_valid and \<open>q \<in> Q\<close> and wf and \<open>i < k\<close> show "\<delta>\<^sub>w q hds i \<in> options \<Sigma>"
+    unfolding \<Sigma>\<^sub>t\<^sub>p_def by blast
 qed (fact assms)+
 
 lemma valid_TM_finiteI[intro]:
@@ -316,7 +318,7 @@ lemma transition_axioms:
     and next_write_valid: "i < k \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>\<^sub>t\<^sub>p"
   using assms unfolding TM_fields_defs by (blast intro: next_state_valid next_write_valid)+
 
-lemmas TM_axioms = at_least_one_tape at_least_one_tape' state_axioms symbol_axioms transition_axioms
+lemmas TM_axioms[simp, intro] = at_least_one_tape at_least_one_tape' state_axioms symbol_axioms transition_axioms
 lemmas (in -) TM_axioms[simp, intro] = TM.TM_axioms
 
 lemma final_states_valid: "q \<in> F \<Longrightarrow> q \<in> Q" using state_axioms(3) by blast
@@ -662,6 +664,7 @@ definition tape_write :: "'s tp_symbol \<Rightarrow> 's tape \<Rightarrow> 's ta
 
 corollary tape_write_simps[simp]: "tape_write s \<langle>l|h|r\<rangle> = \<langle>l|s|r\<rangle>" unfolding tape_write_def by simp
 corollary tape_write_id[simp]: "tape_write (head tp) tp = tp" by (induction tp) simp
+corollary tape_write_hd[simp]: "head (tape_write s tp) = s" by (induction tp) simp
 
 lemma tape_write_id'[simp]: "i < length tps \<Longrightarrow> tape_write (map head tps ! i) (tps ! i) = (tps ! i)" by simp
 
