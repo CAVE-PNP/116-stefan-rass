@@ -223,5 +223,129 @@ proof -
   show "head (hd (tapes (step c))) = \<sigma>" by simp
 qed
 
+end \<comment> \<open>\<^locale>\<open>write_TM\<close>\<close>
+
+
+definition move_TM_rec :: "nat \<Rightarrow> 's set \<Rightarrow> head_move \<Rightarrow> (bool, 's, unit) TM_record"
+  where "move_TM_rec k \<Sigma> m \<equiv> \<lparr>
+    TM_record.tape_count = k,
+    symbols = \<Sigma>,
+    states = UNIV,
+    initial_state = False,
+    final_states = {True},
+    label = \<lambda>q. (),
+    next_state = \<lambda>q hds. True,
+    next_write = \<lambda>q hds i. hds ! i,
+    next_move  = \<lambda>q hds i. if i = 0 then m else No_Shift
+  \<rparr>"
+
+lemma move_TM_rec_valid:
+  assumes "k > 0"
+    and "finite \<Sigma>"
+    and "\<Sigma> \<noteq> {}"
+  shows "valid_TM (move_TM_rec k \<Sigma> m)" unfolding move_TM_rec_def
+proof (intro valid_TM_I)
+  fix q hds i
+  assume "length hds = k" and "set hds \<subseteq> options \<Sigma>" and "i < k"
+  with \<open>length hds = k\<close> and \<open>set hds \<subseteq> options \<Sigma>\<close> show "hds ! i \<in> options \<Sigma>" by fastforce
+qed (use assms finite_UNIV in blast)+
+
+
+definition "move_TM_M k \<Sigma> m \<equiv> Abs_TM (move_TM_rec k \<Sigma> m)"
+
+locale move_TM = TM "move_TM_M k \<Sigma> m"
+  for k :: nat and \<Sigma> :: "'s set" and m :: head_move +
+  assumes at_least_one_tape: "k > 0"
+    and finite_symbols: "finite \<Sigma>"
+    and nonempty_symbols: "\<Sigma> \<noteq> {}"
+begin
+
+lemma M_rec: "M_rec = move_TM_rec k \<Sigma> m" unfolding move_TM_M_def
+  using move_TM_rec_valid[OF at_least_one_tape finite_symbols nonempty_symbols]
+  by (intro Abs_TM_inverse CollectI)
+
+lemma M_fields:
+  shows "tape_count \<equiv> k"
+    and "symbols \<equiv> \<Sigma>"
+    and "Q \<equiv> UNIV"
+    and "q\<^sub>0 \<equiv> False"
+    and "F \<equiv> {True}"
+    and "label \<equiv> \<lambda>q. ()"
+    and "\<delta>\<^sub>q \<equiv> \<lambda>q hds. True"
+    and "\<delta>\<^sub>w \<equiv> \<lambda>q. (!)"
+    and "\<delta>\<^sub>m \<equiv> \<lambda>q hds i. if i = 0 then m else No_Shift"
+  unfolding TM_fields_defs M_rec unfolding move_TM_rec_def TM_record.simps .
+
+declare M_fields(1-6)[simp]
+
+
+lemma step:
+  assumes "state c = q\<^sub>0"
+    and "wf_config c"
+  shows "step c = TM_config True (tape_shift m (hd (tapes c)) # tl (tapes c))" using assms
+proof (induction c)
+  case (TM_config q tps)
+  let ?c = "TM_config q tps"
+  let ?h = "head (hd tps)"
+  let ?tps' = "tape_shift m (hd tps) # tl tps"
+
+  from \<open>state ?c = q\<^sub>0\<close> have [simp]: "q = q\<^sub>0" by simp
+  from wf_configD(2)[OF \<open>wf_config ?c\<close>] have "length tps = tape_count" by simp
+  from \<open>wf_config ?c\<close> have "tps \<noteq> []" by force
+
+  have "step ?c = step_not_final ?c" by force
+  also have "... = TM_config True ?tps'"
+  proof (rule TM_config_eq, unfold step_not_final_simps TM_config.sel)
+    show "\<delta>\<^sub>q q (map head tps) = True" unfolding M_fields ..
+
+    show "map2 tape_action (\<delta>\<^sub>a q (map head tps)) tps = ?tps'"
+    proof (rule step_not_final_eqI)
+      show "length tps = tape_count" by fact
+      then show "length (tape_shift m (hd tps) # tl tps) = tape_count"
+        unfolding len_tl_Cons[OF \<open>tps \<noteq> []\<close>] .
+
+      fix i
+      assume "i < tape_count"
+      then have "i < length tps" unfolding \<open>length tps = tape_count\<close> .
+      then show "tape_action (\<delta>\<^sub>w q (map head tps) i, \<delta>\<^sub>m q (map head tps) i) (tps ! i) = ?tps' ! i"
+        unfolding M_fields by (cases "i = 0" rule: ifI) (auto simp: hd_conv_nth nth_tl) (* TODO tune *)
+    qed
+  qed
+  also have "... = TM_config True (tape_shift m (hd (tapes ?c)) # tl (tapes ?c))" by simp
+  finally show ?case .
+qed
+
+
+lemma
+  assumes "state c = q\<^sub>0"
+    and "wf_config c"
+  shows "is_final (step c)"
+proof -
+  have [simp]: "state (step c) = True" unfolding step[OF assms] by simp
+  then show "is_final (step c)" unfolding is_final_def by simp
+qed
+
+end \<comment> \<open>\<^locale>\<open>move_TM\<close>\<close>
+
+
+
+
+locale nop_TM = move_TM k \<Sigma> No_Shift for k :: nat and \<Sigma> :: "'s set"
+begin
+
+lemma
+  assumes "state c = q\<^sub>0"
+    and "wf_config c"
+  shows "tapes (step c) = tapes c"
+proof -
+  have [simp]: "tapes (step c) = hd (tapes c) # tl (tapes c)" unfolding step[OF assms] by simp
+  also from \<open>wf_config c\<close> have "... = tapes c" by force
+  finally show ?thesis .
+qed
+
+end \<comment> \<open>\<^locale>\<open>nop_TM\<close>\<close>
+
+abbreviation "nop_TM_M k \<Sigma> \<equiv> move_TM_M k \<Sigma> No_Shift"
+
 
 end
