@@ -270,6 +270,12 @@ lemma tape_symbols_altdef: "\<Sigma>\<^sub>t\<^sub>p = tape_symbols_rec M_rec" u
 lemma tape_symbols_simps[iff]: "set_option s \<subseteq> \<Sigma> \<longleftrightarrow> s \<in> \<Sigma>\<^sub>t\<^sub>p" unfolding set_options_eq ..
 
 
+(* TODO document *)
+definition "labels \<equiv> label ` F"
+
+lemma in_labelsI[intro]: "q \<in> F \<Longrightarrow> label q \<in> labels" unfolding labels_def by blast
+
+
 text\<open>We provide the following shortcuts for ``unpacking'' the transition function.
   \<open>hds\<close> refers to the symbols currently under the TM heads.\<close>
 
@@ -308,10 +314,15 @@ subsubsection\<open>Properties\<close>
 
 sublocale valid_TM M_rec using Rep_TM .. \<comment> \<open>The axioms of \<^locale>\<open>valid_TM\<close> hold by definition.\<close>
 
+lemma finite_final_states: "finite F" unfolding final_states_def
+  using state_axioms(3,1) by (rule finite_subset)
+lemma finite_labels: "finite labels" unfolding labels_def
+  using finite_final_states by (rule finite_imageI)
+
 lemmas at_least_one_tape = at_least_one_tape[folded TM_fields_defs]
 lemma at_least_one_tape': "k \<ge> 1" using at_least_one_tape unfolding One_nat_def by (fact Suc_leI)
 lemmas symbol_axioms = symbol_axioms[folded TM_fields_defs]
-lemmas state_axioms = state_axioms[folded TM_fields_defs]
+lemmas state_axioms = state_axioms[folded TM_fields_defs] finite_final_states finite_labels
 lemma transition_axioms:
   assumes "q \<in> Q" and "length hds = k" and "set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
   shows next_state_valid: "\<delta>\<^sub>q q hds \<in> Q"
@@ -335,16 +346,18 @@ notepad
 begin
   fix M M\<^sub>1 :: "('q, 's, 'l) TM"
 
+  text\<open>The underlying record fields of a TM can be accessed using \<close>
+
   interpret TM M .
   term \<delta>\<^sub>q
   term next_state
+  term "TM.next_state M"
   thm state_axioms
-
-  text\<open>Note that \<^emph>\<open>notation\<close> like \<open>F\<^sup>+\<close> is not available.\<close>
 
   interpret M\<^sub>1: TM M\<^sub>1 .
   term M\<^sub>1.\<delta>\<^sub>q
   term M\<^sub>1.next_state
+  term "TM.next_state M\<^sub>1"
   thm M\<^sub>1.state_axioms
 end
 
