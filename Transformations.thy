@@ -1,6 +1,6 @@
-subsection\<open>TM Composition\<close>
+subsection\<open>TM Transformations\<close>
 
-theory Composition
+theory Transformations
   imports TM Complexity
 begin
 
