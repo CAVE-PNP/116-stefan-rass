@@ -386,7 +386,7 @@ proof (induction n)
   also have "\<dots> = 2 * (nat_of_bin xs * 2^n + 2^n - 1) + 1" using Suc.IH by simp
   also have "\<dots> = 2 * (nat_of_bin xs * 2^n + 2^n) - 2 + 1" unfolding diff_mult_distrib2 by simp
   also have "\<dots> = nat_of_bin xs * 2 * 2^n + 2 * 2^n - 2 + 1"
-    unfolding add_mult_distrib2 mult.assoc[symmetric] by (subst mult.commute) rule
+    unfolding add_mult_distrib2 mult.assoc[symmetric] by (simp add: mult.commute)
   also have "\<dots> = nat_of_bin xs * 2^(Suc n) + 2^(Suc n) - 2 + 1" unfolding power_Suc mult.assoc ..
   also have "\<dots> = nat_of_bin xs * 2^(Suc n) + 2^(Suc n) - 1" by (subst h3) simp_all
   finally show ?case .
@@ -406,7 +406,7 @@ proof (induction w arbitrary: k)
     case True
     then have "k = k - 1 + 1" by force
 
-    have "(2 * (w)\<^sub>2) mod 2 ^ k = (2 * (w)\<^sub>2) mod 2 ^ (k - 1 + 1)" by (subst \<open>k = k - 1 + 1\<close>) rule
+    have "(2 * (w)\<^sub>2) mod 2 ^ k = (2 * (w)\<^sub>2) mod 2 ^ (k - 1 + 1)" by (subst \<open>k = k - 1 + 1\<close>) (rule refl)
     also have "... = (2 * (w)\<^sub>2) mod (2 * 2^(k-1))" by force
     also have "... = 2 * ((w)\<^sub>2 mod 2 ^ (k-1))" by (rule mult_mod_right[symmetric])
     also have "... = 2 * (take (k - 1) w)\<^sub>2" unfolding \<open>(w)\<^sub>2 mod 2 ^ (k-1) = (take (k-1) w)\<^sub>2\<close> ..
@@ -463,7 +463,7 @@ text\<open>From @{cite \<open>ch.~4.4\<close> rassOwf2017}: "we will order two w
   is necessary as \<^typ>\<open>bin\<close> is defined as a type-synonym and not as independent type.\<close>
 interpretation bin_preorder:
   preorder "\<lambda>a b. (a)\<^sub>2 \<le> (b)\<^sub>2" "\<lambda>a b. (a)\<^sub>2 < (b)\<^sub>2"
-  using less_le_not_le le_refl le_trans by (intro class.preorder.intro)
+  using less_le_not_le le_refl le_trans by (rule class.preorder.intro)
 
 
 subsection\<open>Number of Binary Strings of Given Length\<close>

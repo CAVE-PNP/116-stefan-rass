@@ -245,7 +245,7 @@ proof (rule valid_TM_I)
   from \<open>length hds = k'\<close> have "set (r\<inverse> hds) \<subseteq> set hds" by (fact r_inv_set)
   also note \<open>set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p\<close>
   finally have "set (r\<inverse> hds) \<subseteq> \<Sigma>\<^sub>t\<^sub>p" .
-  with \<open>q \<in> Q\<close> show "\<delta>\<^sub>q q (r\<inverse> hds) \<in> Q" by (fastforce intro: next_state_valid)
+  with \<open>q \<in> Q\<close> show "\<delta>\<^sub>q q (r\<inverse> hds) \<in> Q" by simp
 
   fix i
   assume "i < k'"
