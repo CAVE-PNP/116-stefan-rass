@@ -96,8 +96,9 @@ lemma all_initial_tapes_helperI[intro]:
 
 abbreviation "wf_input w \<equiv> w \<in> \<Sigma>*"
 
-lemma wf_initial_config[simp, intro]: "wf_input w \<Longrightarrow> wf_config (initial_config w)"
+lemma wf_initial_config: "wf_input w \<Longrightarrow> wf_config (initial_config w)"
   by (intro wf_configI all_initial_tapes_helperI) auto
+declare TM.wf_initial_config[simp, intro]
 
 lemma (in typed_TM) wf_initial_config[intro!]: "wf_config (initial_config w)" by simp
 

@@ -273,8 +273,8 @@ lemma tape_symbols_simps[iff]: "set_option s \<subseteq> \<Sigma> \<longleftrigh
 (* TODO document *)
 definition "labels \<equiv> label ` F"
 
-lemma in_labelsI[intro]: "q \<in> F \<Longrightarrow> label q \<in> labels" unfolding labels_def by blast
-
+lemma in_labelsI: "q \<in> F \<Longrightarrow> label q \<in> labels" unfolding labels_def by blast
+declare (in -) TM.in_labelsI[intro]
 
 text\<open>We provide the following shortcuts for ``unpacking'' the transition function.
   \<open>hds\<close> refers to the symbols currently under the TM heads.\<close>
@@ -526,7 +526,7 @@ abbreviation (in TM_abbrevs) "map_conf_state f \<equiv> map_TM_config f (\<lambd
 abbreviation (in TM_abbrevs) "map_conf_tapes f \<equiv> map_TM_config (\<lambda>q. q) f"
 
 
-abbreviation (in TM) "conf_label c \<equiv> label (state c)"
+abbreviation (in TM) (input) "conf_label c \<equiv> label (state c)"
 
 
 paragraph\<open>Symbols currently under the TM-heads\<close>
@@ -767,10 +767,11 @@ definition step :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
 
 abbreviation "steps n \<equiv> step ^^ n"
 
-corollary step_simps[intro, simp]:
+corollary step_simps:
   shows step_final: "is_final c \<Longrightarrow> step c = c"
     and step_not_final: "\<not> is_final c \<Longrightarrow> step c = step_not_final c"
   unfolding step_def is_final_def by auto
+declare (in -) TM.step_simps[simp, intro]
 
 corollary steps_plus[simp]: "steps n2 (steps n1 c) = steps (n1 + n2) c"
   unfolding add.commute[of n1 n2] funpow_add comp_def ..
@@ -849,10 +850,12 @@ proof (elim wf_configE, intro wf_configI)
 qed auto
 
 lemma step_l_tps: "length (tapes c) = k \<Longrightarrow> length (tapes (step c)) = k" by (cases "is_final c") auto
-lemma wf_step[intro]: "wf_config c \<Longrightarrow> wf_config (step c)" by (cases "is_final c") auto
+lemma wf_step: "wf_config c \<Longrightarrow> wf_config (step c)" by (cases "is_final c") auto
 
 lemma steps_l_tps: "length (tapes c) = k \<Longrightarrow> length (tapes (steps n c)) = k" using step_l_tps by (elim funpow_induct)
-lemma wf_steps[intro]: "wf_config c \<Longrightarrow> wf_config (steps n c)" using wf_step by (elim funpow_induct)
+lemma wf_steps: "wf_config c \<Longrightarrow> wf_config (steps n c)" using wf_step by (elim funpow_induct)
+
+declare (in -) TM.wf_step[intro] TM.wf_steps[intro]
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
