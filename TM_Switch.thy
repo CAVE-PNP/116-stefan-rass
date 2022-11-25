@@ -1,4 +1,4 @@
-theory Composition
+theory TM_Switch
   imports TM Complexity
 begin
 

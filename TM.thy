@@ -548,6 +548,8 @@ paragraph\<open>Final configurations\<close>
 definition (in TM) is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
   "is_final c \<equiv> state c \<in> F"
 
+abbreviation (in TM) "is_not_final c \<equiv> \<not> is_final c"
+
 mk_ide (in -) TM.is_final_def |intro is_finalI[intro]| |dest is_finalD[dest]|
 
 lemma (in -) is_final_cong[cong]: "state c = state c' \<Longrightarrow> TM.is_final M c = TM.is_final M c'"
@@ -820,6 +822,15 @@ lemma final_steps_le[dest]:
   using assms and TM.final_mono linorder_le_less_linear by blast
 
 lemma final_steps_ex_eq[simp]: "(\<exists>n\<le>N. is_final (steps n c)) \<longleftrightarrow> is_final (steps N c)" by blast
+
+lemma not_final_next_state[dest]:
+  assumes "\<not> is_final (step c)"
+  shows "\<delta>\<^sub>q (state c) (heads c) \<notin> F"
+proof -
+  from assms have "\<not> is_final c" by blast
+  then have [simp]: "step c = step_not_final c" ..
+  from assms show ?thesis unfolding is_final_def by simp
+qed
 
 
 paragraph\<open>Well-Formed Steps\<close>
