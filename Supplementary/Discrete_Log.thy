@@ -71,13 +71,12 @@ lemma dlog_Suc:
     (is "dlog ?Sn = ?rhs")
 proof (cases "Suc n = 2 ^ dlog (Suc n)")
   case True
-  then have n_eq: "n = 2 ^ dlog (Suc n) - 1" by simp
 
-  from \<open>n > 0\<close> have "?Sn \<ge> 2" "n \<noteq> 0" by simp_all
+  from \<open>n > 0\<close> have "?Sn \<ge> 2" by simp_all
   have "dlog ?Sn > 0" unfolding \<open>?Sn \<ge> 2\<close>[THEN log_rec] ..
 
   from if_P True have "?rhs = Suc (dlog n)" .
-  also have "... = Suc (dlog (2 ^ dlog (Suc n) - 1))" by (subst n_eq) rule
+  also from True have "... = Suc (dlog (2 ^ dlog (Suc n) - 1))" by simp
   also have "... = Suc (dlog (Suc n) - 1)" unfolding log_exp_m1 ..
   also have "... = dlog (Suc n)" using Suc_diff_1 \<open>dlog ?Sn > 0\<close> .
   finally show "dlog ?Sn = ?rhs" ..
