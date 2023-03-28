@@ -7,224 +7,465 @@ theory Discrete_Log
 begin
 
 
-text\<open>Extends \<^theory>\<open>HOL-Library.Discrete\<close> with various helpful lemmas
-  centered around \<^const>\<open>Discrete.log\<close>.\<close>
+lemma Suc_div_le: "d > 1 \<Longrightarrow> n \<ge> d \<Longrightarrow> Suc (n div d) \<le> n" by (simp add: Suc_leI)
 
-abbreviation dlog :: "nat \<Rightarrow> nat" \<comment> \<open>\<open>\<lfloor>log\<^sub>2 n\<rfloor>\<close> over the natural numbers.\<close>
-  where "dlog \<equiv> Discrete.log"
+theorem full_nat_induct'[case_names step]:
+  assumes step: "\<And>n. (\<And>m. Suc m \<le> n \<Longrightarrow> P m) \<Longrightarrow> P n"
+  shows "P n"
+  using step full_nat_induct by blast
 
+lemma log_induct[consumes 1, case_names less div]:
+  fixes b n :: nat
+  assumes "b > 1"
+  assumes less: "\<And>n. n < b \<Longrightarrow> P n"
+  assumes div: "\<And>n. n \<ge> b \<Longrightarrow> P (n div b) \<Longrightarrow> P n"
+  shows "P n"
+proof (induction n rule: full_nat_induct')
+  case (step n)
+  then show ?case
+  proof (cases "n \<ge> b", unfold not_le)
+    assume "n < b"
+    with less show "P n" .
+  next
+    assume "n \<ge> b"
+    moreover with \<open>b > 1\<close> have "P (n div b)" by (intro step.IH) (fact Suc_div_le)
+    ultimately show "P n" by (fact div)
+  qed
+qed
 
-definition clog :: "nat \<Rightarrow> nat" \<comment> \<open>\<open>\<lceil>log\<^sub>2 n\<rceil>\<close> over the natural numbers. Note that this definition is not correct over the reals.\<close>
-  where clog_def[simp]: "clog n \<equiv> dlog (n-1) + 1"
-
-
-lemma log_less: "n > 0 \<Longrightarrow> dlog n < n"
+lemma log2_induct[case_names zero one div]:
+  fixes n :: nat
+  assumes "P 0" and "P 1"
+  assumes step: "\<And>n. n \<ge> 2 \<Longrightarrow> P (n div 2) \<Longrightarrow> P n"
+  shows "P n"
 proof -
-  assume "n > 0"
-  have "dlog n < 2 ^ dlog n" by (rule less_exp)
-  also have "... \<le> n" using \<open>n > 0\<close> by (rule log_exp2_le)
+  have "2 > (1::nat)" by simp
+  then show "P n"
+  proof (induction n rule: log_induct)
+    case (less n)
+    then have "n = 0 \<or> n = 1" by linarith
+    with \<open>P 0\<close> and \<open>P 1\<close> show ?case by blast
+  next
+    case (div n)
+    with step show ?case .
+  qed
+qed
+
+
+text\<open>Based on \<^theory>\<open>HOL-Library.Discrete\<close>, generalizes \<^const>\<open>Discrete.log\<close>.\<close>
+
+fun nat_log :: "nat \<Rightarrow> nat \<Rightarrow> nat" \<comment> \<open>\<open>\<lfloor>log\<^sub>b n\<rfloor>\<close> over the natural numbers\<close>
+  where "nat_log b i = (if b > 1 \<and> i \<ge> b then Suc (nat_log b (i div b)) else 0)"
+
+lemma nat_log_0[simp]:
+  shows "\<not> b > 1 \<Longrightarrow> nat_log b i = 0"
+    and "\<not> i \<ge> b \<Longrightarrow> nat_log b i = 0"
+    and "\<not> (b > 1 \<and> i \<ge> b) \<Longrightarrow> nat_log b i = 0" by auto
+
+locale nat_log_base =
+  fixes b :: nat
+  assumes valid_base: "b > 1"
+begin
+
+lemma nat_log_def[simp]: "i \<ge> b \<Longrightarrow> nat_log b i = Suc (nat_log b (i div b))" using valid_base by force
+
+end
+
+declare nat_log_base.intro[intro!, simp]
+global_interpretation log2: nat_log_base 2 by simp
+
+lemma nat_log_zero_rev[iff]: "nat_log b i = 0 \<longleftrightarrow> b \<le> 1 \<or> i < b" by (force iff: not_le)
+lemma nat_log_zero_rev'[iff]: "nat_log b i \<noteq> 0 \<longleftrightarrow> b > 1 \<and> i \<ge> b"
+  unfolding nat_log_zero_rev de_Morgan_disj not_less not_le ..
+
+lemma nat_log_Suc_ge: "nat_log b i \<le> nat_log b (Suc i)"
+proof (cases "b > 1")
+  assume "b > 1" thus ?thesis
+  proof (induction i rule: log_induct)
+    case (div n)
+    from \<open>n \<ge> b\<close> have "Suc n \<ge> b" by (fact le_SucI)
+
+    from \<open>b > 1\<close> and \<open>n \<ge> b\<close> have "nat_log b n = Suc (nat_log b (n div b))" by (subst nat_log.simps) argo
+    also have "... \<le> Suc (nat_log b (Suc n div b))" unfolding Suc_le_mono
+    proof -
+      from div.IH show "nat_log b (n div b) \<le> nat_log b (Suc n div b)"
+        unfolding div_Suc by (rule ifI) blast
+    qed
+    also from \<open>b > 1\<close> and \<open>Suc n \<ge> b\<close> have "... = nat_log b (Suc n)" by (subst (2) nat_log.simps) argo
+    finally show ?case .
+  qed simp
+qed \<comment> \<open>case \<open>b \<le> 1\<close> by\<close> force
+
+lemma nat_log_mono: "mono (nat_log b)"
+  unfolding incseq_Suc_iff using nat_log_Suc_ge ..
+
+lemmas nat_log_le_iff = monoD[OF nat_log_mono]
+
+
+context nat_log_base
+begin
+
+lemma nat_log_mult: "nat_log b (b * n) = Suc (nat_log b n)" if "n > 0" using valid_base and that
+proof (induction n rule: log_induct)
+  case (div n)
+  from \<open>b > 1\<close> and \<open>n \<ge> b\<close> show ?case by (subst nat_log_def) auto
+qed \<comment> \<open>case \<open>n < b\<close> by\<close> simp
+
+
+lemma nat_log_rec: "Suc (nat_log b (n div b)) = nat_log b n" if "n \<ge> b"
+  using valid_base and that by (subst (2) nat_log.simps) presburger
+
+lemma (in -) nat_log_div[simp]: "nat_log b (n div b) = nat_log b n - 1"
+proof (cases "b > 1 \<and> n \<ge> b")
+  assume "b > 1 \<and> n \<ge> b"
+  then have "nat_log b n - 1 = nat_log b (n div b) + 1 - 1" by (subst nat_log.simps) presburger
+  also have "... = nat_log b (n div b)" by force
+  finally show ?thesis ..
+next
+  assume "\<not> (b > 1 \<and> n \<ge> b)"
+  then have h1: "nat_log b n = 0" by simp
+  with nat_log_mono have h2: "nat_log b (n div b) = 0" by fastforce
+  show "nat_log b (n div b) = nat_log b n - 1" unfolding h1 h2 by simp
+qed
+
+
+(* TODO not needed, maybe useful? *)
+lemma "((\<lambda>n. n div b) ^^ (nat_log b n)) n < b" using valid_base
+proof (induction n rule: log_induct)
+  case (less n)
+  then have [simp]: "nat_log b n = 0" by simp
+  then have "((\<lambda>n. n div b) ^^ (nat_log b n)) n = n" by simp
+  also note \<open>n < b\<close>
+  finally show ?case .
+next
+  case (div n)
+  let ?d = "\<lambda>n. n div b"
+
+  from \<open>b \<le> n\<close> and \<open>b > 1\<close> have "nat_log b n > 0" by (subst nat_log_def) blast+
+  then have "(?d ^^ nat_log b n) n = (?d ^^ (Suc (nat_log b (n div b)))) n"
+    unfolding nat_log_div using Suc_diff_1 by presburger
+  also have "... = (?d ^^ (nat_log b (n div b))) (n div b)" unfolding funpow_Suc_right comp_def ..
+  also note div.IH
+  finally show ?case .
+qed
+
+
+lemma log_exp_le: "b ^ nat_log b n \<le> n" if "n > 0" using valid_base and that
+proof (induction n rule: log_induct)
+  case (div n)
+  from \<open>b > 1\<close> and \<open>n \<ge> b\<close> have h1: "n div b > 0" and h2: "nat_log b n > 0" by (auto simp: div_greater_zero_iff)
+
+  have "b ^ nat_log b n = b * b ^ (nat_log b (n div b))" unfolding power_Suc[symmetric] nat_log_div Suc_diff_1[OF h2] ..
+  also have "... \<le> b * (n div b)" using h1 by (intro mult_le_mono2 div.IH)
+  also have "... \<le> n" by (fact times_div_less_eq_dividend)
+  finally show ?case .
+qed \<comment> \<open>case \<open>n < b\<close> by\<close> fastforce
+
+
+
+lemma (in -) div_lt_rev_mono:
+  fixes a b d :: nat
+  shows "a div d < b div d \<Longrightarrow> a < b"
+  using div_le_mono by (fold not_le) blast
+
+lemma log_exp_gt: "n < b ^ (Suc (nat_log b n))" using valid_base
+proof (induction n rule: log_induct)
+  case (less n)
+  then show ?case by simp
+next
+  case (div n)
+  from \<open>b > 1\<close> and \<open>b \<le> n\<close> have h1: "nat_log b n > 0" by fastforce
+
+  from div.IH have \<open>n div b < b ^ Suc (nat_log b (n div b))\<close> .
+  also have "... = b ^ nat_log b n" unfolding nat_log_div Suc_diff_1[OF h1] ..
+  also have "... = b ^ Suc (nat_log b n) div b" using \<open>b > 1\<close> by force
+  finally show ?case by (fact div_lt_rev_mono)
+qed
+
+lemma (in -) log_less: "nat_log b n < n" if "n > 0" using that
+proof (cases "b > 1")
+  assume "b > 1"
+  then interpret nat_log_base ..
+  from \<open>b > 1\<close> have "nat_log b n < b ^ nat_log b n" using power_gt_expt by simp
+  also have "... \<le> n" using \<open>n > 0\<close> by (fact log_exp_le)
+  finally show ?thesis .
+qed \<comment> \<open>case \<open>b \<le> 1\<close> by\<close> fastforce
+
+
+lemma (in -) log_le: "nat_log b n \<le> n" by (cases "n > 0") (blast intro: log_less less_imp_le)+
+
+lemma nat_log_altdef: "nat_log b n = nat \<lfloor>log b n\<rfloor>" if "n > 0"
+proof -
+  have "nat_log b n = \<lfloor>log b n\<rfloor>"
+  proof (rule floor_unique[symmetric], unfold of_int_of_nat_eq)
+    have "nat_log b n = log b (b powr (nat_log b n))" using valid_base by simp
+    also have "... \<le> log b n" using that and valid_base
+    proof (subst log_le_cancel_iff)
+      show "b powr nat_log b n \<le> real n" using that and valid_base using powr_realpow log_exp_le[OF that] by simp
+    qed fastforce+
+    finally show "nat_log b n \<le> log b n" .
+
+    have "real n < b ^ (Suc (nat_log b n))" unfolding of_nat_less_iff by (fact log_exp_gt)
+    also have "\<dots> = b powr (real (nat_log b n) + 1)" by (simp add: powr_add powr_realpow)
+    finally have "n < b powr (real (nat_log b n) + 1)" .
+    then have "log b n < log b \<dots>" using that and valid_base by (subst log_less_cancel_iff) linarith+
+    also have "\<dots> = real (nat_log b n) + 1" using valid_base by simp
+    finally show "log b n < real (nat_log b n) + 1" by simp
+  qed
+  then have "nat (int (nat_log b n)) = nat \<lfloor>log b n\<rfloor>" by (fact arg_cong)
+  then show ?thesis unfolding nat_int .
+qed
+
+lemma nat_log_cancel: "nat_log b (b^n) = n"
+  using valid_base by (induction n) fastforce+
+
+lemmas nat_log_exp = nat_log_cancel
+
+lemma log_eqI:
+  assumes "n > 0" "b^k \<le> n" "n < b * b^k"
+  shows   "nat_log b n = k"
+proof -
+  from valid_base have "real b > 0" by simp
+  note powr_convert = powr_realpow[OF \<open>real b > 0\<close>]
+
+  from \<open>n > 0\<close> have "nat_log b n = nat \<lfloor>log b n\<rfloor>" by (fact nat_log_altdef)
+  also from \<open>n > 0\<close> and valid_base have "... = nat k"
+  proof (subst eq_nat_nat_iff)
+    from \<open>n < b * b^k\<close> have "real n < b * b^k" by (fact less_imp_of_nat_less)
+    with \<open>b^k \<le> n\<close> have "b powr k \<le> n \<and> n < b powr (k + 1)" unfolding powr_convert by simp
+    then have h1: "b powr (int k) \<le> n \<and> n < b powr (int k + 1)"
+      unfolding of_int_add of_int_of_nat_eq of_int_1 of_nat_add of_nat_1 .
+    with \<open>n > 0\<close> and valid_base show "\<lfloor>log b n\<rfloor> = int k" by (subst floor_log_eq_powr_iff) auto
+  qed simp_all
+  also have "... = k" by simp
   finally show ?thesis .
 qed
 
-lemma log_le: "dlog n \<le> n"
-  by (cases "n > 0") (simp_all add: less_imp_le log_less)
 
-lemma dlog_altdef: "1 \<le> n \<Longrightarrow> dlog n = nat \<lfloor>log 2 n\<rfloor>"
-  unfolding log_altdef by (subst if_not_P) fastforce+
+lemma log_exp_m1: "nat_log b (b^n - 1) = n - 1"
+proof (cases "n > 0")
+  assume "n > 0"
+  with valid_base have "b^n - 1 > 0" unfolding zero_less_diff by (rule one_less_power)
+  then show ?thesis
+  proof (rule log_eqI)
+    from \<open>b > 1\<close> and \<open>n > 0\<close> have "b^(n-1) < b^n" by simp
+    also from \<open>b > 1\<close> have "... = Suc (b^n - 1)" by fastforce
+    finally show "b^(n-1) \<le> b^n - 1" unfolding less_Suc_eq_le .
 
-
-lemma log_exp_m1: "dlog (2^k - 1) = k - 1"
-proof (cases "k > 0")
-  case True show ?thesis
-  proof (intro log_eqI)
-    \<comment> \<open>Isabelle automatically chooses the most general applicable interpretation of numerals,
-      but the following results do not hold for all of those (and are not required to).\<close>
-    let ?Z = "2::nat"
-
-    from \<open>k > 0\<close> have "2^k \<ge> ?Z" using self_le_power[of 2 k] by fastforce
-    then show "?Z^k - 1 > 0" by (simp add: \<open>k > 0\<close>)
-    show "?Z^k - 1 < 2 * 2^(k - 1)" unfolding power_Suc[symmetric] by (simp add: \<open>k > 0\<close>)
-    have "?Z^(k-1) < 2^k" by (simp add: \<open>k > 0\<close>)
-    moreover have "a < b \<Longrightarrow> a \<le> b - 1" for a b :: nat by force
-    ultimately show "?Z^(k - 1) \<le> 2^k - 1" by blast
+    from \<open>b > 1\<close> have "b^n - 1 < b^n" by simp
+    also from \<open>n > 0\<close> have "b^n = b * b^(n-1)" by (simp add: power_eq_if)
+    finally show "b^n - 1 < b * b^(n-1)" .
   qed
-qed \<comment> \<open>case \<open>k = 0\<close> by\<close> simp
+qed \<comment> \<open>case \<open>n = 0\<close> by\<close> fastforce
 
 
-lemma dlog_times_exp:
-  assumes "a > 0"
-  shows "dlog (a * 2^k) = dlog a + k"
+lemma nat_log_times_exp:
+  assumes "n > 0"
+  shows "nat_log b (n * b^k) = nat_log b n + k"
 proof (induction k)
   case (Suc k)
-  from \<open>a > 0\<close> have h1: "a * 2^k \<noteq> 0" by fastforce
+  from valid_base and \<open>n > 0\<close> have h1: "n * b^k > 0" by fastforce
 
-  have "a * 2^Suc k = 2 * (a * 2^k)" by simp
-  with arg_cong have "dlog (a * 2 ^ Suc k) = dlog (2 * (a * 2^k))" .
-  also have "... = dlog (a * 2^k) + 1" using log_twice h1 unfolding Suc_eq_plus1 .
-  also have "... = dlog a + Suc k" unfolding Suc.IH add.assoc Suc_eq_plus1 ..
+  have "n * b^Suc k = b * (n * b^k)" by simp
+  then have "nat_log b (n * b ^ Suc k) = nat_log b (b * (n * b^k))" by (fact arg_cong)
+  also have "... = nat_log b (n * b^k) + 1" unfolding nat_log_mult[OF h1] by simp
+  also have "... = nat_log b n + Suc k" unfolding Suc.IH by simp
   finally show ?case .
 qed \<comment> \<open>case \<open>k = 0\<close> by\<close> simp
 
-lemma dlog_Suc:
+lemma nat_log_Suc:
   assumes "n > 0"
-  shows "dlog (Suc n) = (if Suc n = 2 ^ dlog (Suc n) then Suc (dlog n) else dlog n)"
-    (is "dlog ?Sn = ?rhs")
-proof (cases "Suc n = 2 ^ dlog (Suc n)")
+  shows "nat_log b (Suc n) = (if Suc n = b ^ nat_log b (Suc n) then Suc (nat_log b n) else nat_log b n)"
+    (is "?log (Suc n) = ?rhs")
+proof (cases "Suc n = b ^ ?log (Suc n)")
   case True
 
-  from \<open>n > 0\<close> have "?Sn \<ge> 2" by simp_all
-  have "dlog ?Sn > 0" unfolding \<open>?Sn \<ge> 2\<close>[THEN log_rec] ..
+  have "Suc n \<ge> b"
+  proof (rule ccontr)
+    assume "\<not> Suc n \<ge> b" hence "Suc n < b" by linarith
+    then have "nat_log b (Suc n) = 0" by blast
+    then have "b ^ nat_log b (Suc n) = 1" by simp
+    with True have "Suc n = 1" by simp
+    with \<open>n > 0\<close> show False by simp
+  qed
 
-  from if_P True have "?rhs = Suc (dlog n)" .
-  also from True have "... = Suc (dlog (2 ^ dlog (Suc n) - 1))" by simp
-  also have "... = Suc (dlog (Suc n) - 1)" unfolding log_exp_m1 ..
-  also have "... = dlog (Suc n)" using Suc_diff_1 \<open>dlog ?Sn > 0\<close> .
-  finally show "dlog ?Sn = ?rhs" ..
+  then have "nat_log b (Suc n) > 0" using valid_base by auto
+
+  from True have "?rhs = Suc (nat_log b n)" by (fact if_P)
+  also from True have "... = Suc (nat_log b (b ^ nat_log b (Suc n) - 1))" by force
+  also have "... = nat_log b (Suc n)" unfolding log_exp_m1 using \<open>nat_log b (Suc n) > 0\<close> by (fact Suc_diff_1)
+  finally show "nat_log b (Suc n) = ?rhs" ..
 next
   case False
-  with if_not_P have req: "?rhs = dlog n" .
-  show "dlog (Suc n) = ?rhs" unfolding req
-  proof (intro log_eqI)
-    show "?Sn > 0" ..
-    from log_exp2_le \<open>n > 0\<close> have "n \<ge> 2 ^ dlog n" .
-    with le_SucI show "?Sn \<ge> 2 ^ dlog n" .
+  then have req: "?rhs = nat_log b n" by (fact if_not_P)
+  also have "... = nat_log b (Suc n)"
+  proof (intro log_eqI[symmetric])
+    show "Suc n > 0" ..
+    from \<open>n > 0\<close> have "n \<ge> b ^ nat_log b n" by (fact log_exp_le)
+    then show "Suc n \<ge> b ^ nat_log b n" by (fact le_SucI)
 
-    have "?Sn > 2 ^ dlog ?Sn"
-    proof (intro le_neq_trans)
-      have "?Sn > 0" ..
-      with log_exp2_le show "?Sn \<ge> 2 ^ dlog ?Sn" .
-      from \<open>?Sn \<noteq> 2 ^ dlog ?Sn\<close> show "2 ^ dlog ?Sn \<noteq> ?Sn" ..
-    qed
-    then have "n \<ge> 2 ^ dlog ?Sn" by simp
-    with log_le_iff have "dlog n \<ge> dlog (2 ^ (dlog ?Sn))" .
-    then have "dlog n \<ge> dlog ?Sn" unfolding log_exp .
+    have "Suc n > b ^ nat_log b (Suc n)" using log_exp_le False by (intro le_neq_trans) (blast, argo)
+    then have "n \<ge> b ^ nat_log b (Suc n)" by simp
+    with nat_log_mono have "nat_log b n \<ge> nat_log b (b ^ (nat_log b (Suc n)))" ..
+    then have "nat_log b n \<ge> nat_log b (Suc n)" unfolding nat_log_cancel .
 
-    moreover have "dlog n \<le> dlog ?Sn" using log_le_iff less_imp_le lessI .
-    ultimately have deq: "dlog ?Sn = dlog n" by (rule le_antisym)
-    from log_exp2_gt[of ?Sn] show "?Sn < 2 * 2 ^ dlog n" unfolding deq .
+    moreover have "nat_log b n \<le> nat_log b (Suc n)" by (fact nat_log_Suc_ge)
+    ultimately have deq: "nat_log b (Suc n) = nat_log b n" by (fact le_antisym)
+    from log_exp_gt[of "Suc n"] show "Suc n < b * b ^ nat_log b n" unfolding deq power_Suc .
   qed
+  finally show ?thesis ..
 qed
 
-corollary dlog_add1_le: "dlog (n + 1) \<le> dlog n + 1"
-proof (cases "n > 0")
-  assume "n > 0" thus ?thesis by (fold Suc_eq_plus1, subst dlog_Suc) simp_all
-qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
+corollary nat_log_add1_le: "nat_log b (n + 1) \<le> nat_log b n + 1"
+proof (cases "n > 0", unfold not_gr_zero)
+  assume "n > 0" thus ?thesis by (fold Suc_eq_plus1, subst nat_log_Suc) simp_all next
+  assume "n = 0" thus ?thesis using valid_base by force
+qed
 
 
 subsubsection\<open>Discrete Ceiling Log\<close>
 
-lemma clog_exp[simp]: "0 < n \<Longrightarrow> clog (2^n) = n" unfolding clog_def log_exp_m1 by fastforce
+definition (in -) nat_log_ceil :: "nat \<Rightarrow> nat \<Rightarrow> nat" \<comment> \<open>\<open>\<lceil>log\<^sub>2 n\<rceil>\<close> over the natural numbers\<close>
+  where "nat_log_ceil b n \<equiv> nat_log b (n-1) + 1"
 
-lemma clog_gt_0[simp]: "clog n > 0" by simp
+lemma (in -) "nat_log_ceil b 0 = 1" unfolding nat_log_ceil_def by simp
 
-lemma clog_le: "0 < n \<Longrightarrow> clog n \<le> n"
+lemma  nat_log_ceil_exp[simp]: "nat_log_ceil b (b^n) = n" if "n > 0"
+  using that unfolding nat_log_ceil_def by (subst log_exp_m1) fastforce+
+
+lemma nat_log_ceil_gt_0[simp]: "nat_log_ceil b n > 0" unfolding nat_log_ceil_def by simp
+
+lemma nat_log_ceil_eq1: "n \<le> b \<Longrightarrow> nat_log_ceil b n = 1" unfolding nat_log_ceil_def
+  using valid_base by (subst nat_log_0(2)) linarith+
+
+lemma nat_log_ceil_le: "0 < n \<Longrightarrow> nat_log_ceil b n \<le> n"
 proof -
   assume "n > 0"
-  have "dlog (n-1) \<le> n-1" by (rule log_le)
-  then have "clog n \<le> n-1 + 1" by (unfold clog_def add_le_cancel_right)
+  have "nat_log b (n-1) \<le> n-1" by (rule log_le)
+  then have "nat_log_ceil b n \<le> n-1 + 1" by (unfold nat_log_ceil_def add_le_cancel_right)
   also have "... = n" using \<open>n > 0\<close> by simp
-  finally show "clog n \<le> n" .
+  finally show "nat_log_ceil b n \<le> n" .
 qed
 
-lemma dlog_le_clog[simp]: "dlog n \<le> clog n"
+lemma nat_log_le_nat_log_ceil[simp]: "nat_log b n \<le> nat_log_ceil b n"
 proof (cases "n > 0")
   assume "n > 0"
   then have n_split: "n - 1 + 1 = n" by simp
-  have "dlog n = dlog (n - 1 + 1)" unfolding n_split ..
-  also have "... \<le> dlog (n - 1) + 1" by (rule dlog_add1_le)
-  finally show "dlog n \<le> clog n" unfolding clog_def .
+  have "nat_log b n = nat_log b (n - 1 + 1)" unfolding n_split ..
+  also have "... \<le> nat_log b (n - 1) + 1"  by (rule nat_log_add1_le)
+  finally show "nat_log b n \<le> nat_log_ceil b n" unfolding nat_log_ceil_def .
 qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
-lemma clog_le_dlog_p1: "clog n \<le> dlog n + 1"
+lemma nat_log_ceil_le_nat_log_p1: "nat_log_ceil b n \<le> nat_log b n + 1"
 proof -
-  have "clog n = dlog (n - 1) + 1" by simp
-  also have "... \<le> dlog n + 1" unfolding add_le_cancel_right using log_le_iff by simp
-  finally show "clog n \<le> dlog n + 1" .
+  have "nat_log_ceil b n = nat_log b (n - 1) + 1" unfolding nat_log_ceil_def ..
+  also have "... \<le> nat_log b n + 1" unfolding add_le_cancel_right by (intro nat_log_le_iff diff_le_self)
+  finally show "nat_log_ceil b n \<le> nat_log b n + 1" .
 qed
 
-lemma clog_mono: "mono clog"
-  unfolding clog_def by (intro monoI add_le_mono1 log_le_iff diff_le_mono)
+lemma nat_log_ceil_mono: "mono (nat_log_ceil b)"
+  unfolding nat_log_ceil_def by (intro monoI add_le_mono1 nat_log_le_iff diff_le_mono)
 
-
-lemma power_two_decompose:
-  fixes n::nat
+lemma power_decompose:
   assumes "1 \<le> n"
-  obtains k m::nat
-  where "n = 2^k + m" and "m < 2^k"
+  obtains k m :: nat (* TODO (?) use actual values \<open>k = nat_log b n\<close> and \<open>m = n - b^k\<close> *)
+  where "n = b^k + m" and "m < b^(k+1) - b^k"
 proof -
-  have "strict_mono (\<lambda>k. (2::nat)^k)" by (intro strict_monoI) simp
-  then obtain k where "2^k \<le> n" and *: "\<forall>k'. 2^k' \<le> n \<longrightarrow> k' \<le> k"
-    using assms nat_strict_mono_greatest[of "\<lambda>k. 2^k" n] by auto
+  from valid_base have "strict_mono (\<lambda>k. b^k)" by (intro strict_monoI power_strict_increasing)
+  then obtain k where "b^k \<le> n" and *: "\<forall>k'. b^k' \<le> n \<longrightarrow> k' \<le> k"
+    using assms nat_strict_mono_greatest[of "\<lambda>k. b^k" n] by auto
 
-  define m where "m \<equiv> n - 2^k"
+  define m where "m \<equiv> n - b^k"
 
-  have "n = 2^k + m" using m_def \<open>2^k \<le> n\<close> by simp
+  have "n = b^k + m" using m_def \<open>b^k \<le> n\<close> by simp
 
-  moreover have "m < 2^k" proof (rule ccontr)
-    assume "\<not> m < 2^k"
-    hence "2^(k+1) \<le> n" using m_def by simp
+  moreover have "m < b^(k+1) - b^k" proof (rule ccontr)
+    assume "\<not> m < b^(k+1) - b^k"
+    with \<open>b^k \<le> n\<close> have "b^(k+1) \<le> n" unfolding m_def not_less using valid_base by (subst (asm) le_diff_iff) auto
     thus False using * by fastforce
   qed
 
-  ultimately show ?thesis using that by simp
+  ultimately show ?thesis by (fact that)
 qed
 
+
 lemma log_eq1:
-  fixes k m::nat
-  assumes "0 \<le> m" "m < 2^k"
-  shows "dlog (2^k + m) = k"
-  using assms log_eqI by force
+  assumes "m < b^(k+1) - b^k"
+  shows "nat_log b (b^k + m) = k"
+proof (intro log_eqI)
+  from \<open>m < b^(k+1) - b^k\<close> have "b^k + m < b^k + (b^(k+1) - b^k)" by (fact add_strict_left_mono)
+  also have "... = b * b^k" using valid_base by force
+  finally show "b^k + m < b * b^k" .
+qed (use assms in auto)
 
 lemma log_eq2:
-  fixes k m::nat
-  assumes "1 \<le> m" "m < 2^k"
-  shows "nat \<lceil>log 2 (2^k + m)\<rceil> = k + 1"
+  fixes k m :: nat
+  assumes "m \<ge> 1" and "m < b^(k+1) - b^k"
+  shows "nat \<lceil>log b (b^k + m)\<rceil> = k + 1"
 proof -
-  let ?n = "2^k+m"
-  have "k < log 2 ?n"
-    using assms less_log2_of_power[of k ?n] by simp
-  moreover have "log 2 ?n \<le> k+1"
-    using assms log2_of_power_le[of ?n "k+1"] by simp
+  let ?n = "b^k+m"
+  from \<open>m \<ge> 1\<close> have "k < log b (b^k + m)" using valid_base by (intro less_log_of_power) fastforce+
+  moreover have "log b (b^k + m) \<le> k+1" using valid_base
+  proof (intro log_of_power_le)
+    from \<open>m < b^(k+1) - b^k\<close>
+    have "b ^ k + m \<le> b ^ (k + 1)" by linarith
+    then show "real (b ^ k + m) \<le> real b ^ (k + 1)" by (fold of_nat_power) (fact of_nat_mono)
+  qed force+
   ultimately show ?thesis by linarith
 qed
 
 lemma log_altdef_ceil:
-  fixes n :: nat
-  assumes "2 \<le> n"
-  shows "clog n = nat \<lceil>log 2 n\<rceil>"
-proof -
-  from assms have "1 \<le> n" by simp
-  with power_two_decompose obtain k m where km_def: "n = 2^k + m" "m < 2^k" .
+  assumes "n > 1"
+  shows "nat_log_ceil b n = nat \<lceil>log b n\<rceil>"
+proof (cases "n \<ge> b")
+  assume "\<not> n \<ge> b"
+  then have "n \<le> b" by linarith
+  then have "nat_log_ceil b n = 1" by (fact nat_log_ceil_eq1)
+  also have "... = nat \<lceil>log b n\<rceil>"
+  proof -
+    from \<open>n > 1\<close> have "real n > 0" by linarith
+    from valid_base have "real b > 1" by linarith
+    note h1 = \<open>real b > 1\<close> \<open>real n > 0\<close>
+    note h2 = zero_less_log_cancel_iff[OF h1] log_le_one_cancel_iff[OF h1]
 
-  show "clog n = nat \<lceil>log 2 n\<rceil>" unfolding clog_def
+    from \<open>n > 1\<close> and \<open>n \<le> b\<close> have "\<lceil>log b n\<rceil> = 1" by (force intro: ceiling_unique simp: h2)
+    then show ?thesis by simp
+  qed
+  finally show ?thesis .
+next
+  assume "n \<ge> b"
+  from assms valid_base have "1 \<le> n" by simp
+  with power_decompose obtain k m where km_def: "n = b^k + m" "m < b^(k+1) - b^k" .
+
+  show "nat_log_ceil b n = nat \<lceil>log b n\<rceil>" unfolding nat_log_ceil_def
   proof (cases "m = 0")
     case True
-    then have k_def: "n = 2^k" using \<open>n = 2^k + m\<close> by simp
+    then have k_def: "n = b^k" using \<open>n = b^k + m\<close> by simp
 
-    have "dlog (n-1) + 1 = (k-1) + 1" unfolding add_right_cancel k_def by (rule log_exp_m1)
-    also have "... = k"
-    proof (intro le_add_diff_inverse2)
-      have "(2::nat) ^ 1 \<le> 2 ^ k" using assms unfolding k_def by simp
-      then show "1 \<le> k" by (intro power_le_imp_le_exp) simp_all
+    have "nat_log b (n-1) + 1 = (k-1) + 1" unfolding add_right_cancel k_def by (rule log_exp_m1)
+    also have "... = k" using valid_base
+    proof (intro le_add_diff_inverse2 power_le_imp_le_exp)
+      show "b ^ 1 \<le> b ^ k" using \<open>n \<ge> b\<close> unfolding k_def by simp
     qed
-    also have "... = dlog (2^k)" using log_exp ..
-    also have "... = nat \<lceil>log 2 ((2::nat)^k)\<rceil>" by (subst dlog_altdef) simp_all
-    also have "... = nat \<lceil>log 2 n\<rceil>" unfolding k_def ..
-    finally show "dlog (n-1) + 1 = nat \<lceil>log 2 n\<rceil>" .
+    also have "... = nat_log b (b^k)" using nat_log_cancel ..
+    also have "... = nat \<lceil>log b (b^k)\<rceil>" using valid_base by (subst nat_log_altdef) force+
+    also have "... = nat \<lceil>log b n\<rceil>" unfolding k_def ..
+    finally show "nat_log b (n-1) + 1 = nat \<lceil>log b n\<rceil>" .
   next
     case False
-    then have \<open>1 \<le> m\<close> \<open>0 \<le> m-1\<close> by simp_all
-    from \<open>m < 2^k\<close> have "m-1 < 2^k" by (rule less_imp_diff_less)
+    then have "1 \<le> m" by simp_all
+    from \<open>m < b^(k+1) - b^k\<close> have "m-1 < b^(k+1) - b^k" by (rule less_imp_diff_less)
 
-    have "dlog (n-1) = dlog (2^k + (m-1))" unfolding km_def
+    have "nat_log b (n-1) = nat_log b (b^k + (m-1))" unfolding km_def
       using \<open>1 \<le> m\<close> by (subst diff_add_assoc) simp_all
-    also have "... = k" using \<open>0 \<le> m-1\<close> \<open>m-1 < 2^k\<close> by (rule log_eq1)
-    finally have "dlog (n-1) + 1 = k + 1" unfolding add_right_cancel .
-    also have "... = nat \<lceil>log 2 n\<rceil>" unfolding km_def
-      using \<open>1 \<le> m\<close> \<open>m < 2^k\<close> by (subst log_eq2) simp_all
-    finally show "dlog (n-1) + 1 = nat \<lceil>log 2 n\<rceil>" .
+    also have "... = k" using \<open>m-1 < b^(k+1) - b^k\<close> by (rule log_eq1)
+    finally have "nat_log b (n-1) + 1 = k + 1" unfolding add_right_cancel .
+    also have "... = nat \<lceil>log b n\<rceil>" unfolding km_def
+      using \<open>1 \<le> m\<close> and \<open>m < b^(k+1) - b^k\<close> by (rule log_eq2[symmetric])
+    finally show "nat_log b (n-1) + 1 = nat \<lceil>log b n\<rceil>" .
   qed
 qed
 
+end
 
 end
