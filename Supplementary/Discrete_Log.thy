@@ -162,7 +162,6 @@ proof (induction n rule: log_induct)
 qed \<comment> \<open>case \<open>n < b\<close> by\<close> fastforce
 
 
-
 lemma (in -) div_lt_rev_mono:
   fixes a b d :: nat
   shows "a div d < b div d \<Longrightarrow> a < b"
@@ -366,27 +365,25 @@ qed
 lemma nat_log_ceil_mono: "mono (nat_log_ceil b)"
   unfolding nat_log_ceil_def by (intro monoI add_le_mono1 nat_log_le_iff diff_le_mono)
 
+
 lemma power_decompose:
-  assumes "1 \<le> n"
-  obtains k m :: nat (* TODO (?) use actual values \<open>k = nat_log b n\<close> and \<open>m = n - b^k\<close> *)
-  where "n = b^k + m" and "m < b^(k+1) - b^k"
+  assumes "n > 0"
+  defines "k \<equiv> nat_log b n"
+  defines "m \<equiv> n - b^k"
+  shows "n = b^k + m" and "m < b^(k+1) - b^k"
 proof -
-  from valid_base have "strict_mono (\<lambda>k. b^k)" by (intro strict_monoI power_strict_increasing)
-  then obtain k where "b^k \<le> n" and *: "\<forall>k'. b^k' \<le> n \<longrightarrow> k' \<le> k"
-    using assms nat_strict_mono_greatest[of "\<lambda>k. b^k" n] by auto
+  from \<open>n > 0\<close> have le: "b ^ k \<le> n" unfolding k_def by (fact log_exp_le)
+  then show "n = b^k + m" unfolding m_def by (rule le_add_diff_inverse[symmetric])
 
-  define m where "m \<equiv> n - b^k"
-
-  have "n = b^k + m" using m_def \<open>b^k \<le> n\<close> by simp
-
-  moreover have "m < b^(k+1) - b^k" proof (rule ccontr)
-    assume "\<not> m < b^(k+1) - b^k"
-    with \<open>b^k \<le> n\<close> have "b^(k+1) \<le> n" unfolding m_def not_less using valid_base by (subst (asm) le_diff_iff) auto
-    thus False using * by fastforce
-  qed
-
-  ultimately show ?thesis by (fact that)
+  from log_exp_gt have "n < b^(k+1)" unfolding k_def by force
+  with le show "m < b^(k+1) - b^k" unfolding m_def by (intro diff_less_mono)
 qed
+
+lemma power_decompose':
+  assumes "n > 0"
+  obtains k m :: nat
+  where "n = b^k + m" and "m < b^(k+1) - b^k"
+  using power_decompose[OF \<open>n > 0\<close>] by blast
 
 
 lemma log_eq1:
@@ -434,8 +431,8 @@ proof (cases "n \<ge> b")
   finally show ?thesis .
 next
   assume "n \<ge> b"
-  from assms valid_base have "1 \<le> n" by simp
-  with power_decompose obtain k m where km_def: "n = b^k + m" "m < b^(k+1) - b^k" .
+  from assms valid_base have "n > 0" by simp
+  with power_decompose' obtain k m where km_def: "n = b^k + m" "m < b^(k+1) - b^k" .
 
   show "nat_log_ceil b n = nat \<lceil>log b n\<rceil>" unfolding nat_log_ceil_def
   proof (cases "m = 0")
