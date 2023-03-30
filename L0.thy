@@ -1,7 +1,7 @@
 section\<open>The Time Hierarchy Theorem and the Language \<open>L\<^sub>0\<close>\<close>
 
 theory L0
-  imports SQ Complexity TM_Encoding Composition
+  imports SQ Complexity TM_Encoding Transformations
 begin
 
 

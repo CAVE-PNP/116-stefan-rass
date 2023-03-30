@@ -164,7 +164,7 @@ lemma valid_TM_I[intro]:
     and symbol_axioms: "finite \<Sigma>" "\<Sigma> \<noteq> {}"
     and state_axioms: "finite Q" "q\<^sub>0 \<in> Q" "F \<subseteq> Q"
     and next_state_valid: "\<And>q hds. q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> \<delta>\<^sub>q q hds \<in> Q"
-    and next_write_valid: "\<And>q hds i. q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> i < k \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>\<^sub>t\<^sub>p"
+    and next_write_valid: "\<And>q hds i. q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> i < k \<Longrightarrow> hds ! i \<in> \<Sigma>\<^sub>t\<^sub>p \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>\<^sub>t\<^sub>p"
   shows "valid_TM M"
 proof (unfold_locales, unfold M_def TM_record.simps wf_hds_rec_simps)
   fix q hds
@@ -172,7 +172,9 @@ proof (unfold_locales, unfold M_def TM_record.simps wf_hds_rec_simps)
   with next_state_valid show "\<delta>\<^sub>q q hds \<in> Q" unfolding \<Sigma>\<^sub>t\<^sub>p_def by blast
   fix i
   assume "i < k"
-  with next_write_valid and \<open>q \<in> Q\<close> and wf show "\<delta>\<^sub>w q hds i \<in> options \<Sigma>" unfolding \<Sigma>\<^sub>t\<^sub>p_def by blast
+  with wf have "hds ! i \<in> \<Sigma>\<^sub>t\<^sub>p" by force
+  with next_write_valid and \<open>q \<in> Q\<close> and wf and \<open>i < k\<close> show "\<delta>\<^sub>w q hds i \<in> options \<Sigma>"
+    unfolding \<Sigma>\<^sub>t\<^sub>p_def by blast
 qed (fact assms)+
 
 lemma valid_TM_finiteI[intro]:
@@ -268,6 +270,12 @@ lemma tape_symbols_altdef: "\<Sigma>\<^sub>t\<^sub>p = tape_symbols_rec M_rec" u
 lemma tape_symbols_simps[iff]: "set_option s \<subseteq> \<Sigma> \<longleftrightarrow> s \<in> \<Sigma>\<^sub>t\<^sub>p" unfolding set_options_eq ..
 
 
+(* TODO document *)
+definition "labels \<equiv> label ` F"
+
+lemma in_labelsI: "q \<in> F \<Longrightarrow> label q \<in> labels" unfolding labels_def by blast
+declare (in -) TM.in_labelsI[intro]
+
 text\<open>We provide the following shortcuts for ``unpacking'' the transition function.
   \<open>hds\<close> refers to the symbols currently under the TM heads.\<close>
 
@@ -306,17 +314,22 @@ subsubsection\<open>Properties\<close>
 
 sublocale valid_TM M_rec using Rep_TM .. \<comment> \<open>The axioms of \<^locale>\<open>valid_TM\<close> hold by definition.\<close>
 
+lemma finite_final_states: "finite F" unfolding final_states_def
+  using state_axioms(3,1) by (rule finite_subset)
+lemma finite_labels: "finite labels" unfolding labels_def
+  using finite_final_states by (rule finite_imageI)
+
 lemmas at_least_one_tape = at_least_one_tape[folded TM_fields_defs]
 lemma at_least_one_tape': "k \<ge> 1" using at_least_one_tape unfolding One_nat_def by (fact Suc_leI)
 lemmas symbol_axioms = symbol_axioms[folded TM_fields_defs]
-lemmas state_axioms = state_axioms[folded TM_fields_defs]
+lemmas state_axioms = state_axioms[folded TM_fields_defs] finite_final_states finite_labels
 lemma transition_axioms:
   assumes "q \<in> Q" and "length hds = k" and "set hds \<subseteq> \<Sigma>\<^sub>t\<^sub>p"
   shows next_state_valid: "\<delta>\<^sub>q q hds \<in> Q"
     and next_write_valid: "i < k \<Longrightarrow> \<delta>\<^sub>w q hds i \<in> \<Sigma>\<^sub>t\<^sub>p"
   using assms unfolding TM_fields_defs by (blast intro: next_state_valid next_write_valid)+
 
-lemmas TM_axioms = at_least_one_tape at_least_one_tape' state_axioms symbol_axioms transition_axioms
+lemmas TM_axioms[simp, intro] = at_least_one_tape at_least_one_tape' state_axioms symbol_axioms transition_axioms
 lemmas (in -) TM_axioms[simp, intro] = TM.TM_axioms
 
 lemma final_states_valid: "q \<in> F \<Longrightarrow> q \<in> Q" using state_axioms(3) by blast
@@ -333,16 +346,18 @@ notepad
 begin
   fix M M\<^sub>1 :: "('q, 's, 'l) TM"
 
+  text\<open>The underlying record fields of a TM can be accessed using \<close>
+
   interpret TM M .
   term \<delta>\<^sub>q
   term next_state
+  term "TM.next_state M"
   thm state_axioms
-
-  text\<open>Note that \<^emph>\<open>notation\<close> like \<open>F\<^sup>+\<close> is not available.\<close>
 
   interpret M\<^sub>1: TM M\<^sub>1 .
   term M\<^sub>1.\<delta>\<^sub>q
   term M\<^sub>1.next_state
+  term "TM.next_state M\<^sub>1"
   thm M\<^sub>1.state_axioms
 end
 
@@ -511,6 +526,9 @@ abbreviation (in TM_abbrevs) "map_conf_state f \<equiv> map_TM_config f (\<lambd
 abbreviation (in TM_abbrevs) "map_conf_tapes f \<equiv> map_TM_config (\<lambda>q. q) f"
 
 
+abbreviation (in TM) (input) "conf_label c \<equiv> label (state c)"
+
+
 paragraph\<open>Symbols currently under the TM-heads\<close>
 
 abbreviation heads :: "('q, 's) TM_config \<Rightarrow> 's tp_symbol list"
@@ -529,6 +547,8 @@ paragraph\<open>Final configurations\<close>
 
 definition (in TM) is_final :: "('q, 's) TM_config \<Rightarrow> bool" where
   "is_final c \<equiv> state c \<in> F"
+
+abbreviation (in TM) "is_not_final c \<equiv> \<not> is_final c"
 
 mk_ide (in -) TM.is_final_def |intro is_finalI[intro]| |dest is_finalD[dest]|
 
@@ -563,23 +583,35 @@ lemma wf_config_hds:
 
 lemma wf_config_iff: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k
     \<and> (\<forall>tp\<in>set (tapes c). set_tape tp \<subseteq> \<Sigma>) \<and> wf_hds (heads c)"
-  by (intro iffI conjI wf_configI) (use wf_config_def[iff] in \<open>blast intro!: wf_config_hds\<close>)+
+  unfolding wf_config_def by auto
 
-mk_ide wf_config_iff |dest wf_configD| |elim wf_configE|
+mk_ide wf_config_iff |dest wf_configD[dest]| |elim wf_configE[elim]|
 declare (in -) TM.wf_configD[dest] TM.wf_configE[elim]
 
 lemma (in typed_TM) wf_config_def: "wf_config c \<longleftrightarrow> state c \<in> Q \<and> length (tapes c) = k"
   unfolding wf_config_def by simp
 
+(* automation utterly fail on these two seemingly simple lemmas *)
 lemma
   assumes "wf_config c"
   shows wf_config_tapes_nonempty'[dest]: "0 < length (tapes c)"
-    and wf_config_tapes_nonempty[dest?]: "tapes c \<noteq> []"
+    and wf_config_tapes_nonempty[dest]: "tapes c \<noteq> []"
 proof -
   from \<open>wf_config c\<close> have "length (tapes c) = k" ..
   then show "0 < length (tapes c)" by simp
   then show "tapes c \<noteq> []" by simp
 qed
+
+lemma wf_config_hd_hds_valid[dest]:
+  assumes "wf_config c"
+  shows "hd (heads c) \<in> \<Sigma>\<^sub>t\<^sub>p"
+proof (rule set_mp)
+  from \<open>wf_config c\<close> show "set (heads c) \<subseteq> \<Sigma>\<^sub>t\<^sub>p" by (rule wf_config_hds)
+  from \<open>wf_config c\<close> have "heads c \<noteq> []" by blast
+  then show "hd (heads c) \<in> set (heads c)" by (fact hd_in_set)
+qed
+
+lemma wf_config_hd_hds[simp]: "wf_config c \<Longrightarrow> head (hd (tapes c)) = hd (heads c)" by (force simp: hd_map)
 
 lemma wf_config_last[dest, intro]: "wf_config c \<Longrightarrow> set_tape (last (tapes c)) \<subseteq> \<Sigma>" by auto
 
@@ -647,6 +679,9 @@ definition tape_write :: "'s tp_symbol \<Rightarrow> 's tape \<Rightarrow> 's ta
 
 corollary tape_write_simps[simp]: "tape_write s \<langle>l|h|r\<rangle> = \<langle>l|s|r\<rangle>" unfolding tape_write_def by simp
 corollary tape_write_id[simp]: "tape_write (head tp) tp = tp" by (induction tp) simp
+corollary tape_write_hd[simp]: "head (tape_write s tp) = s" by (induction tp) simp
+
+lemma tape_write_id'[simp]: "i < length tps \<Longrightarrow> tape_write (map head tps ! i) (tps ! i) = (tps ! i)" by simp
 
 lemma tape_write_map[simp]:
   "tape_write (map_option f s) (map_tape f tp) = map_tape f (tape_write s tp)"
@@ -666,8 +701,11 @@ definition tape_action :: "('s tp_symbol \<times> head_move) \<Rightarrow> 's ta
 corollary tape_action_altdef: "tape_action (s, m) = tape_shift m \<circ> tape_write s"
   unfolding tape_action_def by auto
 
-lemma tape_action_id[simp]: "tape_action (head tp, No_Shift) tp = tp"
-  unfolding tape_action_altdef by simp
+lemma tape_action_simps[simp]:
+  shows tape_action_no_write: "tape_action (head tp, m) tp = tape_shift m tp"
+    and tape_action_no_write': "i < length tps \<Longrightarrow> tape_action (map head tps ! i, m) (tps ! i) = tape_shift m (tps ! i)"
+    and tape_action_no_move: "tape_action (s, No_Shift) tp = tape_write s tp"
+  unfolding tape_action_altdef by auto
 
 lemma tape_action_map[simp]:
   "tape_action (map_option f s, m) (map_tape f tp) = map_tape f (tape_action (s, m) tp)"
@@ -731,10 +769,11 @@ definition step :: "('q, 's) TM_config \<Rightarrow> ('q, 's) TM_config"
 
 abbreviation "steps n \<equiv> step ^^ n"
 
-corollary step_simps[intro, simp]:
+corollary step_simps:
   shows step_final: "is_final c \<Longrightarrow> step c = c"
     and step_not_final: "\<not> is_final c \<Longrightarrow> step c = step_not_final c"
   unfolding step_def is_final_def by auto
+declare (in -) TM.step_simps[simp, intro]
 
 corollary steps_plus[simp]: "steps n2 (steps n1 c) = steps (n1 + n2) c"
   unfolding add.commute[of n1 n2] funpow_add comp_def ..
@@ -784,6 +823,15 @@ lemma final_steps_le[dest]:
 
 lemma final_steps_ex_eq[simp]: "(\<exists>n\<le>N. is_final (steps n c)) \<longleftrightarrow> is_final (steps N c)" by blast
 
+lemma not_final_next_state[dest]:
+  assumes "\<not> is_final (step c)"
+  shows "\<delta>\<^sub>q (state c) (heads c) \<notin> F"
+proof -
+  from assms have "\<not> is_final c" by blast
+  then have [simp]: "step c = step_not_final c" ..
+  from assms show ?thesis unfolding is_final_def by simp
+qed
+
 
 paragraph\<open>Well-Formed Steps\<close>
 
@@ -813,10 +861,12 @@ proof (elim wf_configE, intro wf_configI)
 qed auto
 
 lemma step_l_tps: "length (tapes c) = k \<Longrightarrow> length (tapes (step c)) = k" by (cases "is_final c") auto
-lemma wf_step[intro]: "wf_config c \<Longrightarrow> wf_config (step c)" by (cases "is_final c") auto
+lemma wf_step: "wf_config c \<Longrightarrow> wf_config (step c)" by (cases "is_final c") auto
 
 lemma steps_l_tps: "length (tapes c) = k \<Longrightarrow> length (tapes (steps n c)) = k" using step_l_tps by (elim funpow_induct)
-lemma wf_steps[intro]: "wf_config c \<Longrightarrow> wf_config (steps n c)" using wf_step by (elim funpow_induct)
+lemma wf_steps: "wf_config c \<Longrightarrow> wf_config (steps n c)" using wf_step by (elim funpow_induct)
+
+declare (in -) TM.wf_step[intro] TM.wf_steps[intro]
 
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 

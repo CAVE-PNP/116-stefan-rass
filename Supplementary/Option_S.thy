@@ -123,5 +123,7 @@ lemma options_set_option[simp]: "\<Union> (set_option ` options A) = A" by blast
 
 lemma options_subset_mono[iff]: "options A \<subseteq> options B \<longleftrightarrow> A \<subseteq> B" unfolding options_def by auto
 
+lemma finite_options[iff]: "finite (options A) \<longleftrightarrow> finite A" by (simp add: options_def finite_image_iff)
+
 
 end
