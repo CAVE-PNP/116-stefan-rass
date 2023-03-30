@@ -13,7 +13,7 @@ text\<open>A Turing Machine (TM) as defined by @{cite xuIsabelleTM2013} is a lis
   A TM is thus a list of instructions, as the pairs are flattened out
   into a list with an even number of elements (see @{cite \<open>ch.~2 and eqn.~1\<close> xuIsabelleTM2013}).
   An instruction is an \<^typ>\<open>action\<close>
-  (write symbol (\<^term>\<open>W0\<close>, \<^term>\<open>W1\<close>), move head (\<^term>\<open>L\<close>, \<^term>\<open>R\<close>) or stall (\<^term>\<open>Nop\<close>))
+  (write symbol (\<^term>\<open>WB\<close>, \<^term>\<open>WO\<close>), move head (\<^term>\<open>L\<close>, \<^term>\<open>R\<close>) or stall (\<^term>\<open>Nop\<close>))
   and a reference to the \<^emph>\<open>next state\<close> (a natural number indicated the position in the list).
   The state with number \<open>0\<close> is reserved as the halting state
   (the first state in the list has the number \<open>1\<close>).\<close>
@@ -172,18 +172,18 @@ subsection\<open>Code Description\<close>
 
 text\<open>For this part, only a short description is given in @{cite \<open>ch.~3.1\<close> rassOwf2017}.
   The somewhat obvious choice is to utilize \<^const>\<open>code\<close>, since it is already defined
-  and used as encoding by the universal TM \<^const>\<open>UTM\<close> (see @{thm UTM_halt_lemma2}).
+  and used as encoding by the universal TM \<^const>\<open>utm\<close> (see @{thm utm_halt_lemma2}).
 
   This step is also used to implement the following requirement:
   ``every string over \<open>{0, 1}\<^sup>*\<close> represents some TM (easy to assure by executing
   an invalid code as a canonic TM that instantly halts and rejects its input)''\<close>
 
 definition Rejecting_TM :: TM
-  where "Rejecting_TM = [(W0, 0), (W0, 0)]"
+  where "Rejecting_TM = [(WB, 0), (WB, 0)]"
 
 \<comment> \<open>The proof of correctness for the \<^const>\<open>Rejecting_TM\<close> is found in \<^file>\<open>Complexity.thy\<close>.\<close>
 
-lemma rej_TM_wf: "tm_wf0 Rejecting_TM" unfolding Rejecting_TM_def tm_wf.simps by force
+lemma rej_TM_wf: "composable_tm0 Rejecting_TM" unfolding Rejecting_TM_def composable_tm.simps by force
 
 
 
@@ -204,7 +204,7 @@ definition is_encoded_TM :: "word \<Rightarrow> bool"
   where "is_encoded_TM w = (\<exists>M. w = encode_TM M)"
 
 definition filter_wf_TMs :: "TM \<Rightarrow> TM" \<comment> \<open>only allow well-formed TMs\<close>
-  where "filter_wf_TMs M = (if tm_wf0 M then M else Rejecting_TM)"
+  where "filter_wf_TMs M = (if composable_tm0 M then M else Rejecting_TM)"
 
 definition decode_TM :: "word \<Rightarrow> TM"
   where "decode_TM w =
@@ -220,9 +220,9 @@ proof (intro injI)
   with code_inj show "x = y" by (rule injD)
 qed
 
-lemma codec_TM: "tm_wf0 M \<Longrightarrow> decode_TM (encode_TM M) = M" (is "tm_wf0 M \<Longrightarrow> ?lhs = M")
+lemma codec_TM: "composable_tm0 M \<Longrightarrow> decode_TM (encode_TM M) = M" (is "composable_tm0 M \<Longrightarrow> ?lhs = M")
 proof -
-  assume wf: "tm_wf0 M"
+  assume wf: "composable_tm0 M"
   let ?e = "\<lambda>M. gn_inv (code M)"
   have c: "\<exists>M'. ?e M = ?e M'" by blast
   have "inj ?e" using encode_TM_inj unfolding encode_TM_def .
@@ -236,13 +236,13 @@ proof -
   finally show ?thesis .
 qed
 
-lemma decode_TM_wf: "tm_wf0 (decode_TM w)" unfolding decode_TM_def filter_wf_TMs_def
+lemma decode_TM_wf: "composable_tm0 (decode_TM w)" unfolding decode_TM_def filter_wf_TMs_def
   using rej_TM_wf by (cases "is_encoded_TM w", presburger+)
 
 
 text\<open>There is (exactly) one TM whose encoding is the empty word (\<open>[]::bin\<close>);
   and that is the machine without instructions (\<open>[]::TM\<close>).
-  However, since this machine is not well-formed (see \<^const>\<open>tm_wf0\<close>), the following lemma holds.\<close>
+  However, since this machine is not well-formed (see \<^const>\<open>composable_tm0\<close>), the following lemma holds.\<close>
 
 lemma decode_TM_Nil: "decode_TM [] = Rejecting_TM"
 proof -
@@ -279,7 +279,7 @@ proof -
   have "is_encoded_TM []" unfolding is_encoded_TM_def encode_TM_def
     using code_Nil by (intro exI[where x="[]"]) simp
   then have "decode_TM [] = filter_wf_TMs []" unfolding decode_TM_def The_Nil by (rule if_P)
-  also have "... = Rejecting_TM" unfolding filter_wf_TMs_def tm_wf.simps by simp
+  also have "... = Rejecting_TM" unfolding filter_wf_TMs_def composable_tm.simps by simp
   finally show ?thesis .
 qed
 
@@ -294,11 +294,11 @@ definition TM_encode_pad :: "TM \<Rightarrow> word"
 definition TM_decode_pad :: "word \<Rightarrow> TM"
   where "TM_decode_pad w = decode_TM (strip_al_prefix (strip_exp_pad w))"
 
-lemma TM_codec: "tm_wf0 M \<Longrightarrow> TM_decode_pad (TM_encode_pad M) = M"
+lemma TM_codec: "composable_tm0 M \<Longrightarrow> TM_decode_pad (TM_encode_pad M) = M"
   unfolding TM_decode_pad_def TM_encode_pad_def using add_alp_min
   by (subst exp_pad_correct, unfold alp_correct codec_TM, blast+)
 
-lemma wf_TM_has_enc: "tm_wf0 M \<Longrightarrow> \<exists>w. TM_decode_pad w = M"
+lemma wf_TM_has_enc: "composable_tm0 M \<Longrightarrow> \<exists>w. TM_decode_pad w = M"
   using TM_codec by blast
 
 lemma TM_decode_Nil: "TM_decode_pad [] = Rejecting_TM"
@@ -313,15 +313,15 @@ text\<open>From @{cite \<open>ch.~3.1\<close> rassOwf2017}:
 
   1. every string over \<open>{0, 1}\<^sup>*\<close> represents some TM [...],''\<close>
 
-theorem TM_decode_pad_wf: "tm_wf0 (TM_decode_pad w)"
+theorem TM_decode_pad_wf: "composable_tm0 (TM_decode_pad w)"
   unfolding TM_decode_pad_def by (rule decode_TM_wf)
 
 
 text\<open>``2. every TM is represented by infinitely many strings. [...]''\<close>
 
-theorem TM_inf_encs: "tm_wf0 M \<Longrightarrow> infinite {w. TM_decode_pad w = M}"
+theorem TM_inf_encs: "composable_tm0 M \<Longrightarrow> infinite {w. TM_decode_pad w = M}"
 proof (intro infinite_lists allI bexI CollectI)
-  assume wf: "tm_wf0 M"
+  assume wf: "composable_tm0 M"
   fix l
   define w' where w': "w' = (encode_TM M) @ False # True \<up> l"
   define w where w: "w = add_exp_pad w'"
@@ -331,7 +331,7 @@ proof (intro infinite_lists allI bexI CollectI)
   have "TM_decode_pad w = decode_TM (strip_al_prefix w')" unfolding w w' TM_decode_pad_def
     by (subst exp_pad_correct) blast+
   also have "... = decode_TM (encode_TM M)" unfolding w' strip_alp_altdef ..
-  also have "... = M" using \<open>tm_wf0 M\<close> by (rule codec_TM)
+  also have "... = M" using \<open>composable_tm0 M\<close> by (rule codec_TM)
   finally show "TM_decode_pad w = M" .
 qed
 
@@ -407,7 +407,7 @@ text\<open>``2. The retraction of preceding 1-bits creates the needed infinitude
 
 theorem embed_TM_in_len:
   fixes M l
-  assumes "tm_wf0 M"
+  assumes "composable_tm0 M"
     and min_word_len: "clog l \<ge> length (encode_TM M) + 2" \<comment> \<open>The \<open>+2\<close> bits are required for the \<open>1\<^sup>+0\<close>-prefix.
 
         Note: this theorem technically also holds when the assumption @{thm min_word_len} reads
@@ -454,7 +454,7 @@ proof
     unfolding w_def drop_append dexp exp_len by simp
 
   show "TM_decode_pad w = M" unfolding TM_decode_pad_def w_correct w'_correct
-    using \<open>tm_wf0 M\<close> by (rule codec_TM)
+    using \<open>composable_tm0 M\<close> by (rule codec_TM)
 qed
 
 

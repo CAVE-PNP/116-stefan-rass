@@ -30,7 +30,7 @@ hide_const (open) L
 
 
 definition Rejecting_TM :: TM
-  where "Rejecting_TM = [(W0, 0), (W0, 0)]"
+  where "Rejecting_TM = [(WB, 0), (WB, 0)]"
 
 definition time :: "TM \<Rightarrow> tape \<Rightarrow> nat option"
   where "time M x \<equiv> (
@@ -86,12 +86,12 @@ section\<open>Lemmas\<close>
 
 lemma rej_TM_step1: "steps0 (1, (l, r)) Rejecting_TM 1 = (0, l, Bk # tl r)"
 proof -
-  have fetch: "fetch Rejecting_TM 1 b = (W0, 0)" for b unfolding Rejecting_TM_def
+  have fetch: "fetch Rejecting_TM 1 b = (WB, 0)" for b unfolding Rejecting_TM_def
     by (cases b) (simp_all add: fetch.simps nth_of.simps)
 
   have "steps0 (1, (l, r)) Rejecting_TM 1 = step0 (1, l, r) Rejecting_TM"
     unfolding One_nat_def steps.simps ..
-  also have "... = (0, update W0 (l, r))" unfolding step.simps diff_zero fetch by simp
+  also have "... = (0, update WB (l, r))" unfolding step.simps diff_zero fetch by simp
   also have "... = (0, l, Bk # tl r)" by simp
   finally show ?thesis .
 qed

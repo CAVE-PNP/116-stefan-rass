@@ -292,8 +292,11 @@ subsection\<open>Deciding Languages\<close>
 hide_const (open) L
 
 text\<open>A TM \<open>M\<close> is considered to halt on a word \<open>w\<close>, iff it reaches a final state upon input of \<open>w\<close>.
-  The existing definition \<^const>\<open>Uncomputable.halts\<close>
-  additionally requires the tape content to be standard when the final state is reached.\<close>
+  The existing definition \<^const>\<open>Turing_HaltingConditions.reaches_final\<close>
+  is similar, but requires the type of the input to be encodable (\<^class>\<open>tape\<close>).
+  This, however, is problematic given our definition of \<^typ>\<open>word\<close> (alias \<^typ>\<open>bool list\<close>),
+  as the existing instantiation of \<^typ>\<open>'a list\<close> (see \<^const>\<open>tape_of_nat_list\<close>)
+  is incompatible with our encoding (\<^const>\<open>encode_word\<close>).\<close>
 
 definition halts :: "TM \<Rightarrow> word \<Rightarrow> bool"
   where "halts M w \<equiv> Hoare_halt (input w) M (\<lambda>_. True)"
@@ -352,12 +355,12 @@ abbreviation decides :: "TM \<Rightarrow> lang \<Rightarrow> bool"
 
 lemma rej_TM_step1: "steps0 (1, (l, r)) Rejecting_TM 1 = (0, l, Bk # tl r)"
 proof -
-  have fetch: "fetch Rejecting_TM 1 b = (W0, 0)" for b unfolding Rejecting_TM_def
+  have fetch: "fetch Rejecting_TM 1 b = (WB, 0)" for b unfolding Rejecting_TM_def
     by (cases b) (simp_all add: fetch.simps nth_of.simps)
 
   have "steps0 (1, (l, r)) Rejecting_TM 1 = step0 (1, l, r) Rejecting_TM"
     unfolding One_nat_def steps.simps ..
-  also have "... = (0, update W0 (l, r))" unfolding step.simps diff_zero fetch by simp
+  also have "... = (0, update WB (l, r))" unfolding step.simps diff_zero fetch by simp
   also have "... = (0, l, Bk # tl r)" by simp
   finally show ?thesis .
 qed
@@ -563,18 +566,18 @@ qed
 
 lemma decides_altdef2:
   fixes M :: TM
-  shows "decides_word M L w \<longleftrightarrow> {input w} M {\<lambda>tp. head tp = (if w \<in> L then Oc else Bk)}"
-    (is "?dw M L w \<longleftrightarrow> {?pre w} M {?post w}")
+  shows "decides_word M L w \<longleftrightarrow> Hoare_halt (input w) M (\<lambda>tp. head tp = (if w \<in> L then Oc else Bk))"
+    (is "?dw M L w \<longleftrightarrow> Hoare_halt (?pre w) M (?post w)")
 proof (intro iffI allI)
   assume "?dw M L w"
-  then show "{?pre w} M {?post w}" unfolding decides_def accepts_def rejects_def
+  then show "Hoare_halt (?pre w) M (?post w)" unfolding decides_def accepts_def rejects_def
   proof (cases "w \<in> L")
     case False
     from \<open>?dw M L w\<close> \<open>w \<notin> L\<close> have "rejects M w" unfolding decides_def by blast
     thus ?thesis unfolding rejects_def using \<open>w \<notin> L\<close> by presburger
   qed (* case "w \<in> L" by *) presburger
 next
-  assume assm: "{?pre w} M {?post w}"
+  assume assm: "Hoare_halt (?pre w) M (?post w)"
   show "?dw M L w" unfolding decides_def proof (intro conjI)
     show "w \<in> L \<longleftrightarrow> accepts M w" proof
       assume "w \<in> L"
@@ -598,7 +601,7 @@ next
   qed
 qed
 
-lemma decides_altdef3: "decides_word M L w \<longleftrightarrow> {input w} M {\<lambda>tp. head tp = Oc \<longleftrightarrow> w \<in> L}"
+lemma decides_altdef3: "decides_word M L w \<longleftrightarrow> Hoare_halt (input w) M (\<lambda>tp. head tp = Oc \<longleftrightarrow> w \<in> L)"
 proof -
   have *: "(a = Oc \<longleftrightarrow> c) \<longleftrightarrow> a = (if c then Oc else Bk)" for a c by (induction a) simp_all
   show ?thesis unfolding * by (rule decides_altdef2)
@@ -669,7 +672,7 @@ proof -
   finally show ?thesis .
 qed
 
-lemma repair_TM_wf[simp]: "tm_wf0 (repair_TM M)" unfolding tm_wf.simps
+lemma repair_TM_wf[simp]: "composable_tm0 (repair_TM M)" unfolding composable_tm.simps
 proof (intro conjI ballI)
   define m where "m \<equiv> fold max (map snd M) 1"
   let ?l = "length M + length M mod 2"
@@ -776,7 +779,7 @@ definition computable_in_time :: "(nat \<Rightarrow> 'a :: floor_ceiling) \<Righ
 
 lemma computableE[elim]:
   assumes "computable_in_time T f"
-  obtains M where "computes M f" and "time_bounded T M" and "tm_wf0 M"
+  obtains M where "computes M f" and "time_bounded T M" and "composable_tm0 M"
 proof -
   from assms obtain M where "computes M f" and "time_bounded T M"
     unfolding computable_in_time_def by blast
@@ -801,7 +804,7 @@ lemma in_dtimeE[elim]:
   obtains M
   where "decides M L"
     and "time_bounded T M"
-    and "tm_wf0 M"
+    and "composable_tm0 M"
 proof -
   from \<open>L \<in> DTIME T\<close> obtain M' where "decides M' L" and "time_bounded T M'"
     unfolding DTIME_def by blast
@@ -811,7 +814,7 @@ proof -
     unfolding decides_def accepts_def rejects_def repair_TM_Hoare .
   moreover from \<open>time_bounded T M'\<close> have "time_bounded T ?M"
     unfolding time_bounded_def repair_TM_still_works .
-  moreover have "tm_wf0 ?M" by (rule repair_TM_wf)
+  moreover have "composable_tm0 ?M" by (rule repair_TM_wf)
 
   ultimately show ?thesis by (fact that)
 qed
@@ -1056,7 +1059,7 @@ lemma reduce_decides:
   assumes "decides_word M\<^sub>B B (f\<^sub>R w)"
     and f\<^sub>R: "f\<^sub>R w \<in> B \<longleftrightarrow> w \<in> A"
     and M\<^sub>R_f\<^sub>R: "computes_word M\<^sub>R f\<^sub>R w"
-    and "tm_wf0 M\<^sub>R"
+    and "composable_tm0 M\<^sub>R"
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
   shows "decides_word M A w"
   using assms(1,3-4) unfolding computes_def decides_altdef3 f\<^sub>R M_def by (intro Hoare_plus_halt)
@@ -1068,7 +1071,7 @@ lemma reduce_time_bounded:
     and "time_bounded_word T\<^sub>R M\<^sub>R w"
     and M\<^sub>R_f\<^sub>R: "computes_word M\<^sub>R f\<^sub>R w"
     and f\<^sub>R_len: "length (f\<^sub>R w) \<le> l\<^sub>R (length w)"
-    (* and "tm_wf0 M\<^sub>R" *)
+    (* and "composable_tm0 M\<^sub>R" *)
   defines "M \<equiv> M\<^sub>R |+| M\<^sub>B"
   defines "T \<equiv> \<lambda>n. tcomp (\<lambda>m. T\<^sub>R (l\<^sub>R m)) n + tcomp T\<^sub>B n"
   shows "time_bounded_word T M w"
@@ -1108,7 +1111,7 @@ lemma reduce_DTIME':
     and T_l\<^sub>R_mono: "MOST n. T (l\<^sub>R n) \<ge> T(n)" \<comment> \<open>allows reasoning about \<^term>\<open>T\<close> and \<^term>\<open>l\<^sub>R\<close> as if both were \<^const>\<open>mono\<close>.\<close>
   shows "L\<^sub>2 \<in> DTIME(\<lambda>n. T(l\<^sub>R n))" \<comment> \<open>Reducing \<^term>\<open>L\<^sub>2\<close> to \<^term>\<open>L\<^sub>1\<close>\<close>
 proof -
-  from \<open>computable_in_time T f\<^sub>R\<close> obtain M\<^sub>R where "computes M\<^sub>R f\<^sub>R" "time_bounded T M\<^sub>R" "tm_wf0 M\<^sub>R" ..
+  from \<open>computable_in_time T f\<^sub>R\<close> obtain M\<^sub>R where "computes M\<^sub>R f\<^sub>R" "time_bounded T M\<^sub>R" "composable_tm0 M\<^sub>R" ..
   from \<open>L\<^sub>1 \<in> DTIME(T)\<close> obtain M\<^sub>1 where "decides M\<^sub>1 L\<^sub>1" and "time_bounded T M\<^sub>1" ..
   define M where "M \<equiv> M\<^sub>R |+| M\<^sub>1"
 
@@ -1126,7 +1129,7 @@ proof -
     fix w :: word
     assume min_len: "length w \<ge> l\<^sub>0"
 
-    show "decides_word M L\<^sub>2 w" unfolding M_def using \<open>tm_wf0 M\<^sub>R\<close>
+    show "decides_word M L\<^sub>2 w" unfolding M_def using \<open>composable_tm0 M\<^sub>R\<close>
     proof (intro reduce_decides)
       from \<open>decides M\<^sub>1 L\<^sub>1\<close> show "decides_word M\<^sub>1 L\<^sub>1 (f\<^sub>R w)" ..
       from f\<^sub>R_correct and min_len show "f\<^sub>R w \<in> L\<^sub>1 \<longleftrightarrow> w \<in> L\<^sub>2" .
