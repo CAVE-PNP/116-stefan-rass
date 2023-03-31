@@ -467,7 +467,7 @@ proof -
   with valid_alphabet show ?thesis by (intro DTIME_aeI ae_word_lengthI) blast+
 qed
 
-lemma DTIME_mono_ae[dest]:
+lemma DTIME_mono_ae:
   fixes L :: "'s lang"
   assumes "L \<in> typed_DTIME TYPE('q) t"
     and Tt: "\<forall>\<^sub>\<infinity>n. T n \<ge> t n"
@@ -515,7 +515,7 @@ lemma linear_time_speed_up:
   sorry
 
 
-corollary DTIME_speed_up[dest]:
+corollary DTIME_speed_up:
   fixes T :: "nat \<Rightarrow> nat" and c :: real
     and L::"'s lang"
   assumes "L \<in> typed_DTIME TYPE('q1) T"
@@ -541,7 +541,7 @@ proof (cases "n = 0")
   assume "n = 0"
   then show ?thesis by simp
 
-next 
+next
   assume "n \<noteq> 0"
   then have "1 \<le> real n" by force
 
