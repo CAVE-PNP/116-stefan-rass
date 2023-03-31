@@ -84,6 +84,7 @@ lemma canonical_TM_rec_simps[simp]:
     and "next_write M' = next_write_wrapper (tape_count M) (symbols M) (states M) (next_write M)"
     and "next_move M' = next_move_wrapper (tape_count M) (symbols M) (states M) (next_move M)"
     and "wf_hds_rec M' = wf_hds_rec M"
+    and "more M' = more M"
   unfolding M'_def canonical_TM_rec_def by (induction M) force+
 
 
@@ -183,6 +184,12 @@ lemma canonical_TM_time_bounded[simp]:
   shows "TM.time_bounded_word (canonical_TM M) T w \<longleftrightarrow> TM.time_bounded_word M T w"
   unfolding TM.time_bounded_word_def using assms by (simp add: Canonical_TM.run_eq)
 
+lemma canonical_TM_rec_idem[simp]: "canonical_TM_rec (canonical_TM_rec M) = canonical_TM_rec M"
+  by (rule TM_record.equality) (simp only: canonical_TM_rec_simps If_If next_fun_wrapper_def)+
+
+lemma canonical_TM_idem[simp]: "canonical_TM (canonical_TM M) = canonical_TM M"
+  unfolding Rep_TM_inject[symmetric] Canonical_TM.M'_rec canonical_TM_rec_idem ..
+
 
 subsection\<open>Code Description\<close>
 
@@ -190,13 +197,14 @@ type_synonym bin_symbol = "bool option"
 
 type_synonym binTM = "(nat, bool, bool) TM"
 
+
 locale TM_Encoding = (* TODO fix bool this early? *)
   fixes enc_TM :: "binTM \<Rightarrow> bool list"
     and is_valid_enc_TM :: "bool list \<Rightarrow> bool"
     and dec_TM :: "bool list \<Rightarrow> binTM"
   assumes valid_enc: "\<And>M. is_valid_enc_TM (enc_TM M)"
-    and inj_enc_TM: "inj enc_TM"  (* TODO is this possible? the transition table is defined as a function. similar for \<open>dec_TM (enc_TM M) = M\<close> *)
-    and enc_dec_TM:   "\<And>M. dec_TM (enc_TM M) = canonical_TM M"
+    and inj_enc_TM: "inj_on enc_TM (range canonical_TM)"
+    and enc_dec_TM: "\<And>M. dec_TM (enc_TM M) = canonical_TM M"
     and dec_enc_TM: "\<And>x. is_valid_enc_TM x \<Longrightarrow> enc_TM (dec_TM x) = x" (* this should be easy to achieve *)
     and invalid_enc_TM_rejects: "\<And>x. \<not> is_valid_enc_TM x \<Longrightarrow> TM_decider.rejects (dec_TM x) w" (* a nicer version of: "\<exists>q\<^sub>0 s. dec\<^sub>U x = (rejecting_TM q\<^sub>0 s)" *)
 

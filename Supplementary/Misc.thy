@@ -33,6 +33,8 @@ qed
 lemma inj_altdef: "inj f \<longleftrightarrow> (\<forall>a b. a \<noteq> b \<longrightarrow> f a \<noteq> f b)" unfolding inj_def by blast
 
 
+lemma If_If[simp]: "If P (If P a x) b = If P a b" by presburger
+
 lemma ifI[case_names True False]:
   assumes "c \<Longrightarrow> P a"
     and "\<not>c \<Longrightarrow> P b"

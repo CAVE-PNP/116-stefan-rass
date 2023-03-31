@@ -15,9 +15,9 @@ locale UTM_Encoding =
     and is_valid_enc\<^sub>U :: "bool list \<Rightarrow> bool"
     and dec\<^sub>U :: "bool list \<Rightarrow> ('q, 's, 'l) TM \<times> 's list"
     and L_invalid :: 'l
-  assumes inj_enc\<^sub>U: "inj enc\<^sub>U"
+  assumes inj_enc\<^sub>U: "inj_on enc\<^sub>U (range canonical_TM \<times> UNIV)"
     and valid_enc: "\<And>M w. TM.wf_input M w \<Longrightarrow> is_valid_enc\<^sub>U (enc\<^sub>U (M, w))"
-    and enc_dec:   "\<And>M w. TM.wf_input M w \<Longrightarrow> dec\<^sub>U (enc\<^sub>U (M, w)) = (M, w)" (* TODO again, this is not possible with the current definitions, as label is an unrestricted function *)
+    and enc_dec:   "\<And>M w. TM.wf_input M w \<Longrightarrow> dec\<^sub>U (enc\<^sub>U (M, w)) = (canonical_TM M, w)" (* TODO again, this is not possible with the current definitions, as label is an unrestricted function *)
 
       (* TODO is this necessary? could the UTM not just directly output the invalid label when it detects that an encoding is invalid? *)
     and invalid_rejects: "\<And>x. \<not> is_valid_enc\<^sub>U x \<Longrightarrow> let (M, w) = dec\<^sub>U x; c = TM.compute M w in TM.is_final M c \<and> TM.label M (state c) = L_invalid" (* a nicer version of: "\<exists>q\<^sub>0 s w. dec\<^sub>U x = (rejecting_TM q\<^sub>0 s, w)" *)
@@ -27,7 +27,7 @@ locale UTM = UTM: TM M\<^sub>U + UTM_Encoding enc\<^sub>U is_valid_enc\<^sub>U d
   for M\<^sub>U :: "('q, bool) TM_decider" (* TODO make 'q = nat ? *)
     and enc\<^sub>U :: "('q, nat) TM_decider \<times> nat list \<Rightarrow> bool list"
     and is_valid_enc\<^sub>U dec\<^sub>U +
-  assumes halts_iff: "\<And>M w. TM.halts   M w \<longleftrightarrow> TM.halts   M\<^sub>U (enc\<^sub>U (M, w))"
+  assumes halts_iff: "\<And>M w. TM.halts M w \<longleftrightarrow> TM.halts M\<^sub>U (enc\<^sub>U (M, w))"
     and accepts_iff: "\<And>M w. TM_decider.accepts M w \<longleftrightarrow> TM_decider.accepts M\<^sub>U (enc\<^sub>U (M, w))"
 
 locale timed_UTM = UTM M\<^sub>U  for M\<^sub>U :: "(nat, bool) TM_decider" +
