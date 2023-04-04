@@ -305,7 +305,7 @@ text\<open>Note: this is not intended to replace \<^const>\<open>tht.L\<^sub>D\<
   to prove properties of \<open>L\<^sub>D'\<close> via reduction to \<open>L\<^sub>D\<close>.
 
   Construction: Given a word \<open>w\<close>.
-  Split the word \<open>w\<close> into \<open>(l::nat, x::bool list)\<close> using \<^const>\<open>decode_pair\<close>.
+  Split the word \<open>w\<close> into \<^term>\<open>(l::nat, x::bool list)\<close> using \<^const>\<open>decode_pair\<close>.
   Define \<open>v\<close> as the \<open>l\<close> most-significant-bits of \<open>x\<close>.
   Remove the arbitrary-length \<open>1\<^sup>+0\<close>-prefix from \<open>v\<close> to retain the pure encoding of \<open>M\<^sub>v\<close>.
   If \<open>M\<^sub>v\<close> rejects \<open>v\<close> within \<open>T(len(x))\<close> steps, \<open>w \<in> L\<^sub>D'\<close> holds.
@@ -402,7 +402,7 @@ proof (rule ccontr, unfold not_not)
     show "computable_in_time t reduce_LD_LD'" sorry \<comment> \<open>Assume that \<^const>\<open>reduce_LD_LD'\<close> can be computed in time \<open>O(n)\<close>.\<close>
   qed
 
-  moreover from tht.time_hierarchy have "tht.L\<^sub>D \<notin> DTIME(t \<circ> l\<^sub>R)" ..
+  moreover from tht.LD_t have "tht.L\<^sub>D \<notin> DTIME(t \<circ> l\<^sub>R)" .
   ultimately show False by contradiction
 qed
 

@@ -21,6 +21,8 @@ definition SQ_nat :: "nat set" \<comment> \<open>The analogous set \<open>SQ \<s
 
 lemma member_SQ[simp]: "w \<in>\<^sub>L SQ \<longleftrightarrow> (\<exists>x. gn w = x\<^sup>2)" by (simp add: SQ_def)
 
+lemma member_SQ_SQ_nat: "w \<in>\<^sub>L SQ \<longleftrightarrow> gn w \<in> SQ_nat" by simp
+
 lemma SQ_nat_zero:
 	"insert 0 SQ_nat = {y. \<exists>x. y = x ^ 2}"
 	"SQ_nat = {y. \<exists>x. y = x ^ 2} - {0}"
