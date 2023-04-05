@@ -1,4 +1,6 @@
-session "116_stefan_rass" = "HOL-Library" +
+chapter "CAVE_PNP"
+
+session "116_stefan_rass_v2" ("CAVE_PNP") = "HOL-Library" +
   options [document = pdf, document_output = "output"]
   sessions
     Intro_Dest_Elim
@@ -23,7 +25,11 @@ session "116_stefan_rass" = "HOL-Library" +
     Goedel_Numbering
     Language_Density
     TM
-    Composition
+    Computability
+    TM_Hoare
+    TM_Switch
+    TM_While
+    Transformations
     (* A Hard Language with a Known Density Bound *)
     SQ
     TM_Encoding
