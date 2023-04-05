@@ -1,4 +1,6 @@
-session "116_stefan_rass" = "HOL-Library" +
+chapter "CAVE_PNP"
+
+session "116_stefan_rass_v1" ("CAVE_PNP") = "HOL-Library" +
   options [document = pdf, document_output = "output"]
   sessions
     Universal_Turing_Machine
