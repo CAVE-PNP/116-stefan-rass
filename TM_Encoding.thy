@@ -265,7 +265,7 @@ definition add_exp_pad :: "bool list \<Rightarrow> bool list"
   where [simp]: "add_exp_pad w = (let l = length w in False \<up> (2^l - l) @ w)"
 
 definition strip_exp_pad :: "bool list \<Rightarrow> bool list"
-  where [simp]: "strip_exp_pad w = (let l = length w in drop (l - clog l) w)"
+  where [simp]: "strip_exp_pad w = (let l = length w in drop (l - nat_log_ceil 2 l) w)"
 
 
 value "strip_exp_pad (add_exp_pad [])"
@@ -280,18 +280,18 @@ proof -
 
   assume "w \<noteq> []"
   then have "?l > 0" ..
-  then have l_clog: "clog (2 ^ ?l) = ?l" by (intro clog_exp)
+  then have l_clog2: "nat_log_ceil 2 (2 ^ ?l) = ?l" by (intro log2.ceil_exp)
 
   have len_pad: "length ?pad = 2 ^ ?l - ?l" by simp
   have len_wp: "length ?wp = 2^?l" unfolding length_append len_pad by simp
 
-  have *: "length ?wp - clog (length ?wp) = length ?pad" unfolding len_wp l_clog len_pad ..
+  have *: "length ?wp - nat_log_ceil 2 (length ?wp) = length ?pad" unfolding len_wp l_clog2 len_pad ..
   show "strip_exp_pad (add_exp_pad w) = w"
     unfolding add_exp_pad_def strip_exp_pad_def Let_def * by force
 qed
 
 lemma exp_pad_suffix: "suffix w (add_exp_pad w)"
-  unfolding add_exp_pad_def Let_def by (intro suffixI, unfold append_same_eq, rule)
+  unfolding add_exp_pad_def Let_def by (blast intro: suffixI)
 
 lemma add_exp_pad_len: "length (add_exp_pad w) = 2 ^ length w" by (simp add: Let_def)
 
@@ -300,14 +300,14 @@ lemma drop_diff_length: "n \<le> length xs \<Longrightarrow> length (drop (lengt
 lemma strip_exp_pad_len:
   assumes "w \<noteq> []"
   defines "l \<equiv> length w"
-  shows "length (strip_exp_pad w) = clog l"
+  shows "length (strip_exp_pad w) = nat_log_ceil 2 l"
 proof -
   from \<open>w \<noteq> []\<close> have "l > 0" unfolding l_def ..
-  with clog_le have "clog l \<le> l" .
+  with log2.ceil_le have "nat_log_ceil 2 l \<le> l" .
 
-  have "length (strip_exp_pad w) = l - (l - clog l)"
+  have "length (strip_exp_pad w) = l - (l - nat_log_ceil 2 l)"
     unfolding strip_exp_pad_def l_def[symmetric] Let_def length_drop ..
-  also have "... = clog l" using \<open>clog l \<le> l\<close> by (rule diff_diff_cancel)
+  also have "... = nat_log_ceil 2 l" using \<open>nat_log_ceil 2 l \<le> l\<close> by (rule diff_diff_cancel)
   finally show ?thesis .
 qed
 
@@ -355,7 +355,7 @@ proof
   ultimately have dw_split: "?dw = False # drop 1 ?dw" by simp
 
   have r2: "rev w = True \<up> n @ ?dw" unfolding n_def replicate_While ..
-  also have "... = True \<up> n @ False # drop 1 ?dw" by (fold dw_split) rule
+  also have "... = True \<up> n @ False # drop 1 ?dw" by (fold dw_split) (fact refl)
   finally have "w = rev (True \<up> n @ False # drop 1 ?dw)" by (unfold rev_swap)
 
   also have "... = strip_al_prefix w @ [False] @ True \<up> n" by force
@@ -460,32 +460,32 @@ theorem num_equivalent_encodings:
   defines "l \<equiv> length w"
   assumes "l > 0"
     and "dec_TM_pad w = M"
-  shows "2^(l - clog l) \<le> card {w. length w = l \<and> dec_TM_pad w = M}" (is "?lhs \<le> card ?A")
+  shows "2^(l - nat_log_ceil 2 l) \<le> card {w. length w = l \<and> dec_TM_pad w = M}" (is "?lhs \<le> card ?A")
 proof -
   from \<open>l > 0\<close> have "w \<noteq> []" unfolding l_def ..
-  from \<open>l > 0\<close> have "clog l \<le> l" by (rule clog_le)
+  from \<open>l > 0\<close> have "nat_log_ceil 2 l \<le> l" by (rule log2.ceil_le)
 
   define w' where "w' \<equiv> strip_exp_pad w"
-  have lw': "length w' = clog l" unfolding w'_def l_def using \<open>w \<noteq> []\<close> by (rule strip_exp_pad_len)
+  have lw': "length w' = nat_log_ceil 2 l" unfolding w'_def l_def using \<open>w \<noteq> []\<close> by (rule strip_exp_pad_len)
 
-  have "?lhs = card {pad::bin. length pad = l - clog l}" using card_bin_len_eq ..
-  also have "... = card ((\<lambda>pad. pad @ w') ` {pad. length pad = l - clog l})"
+  have "?lhs = card {pad::bin. length pad = l - nat_log_ceil 2 l}" using card_bin_len_eq ..
+  also have "... = card ((\<lambda>pad. pad @ w') ` {pad. length pad = l - nat_log_ceil 2 l})"
     using card_image[symmetric] inj_imp_inj_on inj_append_L .
-  also have "... = card {pad @ w' | pad. length pad = l - clog l}"
+  also have "... = card {pad @ w' | pad. length pad = l - nat_log_ceil 2 l}"
     by (intro arg_cong[where f=card]) (rule image_Collect)
   also have "... \<le> card {w. length w = l \<and> dec_TM_pad w = M}"
   proof (intro card_mono)
     show "finite {w. length w = l \<and> dec_TM_pad w = M}" using finite_bin_len_eq by simp
-    show "{pad @ w' | pad. length pad = l - clog l} \<subseteq> {w. length w = l \<and> dec_TM_pad w = M}"
+    show "{pad @ w' | pad. length pad = l - nat_log_ceil 2 l} \<subseteq> {w. length w = l \<and> dec_TM_pad w = M}"
     proof safe
       fix pad::bin
-      assume lp: "length pad = l - clog l"
+      assume lp: "length pad = l - nat_log_ceil 2 l"
       show lpw': "length (pad @ w') = l" unfolding length_append lp lw'
-        using \<open>clog l \<le> l\<close> by (rule le_add_diff_inverse2)
+        using \<open>nat_log_ceil 2 l \<le> l\<close> by (rule le_add_diff_inverse2)
 
-      have h1: "drop (l - clog l) pad = []" using lp by (intro drop_all) (rule eq_imp_le)
-      have h2: "l - clog l - length pad = 0" unfolding lp by simp
-      have h3: "drop (l - clog l) (pad @ w') = w'" unfolding drop_append h1 h2 by simp
+      have h1: "drop (l - nat_log_ceil 2 l) pad = []" using lp by (intro drop_all) (rule eq_imp_le)
+      have h2: "l - nat_log_ceil 2 l - length pad = 0" unfolding lp by simp
+      have h3: "drop (l - nat_log_ceil 2 l) (pad @ w') = w'" unfolding drop_append h1 h2 by simp
       show "dec_TM_pad (pad @ w') = M" unfolding dec_TM_pad_def strip_exp_pad_def
         unfolding lpw' Let_def h3 unfolding w'_def
         using \<open>dec_TM_pad w = M\<close> by (fold dec_TM_pad_def)
@@ -502,10 +502,10 @@ text\<open>``2. The retraction of preceding 1-bits creates the needed infinitude
 
 theorem embed_TM_in_len:
   fixes M l
-  assumes min_word_len: "clog l \<ge> length (enc_TM M) + 2" \<comment> \<open>The \<open>+2\<close> bits are required for the \<open>1\<^sup>+0\<close>-prefix.
+  assumes min_word_len: "nat_log_ceil 2 l \<ge> length (enc_TM M) + 2" \<comment> \<open>The \<open>+2\<close> bits are required for the \<open>1\<^sup>+0\<close>-prefix.
 
         Note: this theorem technically also holds when the assumption @{thm min_word_len} reads
-        \<^term>\<open>clog l > length (enc_TM M) \<longleftrightarrow> clog l \<ge> length (enc_TM M) + 1\<close>,
+        \<^term>\<open>nat_log_ceil 2 l > length (enc_TM M) \<longleftrightarrow> nat_log_ceil 2 l \<ge> length (enc_TM M) + 1\<close>,
         but only due to \<^const>\<open>strip_al_prefix\<close> allowing the absence of preceding ones.
         If it were to enforce the constraint of a correct \<open>1\<^sup>+0\<close>-prefix,
         this would no longer be the case.
@@ -515,29 +515,29 @@ theorem embed_TM_in_len:
   where "length w = l"
     and "dec_TM_pad w = canonical_TM M"
 proof
-  have "l > 0" by (rule ccontr) (use min_word_len in force)
-  hence "clog l \<le> l" by (rule clog_le)
+  have "l > 0" by (rule ccontr) (use min_word_len in simp)
+  hence "nat_log_ceil 2 l \<le> l" by (rule log2.ceil_le)
 
   let ?\<rho>M = "enc_TM M" let ?l\<rho> = "length ?\<rho>M"
-  define al_prefix where "al_prefix \<equiv> False # True \<up> (clog l - ?l\<rho> - 1)"
+  define al_prefix where "al_prefix \<equiv> False # True \<up> (nat_log_ceil 2 l - ?l\<rho> - 1)"
   define w' where "w' \<equiv> ?\<rho>M @ al_prefix"
   have w'_correct: "strip_al_prefix w' = ?\<rho>M" unfolding w'_def al_prefix_def strip_alp_altdef ..
   have "length w' = ?l\<rho> + length al_prefix" unfolding w'_def by simp
-  also have "... = ?l\<rho> + (clog l - ?l\<rho> - 1) + 1" unfolding add_left_cancel al_prefix_def
+  also have "... = ?l\<rho> + (nat_log_ceil 2 l - ?l\<rho> - 1) + 1" unfolding add_left_cancel al_prefix_def
     unfolding length_Cons length_replicate by presburger
-  also have "... = clog l - 1 + 1" unfolding add_right_cancel using min_word_len
+  also have "... = nat_log_ceil 2 l - 1 + 1" unfolding add_right_cancel using min_word_len
     by (subst diff_commute, intro le_add_diff_inverse) fastforce
-  also have "... = clog l" by (intro le_add_diff_inverse2) simp
-  finally have w'_len: "length w' = clog l" .
+  also have "... = nat_log_ceil 2 l" by (intro le_add_diff_inverse2) (simp add: leI)
+  finally have w'_len: "length w' = nat_log_ceil 2 l" .
 
-  define exp_pad where "exp_pad \<equiv> False \<up> (l - clog l)"
+  define exp_pad where "exp_pad \<equiv> False \<up> (l - nat_log_ceil 2 l)"
   define w where "w \<equiv> exp_pad @ w'"
-  have exp_len: "length exp_pad = l - clog l" unfolding exp_pad_def by (rule length_replicate)
-  have dexp: "drop (l - clog l) exp_pad = []" unfolding exp_pad_def by force
+  have exp_len: "length exp_pad = l - nat_log_ceil 2 l" unfolding exp_pad_def by (rule length_replicate)
+  have dexp: "drop (l - nat_log_ceil 2 l) exp_pad = []" unfolding exp_pad_def by force
 
-  have "length w = l - clog l + clog l" unfolding w_def length_append
+  have "length w = l - nat_log_ceil 2 l + nat_log_ceil 2 l" unfolding w_def length_append
     unfolding exp_pad_def w'_len length_replicate ..
-  also have "... = l" using \<open>clog l \<le> l\<close> by (fact le_add_diff_inverse2)
+  also have "... = l" using \<open>nat_log_ceil 2 l \<le> l\<close> by (fact le_add_diff_inverse2)
   finally show "length w = l" .
 
   have w_correct: "strip_exp_pad w = w'" unfolding strip_exp_pad_def \<open>length w = l\<close> Let_def

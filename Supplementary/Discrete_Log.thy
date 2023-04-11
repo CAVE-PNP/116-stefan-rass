@@ -327,7 +327,7 @@ lemma ceil_exp[simp]: "nat_log_ceil b (b^n) = n" if "n > 0"
 
 lemma ceil_gt_0[simp]: "nat_log_ceil b n > 0" unfolding nat_log_ceil_def by force
 
-lemma ceil_eq1: "n \<le> b \<Longrightarrow> nat_log_ceil b n = 1" unfolding nat_log_ceil_def
+lemma ceil_eq1[simp]: "n \<le> b \<Longrightarrow> nat_log_ceil b n = 1" unfolding nat_log_ceil_def
   using valid_base by (subst nat_log_0(2)) linarith+
 
 lemma ceil_le: "0 < n \<Longrightarrow> nat_log_ceil b n \<le> n"
