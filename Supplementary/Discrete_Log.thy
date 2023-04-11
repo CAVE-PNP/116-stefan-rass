@@ -114,7 +114,7 @@ qed \<comment> \<open>case \<open>b \<le> 1\<close> by\<close> force
 lemma nat_log_mono: "mono (nat_log b)"
   unfolding incseq_Suc_iff using nat_log_Suc_ge ..
 
-lemmas nat_log_le_iff = monoD[OF nat_log_mono]
+lemmas nat_log_le_iff[intro?] = monoD[OF nat_log_mono]
 
 
 context nat_log_base
