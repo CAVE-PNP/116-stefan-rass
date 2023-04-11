@@ -1,7 +1,9 @@
 section\<open>Lists\<close>
 
 theory Lists
-  imports Main Misc "HOL-Library.Sublist"
+  imports Main Misc
+    "HOL-Library.More_List"
+    "HOL-Library.Sublist"
     "HOL-Eisbach.Eisbach"
 begin
 
@@ -15,7 +17,7 @@ notation lists ("(_*)" [1000] 999) \<comment> \<open>Priorities taken from \<^co
   Introducing an abbreviation would be nicer, since Ctrl+Click then shows the abbreviation,
   instead of directly jumping to \<^const>\<open>lists\<close>,
   but the abbreviation completely replaces references to \<^const>\<open>lists\<close>, which is confusing.\<close>
-(*(* abbreviation kleene_star ("(_*)" [1000] 999) where "\<Sigma>* \<equiv> lists \<Sigma>" *)
+(*(* abbreviation (input) kleene_star ("(_*)" [1000] 999) where "\<Sigma>* \<equiv> lists \<Sigma>" *)
 
 lemma lists_member[iff]: "xs \<in> X* \<longleftrightarrow> set xs \<subseteq> X" by blast
 
@@ -318,29 +320,21 @@ proof -
 qed
 
 
-text\<open>A version of \<^const>\<open>nth\<close> with a default value; if the requested element is not in the list,
-  the default value is returned instead.\<close>
+declare nth_default_nth[simp]
 
-definition nth_or :: "'a \<Rightarrow> nat \<Rightarrow> 'a list \<Rightarrow> 'a"
-  where "nth_or x n xs \<equiv> if n < length xs then xs ! n else x"
-
-lemma nth_or_simps[simp]:
-  shows nth_or_Nil: "nth_or x n [] = x"
-    and nth_or_val: "n < length xs \<Longrightarrow> nth_or x n xs = xs ! n"
-    and nth_or_other: "\<not> n < length xs \<Longrightarrow> nth_or x n xs = x"
-  unfolding nth_or_def by auto
-
-lemma nth_or_map: "f (nth_or x n xs) = nth_or (f x) n (map f xs)" by (cases "n < length xs") auto
-
-lemma nth_or_cases:
+lemma nth_default_cases:
   assumes "n < length xs \<Longrightarrow> P (xs ! n)"
     and "\<not> (n < length xs) \<Longrightarrow> P x"
-  shows "P (nth_or x n xs)"
-  unfolding nth_or_def using assms by (fact ifI)
+  shows "P (nth_default x xs n)"
+  unfolding nth_default_def using assms by (fact ifI)
 
-lemma nth_or_split:
-  "P (nth_or x n xs) \<longleftrightarrow> (n < length xs \<longrightarrow> P (xs ! n)) \<and> (\<not> (n < length xs) \<longrightarrow> P x)"
-  unfolding nth_or_def by presburger
+lemma nth_default_split:
+  "P (nth_default x xs n) \<longleftrightarrow> (n < length xs \<longrightarrow> P (xs ! n)) \<and> (\<not> (n < length xs) \<longrightarrow> P x)"
+  unfolding nth_default_def by presburger
+
+lemma nth_default_map[simp]: "nth_default (f dflt) (map f xs) n = f (nth_default dflt xs n)"
+  by (rule nth_default_map_eq) (fact refl)
+
 
 
 text\<open>Force a list to a given length; truncate if too long, and pad with the default value if too short.\<close>
