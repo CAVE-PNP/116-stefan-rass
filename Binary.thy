@@ -435,21 +435,23 @@ qed \<comment> \<open>case \<^term>\<open>w = []\<close> by\<close> simp
 
 subsection\<open>Log and Bit-Length\<close>
 
-lemma bit_len_eq_dlog: "n > 0 \<Longrightarrow> bit_length n = dlog n + 1"
-proof (induction n rule: log_induct)
-  case (double n)
+lemma bit_len_eq_log2: "n > 0 \<Longrightarrow> bit_length n = nat_log 2 n + 1"
+proof (induction n rule: log2_induct)
+  case (div n)
+  from \<open>n \<ge> 2\<close> have "n div 2 > 0" by force
+
   have "bit_length n = bit_length (2 * (n div 2))" using \<open>n \<ge> 2\<close>
     by (subst bin_of_nat_div2_times2_len) force+
   also have "... = bit_length (n div 2) + 1" using \<open>n \<ge> 2\<close> by (subst bit_len_double) force+
-  also have "... = dlog (n div 2) + 1 + 1" unfolding double.IH ..
-  also have "... = dlog (n) + 1" using log_rec[of n] and \<open>n \<ge> 2\<close> by presburger
-  finally show "bit_length n = dlog n + 1" .
-qed \<comment> \<open>case \<^term>\<open>n = 1\<close> by\<close> force
+  also have "... = nat_log 2 (n div 2) + 1 + 1" unfolding div.IH ..
+  also have "... = nat_log 2 (n) + 1" using log2.rec[OF \<open>n \<ge> 2\<close>] by presburger
+  finally show "bit_length n = nat_log 2 n + 1" .
+qed \<comment> \<open>case \<^term>\<open>n < 2\<close> by\<close> force+
 
 lemma bit_length_eq_log:
   assumes "n > 0"
   shows "bit_length n = \<lfloor>log 2 n\<rfloor> + 1"
-  using assms log_altdef bit_len_eq_dlog by auto
+  using assms log2.altdef bit_len_eq_log2 by auto
 
 
 subsection\<open>Order\<close>

@@ -234,27 +234,27 @@ proof (cases "n > 0")
     with powr_log_cancel show ?thesis by simp
   qed
   also have "... < 2 powr (2 + log 2 n / 2)" using * by simp
-  also have "... \<le> 2 powr (4 + dlog n div 2)"
+  also have "... \<le> 2 powr (4 + nat_log 2 n div 2)"
   proof -
     have "2 + log 2 (real n) / 2 \<le> 4 + \<lfloor>\<lfloor>log 2 (real n)\<rfloor> / 2\<rfloor>" by linarith
     also have "... = 4 + \<lfloor>log 2 (real n)\<rfloor> div 2"
       unfolding floor_divide_of_int_eq[of _ 2, unfolded of_int_numeral] ..
-    also have "... = 4 + dlog n div 2"
+    also have "... = 4 + nat_log 2 n div 2"
     proof -
       from \<open>n > 0\<close> have "n \<noteq> 0" ..
-      with log_altdef have *: "\<lfloor>log 2 n\<rfloor> = int (dlog n)" by simp
-      then have "4 + \<lfloor>log 2 (real n)\<rfloor> div 2 = (4 + (int (dlog n)) div 2)" unfolding * by blast
-      also have "... = 4 + dlog n div 2" unfolding of_nat_add of_nat_numeral of_nat_div ..
-      finally have **: "4 + \<lfloor>log 2 n\<rfloor> div 2 = 4 + dlog n div 2" .
+      with log2.altdef have *: "\<lfloor>log 2 n\<rfloor> = int (nat_log 2 n)" by simp
+      then have "4 + \<lfloor>log 2 (real n)\<rfloor> div 2 = (4 + (int (nat_log 2 n)) div 2)" unfolding * by blast
+      also have "... = 4 + nat_log 2 n div 2" unfolding of_nat_add of_nat_numeral of_nat_div ..
+      finally have **: "4 + \<lfloor>log 2 n\<rfloor> div 2 = 4 + nat_log 2 n div 2" .
       show ?thesis unfolding ** using of_int_of_nat_eq .
     qed
     finally show ?thesis by simp
   qed
-  also have "... = 2 ^ (4 + dlog n div 2)" using powr_realpow[of 2] by fastforce
-  finally have "real (2 * dsqrt n + 1) < real (2 ^ (4 + dlog n div 2))" by simp
-  then have "2 * dsqrt n + 1 < 2 ^ (4 + dlog n div 2)" unfolding of_nat_less_iff .
+  also have "... = 2 ^ (4 + nat_log 2 n div 2)" by (intro powr_realpow[of 2]) simp
+  finally have "real (2 * dsqrt n + 1) < real (2 ^ (4 + nat_log 2 n div 2))" by simp
+  then have "2 * dsqrt n + 1 < 2 ^ (4 + nat_log 2 n div 2)" unfolding of_nat_less_iff .
 
-  also have "... \<le> 2 ^ (4 + bit_length n div 2)" using \<open>n > 0\<close> by (subst bit_len_eq_dlog) simp_all
+  also have "... \<le> 2 ^ (4 + bit_length n div 2)" using \<open>n > 0\<close> by (subst bit_len_eq_log2) auto
   finally show ?thesis .
 qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
@@ -333,10 +333,10 @@ proof (cases "n > 0", cases "k > 0")
   assume "n > 0" and "k > 0" and "n < 2 ^ k"
   from \<open>n > 0\<close> \<open>n < 2 ^ k\<close> have "n \<le> 2 ^ k - 1" by linarith
 
-  from \<open>n > 0\<close> have "bit_length n = dlog n + 1" by (rule bit_len_eq_dlog)
-  also have "... \<le> dlog (2 ^ k - 1) + 1" unfolding add_le_cancel_right
-    using \<open>n \<le> 2 ^ k - 1\<close> by (rule log_le_iff)
-  also have "... = k" unfolding log_exp_m1 using \<open>k > 0\<close> by simp
+  from \<open>n > 0\<close> have "bit_length n = nat_log 2 n + 1" by (rule bit_len_eq_log2)
+  also have "... \<le> nat_log 2 (2 ^ k - 1) + 1" unfolding add_le_cancel_right
+    using \<open>n \<le> 2 ^ k - 1\<close> by (rule nat_log_le_iff)
+  also have "... = k" unfolding log2.exp_m1 using \<open>k > 0\<close> by simp
   finally show ?thesis .
 qed \<comment> \<open>cases \<open>n = 0\<close> and \<open>k = 0\<close> by\<close> fastforce+
 
@@ -430,11 +430,11 @@ proof (cases "lo > 0")
   from n'_def have n'_eq: "n' = up * 2^k + 0" by simp
 
   from \<open>lo < 2^k\<close> have "lo \<le> 2^k - 1" by simp
-  with log_mono have "dlog lo \<le> dlog (2^k - 1)" ..
+  then have "nat_log 2 lo \<le> nat_log 2 (2^k - 1)" ..
 
-  have "?lb lo = dlog lo + 1" using \<open>lo > 0\<close> by (rule bit_len_eq_dlog)
-  also have "... \<le> dlog (2^k - 1) + 1" using \<open>dlog lo \<le> dlog (2^k - 1)\<close> by (rule add_right_mono)
-  also have "... = k" unfolding log_exp_m1 using \<open>k > 0\<close> by (subst le_add_diff_inverse2) force+
+  have "?lb lo = nat_log 2 lo + 1" using \<open>lo > 0\<close> by (rule bit_len_eq_log2)
+  also have "... \<le> nat_log 2 (2^k - 1) + 1" using \<open>nat_log 2 lo \<le> nat_log 2 (2^k - 1)\<close> by (rule add_right_mono)
+  also have "... = k" unfolding log2.exp_m1 using \<open>k > 0\<close> by (subst le_add_diff_inverse2) force+
   finally have "?lb lo \<le> k" .
 
   have "bin_of_nat n' = ?z k @ ?up" unfolding n'_eq using add_suffix_bin'[of up 0 k] \<open>up > 0\<close> zero_less_power pos2 by simp
@@ -458,7 +458,7 @@ proof (intro sh_msbI)
   define n where n: "n = gn w"
   define w\<^sub>n where wn_def: "w\<^sub>n = bin_of_nat n"
   have "n > 0" unfolding n by (rule gn_gt_0)
-  have wn: "w\<^sub>n = w @ [True]" unfolding n wn_def gn_def by (subst bin_nat_bin) rule+
+  have wn: "w\<^sub>n = w @ [True]" unfolding n wn_def gn_def by (subst bin_nat_bin) blast+
 
   define ps where ps: "ps \<equiv> drop k w\<^sub>n"
   define up where up: "up = (ps)\<^sub>2"
@@ -485,11 +485,11 @@ proof (intro sh_msbI)
   define sq where sq: "sq = adj_square n"
   define sq_diff where "sq_diff = sq - n'"
   have sq_w': "bin_of_nat sq = w' @ [True]" unfolding w' adj_sq\<^sub>w_def sq n
-    by (subst gn_inv_of_bin) (rule adj_sq_gt_0, rule)
+    by (subst gn_inv_of_bin) (rule adj_sq_gt_0, fact refl)
 
   have sq_eq: "sq = next_square n'" unfolding sq adj_square_def n' lo k n gn_inv_id ..
   have sq_split: "sq = up * 2^k + sq_diff" unfolding sq_diff_def n'_split[symmetric] sq_eq
-    using next_sq_correct2[of n'] by (subst add_diff_inverse_nat) (elim leD, rule)
+    using next_sq_correct2[of n'] by (subst add_diff_inverse_nat) (elim leD, blast)
   have "sq_diff < 2 ^ (4 + bit_length n' div 2)" unfolding sq_diff_def sq_eq suffix_len_def
     using next_sq_diff .
   also have "... \<le> 2 ^ k" unfolding l_eq[symmetric] n len_gn k suffix_len_def
@@ -523,7 +523,7 @@ proof (intro sh_msbI)
 qed
 
 
-lemma sh_pfx_log_ineq: "l \<ge> 20 \<Longrightarrow> dlog l \<le> l div 2 - 6"
+lemma sh_pfx_log_ineq: "l \<ge> 20 \<Longrightarrow> nat_log 2 l \<le> l div 2 - 6"
 proof (induction l rule: nat_induct_at_least)
   case base (* l = 20 *)
   show ?case by (simp add: Discrete.log.simps)
@@ -531,23 +531,24 @@ next
   case (Suc n)
   let ?Sn = "Suc n"
   from \<open>n \<ge> 20\<close> have "n \<noteq> 0" "n > 0" by linarith+
-  from dlog_Suc \<open>n > 0\<close> have dlog_Suc': "dlog ?Sn = (if ?Sn = 2 ^ dlog ?Sn then Suc (dlog n) else dlog n)" .
+  from log2.Suc \<open>n > 0\<close> have log2_Suc': "nat_log 2 ?Sn = (if ?Sn = 2 ^ nat_log 2 ?Sn then Suc (nat_log 2 n) else nat_log 2 n)" .
 
   note remove_plus1 = nat.inject[unfolded Suc_eq_plus1] Suc_le_mono[unfolded Suc_eq_plus1]
 
-  show ?case proof (cases "?Sn = 2 ^ dlog ?Sn")
+  show ?case proof (cases "?Sn = 2 ^ nat_log 2 ?Sn")
     case True
-    then have "even ?Sn" using dlog_Suc' by fastforce
-    then have div_eq: "?Sn div 2 = n div 2 + 1" by simp
+    note * = log2_Suc'[unfolded if_P[OF this]]
+    have "even ?Sn" by (subst \<open>?Sn = 2 ^ nat_log 2 ?Sn\<close>) (force simp: *)
+    then have div_eq: "?Sn div 2 = n div 2 + 1" by force
 
-    from True have "dlog ?Sn = (dlog n) + 1" by (subst dlog_Suc') simp
+    have "nat_log 2 ?Sn = (nat_log 2 n) + 1" by (force simp: *)
     also have "... \<le> n div 2 - 6 + 1" unfolding remove_plus1 using Suc.IH .
     also have "... = n div 2 + 1 - 6" using \<open>n \<ge> 20\<close> by (intro add_diff_assoc2) linarith
     also have "... = ?Sn div 2 - 6" unfolding div_eq ..
     finally show ?thesis .
   next
     case False
-    then have "dlog ?Sn = dlog n" by (subst dlog_Suc') simp
+    then have "nat_log 2 ?Sn = nat_log 2 n" by (subst log2_Suc') simp
     also have "... \<le> n div 2 - 6" unfolding remove_plus1 using Suc.IH .
     also have "... \<le> ?Sn div 2 - 6" by (intro diff_le_mono) (rule Suc_div_le_mono)
     finally show ?thesis .
@@ -557,11 +558,11 @@ qed
 lemma sh_pfx_log_ineq':
   assumes "l \<ge> 20"
   defines "l_div_2 \<equiv> l div 2"
-  shows "clog l \<le> l div 2 - 5"
+  shows "nat_log_ceil 2 l \<le> l div 2 - 5"
 proof -
   have "l div 2 \<ge> 6" using \<open>l \<ge> 20\<close> by linarith
 
-  have "clog l \<le> dlog l + 1" by (rule clog_le_dlog_p1)
+  have "nat_log_ceil 2 l \<le> nat_log 2 l + 1" by (fact log2.ceil_le_nat_log_p1)
   also have "... \<le> l div 2 - 6 + 1" unfolding add_le_cancel_right
     using \<open>l \<ge> 20\<close> by (rule sh_pfx_log_ineq)
   also have "... = l div 2 + 1 - 6" using \<open>l div 2 \<ge> 6\<close> by (rule add_diff_assoc2)
@@ -576,18 +577,18 @@ theorem adj_sq_sh_pfx_log:
   defines "l \<equiv> length w"
   defines "w' \<equiv> adj_sq\<^sub>w w"
   assumes "l \<ge> 20" \<comment> \<open>lower bound for \<open>clog l \<le> l div 2 - 5\<close>\<close>
-  shows "shared_MSBs (clog l) w w'"
+  shows "shared_MSBs (nat_log_ceil 2 l) w w'"
 proof -
-  have "clog l \<le> l div 2 - 5" using \<open>l \<ge> 20\<close> by (rule sh_pfx_log_ineq')
+  have "nat_log_ceil 2 l \<le> l div 2 - 5" using \<open>l \<ge> 20\<close> by (rule sh_pfx_log_ineq')
   also have "... = l div 2 + l div 2 - l div 2 - 5" unfolding diff_add_inverse2 ..
   also have "... \<le> l - l div 2 - 5" by (intro diff_le_mono) (fold mult_2, simp)
   also have "... = l - (5 + l div 2)" unfolding diff_diff_left by presburger
   also have "... = length w - suffix_len w" unfolding suffix_len_def len_gn l_def[symmetric] ..
-  finally have "clog l \<le> length w - suffix_len w" .
+  finally have "nat_log_ceil 2 l \<le> length w - suffix_len w" .
 
   moreover have "shared_MSBs (length w - suffix_len w) w (adj_sq\<^sub>w w)" using \<open>l \<ge> 20\<close>
     by (intro adj_sq_sh_pfx_half) (fold l_def, force)
-  ultimately show "shared_MSBs (clog l) w w'" by (fold w'_def) (rule sh_msb_le)
+  ultimately show "shared_MSBs (nat_log_ceil 2 l) w w'" by (fold w'_def) (rule sh_msb_le)
 qed
 
 

@@ -131,26 +131,26 @@ proof -
     define w' :: "bool list" where "w' = enc_TM M\<^sub>w"
 
     let ?n = "length (enc_TM M\<^sub>w) + 2"
-    obtain l where "T l \<ge> t l" and "clog l \<ge> ?n"
+    obtain l where "T l \<ge> t l" and "nat_log_ceil 2 l \<ge> ?n"
     proof -
       obtain l\<^sub>1 :: nat where l1: "l \<ge> l\<^sub>1 \<Longrightarrow> T l > t l" for l using T_gt_t_ae by blast
-      obtain l\<^sub>2 :: nat where l2: "l \<ge> l\<^sub>2 \<Longrightarrow> clog l \<ge> ?n" for l
+      obtain l\<^sub>2 :: nat where l2: "l \<ge> l\<^sub>2 \<Longrightarrow> nat_log_ceil 2 l \<ge> ?n" for l
       proof
         fix l :: nat
         assume "l \<ge> 2^?n"
         have "?n > 0" by simp
-        then have "?n = clog (2^?n)" by (rule clog_exp[symmetric])
-        also have "... \<le> clog l" using clog_mono \<open>l \<ge> 2^?n\<close> ..
-        finally show "clog l \<ge> ?n" .
+        then have "?n = nat_log_ceil 2 (2^?n)" by (rule log2.ceil_exp[symmetric])
+        also have "... \<le> nat_log_ceil 2 l" using log2.ceil_mono \<open>l \<ge> 2^?n\<close> ..
+        finally show "nat_log_ceil 2 l \<ge> ?n" .
       qed
 
       let ?l = "max l\<^sub>1 l\<^sub>2"
       have "T ?l \<ge> t ?l" by (rule less_imp_le, rule l1) force
-      moreover have "clog ?l \<ge> ?n" by (rule l2) force
+      moreover have "nat_log_ceil 2 ?l \<ge> ?n" by (rule l2) force
       ultimately show ?thesis by (intro that) fast+
     qed
 
-    from \<open>clog l \<ge> ?n\<close> obtain w
+    from \<open>nat_log_ceil 2 l \<ge> ?n\<close> obtain w
       where [simp]: "length w = l" and dec_w[simp]: "dec_TM_pad w = canonical_TM M\<^sub>w"
       by (rule embed_TM_in_len)
 
