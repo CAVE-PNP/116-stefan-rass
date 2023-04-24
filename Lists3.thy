@@ -570,21 +570,12 @@ end  (* context *)
 
 end  (* locale turing_machine_appendl *)
 
-thm mlist.lxcontents_def
-
-term mlist.lxcontents
-
-lemma transforms_tm_appendlI [transforms_intros]:
+lemma (in mlist) transforms_tm_appendlI [transforms_intros]:
   fixes j1 j2 :: tapeidx
   fixes tps tps' :: "tape list" and ttt k i1 :: nat and a :: 'a and as :: "'a list"
-    and enc_a and d
-  assumes "1 < d"
-    and "\<And>a. \<forall>i<length (enc_a a). Suc 0 < enc_a a ! i"
-    and "\<And>a. symbols_lt d (enc_a a)"
-    and "\<And>a b. enc_a a = enc_a b \<Longrightarrow> a = b"
-  assumes "0 < j1"
   assumes "length tps = k" "j1 < k" "j2 < k" "j1 \<noteq> j2"
-    and "i1 \<le> Suc (mlist.lxlength d enc_a as)"
+  assumes "0 < j1"
+  assumes "i1 \<le> Suc (mlist.lxlength d enc_a as)"
   assumes
     "tps ! j1 = (mlist.lxcontents d enc_a as, i1)"
     "tps ! j2 = (\<lfloor>enc_a a\<rfloor>, 1)"
@@ -593,11 +584,11 @@ lemma transforms_tm_appendlI [transforms_intros]:
     [j1 := mlist.lxtape d enc_a (as @ [a])]"
   shows "transforms (tm_appendl d j1 j2) tps ttt tps'"
 proof -
-  from assms(1-4) interpret loc: turing_machine_appendl d enc_a j1 j2 by unfold_locales
-  have tps4: "tps' = loc.tps4 tps a as" unfolding tps' loc.lxcontents_def
-    by (subst loc.tps4_def) (fact assms refl)+
+  interpret loc: turing_machine_appendl d enc_a j1 j2 by unfold_locales
+  have tps4: "tps' = loc.tps4 tps a as" unfolding tps' lxcontents_def
+    unfolding loc.tps4_def[OF assms(1-8)] ..
   show ?thesis unfolding loc.tm4_eq_tm_append[symmetric] tps4
-    by (intro loc.tm4) (fact assms)+
+    using assms(1-9) by (fact loc.tm4)
 qed
 
 
@@ -620,7 +611,7 @@ lemma tm_extendl_tm:
   shows "turing_machine k G (tm_extendl j1 j2)"
   unfolding tm_extendl_def using assms tm_extend_tm by simp
 
-locale turing_machine_extendl =
+locale turing_machine_extendl = mlist +
   fixes j1 j2 :: tapeidx
 begin
 
@@ -632,11 +623,10 @@ lemma tm2_eq_tm_extendl: "tm2 = tm_extendl j1 j2"
 
 context
   fixes tps0 :: "tape list" and k :: nat and as1 as2 :: "'a list"
-    and d and enc_a
   assumes jk: "0 < j1" "j1 < k" "j2 < k" "j1 \<noteq> j2" "length tps0 = k"
   assumes tps0:
-    "tps0 ! j1 = mlist.lxtape d enc_a as1"
-    "tps0 ! j2 = (mlist.lxcontents d enc_a as2, 1)"
+    "tps0 ! j1 = lxtape as1"
+    "tps0 ! j2 = (\<lfloor>as2\<rfloor>\<^sub>L\<^sub>X, 1)"
 begin
 
 definition "tps1 \<equiv> tps0
@@ -652,7 +642,8 @@ proof (tform tps: tps1_def tps0 jk time: assms)
   show "rneigh (tps0 ! j2) {\<box>} ?n"
   proof (rule rneighI)
     show "(tps0 ::: j2) (tps0 :#: j2 + lxlength as2) \<in> {\<box>}"
-      using tps0 mlist.lxcontents_def mlist.lxlength_def jk by simp
+      using tps0 mlist.lxcontents_def mlist.lxlength_def jk
+      by (metis contents_outofbounds fst_eqD lessI mlist_axioms plus_1_eq_Suc singleton_iff snd_eqD)
     show "\<And>i. i < lxlength as2 \<Longrightarrow> (tps0 ::: j2) (tps0 :#: j2 + i) \<notin> {\<box>}"
       using tps0 jk contents_def lxcontents_def lxlength_def proper_symbols_From
       by fastforce
@@ -688,20 +679,21 @@ end  (* context tps0 *)
 
 end  (* locale turing_machine_extendl *)
 
-lemma transforms_tm_extendlI [transforms_intros]:
+lemma (in mlist) transforms_tm_extendlI [transforms_intros]:
   fixes j1 j2 :: tapeidx
   fixes tps tps' :: "tape list" and k :: nat and as1 as2 :: "'a list"
   assumes "0 < j1" "j1 < k" "j2 < k" "j1 \<noteq> j2" "length tps = k"
   assumes
-    "tps ! j1 = lxtape as1"
-    "tps ! j2 = (\<lfloor>as2\<rfloor>\<^sub>L\<^sub>X, 1)"
-  assumes "ttt = 4 + 2 * lxlength as2"
-  assumes "tps' = tps[j1 := lxtape (as1 @ as2)]"
+    "tps ! j1 = mlist.lxtape d enc_a as1"
+    "tps ! j2 = (mlist.lxcontents d enc_a as2, 1)"
+  assumes ttt: "ttt = 4 + 2 * mlist.lxlength d enc_a as2"
+  assumes tps': "tps' = tps[j1 := mlist.lxtape d enc_a (as1 @ as2)]"
   shows "transforms (tm_extendl j1 j2) tps ttt tps'"
 proof -
-  interpret loc: turing_machine_extendl j1 j2 .
-  show ?thesis
-    using loc.tm2_eq_tm_extendl loc.tm2 loc.tps2_def assms by simp
+  note l1 = assms(1-7)
+  interpret loc: turing_machine_extendl d enc_a j1 j2 by unfold_locales
+  show ?thesis unfolding tps'
+    by (fold loc.tm2_eq_tm_extendl loc.tps2_def[OF assms(1-7)]) (fact loc.tm2[OF assms(1-8)])
 qed
 
 text \<open>
@@ -716,26 +708,26 @@ lemma tm_extendl_erase_tm:
   shows "turing_machine k G (tm_extendl_erase j1 j2)"
   unfolding tm_extendl_erase_def using assms tm_extendl_tm tm_erase_cr_tm by simp
 
-lemma transforms_tm_extendl_eraseI [transforms_intros]:
+lemma (in mlist) transforms_tm_extendl_eraseI [transforms_intros]:
   fixes tps tps' :: "tape list" and j1 j2 :: tapeidx and ttt k :: nat and as1 as2 :: "'a list"
   assumes "0 < j1" "j1 < k" "j2 < k" "j1 \<noteq> j2" "0 < j2" "length tps = k"
   assumes
-    "tps ! j1 = lxtape as1"
-    "tps ! j2 = (\<lfloor>as2\<rfloor>\<^sub>L\<^sub>X, 1)"
-  assumes "ttt = 11 + 4 * lxlength as2 "
+    "tps ! j1 = mlist.lxtape d enc_a as1"
+    "tps ! j2 = (mlist.lxcontents d enc_a as2, 1)"
+  assumes "ttt = 11 + 4 * mlist.lxlength d enc_a as2 "
   assumes "tps' = tps
-    [j1 := lxtape (as1 @ as2),
+    [j1 := mlist.lxtape d enc_a (as1 @ as2),
      j2 := (\<lfloor>[]\<rfloor>, 1)]"
   shows "transforms (tm_extendl_erase j1 j2) tps ttt tps'"
   unfolding tm_extendl_erase_def
 proof (tform tps: assms)
-  let ?zs = "From as2"
-  show "tps[j1 := lxtape (as1 @ as2)] ::: j2 = \<lfloor>?zs\<rfloor>"
+  let ?zs = "mlist.From d enc_a as2"
+  show "tps[j1 := mlist.lxtape d enc_a (as1 @ as2)] ::: j2 = \<lfloor>?zs\<rfloor>"
     using assms by (simp add: lxcontents_def)
   show "proper_symbols ?zs"
     using proper_symbols_From by simp
-  show "ttt = 4 + 2 * lxlength as2 +
-      (tps[j1 := lxtape (as1 @ as2)] :#: j2 + 2 * length (From as2) + 6)"
+  show "ttt = 4 + 2 * mlist.lxlength d enc_a as2 +
+      (tps[j1 := mlist.lxtape d enc_a (as1 @ as2)] :#: j2 + 2 * length (mlist.From d enc_a as2) + 6)"
     using assms lxlength_def by simp
 qed
 
@@ -747,7 +739,7 @@ Iterating over a list of lists of numbers works with the same Turing machine,
 @{const tm_nextract}, as for lists of numbers. We just have to set the parameter
 $z$ to the terminator symbol @{text d}.  For the proof
 we can also just copy from the previous section, replacing the symbol @{text "\<bar>"}
-by @{text d} and @{const len_a} by @{const lxlength}, etc.
+by @{text d} and @{const mlist.len_a} by @{const mlist.lxlength}, etc.
 
 \null
 \<close>
