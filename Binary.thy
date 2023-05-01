@@ -390,6 +390,10 @@ proof (intro iffI)
   show "?rhs \<Longrightarrow> ?lhs" by (rule bin_of_nat_gt_0_end_True)
 qed
 
+lemma bin_of_nat_ends_in_cases: "bin_of_nat n = [] \<or> ends_in True (bin_of_nat n)" by auto
+lemma bin_of_nat_last_cases: "bin_of_nat n = [] \<or> (bin_of_nat n \<noteq> [] \<and> last (bin_of_nat n) = True)"
+  using bin_of_nat_ends_in_cases by (rule disj_forward) (blast, metis snoc_eq_iff_butlast)
+
 
 lemma take_mod: "((w)\<^sub>2 mod 2^k) = (take k w)\<^sub>2"
 proof (induction w arbitrary: k)

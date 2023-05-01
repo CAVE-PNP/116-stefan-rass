@@ -1,6 +1,11 @@
 theory Lists3
-  imports "Supplementary/Misc" Cook_Levin.Lists_Lists
+  imports "Supplementary/Misc" Binary
+    Cook_Levin.Lists_Lists
 begin
+
+
+abbreviation "flatmap f xs \<equiv> concat (map f xs)"
+  \<comment> \<open>see also \<^const>\<open>List.maps\<close>\<close>
 
 
 section \<open>Lists of lists of numbers\label{s:tm-lxencode}\<close>
@@ -34,10 +39,6 @@ the number of elements in the list.
 
 \null
 \<close>
-
-
-abbreviation "flatmap f xs \<equiv> concat (map f xs)"
-  \<comment> \<open>see also \<^const>\<open>List.maps\<close>\<close>
 
 
 locale mlist =
@@ -431,7 +432,7 @@ begin
 lemma tps_helpers:
   shows j1_valid: "j1 < length tps0"
     and j2_valid: "j2 < length tps0"
-and j2_neq_j1: "j2 \<noteq> j1"
+    and j2_neq_j1: "j2 \<noteq> j1"
   using jk by blast+
 
 lemmas tps0_update_helpers[simp] = nth_list_update_eq[OF j1_valid] nth_list_update_eq[OF j2_valid]
@@ -663,8 +664,7 @@ proof (tform tps: tps1_def tps0 jk time: assms)
   show "rneigh (tps0 ! j2) {\<box>} ?n"
   proof (rule rneighI)
     show "(tps0 ::: j2) (tps0 :#: j2 + lxlength as2) \<in> {\<box>}"
-      using tps0 mlist.lxcontents_def mlist.lxlength_def jk
-      by (metis contents_outofbounds fst_eqD lessI mlist_axioms plus_1_eq_Suc singleton_iff snd_eqD)
+      using tps0 mlist.lxcontents_def mlist.lxlength_def jk mlist_axioms by fastforce
     show "\<And>i. i < lxlength as2 \<Longrightarrow> (tps0 ::: j2) (tps0 :#: j2 + i) \<notin> {\<box>}"
       using tps0 jk contents_def lxcontents_def lxlength_def proper_symbols_lxencode
       by fastforce
@@ -801,6 +801,7 @@ definition "tps2 \<equiv> tps0
   [j1 := (\<lfloor>as\<rfloor>\<^sub>L\<^sub>X, lxlength (take (Suc idx) as)),
    j2 := (\<lfloor>xencode (as ! idx)\<rfloor>, Suc (xlength (as ! idx)))]"
 
+
 lemma tm2 [transforms_intros]:
   assumes "ttt = 7 + 2 * xlength dummy + Suc (xlength (as ! idx))"
   shows "transforms tm2 tps0 ttt tps2"
@@ -826,8 +827,8 @@ proof (tform tps: jk idx tps0 tps2_def tps1_def time: assms)
           using tps0 that tps1_def tps2_def jk lxlength_take_Suc[OF idx] idx by simp
       next
         case 2
-        then have lhs: "?l ! i = (\<lfloor>as ! idx\<rfloor>\<^sub>N\<^sub>L, Suc (xlength (as ! idx)))"
-          using tps2_def jk by simp
+        then have lhs: "?l ! i = (\<lfloor>as ! idx\<rfloor>\<^sub>X, Suc (xlength (as ! idx)))"
+          unfolding tps2_def using jk by (simp add: xcontents_def)
         let ?i = "Suc (lxlength (take idx as))"
         have i1: "?i > 0"
           by simp
@@ -837,12 +838,13 @@ proof (tform tps: jk idx tps0 tps2_def tps1_def time: assms)
           using lxlength_def by simp
         have "?r ! i = implant (tps1 ! j1) (tps1 ! j2) (xlength (as ! idx))"
           using 2 tps1_def jk by simp
-        also have "... = implant (\<lfloor>as\<rfloor>\<^sub>L\<^sub>X, ?i) (\<lfloor>[]\<rfloor>\<^sub>N\<^sub>L, 1) (xlength (as ! idx))"
-          using tps1_def jk tps0 by simp
+        also have "... = implant (\<lfloor>as\<rfloor>\<^sub>L\<^sub>X, ?i) (\<lfloor>[]\<rfloor>\<^sub>L\<^sub>X, 1) (xlength (as ! idx))"
+          using tps1_def jk tps0 by (simp add: lxcontents_Nil)
         also have "... =
           (\<lfloor>[] @ (take (xlength (as ! idx)) (drop (?i - 1) (lxencode as)))\<rfloor>,
            Suc (length []) + xlength (as ! idx))"
-          using implant_contents[OF i1 i2] lxcontents_def nlcontents_def xencode_Nil by (metis One_nat_def list.size(3))
+          using implant_contents[OF i1 i2] lxcontents_def
+          by (metis length_0_conv lxencode_Nil lxlength_Nil lxtape'_0 take0)
         finally have "?r ! i =
           (\<lfloor>[] @ (take (xlength (as ! idx)) (drop (?i - 1) (lxencode as)))\<rfloor>,
            Suc (length []) + xlength (as ! idx))" .
@@ -850,10 +852,9 @@ proof (tform tps: jk idx tps0 tps2_def tps1_def time: assms)
           (\<lfloor>take (xlength (as ! idx)) (drop (lxlength (take idx as)) (lxencode as))\<rfloor>,
            Suc (xlength (as ! idx)))"
           by simp
-        then have "?r ! i = (\<lfloor>xencode (as ! idx)\<rfloor>, Suc (xlength (as ! idx)))"
+        then have rhs: "?r ! i = (\<lfloor>xencode (as ! idx)\<rfloor>, Suc (xlength (as ! idx)))"
           using take_drop_lxencode'[OF idx] by simp
-        then show ?thesis
-          using lhs nlcontents_def by simp
+        show ?thesis unfolding lhs rhs xcontents_def ..
       next
         case 3
         then show ?thesis
@@ -865,7 +866,7 @@ qed
 
 definition "tps3 \<equiv> tps0
   [j1 := (\<lfloor>as\<rfloor>\<^sub>L\<^sub>X, lxlength (take (Suc idx) as)),
-   j2 := (\<lfloor>as ! idx\<rfloor>\<^sub>N\<^sub>L, 1)]"
+   j2 := (\<lfloor>as ! idx\<rfloor>\<^sub>X, 1)]"
 
 lemma tm3 [transforms_intros]:
   assumes "ttt = 11 + 2 * xlength dummy + 2 * (xlength (as ! idx))"
