@@ -408,6 +408,30 @@ lemma tm_appendl_tm[tm_intro]:
 
 end \<comment> \<open>\<^locale>\<open>mlist\<close>\<close>
 
+locale tps0_update =
+  fixes tps0 j1 j2 k
+  assumes jk: "length tps0 = k" "j1 < k" "j2 < k" "j1 \<noteq> j2" "0 < j1"
+begin
+
+
+lemma tps_helpers:
+  shows j1_valid: "j1 < length tps0"
+    and j2_valid: "j2 < length tps0"
+    and j2_neq_j1: "j2 \<noteq> j1"
+  using jk by blast+
+
+lemmas tps0_update_simps[simp] =
+  nth_list_update_eq[OF j1_valid] nth_list_update_eq[OF j2_valid]
+  nth_list_update_neq[OF jk(4)] nth_list_update_neq[OF j2_neq_j1]
+lemmas sort_j1_j2 = list_update_swap[OF j2_neq_j1]
+lemma tps0_sorted_helper[simp]: "tps0[j1 := x, j2 := y] ! j2 = y"
+  unfolding sort_j1_j2[symmetric] tps0_update_simps ..
+
+lemmas tps0_update_helpers = tps0_update_simps sort_j1_j2 list_update_overwrite tps0_sorted_helper
+
+end
+
+
 locale turing_machine_appendl = mlist +
   fixes j1 j2 :: tapeidx
 begin
@@ -428,18 +452,8 @@ context
      "tps0 ! j1 = (\<lfloor>as\<rfloor>\<^sub>L\<^sub>X, i1)"
      "tps0 ! j2 = (\<lfloor>a\<rfloor>\<^sub>X, 1)"
 begin
+interpretation tps0_update tps0 j1 j2 k using jk by (fact tps0_update.intro)
 
-lemma tps_helpers:
-  shows j1_valid: "j1 < length tps0"
-    and j2_valid: "j2 < length tps0"
-    and j2_neq_j1: "j2 \<noteq> j1"
-  using jk by blast+
-
-lemmas tps0_update_helpers[simp] = nth_list_update_eq[OF j1_valid] nth_list_update_eq[OF j2_valid]
-  nth_list_update_neq[OF \<open>j1 \<noteq> j2\<close>] nth_list_update_neq[OF \<open>j1 \<noteq> j2\<close>[symmetric]]
-lemmas sort_j1_j2 = list_update_swap[OF \<open>j1 \<noteq> j2\<close>[symmetric]]
-lemma tps0_sorted_helper[simp]: "tps0[j1 := x, j2 := y] ! j2 = y"
-  unfolding sort_j1_j2[symmetric] tps0_update_helpers ..
 
 definition "tps1 \<equiv> tps0[j1 := lxtape as]"
 
@@ -779,12 +793,14 @@ lemma tm4_eq_tm_nextract: "tm4 = tm_nextract d j1 j2"
 
 context
   fixes tps0 :: "tape list" and k idx :: nat and as :: "'a list" and dummy :: 'a
-  assumes jk: "j1 < k" "j2 < k" "0 < j1" "0 < j2" "j1 \<noteq> j2" "length tps0 = k"
+  assumes jk: "length tps0 = k" "j1 < k" "j2 < k" "j1 \<noteq> j2" "0 < j1" "0 < j2"
     and idx: "idx < length as"
     and tps0:
       "tps0 ! j1 = lxtape' as idx"
-      "tps0 ! j2 = (\<lfloor>xencode dummy\<rfloor>, 1)"
+      "tps0 ! j2 = (\<lfloor>dummy\<rfloor>\<^sub>X, 1)"
 begin
+interpretation tps0_update tps0 j1 j2 k using jk(1-5) by (fact tps0_update.intro)
+
 
 definition "tps1 \<equiv> tps0[j2 := (\<lfloor>[]\<rfloor>, 1)]"
 
@@ -792,14 +808,11 @@ lemma tm1 [transforms_intros]:
   assumes "ttt = 7 + 2 * xlength dummy"
   shows "transforms tm1 tps0 ttt tps1"
   unfolding tm1_def
-proof (tform tps: jk idx tps0 tps1_def assms)
-  show "proper_symbols (xencode dummy)"
-    using proper_symbols_xencode by simp
-qed
+  by (tform tps: jk idx tps0 tps1_def assms proper_symbols_xencode xcontents_def)
 
 definition "tps2 \<equiv> tps0
   [j1 := (\<lfloor>as\<rfloor>\<^sub>L\<^sub>X, lxlength (take (Suc idx) as)),
-   j2 := (\<lfloor>xencode (as ! idx)\<rfloor>, Suc (xlength (as ! idx)))]"
+   j2 := (\<lfloor>as ! idx\<rfloor>\<^sub>X, Suc (xlength (as ! idx)))]"
 
 
 lemma tm2 [transforms_intros]:
@@ -874,12 +887,12 @@ lemma tm3 [transforms_intros]:
   unfolding tm3_def
 proof (tform tps: jk idx tps0 tps2_def tps3_def assms)
   show "clean_tape (tps2 ! j2)"
-    using tps2_def jk clean_tape_nlcontents by simp
+    unfolding tps2_def tps0_update_helpers by (fact clean_tape_xcontents)
 qed
 
 definition "tps4 \<equiv> tps0
   [j1 := lxtape' as (Suc idx),
-   j2 := (\<lfloor>as ! idx\<rfloor>\<^sub>N\<^sub>L, 1)]"
+   j2 := (\<lfloor>as ! idx\<rfloor>\<^sub>X, 1)]"
 
 lemma tm4:
   assumes "ttt = 12 + 2 * xlength dummy + 2 * (xlength (as ! idx))"
