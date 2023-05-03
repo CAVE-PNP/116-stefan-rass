@@ -903,21 +903,21 @@ end  (* context *)
 
 end  (* locale turing_machine_nextract *)
 
-lemma transforms_tm_nextract_5I [transforms_intros]:
+lemma (in mlist) transforms_tm_nextract_5I [transforms_intros]:
   fixes j1 j2 :: tapeidx
-  fixes tps tps' :: "tape list" and k idx :: nat and as :: "'a list" and dummy :: "nat list"
+  fixes tps tps' :: "tape list" and k idx :: nat and as :: "'a list" and dummy :: "'a"
   assumes "j1 < k" "j2 < k" "0 < j1" "0 < j2" "j1 \<noteq> j2" "length tps = k"
     and "idx < length as"
   assumes
     "tps ! j1 = lxtape' as idx"
-    "tps ! j2 = (\<lfloor>dummy\<rfloor>\<^sub>N\<^sub>L, 1)"
+    "tps ! j2 = (\<lfloor>dummy\<rfloor>\<^sub>X, 1)"
   assumes "ttt = 12 + 2 * xlength dummy + 2 * (xlength (as ! idx))"
   assumes "tps' = tps
     [j1 := lxtape' as (Suc idx),
-     j2 := (\<lfloor>as ! idx\<rfloor>\<^sub>N\<^sub>L, 1)]"
+     j2 := (\<lfloor>as ! idx\<rfloor>\<^sub>X, 1)]"
   shows "transforms (tm_nextract d j1 j2) tps ttt tps'"
 proof -
-  interpret loc: turing_machine_nextract_5 j1 j2 .
+  interpret loc: turing_machine_nextract_5 d xencode j1 j2 by unfold_locales
   show ?thesis
     using assms loc.tm4 loc.tps4_def loc.tm4_eq_tm_nextract by simp
 qed
