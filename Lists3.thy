@@ -1,4 +1,4 @@
-theory Lists3
+theory Generic_List
   imports "Supplementary/Misc" Binary
     Cook_Levin.Lists_Lists
 begin
