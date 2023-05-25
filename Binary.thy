@@ -83,18 +83,11 @@ lemma nat_of_bin_div2[simp]: "nat_of_bin (a # xs) div 2 = nat_of_bin xs"
 
 lemma nat_of_bin_max: "nat_of_bin xs < 2 ^ (length xs)" by (induction xs) auto
 lemma nat_of_bin_min: "ends_in True xs \<Longrightarrow> nat_of_bin xs \<ge> 2 ^ (length xs - 1)"
-  by (auto simp add: nat_of_bin_app1)
+  by (auto simp: nat_of_bin_app1)
 
 
 lemma bin_of_nat_double: "n > 0 \<Longrightarrow> bin_of_nat (2 * n) = False # (bin_of_nat n)"
-proof (induction n rule: nat_induct_non_zero)
-  case (Suc n)
-  have "bin_of_nat (2 * Suc n) = inc (inc (bin_of_nat (2 * n)))" by simp
-  also have "... = inc (inc (False # bin_of_nat n))" unfolding Suc.IH ..
-  also have "... = False # inc (bin_of_nat n)" using inc_inc by simp
-  also have "... = False # bin_of_nat (Suc n)" by simp
-  finally show ?case .
-qed \<comment> \<open>case \<^term>\<open>n = 1\<close> by\<close> (simp add: numeral_2_eq_2)
+  by (induction n rule: nat_induct_non_zero) (auto simp: numeral_2_eq_2 inc_inc)
 
 corollary bin_of_nat_double_p1: "bin_of_nat (2 * n + 1) = True # (bin_of_nat n)"
   using bin_of_nat_double by (cases "n > 0") auto
@@ -107,8 +100,7 @@ proof (induction k)
   have "?n (drop (Suc k) xs) = ?n (tl (drop k xs))" unfolding drop_Suc drop_tl ..
   also have "... = ?n (drop k xs) div 2" unfolding nat_of_bin_div2' ..
   also have "... = ?n xs div 2 ^ k div 2" unfolding Suc.IH ..
-  also have "... = ?n xs div (2 ^ k * 2)" unfolding div_mult2_eq ..
-  also have "... = ?n xs div 2 ^ Suc k" unfolding power_Suc2 ..
+  also have "... = ?n xs div 2 ^ Suc k" unfolding div_mult2_eq power_Suc2 ..
   finally show ?case .
 qed \<comment> \<open>case \<^term>\<open>k = 0\<close> by\<close> simp
 
@@ -230,7 +222,7 @@ qed
 
 subsection\<open>Inverses\<close>
 
-lemma nat_bin_nat[simp]: "nat_of_bin (bin_of_nat (n)) = n" (is "?nbn n = n")
+lemma nat_bin_nat[simp]: "nat_of_bin (bin_of_nat n) = n" (is "?nbn n = n")
 proof (induction n)
   case (Suc n)
   have "?nbn (Suc n) = nat_of_bin (inc (bin_of_nat n))" by simp
@@ -305,7 +297,7 @@ qed \<comment> \<open>case \<^term>\<open>w = []\<close> by\<close> simp
 
 lemma len_bin_nat_bin: "length (bin_of_nat (nat_of_bin w)) \<le> length w"
 proof -
-  have "bit_length (w)\<^sub>2 = length (dropWhile (\<lambda>b. b = False) (rev w))" unfolding bin_nat_bin_drop_zs by force
+  have "bit_length (nat_of_bin w) = length (dropWhile (\<lambda>b. b = False) (rev w))" unfolding bin_nat_bin_drop_zs by force
   also have "... \<le> length (rev w)" by (rule length_dropWhile_le)
   finally show "bit_length (w)\<^sub>2 \<le> length w" unfolding length_rev .
 qed
