@@ -1,11 +1,11 @@
 theory Generic_List
-  imports "Supplementary/Misc" Binary
+  imports "Supplementary/Misc" "Supplementary/TM_Arith_Bin"
     Cook_Levin.Lists_Lists
 begin
 
 
 abbreviation "flatmap f xs \<equiv> concat (map f xs)"
-  \<comment> \<open>see also \<^const>\<open>List.maps\<close>\<close>
+  \<comment> \<open>this is equivalent to \<^const>\<open>List.maps\<close>, for which there is a total of 4 lemmas\<close>
 
 
 section \<open>Lists of lists of numbers\label{s:tm-lxencode}\<close>
@@ -922,6 +922,38 @@ proof -
     using assms loc.tm4 loc.tps4_def loc.tm4_eq_tm_nextract by simp
 qed
 
+
+global_interpretation num_list: mlist "\<bar>" canrepr
+proof unfold_locales
+  fix n m :: nat
+  from proper_symbols_canrepr show "proper_symbols (canrepr n)" .
+  from bit_symbols_canrepr show "symbols_lt \<bar> (canrepr n)" by fastforce
+  from canrepr_inj show "canrepr n = canrepr m \<Longrightarrow> n = m" by blast
+qed auto
+
+
+lemma mlist_listI:
+  fixes xencode :: "'a \<Rightarrow> symbol list"
+  assumes l: "mlist d' xencode"
+    and "d' < d"
+  shows "mlist d (mlist.lxencode d' xencode)" (is "mlist d ?lxencode")
+proof unfold_locales
+  fix xs ys :: "'a list"
+  from l show "proper_symbols (mlist.lxencode d' xencode xs)" by (fact mlist.proper_symbols_lxencode)
+  from assms show "symbols_lt d (?lxencode xs)" by (fact mlist.symbols_lt_lxencode)
+  from l show "?lxencode xs = ?lxencode ys \<Longrightarrow> xs = ys" by (rule mlist.lxencode_inj)
+  from assms show "1 < d" by (fastforce dest: mlist.proper_delim)
+qed
+
+
+global_interpretation num_list_list: mlist "\<sharp>" num_list.lxencode
+  using num_list.mlist_axioms by (rule mlist_listI) simp
+
+
+abbreviation triple_sep :: symbol ("\<interleave>") where "\<interleave> \<equiv> 6"
+
+global_interpretation num_list_list_list: mlist "\<interleave>" num_list_list.lxencode
+  using num_list_list.mlist_axioms by (rule mlist_listI) simp
 
 
 end
