@@ -1,6 +1,6 @@
 chapter "CAVE_PNP"
 
-session "116_stefan_rass_v2" ("CAVE_PNP") = "HOL-Library" +
+session "116_stefan_rass_v3" ("CAVE_PNP") = "HOL-Library" +
   options [document = pdf, document_output = "output"]
   sessions
     Intro_Dest_Elim
