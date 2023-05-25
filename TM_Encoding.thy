@@ -1,9 +1,91 @@
 section \<open>Encoding TMs as (Binary) Strings\<close>
 
 theory TM_Encoding
-  imports Goedel_Numbering Complexity
-    "Supplementary/Misc" "HOL-Library.Sublist"
+  imports "Cook_Levin.Basics"
+
+
+  (* imports Goedel_Numbering Complexity *)
+    "Supplementary/Misc" "Supplementary/Option_S" "Supplementary/Lists" "HOL-Library.Sublist"
 begin
+
+
+
+
+fun encode_direction :: "direction \<Rightarrow> nat" where
+  "encode_direction Stay = 0"
+| "encode_direction Left = 0b10"
+| "encode_direction Right = 0b01"
+
+lemma encD_def: "encode_direction d = (case d of Stay \<Rightarrow> 0 | Left \<Rightarrow> 0b10 | Right \<Rightarrow> 0b01)" by (induction d) auto
+
+lemma encD_le2: "encode_direction d \<le> 2" by (induction d) auto
+
+fun decode_direction :: "nat \<Rightarrow> direction" where
+  "decode_direction (Suc 0) = Right"
+| "decode_direction (Suc (Suc 0)) = Left"
+| "decode_direction n = Stay"
+
+lemma enc_dec_direction: "decode_direction (encode_direction d) = d"
+  by (induction d) (auto simp: numeral_2_eq_2)
+
+lemma dec_enc_direction: "encode_direction (decode_direction n) = n" if "n \<le> 2"
+proof -
+  from \<open>n \<le> 2\<close> consider "n = 0" | "n = 1" | "n = 2" by fastforce
+  then show "?thesis" by cases (auto simp: numeral_2_eq_2)
+qed
+
+
+text\<open>To encode a single command/state, we include for each possible combination of read symbols
+  (1) the combination of symbols itself (though this may be left out to save space),
+  (2) the actions for each tape (the write symbol followed by the direction), and
+  (3) the next state
+  concatenated in one list of size \<open>3k+1\<close>.
+  As there are \<open>G\<^sup>k\<close> possible combinations for each command/state, and \<open>Q\<close> states,
+  the result for a machine will be a triple nested list,
+  which can be viewed as a three dimensional array \<open>\<nat>\<^bsup>Q\<times>G\<^sup>k\<times>3k+1\<^esup>\<close>.\<close>
+
+abbreviation "flatmap \<equiv> List.maps"
+
+definition encode_actions :: "action list \<Rightarrow> nat list" where
+  "encode_actions as = flatmap (\<lambda>(s, d). [s, encode_direction d]) as"
+
+fun decode_actions :: "nat list \<Rightarrow> action list" where
+  "decode_actions [] = []"
+| "decode_actions [n] = []"
+| "decode_actions (s # d # ns) = (s, decode_direction d) # decode_actions ns"
+
+definition encode_command :: "nat \<Rightarrow> nat \<Rightarrow> command \<Rightarrow> nat list list" where
+  "encode_command k G c = map (\<lambda>xs. xs @ encode_actions (snd (c xs)) @ [fst (c xs)]) (List.n_lists k [0..<G])"
+
+definition encode_machine :: "nat \<Rightarrow> nat \<Rightarrow> machine \<Rightarrow> nat list list list" where
+  "encode_machine k G M = map (encode_command k G) M"
+
+
+lemma length_encM[simp]: "length (encode_machine k G M) = length M" by (simp add: encode_machine_def)
+
+lemma nth_encM[simp]: "i < length M \<Longrightarrow> encode_machine k G M ! i = encode_command k G (M ! i)"
+  by (simp add: encode_machine_def)
+
+lemma length_encC[simp]: "length (encode_command k G c) = G ^ k"
+  by (simp add: encode_command_def length_n_lists)
+
+lemma length_encA[simp]: "length (encode_actions as) = 2 * length as"
+  by (simp add: encode_actions_def maps_def length_concat comp_def case_prod_beta sum_list_triv)
+
+(* lemma length_encA': "length (encode_command k G c)" *)
+
+
+lemma nth_encC[simp]: "i < G^k \<Longrightarrow> encode_command k G c ! i =
+  (let hds = List.n_lists k [0..<G] ! i; a = c hds
+    in hds @ encode_actions ([!!] a) @ [[*] a])"
+  unfolding encode_command_def (* TODO refactor *)
+  apply (subst nth_map)
+  unfolding length_n_lists
+  by simp metis
+
+
+
+
 
 text\<open>As defined in @{cite \<open>ch.~4.2\<close> rassOwf2017} (outlined in @{cite \<open>ch.~3.1\<close> rassOwf2017})
   the decoding of a TM \<open>M\<close> from a binary word \<open>w\<close> includes:
@@ -19,74 +101,86 @@ text\<open>As defined in @{cite \<open>ch.~4.2\<close> rassOwf2017} (outlined in
 
 subsection\<open>Canonical Form\<close> (* TODO motivate, document *)
 
-definition next_fun_wrapper :: "['x, nat, 's set, 'q set, 'q \<Rightarrow> 's option list \<Rightarrow> nat \<Rightarrow> 'x, 'q, 's option list, nat] \<Rightarrow> 'x"
-  where "next_fun_wrapper default_val k \<Sigma> Q f q hds i \<equiv> if q \<in> Q \<and> length hds = k \<and> set hds \<subseteq> options \<Sigma> \<and> i < k then f q hds i else default_val"
+typ machine
+term turing_machine
 
-abbreviation next_state_wrapper :: "[nat, 's set, 'q set, 'q \<Rightarrow> 's option list \<Rightarrow> 'q, 'q, 's option list] \<Rightarrow> 'q"
-  where "next_state_wrapper k \<Sigma> Q f q hds \<equiv> next_fun_wrapper q k \<Sigma> Q (\<lambda>q hds i. f q hds) q hds 0"
-abbreviation next_write_wrapper :: "[nat, 's set, 'q set, 'q \<Rightarrow> 's option list \<Rightarrow> nat \<Rightarrow> 's option, 'q, 's option list, nat] \<Rightarrow> 's option"
-  where "next_write_wrapper k \<Sigma> Q f q hds i \<equiv> next_fun_wrapper (hds ! i) k \<Sigma> Q f q hds i"
-abbreviation next_move_wrapper :: "[nat, 's set, 'q set, 'q \<Rightarrow> 's option list \<Rightarrow> nat \<Rightarrow> head_move, 'q, 's option list, nat] \<Rightarrow> head_move"
-  where "next_move_wrapper k \<Sigma> Q f q hds i \<equiv> next_fun_wrapper No_Shift k \<Sigma> Q f q hds i"
+find_theorems symbols_lt
+print_statement turing_commandI
 
-lemma next_fun_wrapper_default[simp]:
-  fixes k \<Sigma> Q f val and M :: "('q, 's, 'l) TM_record"
-  defines "f' \<equiv> next_fun_wrapper val k \<Sigma> Q f"
-  defines "f'' \<equiv> next_fun_wrapper val (tape_count M) (symbols M) (states M) f"
-  shows "q \<notin> Q \<Longrightarrow> f' q hds i = val"
-    and "length hds \<noteq> k \<Longrightarrow> f' q hds i = val"
-    and "\<not> set hds \<subseteq> options \<Sigma> \<Longrightarrow> f' q hds i = val"
-    and "\<not> i < k \<Longrightarrow> f' q hds i = val"
-    and "\<not> wf_hds_rec M hds \<Longrightarrow> f'' q hds i = val"
-  unfolding assms next_fun_wrapper_def by (blast intro!: if_not_P)+
 
-lemma next_fun_wrapper_simps[simp]:
-  fixes k \<Sigma> Q f val and M :: "('q, 's, 'l) TM_record"
-  defines "f' \<equiv> next_fun_wrapper val k \<Sigma> Q f"
-  defines "f'' \<equiv> next_fun_wrapper val (tape_count M) (symbols M) (states M) f"
-  shows "q \<in> Q \<Longrightarrow> length hds = k \<Longrightarrow> set hds \<subseteq> options \<Sigma> \<Longrightarrow> i < k \<Longrightarrow> f' q hds i = f q hds i"
-    and "q \<in> states M \<Longrightarrow> wf_hds_rec M hds \<Longrightarrow> i < tape_count M \<Longrightarrow> f'' q hds i = f q hds i"
-  unfolding assms next_fun_wrapper_def using assms(2-) by (blast intro!: if_P)+
 
-lemma (in TM) next_fun_wrapper_TM_simps:
-  fixes f val c
-  defines "q \<equiv> state c"
-    and "hds \<equiv> heads c"
-    and "f' \<equiv> next_fun_wrapper val k \<Sigma> Q f"
-  assumes "wf_config c"
-  shows "i < k \<Longrightarrow> f' q hds i = f q hds i"
-    and "f' q hds 0 = f q hds 0"
-proof -
-  from \<open>wf_config c\<close> show "i < k \<Longrightarrow> f' q hds i = f q hds i" for i
-    unfolding assms by (subst next_fun_wrapper_simps) blast+
-  then show "f' q hds 0 = f q hds 0" by blast
+definition command_wrapper :: "[nat, nat, state, command] \<Rightarrow> command"
+  where "command_wrapper k G default_q cmd \<equiv> \<lambda>hds.
+    if symbols_lt G hds \<and> length hds = k
+    then cmd hds
+    else (default_q, map (\<lambda>h. (h, Stay)) hds)"
+
+lemma command_wrapper_simps:
+  shows "symbols_lt G hds \<Longrightarrow> length hds = k \<Longrightarrow> command_wrapper k G default_q cmd hds = cmd hds"
+    and "\<not> symbols_lt G hds \<or> length hds \<noteq> k \<Longrightarrow> command_wrapper k G default_q cmd hds = (default_q, map (\<lambda>h. (h, Stay)) hds)"
+  unfolding command_wrapper_def by argo+
+
+
+lemma command_wrapper_idem:
+  "command_wrapper k G1 default_q (command_wrapper k G2 default_q cmd)
+     = command_wrapper k (min G1 G2) default_q cmd"
+  (is "?lhs = ?rhs")
+proof (rule ext)
+  fix hds
+  show "?lhs hds = ?rhs hds"
+    by (cases "symbols_lt (min G1 G2) hds \<and> length hds = k") (auto simp: command_wrapper_def)
 qed
 
+corollary command_wrapper_idem_same: "command_wrapper k G default_q (command_wrapper k G default_q cmd)
+     = command_wrapper k G default_q cmd"
+  unfolding command_wrapper_idem by simp
 
-definition canonical_TM_rec :: "('q, 's, 'l) TM_record \<Rightarrow> ('q, 's, 'l) TM_record"
-  where "canonical_TM_rec M \<equiv> M\<lparr>
-    label := (\<lambda>q. if q \<in> states M then label M q else undefined),
-    next_state := next_state_wrapper (tape_count M) (symbols M) (states M) (next_state M),
-    next_write := next_write_wrapper (tape_count M) (symbols M) (states M) (next_write M),
-    next_move := next_move_wrapper (tape_count M) (symbols M) (states M) (next_move M)
-  \<rparr>"
 
-lemma canonical_TM_rec_simps[simp]:
-  fixes M :: "('q, 's, 'l) TM_record"
-  defines "M' \<equiv> canonical_TM_rec M"
-  shows "tape_count M' = tape_count M"
-    and "symbols M' = symbols M"
-    and "states M' = states M"
-    and "initial_state M' = initial_state M"
-    and "final_states M' = final_states M"
-    and "label M' = (\<lambda>q. if q \<in> states M then label M q else undefined)" (* TODO consider using  *)
-    and "next_state M' = next_state_wrapper (tape_count M) (symbols M) (states M) (next_state M)"
-    and "next_write M' = next_write_wrapper (tape_count M) (symbols M) (states M) (next_write M)"
-    and "next_move M' = next_move_wrapper (tape_count M) (symbols M) (states M) (next_move M)"
-    and "wf_hds_rec M' = wf_hds_rec M"
-    and "more M' = more M"
-  unfolding M'_def canonical_TM_rec_def by (induction M) force+
 
+definition canonical_TM :: "[nat, nat, machine] \<Rightarrow> machine"
+  where "canonical_TM k G M = map_indexed (\<lambda>i cmd. command_wrapper k G i cmd) M"
+
+lemma canonical_TM_length[simp]: "length (canonical_TM k G M) = length M"
+  unfolding canonical_TM_def by simp
+
+lemma canonical_TM_nth[simp]: "i < length M \<Longrightarrow> canonical_TM k G M ! i = command_wrapper k G i (M ! i)"
+  unfolding canonical_TM_def by simp
+
+corollary canonical_TM_idem: "canonical_TM k G (canonical_TM k G M) = canonical_TM k G M"
+  unfolding canonical_TM_def map_map_indexed command_wrapper_idem_same ..
+
+term turing_machine
+
+lemma canonical_TM_valid:
+  assumes "turing_machine k G M"
+  shows "turing_machine k G (canonical_TM k G M)"
+proof (intro turing_machineI)
+  from assms show "2 \<le> k" and "4 \<le> G" by (fact turing_machineD)+
+
+  fix i :: nat
+  assume "i < length (canonical_TM k G M)"
+  then have "i < length M" by simp
+  with assms have "turing_command k (length M) G (M ! i)" by (fact turing_machineD)
+
+  with \<open>i < length M\<close> show "turing_command k (length (canonical_TM k G M)) G (canonical_TM k G M ! i)"
+    unfolding canonical_TM_length canonical_TM_nth
+    apply (intro turing_commandI)
+
+
+     apply (elim turing_commandD[elim_format])
+
+
+    fix gs :: "symbol list"
+    assume "length gs = k"
+
+
+
+  unfolding turing_machine_def
+  apply (elim conjE) apply (intro conjI) apply assumption+
+  unfolding canonical_TM_def set_map_indexed
+
+
+  find_theorems set map
 
 lemma canonical_TM_valid: "valid_TM M \<Longrightarrow> valid_TM (canonical_TM_rec M)"
 proof (unfold_locales, unfold canonical_TM_rec_simps)
