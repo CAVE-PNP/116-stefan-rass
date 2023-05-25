@@ -617,4 +617,40 @@ proof -
   finally show ?thesis .
 qed
 
+
+definition map_indexed :: "(nat \<Rightarrow> 'a \<Rightarrow> 'b) \<Rightarrow> 'a list \<Rightarrow> 'b list"
+  where "map_indexed f xs \<equiv> map2 f [0..<length xs] xs"
+
+lemma map_indexed_altdef1: "map_indexed f xs = map (\<lambda>(i, x). f i x) (enumerate 0 xs)"
+  unfolding enumerate_eq_zip map_indexed_def by simp
+
+lemma map_indexed_altdef2: "map_indexed f xs = map (\<lambda>i. f i (xs ! i)) [0..<length xs]"
+proof -
+  let ?is = "[0..<length xs]"
+  have "map_indexed f xs = map2 f (map (\<lambda>i. i) ?is) (map (nth xs) ?is)"
+    unfolding map_indexed_def map_nth map_ident ..
+  also have "... = map (\<lambda>i. f i (xs ! i)) ?is" by (fact map2_map_map)
+  finally show ?thesis .
+qed
+
+
+lemma map_indexed_simps[simp]:
+  shows map_indexed_length: "length (map_indexed f xs) = length xs"
+  unfolding map_indexed_def by simp
+
+lemma map_map_indexed: "map_indexed f (map_indexed g xs) = map_indexed (\<lambda>i x. f i (g i x)) xs"
+  (is "?lhs = ?rhs")
+proof -
+  have "?lhs = map (\<lambda>i. f i (map (\<lambda>i. g i (xs ! i)) [0..<length xs] ! i)) [0..<length xs]"
+    unfolding map_indexed_altdef2 unfolding length_map length_upt minus_nat.diff_0 ..
+  also have "... = ?rhs" unfolding map_indexed_altdef2 by (intro map_ext) fastforce
+  finally show ?thesis .
+qed
+
+lemma set_map_indexed: "set (map_indexed f xs) = (\<lambda>(i, x). f i x) ` set (enumerate 0 xs)"
+  unfolding map_indexed_altdef1 set_map ..
+
+lemma nth_map_indexed[simp]: "i < length xs \<Longrightarrow> map_indexed f xs ! i = f i (xs ! i)"
+  unfolding map_indexed_def by force
+
 end
