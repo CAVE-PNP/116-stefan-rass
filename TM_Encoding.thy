@@ -115,10 +115,16 @@ definition command_wrapper :: "[nat, nat, state, command] \<Rightarrow> command"
     then cmd hds
     else (default_q, map (\<lambda>h. (h, Stay)) hds)"
 
-lemma command_wrapper_simps:
+lemma command_wrapper_simps[simp]:
   shows "symbols_lt G hds \<Longrightarrow> length hds = k \<Longrightarrow> command_wrapper k G default_q cmd hds = cmd hds"
     and "\<not> symbols_lt G hds \<or> length hds \<noteq> k \<Longrightarrow> command_wrapper k G default_q cmd hds = (default_q, map (\<lambda>h. (h, Stay)) hds)"
   unfolding command_wrapper_def by argo+
+
+lemma command_wrapper_length:
+  assumes  "turing_command k Q G cmd"
+    and "length hds = k"
+  shows"length ([!!] (command_wrapper k G default_q cmd hds)) = length hds"
+  using assms by (cases "symbols_lt G hds") (simp_all add: turing_commandD(1))
 
 
 lemma command_wrapper_idem:
@@ -146,10 +152,9 @@ lemma canonical_TM_length[simp]: "length (canonical_TM k G M) = length M"
 lemma canonical_TM_nth[simp]: "i < length M \<Longrightarrow> canonical_TM k G M ! i = command_wrapper k G i (M ! i)"
   unfolding canonical_TM_def by simp
 
-corollary canonical_TM_idem: "canonical_TM k G (canonical_TM k G M) = canonical_TM k G M"
+corollary canonical_TM_idem[simp]: "canonical_TM k G (canonical_TM k G M) = canonical_TM k G M"
   unfolding canonical_TM_def map_map_indexed command_wrapper_idem_same ..
 
-term turing_machine
 
 lemma canonical_TM_valid:
   assumes "turing_machine k G M"
@@ -159,40 +164,36 @@ proof (intro turing_machineI)
 
   fix i :: nat
   assume "i < length (canonical_TM k G M)"
-  then have "i < length M" by simp
-  with assms have "turing_command k (length M) G (M ! i)" by (fact turing_machineD)
+  then have [simp]: "i < length M" by simp
+  with assms have turing_cmd: "turing_command k (length M) G (M ! i)" by (fact turing_machineD)
 
-  with \<open>i < length M\<close> show "turing_command k (length (canonical_TM k G M)) G (canonical_TM k G M ! i)"
-    unfolding canonical_TM_length canonical_TM_nth
-    apply (intro turing_commandI)
+  show "turing_command k (length (canonical_TM k G M)) G (canonical_TM k G M ! i)"
+    unfolding canonical_TM_length canonical_TM_nth[OF \<open>i < length M\<close>]
+  proof (intro turing_commandI)
+    fix hds :: "symbol list"
+    assume l_hds[simp]: "length hds = k"
+    note tc = turing_commandD[OF turing_cmd \<open>length hds = k\<close>]
 
-
-     apply (elim turing_commandD[elim_format])
-
-
-    fix gs :: "symbol list"
-    assume "length gs = k"
-
-
-
-  unfolding turing_machine_def
-  apply (elim conjE) apply (intro conjI) apply assumption+
-  unfolding canonical_TM_def set_map_indexed
-
-
-  find_theorems set map
-
-lemma canonical_TM_valid: "valid_TM M \<Longrightarrow> valid_TM (canonical_TM_rec M)"
-proof (unfold_locales, unfold canonical_TM_rec_simps)
-  assume "valid_TM M" then interpret valid_TM .
-
-  fix q hds assume q: "q \<in> states M" and hds: "wf_hds_rec M hds"
-  then show "next_state_wrapper (tape_count M) (symbols M) (states M) (next_state M) q hds \<in> states M"
-    unfolding next_fun_wrapper_simps(2)[OF q hds axioms(1)] by (fact axioms(7))
-  fix i assume i: "i < tape_count M"
-  with q hds show "next_write_wrapper (tape_count M) (symbols M) (states M) (next_write M) q hds i \<in> tape_symbols_rec M"
-    unfolding next_fun_wrapper_simps(2)[OF q hds i] by (fact axioms(8))
-qed (fact valid_TM.axioms)+
+    from turing_cmd and l_hds show "length ([!!] command_wrapper k G i (M ! i) hds) = length hds"
+      by (fact command_wrapper_length)
+    show "command_wrapper k G i (M ! i) hds [.] j < G"
+      if hds_valid: "(\<And>i. i < length hds \<Longrightarrow> hds ! i < G)" and j_valid: "j < length hds" for j
+    proof (cases "symbols_lt G hds")
+      from tc(2) and hds_valid and j_valid have [simp]: "(M ! i) hds [.] j < G" by blast
+      show "command_wrapper k G i (M ! i) hds [.] j < G" if "symbols_lt G hds" using that by simp
+      show "command_wrapper k G i (M ! i) hds [.] j < G" if "\<not> symbols_lt G hds"
+        using that and hds_valid and j_valid by blast
+    qed
+    show "command_wrapper k G i (M ! i) hds [.] 0 = hds ! 0" if "0 < k"
+      using that and tc(3) by (cases "symbols_lt G hds") auto
+    show "[*] command_wrapper k G i (M ! i) hds \<le> length M" using tc(4)[OF l_hds]
+    proof (cases "symbols_lt G hds")
+      show ?thesis if "symbols_lt G hds" using that and tc(4)[OF l_hds] by simp
+      from \<open>i < length M\<close> have "i \<le> length M" by (fact less_imp_le_nat)
+      then show ?thesis if "\<not> symbols_lt G hds" using that and tc(4)[OF l_hds] by simp
+    qed
+  qed
+qed
 
 
 locale Canonical_TM = TM M for M :: "('q, 's, 'l) TM"
