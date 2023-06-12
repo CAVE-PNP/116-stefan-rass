@@ -2,13 +2,12 @@ section \<open>Encoding TMs as (Binary) Strings\<close>
 
 theory TM_Encoding
   imports "Cook_Levin.Basics"
-
+    "TM/TM_More"
 
   (* imports Goedel_Numbering Complexity *)
     "Supplementary/Misc" "Supplementary/Option_S" "Supplementary/Lists" "HOL-Library.Sublist"
+    Intro_Dest_Elim.IHOL_IDE
 begin
-
-
 
 
 fun encode_direction :: "direction \<Rightarrow> nat" where
@@ -84,21 +83,6 @@ lemma nth_encC[simp]: "i < G^k \<Longrightarrow> encode_command k G c ! i =
   by simp metis
 
 
-
-
-
-text\<open>As defined in @{cite \<open>ch.~4.2\<close> rassOwf2017} (outlined in @{cite \<open>ch.~3.1\<close> rassOwf2017})
-  the decoding of a TM \<open>M\<close> from a binary word \<open>w\<close> includes:
-
-    \<^item> Exponential padding. ``all but the most significant \<open>\<lceil>log(len(w))\<rceil>\<close> bits are ignored''
-    \<^item> Arbitrary-length \<open>1\<^sup>+0\<close> prefix. ``from [the result] we drop all preceding 1-bits and the first 0-bit''
-    \<^item> Code description. ``let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form''.
-
-  Recall the definition of \<^typ>\<open>bin\<close> (see \<^file>\<open>Binary.thy\<close>),
-  which causes the MSB to be the \<^const>\<open>last\<close> element of the list,
-  which is the \<^emph>\<open>rightmost\<close> one when explicitly referring to lists in Isabelle.\<close>
-
-
 subsection\<open>Canonical Form\<close> (* TODO motivate, document *)
 
 typ machine
@@ -121,7 +105,7 @@ lemma command_wrapper_simps[simp]:
   unfolding command_wrapper_def by argo+
 
 lemma command_wrapper_length:
-  assumes  "turing_command k Q G cmd"
+  assumes "turing_command k Q G cmd"
     and "length hds = k"
   shows"length ([!!] (command_wrapper k G default_q cmd hds)) = length hds"
   using assms by (cases "symbols_lt G hds") (simp_all add: turing_commandD(1))
@@ -196,107 +180,48 @@ proof (intro turing_machineI)
 qed
 
 
-locale Canonical_TM = TM M for M :: "('q, 's, 'l) TM"
-begin
-
-lemma M'_valid: "valid_TM (canonical_TM_rec M_rec)" using valid_TM_axioms by (fact canonical_TM_valid)
-
-definition "M' \<equiv> Abs_TM (canonical_TM_rec M_rec)"
-
-sublocale M': TM M' .
-
-lemma M'_rec: "M'.M_rec = (canonical_TM_rec M_rec)"
-  unfolding M'_def by (blast intro: Abs_TM_inverse M'_valid)
-lemmas M'_fields = M'.TM_fields_defs[unfolded M'_rec canonical_TM_rec_simps TM_record.simps TM_fields_defs[symmetric]]
-lemmas [simp] = M'_fields(1-6)
-lemmas M'_next_fun_wrapper_simps[simp] = M'.next_fun_wrapper_TM_simps[unfolded M'_fields]
-
-lemma wf_config_eq[simp]: "M'.wf_config c \<longleftrightarrow> wf_config c" unfolding TM.wf_config_def M'_fields ..
-
-lemma step_eq[simp]:
-  assumes [simp, intro]: "wf_config c"
-  shows "M'.step c = step c"
-proof (cases "is_final c")
-  let ?q = "state c" and ?tps = "tapes c" and ?hds = "heads c"
-
-  assume "\<not> is_final c"
-  then have "M'.step c = M'.step_not_final c" by simp
-  also have "... = step_not_final c"
-  proof (intro step_not_final_eqI1)
-    show "M'.\<delta>\<^sub>q ?q ?hds = \<delta>\<^sub>q ?q ?hds" unfolding M'_fields by simp
-
-    have "M'.\<delta>\<^sub>a ?q ?hds = \<delta>\<^sub>a ?q ?hds" unfolding TM.next_actions_altdef M'_fields(1)
-    proof (rule list.map_cong0)
-      fix i assume "i \<in> set [0..<k]"
-      then show "(M'.\<delta>\<^sub>w ?q ?hds i, M'.\<delta>\<^sub>m ?q ?hds i) = (\<delta>\<^sub>w ?q ?hds i, \<delta>\<^sub>m ?q ?hds i)"
-        unfolding M'_fields by auto
-    qed
-    then show "tapes (M'.step_not_final c) = tapes (step_not_final c)" by force
-  qed (simp add: TM_config.case_eq_if)
-  also from \<open>\<not> is_final c\<close> have "... = step c" by simp
-  finally show ?thesis .
-qed simp
-
-corollary steps_eq[simp]: "wf_config c \<Longrightarrow> M'.steps n c = steps n c"
-proof (induction n arbitrary: c)
-  case (Suc n)
-  then show "M'.steps (Suc n) c = steps (Suc n) c" unfolding funpow_Suc_right comp_def
-    unfolding step_eq[OF \<open>wf_config c\<close>] by (blast dest: wf_step)
-qed simp
-
-lemma initial_config_eq[simp]: "M'.c\<^sub>0 w = c\<^sub>0 w" by (simp add: TM.initial_config_def)
-corollary run_eq: "wf_input w \<Longrightarrow> M'.run n w = run n w" by simp
-
-corollary compute_eq[simp]: "wf_input w \<Longrightarrow> M'.compute w = compute w"
-  unfolding TM.compute_altdef2 TM.is_final_def by simp
-
-end
-
-abbreviation "canonical_TM \<equiv> Canonical_TM.M'"
-
-lemmas canonical_TM_fields = Canonical_TM.M'_fields
-declare canonical_TM_fields(1-6)[simp]
-
-lemma [simp]:
-  shows canonical_TM_acc: "TM_decider.F\<^sub>A (canonical_TM M) = TM_decider.F\<^sub>A M"
-    and canonical_TM_rej: "TM_decider.F\<^sub>R (canonical_TM M) = TM_decider.F\<^sub>R M"
+lemma canonical_TM_exe:
+  assumes "valid_config k G cfg"
+  shows "exe (canonical_TM k G M) cfg = exe M cfg"
 proof -
-  let ?M' = "canonical_TM M"
-  have "TM.F ?M' = TM.F M" by simp
-  moreover have "TM.label ?M' q = TM.label M q" if "q \<in> TM.F ?M'" for q using that by auto
-  ultimately show "TM_decider.F\<^sub>A ?M' = TM_decider.F\<^sub>A M" and "TM_decider.F\<^sub>R ?M' = TM_decider.F\<^sub>R M"
-    by (fact acc_eqI, fact rej_eqI)
+  let ?w = "command_wrapper k G"
+  let ?i = "fst cfg" let ?q = "M ! ?i"
+  let ?hds = "config_read cfg"
+
+  from \<open>valid_config k G cfg\<close> have *: "?w ?i ?q ?hds = ?q ?hds" using valid_config_readD by simp
+  show ?thesis by (simp add: exe_def sem_def *)
 qed
 
-lemma [simp]:
-  assumes "TM.wf_input M w"
-  shows canonical_TM_accepts: "TM_decider.accepts (canonical_TM M) w \<longleftrightarrow> TM_decider.accepts M w"
-    and canonical_TM_rejects: "TM_decider.rejects (canonical_TM M) w \<longleftrightarrow> TM_decider.rejects M w"
-  by (auto simp: TM_decider.rejects_def TM_decider.accepts_def Canonical_TM.compute_eq["OF" assms])
+lemma canonical_TM_execute:
+  assumes "valid_config k G cfg" and "turing_machine k G M"
+  shows "execute (canonical_TM k G M) cfg t = execute M cfg t"
+  using assms
+proof (induction t)
+  case (Suc t)
+  then have *[simp]: "execute (canonical_TM k G M) cfg t = execute M cfg t" .
+  from assms show ?case unfolding execute.simps * by (intro canonical_TM_exe valid_config_execute)
+qed simp
 
-lemma canonical_TM_time_bounded[simp]:
-  assumes "TM.wf_input M w"
-  shows "TM.time_bounded_word (canonical_TM M) T w \<longleftrightarrow> TM.time_bounded_word M T w"
-  unfolding TM.time_bounded_word_def using assms by (simp add: Canonical_TM.run_eq)
 
-lemma canonical_TM_rec_idem[simp]: "canonical_TM_rec (canonical_TM_rec M) = canonical_TM_rec M"
-  by (rule TM_record.equality) (simp only: canonical_TM_rec_simps If_If next_fun_wrapper_def)+
 
-lemma canonical_TM_idem[simp]: "canonical_TM (canonical_TM M) = canonical_TM M"
-  unfolding Rep_TM_inject[symmetric] Canonical_TM.M'_rec canonical_TM_rec_idem ..
+text\<open>As defined in @{cite \<open>ch.~4.2\<close> rassOwf2017} (outlined in @{cite \<open>ch.~3.1\<close> rassOwf2017})
+  the decoding of a TM \<open>M\<close> from a binary word \<open>w\<close> includes:
+
+    \<^item> Exponential padding. ``all but the most significant \<open>\<lceil>log(len(w))\<rceil>\<close> bits are ignored''
+    \<^item> Arbitrary-length \<open>1\<^sup>+0\<close> prefix. ``from [the result] we drop all preceding 1-bits and the first 0-bit''
+    \<^item> Code description. ``let \<open>\<rho>(M) \<in> \<Sigma>\<^sup>*\<close> denote a complete description of a TM M in string form''.
+
+  Recall the definition of \<^typ>\<open>bin\<close> (see \<^file>\<open>Binary.thy\<close>),
+  which causes the MSB to be the \<^const>\<open>last\<close> element of the list,
+  which is the \<^emph>\<open>rightmost\<close> one when explicitly referring to lists in Isabelle.\<close>
 
 
 subsection\<open>Code Description\<close>
 
-type_synonym bin_symbol = "bool option"
-
-type_synonym binTM = "(nat, bool, bool) TM"
-
-
 locale TM_Encoding = (* TODO fix bool this early? *)
-  fixes enc_TM :: "binTM \<Rightarrow> bool list"
-    and is_valid_enc_TM :: "bool list \<Rightarrow> bool"
-    and dec_TM :: "bool list \<Rightarrow> binTM"
+  fixes enc_TM :: "machine \<Rightarrow> string"
+    and is_valid_enc_TM :: "string \<Rightarrow> bool"
+    and dec_TM :: "string \<Rightarrow> machine"
   assumes valid_enc: "\<And>M. is_valid_enc_TM (enc_TM M)"
     and inj_enc_TM: "inj_on enc_TM (range canonical_TM)"
     and enc_dec_TM: "\<And>M. dec_TM (enc_TM M) = canonical_TM M"

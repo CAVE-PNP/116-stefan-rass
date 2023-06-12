@@ -18,16 +18,11 @@ lemma Ball_transferE[elim?]:
   shows "\<forall>x\<in>A. Q x"
   using assms by blast
 
-lemma cond_All_mono:
+lemma all_transferE: (* previously "cond_All_mono" *)
   assumes "\<forall>i. P i \<longrightarrow> Q i"
     and "\<And>i. P i \<Longrightarrow> Q i \<Longrightarrow> R i"
   shows "\<forall>i. P i \<longrightarrow> R i"
-proof (intro allI impI)
-  fix i
-  assume "P i"
-  with \<open>\<forall>i. P i \<longrightarrow> Q i\<close> have "Q i" by blast
-  with assms(2) and \<open>P i\<close> show "R i" .
-qed
+  using assms by blast
 
 
 lemma inj_altdef: "inj f \<longleftrightarrow> (\<forall>a b. a \<noteq> b \<longrightarrow> f a \<noteq> f b)" unfolding inj_def by blast

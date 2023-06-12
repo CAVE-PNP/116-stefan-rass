@@ -421,6 +421,12 @@ lemma Ball_set_last[dest]:
 lemmas list_all_last[elim] = Ball_set_last[folded list_all_iff]
 
 
+lemma list_all_replicate_iff: "list_all P (replicate n x) \<longleftrightarrow> n = 0 \<or> P x" by (induction n) auto
+
+lemma list_all_replicate[intro, simp]: "P x \<Longrightarrow> list_all P (replicate n x)"
+  unfolding list_all_replicate_iff ..
+
+
 subsection\<open>Split lists into chunks of \<open>n\<close> elements\<close>
 
 fun chunks :: "nat \<Rightarrow> 'a list \<Rightarrow> 'a list list" where
