@@ -210,13 +210,13 @@ abbreviation decode_pair :: "bool list \<Rightarrow> nat \<times> bool list"
   where "decode_pair w \<equiv> (decode_pair_l w, decode_pair_x w)"
 
 definition rev_suffix_len :: "bool list \<Rightarrow> nat"
-  where "rev_suffix_len w = length w + 9"
+  where "rev_suffix_len w = length w + 7"
 definition encode_pair :: "nat \<Rightarrow> bool list \<Rightarrow> bool list"
   where "encode_pair l x = (let w' = x @ [False] @ True \<up> l in
             False \<up> (rev_suffix_len w') @ w')"
 
 lemma encode_pair_altdef:
-  "encode_pair l x = False \<up> (length x + l + 10) @ x @ [False] @ True \<up> l"
+  "encode_pair l x = False \<up> (length x + l + 8) @ x @ [False] @ True \<up> l"
   unfolding encode_pair_def rev_suffix_len_def Let_def by simp
 
 lemma strip_sq_pad_pair:
@@ -226,8 +226,8 @@ lemma strip_sq_pad_pair:
   shows "strip_sq_pad w = w'"
 proof -
   let ?lw = "length w" and ?lw' = "length w'"
-  have lw: "?lw = 2 * ?lw' + 9" unfolding w w' encode_pair_altdef by simp
-  have lwh: "5 + ?lw div 2 = rev_suffix_len w'" unfolding lw rev_suffix_len_def by simp
+  have lw: "?lw = 2 * ?lw' + 7" unfolding w w' encode_pair_altdef by simp
+  have lwh: "4 + ?lw div 2 = rev_suffix_len w'" unfolding lw rev_suffix_len_def by simp
   show "strip_sq_pad w = w'" unfolding strip_sq_pad_def suffix_len_def lwh
     unfolding w encode_pair_def Let_def w'[symmetric] by simp
 qed
@@ -246,7 +246,7 @@ qed
 lemma pair_adj_sq_eq:
   fixes w
   defines w': "w' \<equiv> adj_sq\<^sub>w w"
-  assumes len: "length w \<ge> 9"
+  assumes len: "length w \<ge> 7"
   shows "decode_pair w' = decode_pair w"
 proof -
   let ?sl = "suffix_len w" and ?lw = "length w" and ?lw' = "length w'"
@@ -359,7 +359,7 @@ text\<open>Reduce \<open>L\<^sub>D\<close> to \<open>L\<^sub>D'\<close>:
 definition reduce_LD_LD' :: "bool list \<Rightarrow> bool list"
   where "reduce_LD_LD' w \<equiv> encode_pair (length w) w"
 
-lemma reduce_LD_LD'_len: "length (reduce_LD_LD' w) = 4 * length w + 11"
+lemma reduce_LD_LD'_len: "length (reduce_LD_LD' w) = 4 * length w + 9"
   unfolding reduce_LD_LD'_def encode_pair_def rev_suffix_len_def by auto
 
 lemma reduce_LD_LD'_correct:
@@ -419,7 +419,7 @@ proof -
     with \<open>v\<close> being the input for the universal TM part, and \<open>x\<close> the input for the stopwatch.
 
     Note: it seems feasible to construct this adapter and (if this approach works)
-    reduce the \<open>sorry\<close> statements in the THT and this prove into one common assumption;
+    reduce the \<open>sorry\<close> statements in the THT and this proof into one common assumption;
     the existence of the UTM with only \<open>log\<close> time overhead.\<close>
 
   define LD'_P where "LD'_P \<equiv> \<lambda>w. let (l, x) = decode_pair w;
@@ -447,14 +447,14 @@ definition L\<^sub>0 :: "bool lang" where "L\<^sub>0 \<equiv> L\<^sub>D' \<inter
 lemma L\<^sub>D'_adj_sq_iff:
   fixes w
   defines "w' \<equiv> adj_sq\<^sub>w w"
-  assumes len: "length w \<ge> 9"
+  assumes len: "length w \<ge> 7"
   shows "w' \<in>\<^sub>L L\<^sub>D' \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D'"
   unfolding L\<^sub>D'_def member_lang_UNIV w'_def len[THEN pair_adj_sq_eq] ..
 
 lemma L\<^sub>D'_L\<^sub>0_adj_sq_iff:
   fixes w
   defines "w' \<equiv> adj_sq\<^sub>w w"
-  assumes len: "length w \<ge> 9"
+  assumes len: "length w \<ge> 7"
   shows "w' \<in>\<^sub>L L\<^sub>0 \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D'"
   unfolding L\<^sub>0_def w'_def using len[THEN L\<^sub>D'_adj_sq_iff] adj_sq_word_correct by blast
 
@@ -466,7 +466,7 @@ proof (rule ccontr, unfold not_not)
     show "\<forall>\<^sub>\<infinity>w. (adj_sq\<^sub>w w \<in>\<^sub>L L\<^sub>0 \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D') \<and> (length (adj_sq\<^sub>w w) \<le> length w)"
     proof (intro ae_word_length_finiteI conjI)
       fix w :: "bool list"
-      assume len: "length w \<ge> 9"
+      assume len: "length w \<ge> 7"
       then show "adj_sq\<^sub>w w \<in>\<^sub>L L\<^sub>0 \<longleftrightarrow> w \<in>\<^sub>L L\<^sub>D'" by (fact L\<^sub>D'_L\<^sub>0_adj_sq_iff)
       from len show "length (adj_sq\<^sub>w w) \<le> length w"
         by (intro eq_imp_le sh_msbD) (fact adj_sq_sh_pfx_half)

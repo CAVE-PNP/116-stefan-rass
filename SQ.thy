@@ -197,7 +197,7 @@ text\<open>\<open>w'\<close> (\<^term>\<open>next_square n\<close>) will eventua
  * our fix: define adj_square n as the next_square of the preceding power-of-2
  *)
 
-lemma adj_sq_diff_pow2: "2 * dsqrt n + 1 < 2 ^ (4 + bit_length n div 2)"
+lemma adj_sq_diff_pow2: "2 * dsqrt n + 1 < 2 ^ (4 + (bit_length n - 1) div 2)"
 proof (cases "n > 0")
   assume "n > 0"
   then have n0r: "n > (0::real)"
@@ -254,23 +254,23 @@ proof (cases "n > 0")
   finally have "real (2 * dsqrt n + 1) < real (2 ^ (4 + nat_log 2 n div 2))" by simp
   then have "2 * dsqrt n + 1 < 2 ^ (4 + nat_log 2 n div 2)" unfolding of_nat_less_iff .
 
-  also have "... \<le> 2 ^ (4 + bit_length n div 2)" using \<open>n > 0\<close> by (subst bit_len_eq_log2) auto
+  also have "... \<le> 2 ^ (4 + (bit_length n - 1) div 2)" using \<open>n > 0\<close> by (subst bit_len_eq_log2) auto
   finally show ?thesis .
 qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
-lemma adj_sq_diff: "next_square n - prev_square n < 2 ^ (4 + bit_length n div 2)"
+lemma adj_sq_diff: "next_square n - prev_square n < 2 ^ (4 + (bit_length n - 1) div 2)"
   using adj_sq_diff_pow2 next_prev_sq_diff by (rule dual_order.strict_trans2)
 
-lemma next_sq_diff: "next_square n - n < 2 ^ (4 + bit_length n div 2)"
+lemma next_sq_diff: "next_square n - n < 2 ^ (4 + (bit_length n - 1) div 2)"
   using adj_sq_diff_pow2 next_sq_diff by (rule dual_order.strict_trans2)
 
 
 subsection\<open>Adjacent Square\<close>
 
 definition suffix_len :: "bin \<Rightarrow> nat"
-  where "suffix_len w \<equiv> 5 + length w div 2"
+  where "suffix_len w \<equiv> 4 + length w div 2"
 
-lemma suffix_min_len: "length w \<ge> 9 \<Longrightarrow> suffix_len w \<le> length w" unfolding suffix_len_def by linarith
+lemma suffix_min_len: "length w \<ge> 7 \<Longrightarrow> suffix_len w \<le> length w" unfolding suffix_len_def by linarith
 
 (*
  * Choose the adjacent square of \<open>n\<close> as the \<open>next_square\<close> of the smallest number sharing its prefix.
@@ -341,7 +341,7 @@ proof (cases "n > 0", cases "k > 0")
 qed \<comment> \<open>cases \<open>n = 0\<close> and \<open>k = 0\<close> by\<close> fastforce+
 
 (* suppl *)
-lemma pow2_min: "0 < n \<Longrightarrow> n < 2^k \<Longrightarrow> k > 0" for n k :: nat by (cases "k > 0") force+
+lemma pow2_min: "0 < n \<Longrightarrow> n < 2^k \<Longrightarrow> k > 0" for n k :: nat by (rule ccontr) force+
 
 lemma add_suffix_bin:
   fixes up lo k :: nat
@@ -450,7 +450,7 @@ qed \<comment> \<open>case \<open>lo = 0\<close> by\<close> (simp add: assms)
 
 
 lemma adj_sq_sh_pfx_half:
-  assumes len: "length w \<ge> 9" \<comment> \<open>lower bound for \<open>4 + l div 2 < l\<close>\<close>
+  assumes len: "length w \<ge> 7" \<comment> \<open>lower bound for \<open>4 + l div 2 < l\<close>\<close>
   defines k: "k \<equiv> suffix_len w"
   defines w': "w' \<equiv> adj_sq\<^sub>w w"
   shows "shared_MSBs (length w - k) w w'"
@@ -490,7 +490,7 @@ proof (intro sh_msbI)
   have sq_eq: "sq = next_square n'" unfolding sq adj_square_def n' lo k n gn_inv_id ..
   have sq_split: "sq = up * 2^k + sq_diff" unfolding sq_diff_def n'_split[symmetric] sq_eq
     using next_sq_correct2[of n'] by (subst add_diff_inverse_nat) (elim leD, blast)
-  have "sq_diff < 2 ^ (4 + bit_length n' div 2)" unfolding sq_diff_def sq_eq suffix_len_def
+  have "sq_diff < 2 ^ (4 + (bit_length n' - 1) div 2)" unfolding sq_diff_def sq_eq suffix_len_def
     using next_sq_diff .
   also have "... \<le> 2 ^ k" unfolding l_eq[symmetric] n len_gn k suffix_len_def
     by (intro power_increasing, cases "even (length w)") force+
@@ -523,14 +523,14 @@ proof (intro sh_msbI)
 qed
 
 
-lemma sh_pfx_log_ineq: "l \<ge> 20 \<Longrightarrow> nat_log 2 l \<le> l div 2 - 6"
+lemma sh_pfx_log_ineq: "l \<ge> 18 \<Longrightarrow> nat_log 2 l \<le> l div 2 - 5"
 proof (induction l rule: nat_induct_at_least)
-  case base (* l = 20 *)
+  case base (* l = 18 *)
   show ?case by (simp add: Discrete.log.simps)
 next
   case (Suc n)
   let ?Sn = "Suc n"
-  from \<open>n \<ge> 20\<close> have "n \<noteq> 0" "n > 0" by linarith+
+  from \<open>n \<ge> 18\<close> have "n \<noteq> 0" "n > 0" by linarith+
   from log2.Suc \<open>n > 0\<close> have log2_Suc': "nat_log 2 ?Sn = (if ?Sn = 2 ^ nat_log 2 ?Sn then Suc (nat_log 2 n) else nat_log 2 n)" .
 
   note remove_plus1 = nat.inject[unfolded Suc_eq_plus1] Suc_le_mono[unfolded Suc_eq_plus1]
@@ -542,32 +542,32 @@ next
     then have div_eq: "?Sn div 2 = n div 2 + 1" by force
 
     have "nat_log 2 ?Sn = (nat_log 2 n) + 1" by (force simp: *)
-    also have "... \<le> n div 2 - 6 + 1" unfolding remove_plus1 using Suc.IH .
-    also have "... = n div 2 + 1 - 6" using \<open>n \<ge> 20\<close> by (intro add_diff_assoc2) linarith
-    also have "... = ?Sn div 2 - 6" unfolding div_eq ..
+    also have "... \<le> n div 2 - 5 + 1" unfolding remove_plus1 using Suc.IH .
+    also have "... = n div 2 + 1 - 5" using \<open>n \<ge> 18\<close> by (intro add_diff_assoc2) linarith
+    also have "... = ?Sn div 2 - 5" unfolding div_eq ..
     finally show ?thesis .
   next
     case False
     then have "nat_log 2 ?Sn = nat_log 2 n" by (subst log2_Suc') simp
-    also have "... \<le> n div 2 - 6" unfolding remove_plus1 using Suc.IH .
-    also have "... \<le> ?Sn div 2 - 6" by (intro diff_le_mono) (rule Suc_div_le_mono)
+    also have "... \<le> n div 2 - 5" unfolding remove_plus1 using Suc.IH .
+    also have "... \<le> ?Sn div 2 - 5" by (intro diff_le_mono) (rule Suc_div_le_mono)
     finally show ?thesis .
   qed
 qed
 
 lemma sh_pfx_log_ineq':
-  assumes "l \<ge> 20"
+  assumes "l \<ge> 18"
   defines "l_div_2 \<equiv> l div 2"
-  shows "nat_log_ceil 2 l \<le> l div 2 - 5"
+  shows "nat_log_ceil 2 l \<le> l div 2 - 4"
 proof -
-  have "l div 2 \<ge> 6" using \<open>l \<ge> 20\<close> by linarith
+  have "l div 2 \<ge> 5" using \<open>l \<ge> 18\<close> by linarith
 
   have "nat_log_ceil 2 l \<le> nat_log 2 l + 1" by (fact log2.ceil_le_nat_log_p1)
-  also have "... \<le> l div 2 - 6 + 1" unfolding add_le_cancel_right
-    using \<open>l \<ge> 20\<close> by (rule sh_pfx_log_ineq)
-  also have "... = l div 2 + 1 - 6" using \<open>l div 2 \<ge> 6\<close> by (rule add_diff_assoc2)
-  also have "... = l div 2 - (6 - 1)" using \<open>l div 2 \<ge> 6\<close> by (intro diff_diff_right[symmetric]) simp
-  also have "... = l div 2 - 5" by force
+  also have "... \<le> l div 2 - 5 + 1" unfolding add_le_cancel_right
+    using \<open>l \<ge> 18\<close> by (rule sh_pfx_log_ineq)
+  also have "... = l div 2 + 1 - 5" using \<open>l div 2 \<ge> 5\<close> by (rule add_diff_assoc2)
+  also have "... = l div 2 - (5 - 1)" using \<open>l div 2 \<ge> 5\<close> by (intro diff_diff_right[symmetric]) simp
+  also have "... = l div 2 - 4" by force
   finally show ?thesis .
 qed
 
@@ -576,17 +576,17 @@ theorem adj_sq_sh_pfx_log:
   fixes w
   defines "l \<equiv> length w"
   defines "w' \<equiv> adj_sq\<^sub>w w"
-  assumes "l \<ge> 20" \<comment> \<open>lower bound for \<open>clog l \<le> l div 2 - 5\<close>\<close>
+  assumes "l \<ge> 18" \<comment> \<open>lower bound for \<open>clog l \<le> l div 2 - 4\<close>\<close>
   shows "shared_MSBs (nat_log_ceil 2 l) w w'"
 proof -
-  have "nat_log_ceil 2 l \<le> l div 2 - 5" using \<open>l \<ge> 20\<close> by (rule sh_pfx_log_ineq')
-  also have "... = l div 2 + l div 2 - l div 2 - 5" unfolding diff_add_inverse2 ..
-  also have "... \<le> l - l div 2 - 5" by (intro diff_le_mono) (fold mult_2, simp)
-  also have "... = l - (5 + l div 2)" unfolding diff_diff_left by presburger
+  have "nat_log_ceil 2 l \<le> l div 2 - 4" using \<open>l \<ge> 18\<close> by (rule sh_pfx_log_ineq')
+  also have "... = l div 2 + l div 2 - l div 2 - 4" unfolding diff_add_inverse2 ..
+  also have "... \<le> l - l div 2 - 4" by (intro diff_le_mono) (fold mult_2, simp)
+  also have "... = l - (4 + l div 2)" unfolding diff_diff_left by presburger
   also have "... = length w - suffix_len w" unfolding suffix_len_def len_gn l_def[symmetric] ..
   finally have "nat_log_ceil 2 l \<le> length w - suffix_len w" .
 
-  moreover have "shared_MSBs (length w - suffix_len w) w (adj_sq\<^sub>w w)" using \<open>l \<ge> 20\<close>
+  moreover have "shared_MSBs (length w - suffix_len w) w (adj_sq\<^sub>w w)" using \<open>l \<ge> 18\<close>
     by (intro adj_sq_sh_pfx_half) (fold l_def, force)
   ultimately show "shared_MSBs (nat_log_ceil 2 l) w w'" by (fold w'_def) (rule sh_msb_le)
 qed
