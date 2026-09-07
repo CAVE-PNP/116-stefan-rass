@@ -2,8 +2,17 @@ section \<open>Encoding TMs as (Binary) Strings\<close>
 
 theory TM_Encoding
   imports Goedel_Numbering Complexity
-    "Supplementary/Misc" "HOL-Library.Sublist"
+    "Supplementary/Misc" "HOL-Library.Sublist" Complex_Main
 begin
+
+lemma ln_mono: "x1 \<le> x2 \<Longrightarrow> 0 < (x1::real) \<Longrightarrow> ln x1 \<le> ln x2"
+  by simp
+
+lemma ge_1_log_mono: "b1 \<le> b2 \<Longrightarrow> 1 < (b1::real) \<Longrightarrow> 1 \<le> x \<Longrightarrow> log b2 x \<le> log b1 x"
+  unfolding log_def apply (drule ln_mono)
+   apply auto
+  apply (drule ln_ge_zero)
+  by (simp add: frac_le)
 
 text\<open>As defined in @{cite \<open>ch.~4.2\<close> rassOwf2017} (outlined in @{cite \<open>ch.~3.1\<close> rassOwf2017})
   the decoding of a TM \<open>M\<close> from a binary word \<open>w\<close> includes:
@@ -194,8 +203,10 @@ lemma canonical_TM_idem[simp]: "canonical_TM (canonical_TM M) = canonical_TM M"
 subsection\<open>Code Description\<close>
 
 type_synonym bin_symbol = "bool option"
+type_synonym bin'_option = "bool list option"
 
 type_synonym binTM = "(nat, bool, bool) TM"
+type_synonym bin'TM = "(nat, bool list, bool) TM"
 
 
 locale TM_Encoding = (* TODO fix bool this early? *)
@@ -203,10 +214,14 @@ locale TM_Encoding = (* TODO fix bool this early? *)
     and is_valid_enc_TM :: "bool list \<Rightarrow> bool"
     and dec_TM :: "bool list \<Rightarrow> binTM"
   assumes valid_enc: "\<And>M. is_valid_enc_TM (enc_TM M)"
-    and inj_enc_TM: "inj_on enc_TM (range canonical_TM)"
+   (* and inj_enc_TM: "inj_on enc_TM (range canonical_TM)" *) (* Follows from enc_dec_TM *)
     and enc_dec_TM: "\<And>M. dec_TM (enc_TM M) = canonical_TM M"
     and dec_enc_TM: "\<And>x. is_valid_enc_TM x \<Longrightarrow> enc_TM (dec_TM x) = x" (* this should be easy to achieve *)
     and invalid_enc_TM_rejects: "\<And>x. \<not> is_valid_enc_TM x \<Longrightarrow> TM_decider.rejects (dec_TM x) w" (* a nicer version of: "\<exists>q\<^sub>0 s. dec\<^sub>U x = (rejecting_TM q\<^sub>0 s)" *)
+begin
+lemma inj_enc_TM: "inj_on enc_TM (range canonical_TM)"
+  using enc_dec_TM by (smt (verit, best) canonical_TM_idem image_iff inj_on_def)
+end
 
 (*
 consts bin_TM_enc :: "binTM \<Rightarrow> bin"
@@ -556,5 +571,486 @@ proof
 qed
 
 end \<comment> \<open>\<^locale>\<open>TM_Encoding\<close>\<close>
+
+locale TM_Encoding' =
+  fixes enc_TM :: "bin'TM \<Rightarrow> bool list list"
+    and is_valid_enc_TM :: "bool list list \<Rightarrow> bool"
+    and dec_TM :: "bool list list \<Rightarrow> bin'TM"
+  assumes valid_enc: "\<And>M. is_valid_enc_TM (enc_TM M)"
+  (*  and inj_enc_TM: "inj_on enc_TM (range canonical_TM)" *) (* Follows from enc_dec_TM *)
+    and enc_dec_TM: "\<And>M. dec_TM (enc_TM M) = canonical_TM M"
+    and dec_enc_TM: "\<And>x. is_valid_enc_TM x \<Longrightarrow> enc_TM (dec_TM x) =
+                     takeWhile (\<lambda>s. s = [True, False] \<or> s = [True, True]) x" (* this should be easy to achieve *)
+    and invalid_enc_TM_not_halts: "\<And>x. \<not> is_valid_enc_TM x \<Longrightarrow> \<not>TM.halts (dec_TM x) w" (* a nicer version of: "\<exists>q\<^sub>0 s. dec\<^sub>U x = (rejecting_TM q\<^sub>0 s)" *)
+    and enc_TM_doubletons: "\<And>M. set (enc_TM M) \<subseteq> {[True, False], [True, True]}"
+    and valid_enc_starts_with_TF: "\<And>b. is_valid_enc_TM b \<Longrightarrow> starts_with [True, False] b"
+    (* just prepending a [True, True] symbol should be fine - when decoding, just process the tail of
+       the encoded TM and ignore the head *)
+    and valid_enc_append: "\<And>x h t. is_valid_enc_TM x \<Longrightarrow> h \<noteq> [True, False] \<Longrightarrow> h \<noteq> [True, True] \<Longrightarrow>
+                           is_valid_enc_TM (x @ h#t)"
+    and valid_enc_canonical: "\<And>w. is_valid_enc_TM w \<Longrightarrow> dec_TM w \<in> range canonical_TM"
+begin
+lemma valid_enc_starts_with_True: "is_valid_enc_TM b \<Longrightarrow> starts_with_True b"
+  by (drule valid_enc_starts_with_TF) auto
+
+lemma enc_starts_with_2True: "starts_with [True, False] (enc_TM M)"
+  by (rule valid_enc_starts_with_TF) (rule valid_enc)
+
+lemma enc_starts_with_True: "starts_with_True (enc_TM M)"
+  by (rule valid_enc_starts_with_True) (rule valid_enc)
+
+lemma enc_TM_not_empty: "is_valid_enc_TM w \<Longrightarrow> w \<noteq> []"
+  using valid_enc_starts_with_TF by auto
+
+lemma inj_enc_TM: "inj_on enc_TM (range canonical_TM)"
+  using enc_dec_TM by (smt (verit, best) canonical_TM_idem image_iff inj_on_def)
+
+lemma inj_enc_TM': "M1 \<in> range canonical_TM \<Longrightarrow> M2 \<in> range canonical_TM \<Longrightarrow>
+                    enc_TM M1 = enc_TM M2 \<Longrightarrow> M1 = M2"
+  by (metis canonical_TM_idem enc_dec_TM image_iff) 
+
+lemma dec_TM_append: "is_valid_enc_TM w \<Longrightarrow> h \<noteq> [True, False] \<Longrightarrow> h \<noteq> [True, True] \<Longrightarrow>
+                      dec_TM (w @ h#t) = dec_TM w"
+proof (frule (2) valid_enc_append)
+  assume a1: "is_valid_enc_TM w" and a2: "h \<noteq> [True, False]" and a3: "h \<noteq> [True, True]" and
+         a4: "is_valid_enc_TM (w @ h # t)"
+  have "enc_TM (dec_TM (w @ h#t)) = enc_TM (dec_TM w)"
+    apply (subst (1 2) dec_enc_TM)
+      apply fact+
+    by (simp add: a2 a3 takeWhile_tail)
+  show "dec_TM (w @ h # t) = dec_TM w"
+    apply (rule inj_enc_TM')
+    using a4 valid_enc_canonical apply blast
+    using a1 valid_enc_canonical apply blast
+    by fact
+qed
+
+lemma enc_TM_wf: "bin'_wf (enc_TM M)"
+  apply standard
+  apply (drule enc_TM_doubletons [THEN subsetD])
+  by blast
+end
+
+(*
+consts bin_TM_enc :: "binTM \<Rightarrow> bin"
+
+specification (bin_TM_enc)
+  bin_TM_enc_inj: "inj bin_TM_enc" sorry
+
+
+definition bin_TM_dec :: "bin \<Rightarrow> binTM" where
+  "bin_TM_dec \<equiv> inv bin_TM_enc"
+
+lemma bin_TM_enc_inv: "bin_TM_dec (bin_TM_enc M) = M"
+  unfolding bin_TM_dec_def using bin_TM_enc_inj by simp
+
+
+text\<open>Instantiate the \<^const>\<open>Rej_TM.Rejecting_TM\<close> for \<^typ>\<open>binTM\<close> for the requirement of
+ "every string over \<open>{0, 1}\<^sup>*\<close> represents some TM (easy to assure by executing
+  an invalid code as a canonic TM that instantly halts and rejects its input)".\<close>
+
+interpretation bin_Rej_TM: Rej_TM "{}::bin_symbol set" "0::nat"
+  by (rule Rej_TM.intro) (fact finite.emptyI)
+
+abbreviation bin_rejM :: binTM
+  where "bin_rejM \<equiv> Abs_wf_TM bin_Rej_TM.Rejecting_TM"
+
+lemma bin_rejM_simps: "Rep_wf_TM bin_rejM = \<lparr>
+    tape_count = 1,
+    states = {0},
+    start_state = 0,
+    final_states = {0},
+    accepting_states = {},
+    symbols = {blank_class.Bk},
+    next_state = \<lambda>q w. 0,
+    next_action = \<lambda>q w. [TM.action.Nop]
+  \<rparr>"
+  using bin_Rej_TM.TM_axioms bin_Rej_TM.Rejecting_TM_def
+  by (subst Abs_wf_TM_inverse) auto
+
+lemma wf_bin_rejM: "TM (Rep_wf_TM bin_rejM)"
+  using Rep_wf_TM by blast
+
+text\<open>The function that assigns a word to every TM, represented as \<open>\<rho>(M)\<close> in the paper.\<close>
+
+abbreviation TM_encode :: "binTM \<Rightarrow> bin"
+  where "TM_encode \<equiv> bin_TM_enc"
+
+definition is_encoded_TM :: "bool list \<Rightarrow> bool"
+  where "is_encoded_TM w = (\<exists>M. w = TM_encode M)"
+
+definition TM_decode :: "bool list \<Rightarrow> binTM"
+  where "TM_decode w = (if is_encoded_TM w then bin_TM_dec w else bin_rejM)"
+
+
+lemma TM_codec: "TM_decode (TM_encode M) = M"
+  unfolding TM_decode_def is_encoded_TM_def bin_TM_enc_inv by force
+
+lemma decode_TM_wf: "TM (Rep_wf_TM (TM_decode w))"
+  using Rep_wf_TM by blast
+*)
+
+subsubsection\<open>Exponential Padding\<close>
+
+definition add_exp_pad' :: "bool list list \<Rightarrow> bool list list"
+  where [simp]: "add_exp_pad' w = (let l = length w in w @ [False, False] \<up> (2^l - l))"
+
+definition strip_exp_pad' :: "bool list list \<Rightarrow> bool list list"
+  where [simp]: "strip_exp_pad' w = (let l = length w in take (nat_log_ceil 2 l) w)"
+
+lemma add_exp_pad'_wf [iff]: "bin'_wf (add_exp_pad' w) \<longleftrightarrow> bin'_wf w"
+  by (fastforce simp add: Let_def)
+
+lemma strip_exp_pad'_wf [intro]: "bin'_wf w \<Longrightarrow> bin'_wf (strip_exp_pad' w)"
+  apply (induction w)
+   apply auto
+  by (meson order.trans set_all_length_2_wf set_take_subset)
+
+value "strip_exp_pad (add_exp_pad [])"
+value "strip_exp_pad' (add_exp_pad' [])"
+
+lemma exp_pad_Nil': "strip_exp_pad' [] = []" by force
+
+lemma exp_pad_correct'[simp]: "w \<noteq> [] \<Longrightarrow> strip_exp_pad' (add_exp_pad' w) = w"
+proof -
+  let ?l = "length w"
+  let ?pad = "[False, False] \<up> (2 ^ ?l - ?l)"
+  let ?wp = "?pad @ w"
+
+  assume "w \<noteq> []"
+  then have "?l > 0" ..
+  then have l_clog2: "nat_log_ceil 2 (2 ^ ?l) = ?l" by simp
+
+  have len_pad: "length ?pad = 2 ^ ?l - ?l" by simp
+  have len_wp: "length ?wp = 2^?l" unfolding length_append len_pad by simp
+
+  have *: "length ?wp - nat_log_ceil 2 (length ?wp) = length ?pad" unfolding len_wp l_clog2 len_pad ..
+  show "strip_exp_pad' (add_exp_pad' w) = w"
+    unfolding add_exp_pad'_def strip_exp_pad'_def Let_def * by (simp add: l_clog2)
+qed
+
+lemma exp_pad_suffix': "prefix w (add_exp_pad' w)"
+  unfolding add_exp_pad'_def Let_def by (blast intro: prefixI)
+
+lemma add_exp_pad_len': "length (add_exp_pad' w) = 2 ^ length w" by (simp add: Let_def)
+
+lemma strip_exp_pad_len':
+  assumes "w \<noteq> []"
+  defines "l \<equiv> length w"
+  shows "length (strip_exp_pad' w) = nat_log_ceil 2 l"
+proof -
+  from \<open>w \<noteq> []\<close> have "l > 0" unfolding l_def ..
+  with log2.ceil_le have "nat_log_ceil 2 l \<le> l" .
+  thus ?thesis using l_def by force
+qed
+
+lemma strip_exp_pad'_add_append_ex: "\<exists>n\<ge>length w. strip_exp_pad' ((add_exp_pad' w) @ w') =
+                                     take n ((add_exp_pad' w) @ w')"
+  unfolding strip_exp_pad'_def add_exp_pad'_def Let_def apply simp
+proof -
+  have "length w + (2 ^ length w + length w' - length w) \<ge> 2^length w" by linarith
+  hence 0: "nat_log_ceil 2 (length w + (2 ^ length w + length w' - length w)) \<ge> length w"
+    by (smt (verit, ccfv_threshold) add.commute add_gr_0 bit_len_eq_log2 le_trans length_bin_of_nat_le_iff
+        linorder_not_less log2.le_nat_log_ceil not_less_eq_eq plus_1_eq_Suc)
+  hence 1: "take (nat_log_ceil 2 (length w + (2 ^ length w + length w' - length w))) w = w" by simp
+  show "\<exists>n\<ge>length w. take (nat_log_ceil 2 (length w + (2 ^ length w + length w' - length w))) w @
+        [False, False] \<up> min (nat_log_ceil 2 (length w + (2 ^ length w + length w' - length w)) - length w)
+        (2 ^ length w - length w) @ take (nat_log_ceil 2 (length w + (2 ^ length w + length w' - length w)) -
+        2 ^ length w) w' = take n w @ [False, False] \<up> min (n - length w) (2 ^ length w - length w) @
+        take (n - 2 ^ length w) w'" by (metis 0 1)
+qed
+
+
+subsection\<open>Arbitrary-length \<open>1\<^sup>+0\<close> prefix\<close>
+
+definition add_al_prefix' :: "bool list list \<Rightarrow> bool list list" where
+  "add_al_prefix' w = [True, True] # [True,False] # w"
+
+definition has_al_prefix' :: "bool list list \<Rightarrow> bool"
+  where "has_al_prefix' w = (\<exists>n>0. \<exists>w'. w = [True, True] \<up> n @ [[True, False]] @ w')"
+
+lemma has_al_prefix'_induct_helper: "has_al_prefix' w \<longleftrightarrow>
+      (\<exists>w'. w = [[True, True], [True, False]]@w') \<or>
+      (\<exists>w'. has_al_prefix' w' \<and> w = [True, True]#w')"
+  unfolding has_al_prefix'_def apply (induction w) apply simp
+  apply safe apply simp_all
+        apply (smt (verit, ccfv_SIG) append_eq_Cons_conv empty_replicate hd_replicate
+      list.sel(1) nat_less_le)
+  apply force
+      apply (smt (verit, ccfv_SIG) Cons_eq_append_conv empty_replicate hd_replicate
+      list.sel(1) not_gr_zero)
+     apply (metis append_Cons replicate_Suc zero_less_Suc)
+proof -
+  fix a :: "bool list" and wa :: "bool list list" and n :: nat and
+      w' :: "bool list list"
+  assume a1: "\<forall>n. n = 0 \<or> (\<forall>w'. wa \<noteq> [True, True] \<up> n @ [True, False] # w')"
+  assume a2: "a # wa = [True, True] \<up> n @ [True, False] # w'"
+  assume a3: "0 < n"
+  obtain bbss :: "bool list list \<Rightarrow> bool list \<Rightarrow> bool list list \<Rightarrow> bool list list \<Rightarrow>
+                  bool list list" where
+    "\<forall>x0 x1 x2 x3. (\<exists>v4. x3 = x1 # v4 \<and> v4 @ x2 = x0) = (x3 = x1 # bbss x0 x1 x2 x3 \<and>
+      bbss x0 x1 x2 x3 @ x2 = x0)"
+    by moura
+  then have f4: "\<forall>bss bssa bs bssb. (bss @ bssa \<noteq> bs # bssb \<or> bss = [] \<and>
+                 bssa = bs # bssb \<or> bss = bs # bbss bssb bs bssa bss \<and>
+                 bbss bssb bs bssa bss @ bssa = bssb) \<and> (bss @ bssa = bs # bssb \<or>
+                 (bss \<noteq> [] \<or> bssa \<noteq> bs # bssb) \<and> (\<forall>bssc. bss \<noteq> bs # bssc \<or>
+                 bssc @ bssa \<noteq> bssb))"
+    by (meson append_eq_Cons_conv)
+  then have f5: "[True, True] \<up> n = a # bbss wa a ([True, False] # w')
+                 ([True, True] \<up> n) \<and> bbss wa a ([True, False] # w')
+                 ([True, True] \<up> n) @ [True, False] # w' = wa"
+    using a3 a2 by (smt (z3) nat_neq_iff replicate_empty)
+  then have "a = [True, True] \<and> 0 < n \<and> bbss wa a ([True, False] # w')
+             ([True, True] \<up> n) = a \<up> (n - 1)"
+    by (smt (z3) Cons_replicate_eq)
+  then show "\<exists>bss. [True, True] \<up> n @ [True, False] # w' = [True, True] #
+             [True, False] # bss"
+    using f5 f4 a1 by (metis replicate_empty)
+qed force+
+
+lemma has_al_prefix'_induct: "(\<And>w. P ([True, True]#[True, False]#w)) \<Longrightarrow>
+    (\<And>w. P w \<Longrightarrow> has_al_prefix' w \<Longrightarrow> P ([True, True]#w)) \<Longrightarrow>
+    has_al_prefix' w \<Longrightarrow> P w"
+  apply (subst (asm) (2) has_al_prefix'_induct_helper)
+  apply (induction w)
+  apply auto
+  by (metis append_Cons has_al_prefix'_induct_helper)
+
+definition strip_al_prefix' :: "bool list list \<Rightarrow> bool list list"
+  where "strip_al_prefix' w = drop 1 (dropWhile (\<lambda>b. b = [True, True]) w)"
+
+lemmas alp_simps'[simp] = add_al_prefix'_def has_al_prefix'_def strip_al_prefix'_def
+
+lemma add_alp_min': "add_al_prefix' w \<noteq> []"
+  and add_alp_correct': "has_al_prefix' (add_al_prefix' w)"
+  and alp_correct': "strip_al_prefix' (add_al_prefix' w) = w"
+  and alp_Nil': "strip_al_prefix' [] = []" by force+
+
+lemma strip_alp_altdef': "strip_al_prefix' ([True, True] \<up> n @ [True, False] # w) = w"
+  by (induction n) simp_all
+
+lemma strip_alp_correct1':
+  assumes "has_al_prefix' w"
+  obtains n where "n > 0"
+    and "w = strip_al_prefix' ([True, True] \<up> n @ [[True, False]] @ w)"
+  using assms strip_alp_altdef' by auto
+
+lemma strip_alp_correct2': "suffix (strip_al_prefix' w) w"
+  by (simp add: dropWhile_eq_drop suffix_drop)
+
+lemma prefix_strip_pre_add_exp_add_pre:
+  "prefix (add_exp_pad' w) (strip_al_prefix' (add_exp_pad' (add_al_prefix' w)))"
+  unfolding add_exp_pad'_def strip_al_prefix'_def add_al_prefix'_def Let_def by simp
+
+lemma strip_al_prefix'_take: "\<exists>k\<le>n. strip_al_prefix' (take n w) = take k (strip_al_prefix' w)"
+proof (induction w arbitrary: n)
+  case Nil
+  then show ?case by auto
+next
+  case (Cons a w)
+  then obtain k :: nat where k_le: "k \<le> n - 1" and
+    take_k: "strip_al_prefix' (take (n - 1) w) = take k (strip_al_prefix' w)" by blast
+  have 1: "\<And>x. n > 0 \<Longrightarrow> take n (x # w) = x # take (n - 1) w"
+    by (metis take_Cons' bot_nat_0.not_eq_extremum)
+  have 2: "trimLeft [True, True] (take n ([True, True] # w)) = trimLeft [True, True] (take (n - 1) w)"
+    apply (cases "n = 0")
+     apply auto
+    unfolding 1 by simp
+  show ?case apply auto
+    using take_k [simplified] unfolding 2 apply simp
+     apply (metis k_le diff_le_self le_trans)
+    apply (cases "n = 0")
+     apply auto
+    unfolding 1 apply simp 
+    using diff_le_self by blast
+qed
+
+lemma add_al_prefix'_bin'_wf_iff [iff]: "bin'_wf (add_al_prefix' w) \<longleftrightarrow> bin'_wf w"
+  unfolding add_al_prefix'_def by fastforce
+
+subsubsection\<open>Assembling components\<close>
+context TM_Encoding'
+begin
+
+definition enc_TM_pad' :: "bin'TM \<Rightarrow> bool list list"
+  where "enc_TM_pad' M = add_exp_pad' (add_al_prefix' (enc_TM M))"
+
+definition dec_TM_pad' :: "bool list list \<Rightarrow> bin'TM"
+  where "dec_TM_pad' w = dec_TM (strip_al_prefix' (strip_exp_pad' w))"
+
+lemma TM_codec_TM_pad': "dec_TM_pad' (enc_TM_pad' M) = canonical_TM M"
+  unfolding dec_TM_pad'_def enc_TM_pad'_def
+  unfolding exp_pad_correct'[OF add_alp_min'] alp_correct' enc_dec_TM ..
+
+lemma wf_TM_has_enc': "\<exists>w. dec_TM_pad' w = canonical_TM M"
+  using TM_codec_TM_pad' by blast
+
+
+subsubsection\<open>Proving required properties\<close>
+
+text\<open>From @{cite \<open>ch.~3.1\<close> rassOwf2017}:
+
+  ``The encoding that we will use [...] will have the following properties:
+
+  1. every string over \<open>{0, 1}\<^sup>*\<close> represents some TM [...],''\<close>
+
+theorem dec_TM_pad_wf': "valid_TM (Rep_TM (dec_TM_pad' w))"
+  unfolding dec_TM_pad'_def using Rep_TM by blast
+
+
+text\<open>``2. every TM is represented by infinitely many strings. [...]''\<close>
+
+theorem TM_inf_encs': "infinite {w. dec_TM_pad' w = canonical_TM M}"
+proof (intro infinite_lists allI bexI CollectI)
+  \<comment> \<open>Proof follows the structure of @{thm infinite_lists}:
+    For every \<open>l \<in> \<nat>\<close> there exists a word \<open>w\<close> with \<open>length w \<ge> l\<close> that is also in the set.\<close>
+  fix l
+  define w' where w': "w' = [True, True] \<up> l @ [True, False] # (enc_TM M)"
+  define w where w: "w = add_exp_pad' w'"
+
+  show "l \<le> length w" unfolding w w' by force
+
+  have "dec_TM_pad' w = dec_TM (strip_al_prefix' w')" unfolding w w' dec_TM_pad'_def
+    by (subst exp_pad_correct') blast+
+  also have "... = dec_TM (enc_TM M)" unfolding w' strip_alp_altdef' ..
+  also have "... = canonical_TM M" by (fact enc_dec_TM)
+  finally show "dec_TM_pad' w = canonical_TM M" .
+qed
+
+
+text\<open>From @{cite \<open>ch.~4.2\<close> rassOwf2017}:
+
+  ``[The encoding] assures several properties [...]:
+
+  1. [...] an arbitrary word \<open>w'\<close> encoding a TM has at least
+             \<open>2\<^bsup>ℓ - \<lceil>log ℓ\<rceil>\<^esup> \<ge> 2\<^bsup>ℓ - log ℓ - 1\<^esup>\<close>
+     equivalents \<open>w\<close> in the set \<open>{0, 1}\<^sup>ℓ\<close> that map to \<open>w'\<close>.
+     Thus, if a TM \<open>M\<close> is encoded within \<open>ℓ\<close> bits, then [the above equation] counts
+     how many equivalent codes for \<open>M\<close> are found at least in \<open>{0, 1}\<^sup>ℓ\<close>.''\<close>
+
+theorem num_equivalent_encodings':
+  fixes M w
+  defines "l \<equiv> length w"
+  assumes "l > 0"
+    and "dec_TM_pad' w = M"
+    and "set w \<subseteq> {w. length w = 2}"
+  shows "4^(l - nat_log_ceil 2 l) \<le>
+        card {w. set w \<subseteq> {w. length w = 2} \<and> length w = l \<and> dec_TM_pad' w = M}"
+    (is "?lhs \<le> card ?A")
+proof -
+  have w_wf: "bin'_wf w" using assms(4) by (simp add: set_all_length_2_wf)
+  from \<open>l > 0\<close> have "w \<noteq> []" unfolding l_def ..
+  from \<open>l > 0\<close> have "nat_log_ceil 2 l \<le> l" using nat_log_less
+    unfolding nat_log_ceil_def
+    by (meson Nat.le_diff_conv2 add_leE less_iff_succ_less_eq nat_log_le)                             
+  define w' where "w' \<equiv> strip_exp_pad' w"
+  have lw': "length w' = nat_log_ceil 2 l" unfolding w'_def l_def using \<open>w \<noteq> []\<close>
+    by (rule strip_exp_pad_len')
+  have "?lhs = card {pad::bin'. length pad = l - nat_log_ceil 2 l \<and>
+                     set pad \<subseteq> {w. length w = 2}}"
+    using card_bin'_len_eq [symmetric] unfolding set_all_length_2_wf .
+  also have "... = card ((\<lambda>pad. w' @ pad) `
+              {pad. length pad = l - nat_log_ceil 2 l \<and> set pad \<subseteq> {w. length w = 2}})"
+    using card_image[symmetric] inj_imp_inj_on inj_append_R .
+  also have "... = card {w' @ pad | pad. length pad = l - nat_log_ceil 2 l \<and>
+            set pad \<subseteq> {w. length w = 2}}"
+    by (intro arg_cong[where f=card]) (rule image_Collect)
+  also have "... \<le> card {w. length w = l \<and>
+             dec_TM_pad' w = M \<and> set w \<subseteq> {w. length w = 2}}"
+  proof (intro card_mono)
+    show "finite {w. length w = l \<and> dec_TM_pad' w = M \<and> set w \<subseteq> {w. length w = 2}}"
+      using finite_bin'_len_eq unfolding dec_TM_pad'_def apply auto
+      by (smt (verit, del_insts) Collect_mono_iff infinite_super set_all_length_2_wf)
+    show "{w' @ pad |pad. length pad = l - nat_log_ceil 2 l \<and>
+          set pad \<subseteq> {w. length w = 2}} \<subseteq> {w. length w = l \<and> dec_TM_pad' w = M \<and>
+          set w \<subseteq> {w. length w = 2}}"
+    proof safe
+      fix pad::bin'
+      assume lp: "length pad = l - nat_log_ceil 2 l"
+      have "nat_log_ceil 2 l \<le> l" unfolding nat_log_ceil_def
+        by (metis Nat.le_diff_conv2 One_nat_def Suc_leI assms(2) nat_log_le)
+      thus lpw': "length (w'@pad) = l" unfolding length_append lp lw' by simp
+      have h1: "take (nat_log_ceil 2 l) (w' @ pad) = w'" by (simp add: lw')
+      show "dec_TM_pad' (w'@pad) = M" unfolding dec_TM_pad'_def strip_exp_pad'_def
+        unfolding lpw' Let_def h1 unfolding w'_def
+        using \<open>dec_TM_pad' w = M\<close> by (metis dec_TM_pad'_def)
+    next
+      fix x and pad and xa
+      assume "length pad = l - nat_log_ceil 2 l" and "set pad \<subseteq> {w. length w = 2}"
+        and "xa \<in> set (w'@pad)"
+      moreover have "set w' \<subseteq> {w. length w = 2}" using assms unfolding w'_def
+          strip_exp_pad'_def by (meson set_take_subset subset_trans)
+      ultimately show "length xa = 2" by auto
+    qed
+  qed
+  finally show ?thesis by (metis (no_types, lifting) Collect_cong)
+qed
+
+
+text\<open>``2. The retraction of preceding 1-bits creates the needed infinitude of
+        equivalent encodings of every possible TM \<open>M\<close>, as \<^emph>\<open>we can embed any code \<open>\<rho>(M)\<close>
+        in a word of length \<open>ℓ\<close> for which \<open>log ℓ > len (\<rho>(M))\<close>.\<close>
+        We will need this to prove the hierarchy theorem in Section 4.3.''\<close>
+
+theorem embed_TM_in_len':
+  fixes M l
+  assumes min_word_len: "nat_log_ceil 2 l \<ge> length (enc_TM M) + 2" \<comment> \<open>The \<open>+2\<close> bits are required for the \<open>1\<^sup>+0\<close>-prefix.
+
+        Note: this theorem technically also holds when the assumption @{thm min_word_len} reads
+        \<^term>\<open>nat_log_ceil 2 l > length (enc_TM M) \<longleftrightarrow> nat_log_ceil 2 l \<ge> length (enc_TM M) + 1\<close>,
+        but only due to \<^const>\<open>strip_al_prefix\<close> allowing the absence of preceding ones.
+        If it were to enforce the constraint of a correct \<open>1\<^sup>+0\<close>-prefix,
+        this would no longer be the case.
+        Additionally, in the stronger version allows the case of \<^term>\<open>l = 0\<close>,
+        so \<^term>\<open>l > 0\<close> would have to be added to the assumption.\<close>
+  obtains w
+  where "length w = l"
+    and "dec_TM_pad' w = canonical_TM M"
+    and "bin'_wf w"
+proof
+  have "l > 0" by (rule ccontr) (use min_word_len in simp)
+  hence "nat_log_ceil 2 l \<le> l" by (rule log2.ceil_le)
+
+  let ?\<rho>M = "enc_TM M" let ?l\<rho> = "length ?\<rho>M"
+  have \<rho>M_wf: "bin'_wf ?\<rho>M" using enc_TM_wf .
+  define al_prefix where "al_prefix \<equiv> [True, True] \<up> (nat_log_ceil 2 l - ?l\<rho> - 1) @ [[True, False]]"
+  have al_prefix_wf: "bin'_wf al_prefix"
+    by (metis al_prefix_def bin'_wf_appI bin'_wf_replicate_2_bits replicate_Suc
+        replicate_empty)
+  define w' where "w' \<equiv> al_prefix @ ?\<rho>M"
+  have w'_wf: "bin'_wf w'" by (simp add: \<rho>M_wf al_prefix_wf bin'_wf_appI w'_def)
+  have w'_correct: "strip_al_prefix' w' = ?\<rho>M"
+    unfolding w'_def al_prefix_def using strip_alp_altdef' by auto 
+  have "length w' = ?l\<rho> + length al_prefix" unfolding w'_def by simp
+  also have "... = ?l\<rho> + (nat_log_ceil 2 l - ?l\<rho> - 1) + 1"
+    unfolding add_left_cancel al_prefix_def length_Cons length_replicate by simp
+  also have "... = nat_log_ceil 2 l - 1 + 1" unfolding add_right_cancel
+    using min_word_len by (subst diff_commute, intro le_add_diff_inverse) fastforce
+  also have "... = nat_log_ceil 2 l" by (intro le_add_diff_inverse2) (simp add: leI)
+  finally have w'_len: "length w' = nat_log_ceil 2 l" .
+
+  define exp_pad where "exp_pad \<equiv> [False, False] \<up> (l - nat_log_ceil 2 l)"
+  have exp_pad_wf: "bin'_wf exp_pad" using exp_pad_def by blast
+  define w where "w \<equiv> w'@exp_pad"
+  show "bin'_wf w" by (simp add: bin'_wf_appI exp_pad_wf w'_wf w_def)
+  have exp_len: "length exp_pad = l - nat_log_ceil 2 l"
+    unfolding exp_pad_def by (rule length_replicate)
+  have dexp: "drop (l - nat_log_ceil 2 l) exp_pad = []" unfolding exp_pad_def by force
+
+  have "length w = l - nat_log_ceil 2 l + nat_log_ceil 2 l"
+    unfolding w_def length_append exp_pad_def w'_len length_replicate by simp
+  also have "... = l" using \<open>nat_log_ceil 2 l \<le> l\<close> by (fact le_add_diff_inverse2)
+  finally show "length w = l" .
+
+  have w_correct: "strip_exp_pad' w = w'"
+    unfolding strip_exp_pad'_def \<open>length w = l\<close> Let_def w_def drop_append dexp exp_len
+    using \<open>length w = l\<close> dexp w_def w'_len by auto
+
+  show "dec_TM_pad' w = canonical_TM M" unfolding dec_TM_pad'_def w_correct w'_correct
+    by (fact enc_dec_TM)
+qed
+
+end \<comment> \<open>\<^locale>\<open>TM_Encoding'\<close>\<close>
 
 end

@@ -3,7 +3,7 @@ section\<open>Discrete Functions\<close>
 subsection\<open>Discrete Logarithm\<close>
 
 theory Discrete_Log
-  imports "./Misc" "HOL-Library.Discrete"
+  imports "./Misc" "HOL-Library.Discrete_Functions"
 begin
 
 
@@ -34,7 +34,7 @@ proof (induction n rule: full_nat_induct')
 qed
 
 
-text\<open>Based on \<^theory>\<open>HOL-Library.Discrete\<close>, generalizes \<^const>\<open>Discrete.log\<close>.\<close>
+text\<open>Based on \<^theory>\<open>HOL-Library.Discrete_Functions\<close>, generalizes \<^const>\<open>Discrete_Functions.floor_log\<close>.\<close>
 
 fun nat_log :: "nat \<Rightarrow> nat \<Rightarrow> nat" \<comment> \<open>\<open>\<lfloor>log\<^sub>b n\<rfloor>\<close> over the natural numbers\<close>
   where nat_log_def[simp del]: "nat_log b i = (if b > 1 \<and> i \<ge> b then Suc (nat_log b (i div b)) else 0)"
@@ -458,4 +458,27 @@ qed
 
 end
 
+lemma nat_log_4_half_nat_log_2: "nat_log 4 n = (nat_log 2 n) div 2"
+proof (cases n)
+  case 0
+  then show ?thesis by simp
+next
+  case (Suc n')
+  have 1: "nat_log 4 n = nat \<lfloor>log (real 4) n\<rfloor>"
+    apply (rule nat_log_base.altdef)
+    using Suc by auto
+  have 2: "nat_log 2 n = nat \<lfloor>log (real 2) n\<rfloor>"
+    apply (rule nat_log_base.altdef)
+    using Suc by auto
+  have 3: "log (real 4) n = (log 2 n) / 2"
+    by (metis log_base_pow numeral_Bit0_eq_double of_nat_numeral power2_eq_square
+        zero_less_numeral)
+  show ?thesis unfolding 1 2 3 by simp linarith
+qed
+
+lemma nat_log_4_le_nat_log_2: "nat_log 4 n \<le> nat_log 2 n"
+  unfolding nat_log_4_half_nat_log_2 by simp
+
+lemma nat_log_ceil_4_le_nat_log_ceil_2: "nat_log_ceil 4 n \<le> nat_log_ceil 2 n"
+  unfolding nat_log_ceil_def nat_log_4_half_nat_log_2 by simp
 end

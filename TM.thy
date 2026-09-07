@@ -3,7 +3,7 @@ section\<open>A Theory of Turing Machines\<close>
 theory TM
   imports Main
     "Supplementary/Lists" "Supplementary/Option_S"
-    "Intro_Dest_Elim.IHOL_IDE"
+    "Intro_Dest_Elim.IHOL_IDE" "HOL-Library.Countable"
 begin
 
 
@@ -17,6 +17,8 @@ locale TM_abbrevs
 
 (* TODO consider extracting these to some other theory *)
 type_synonym ('symbol) word = "'symbol list" (* TODO it seems "word" is not actually used anywhere. use or remove. *)
+
+datatype head_move = Shift_Left | Shift_Right | No_Shift
 
 
 subsubsection\<open>Symbols\<close>
@@ -47,8 +49,6 @@ text\<open>We define TM tape head moves as either shifting the TM head one cell 
 
   \<^emph>\<open>Moving the TM head\<close> is equivalent to shifting the entire tape under the head.
   This is how we implement the head movement.\<close>
-
-datatype head_move = Shift_Left | Shift_Right | No_Shift
 
 (* consider introducing a type of actions:
  * type_synonym (in TM_abbrevs) ('s) action = "'s tp_symbol \<times> head_move" *)
@@ -506,9 +506,112 @@ lemma empty_tape_size[simp]: "tape_size \<langle>\<rangle> = 1" by simp
 
 end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
 
+definition map_tape_indexed :: "(int \<Rightarrow> 'a option \<Rightarrow> 'b option) \<Rightarrow> 'a tape \<Rightarrow> 'b tape"
+  where "map_tape_indexed f t \<equiv> Tape (map_indexed
+         (\<lambda>n. f ((int n) - int (length (left t)))) (left t))
+         (f 0 (head t)) (map_indexed
+         (\<lambda>n. f ((int n) + 1)) (right t))"
+
+definition tape_nth_aux :: "'a tape \<Rightarrow> nat \<Rightarrow> 'a option" where
+  "tape_nth_aux t n \<equiv> if n < length (left t) then (left t) ! n else
+                        if n = length (left t) then head t else
+                        (right t) ! (n - length (left t) - 1)"
+
+definition tape_nth :: "'a tape \<Rightarrow> int \<Rightarrow> 'a option" (infixl "!\<^sub>t" 98) where
+  "t !\<^sub>t i \<equiv> if i \<ge> -int (length (left t)) \<and> i \<le> int (length (right t)) then
+                tape_nth_aux t (nat (i + int (length (left t)))) else
+                None"
+
+notation (input) tape_nth (infixl "!t" 98)
+notation (input) tape_nth (infixl "!T" 98)
+
+lemma map_tape_indexed_id [simp]: "map_tape_indexed (\<lambda>_ x. x) t = t"
+  unfolding map_tape_indexed_def by simp
+
+lemma map_tape_indexed_nth [simp]: "i \<ge> -int (length (left t)) \<Longrightarrow>
+       i \<le> int (length (right t)) \<Longrightarrow>
+       (map_tape_indexed f t) !\<^sub>t i = f i (t !\<^sub>t i)"
+  unfolding map_tape_indexed_def tape_nth_def tape_nth_aux_def apply auto
+  using nat_eq_iff by fastforce
+
+lemma map_tape_indexed_length_left [simp]:
+  "length (left (map_tape_indexed f t)) = length (left t)"
+  unfolding map_tape_indexed_def by simp
+
+lemma map_tape_indexed_length_right [simp]:
+  "length (right (map_tape_indexed f t)) = length (right t)"
+  unfolding map_tape_indexed_def by simp
+
+lemma tape_size_map_tape_indexed [simp]: "tape_size (map_tape_indexed f t) = tape_size t"
+  unfolding tape_size_def by simp
+
+lemma tape_nth_equalityI: "length (left t1) = length (left t2) \<Longrightarrow>
+       length (right t1) = length (right t2) \<Longrightarrow>
+       (\<And>i. i \<ge> -int (length (left t1)) \<Longrightarrow> i \<le> int (length (right t1)) \<Longrightarrow>
+       t1 !T i = t2 !T i) \<Longrightarrow> t1 = t2"
+  apply (rule tape.expand)
+proof safe
+  assume a1: "length (left t1) = length (left t2)" and
+         a2: "length (right t1) = length (right t2)" and
+         a3: "\<And>i. - int (length (left t1)) \<le> i \<Longrightarrow>
+              i \<le> int (length (right t1)) \<Longrightarrow> t1 !\<^sub>t i = t2 !\<^sub>t i"
+  have "\<And>n. n < length (left t1) \<Longrightarrow> (left t1) ! n = (left t2) ! n"
+  proof -
+    fix n :: nat
+    assume a4: "n < length (left t1)"
+    have 1: "tape_nth_aux t1 (nat (int n - int (length (left t1)) +
+          int (length (left t1)))) = left t1 ! n"
+      unfolding tape_nth_aux_def using a4 by simp
+    have 2: "tape_nth_aux t2 (nat (int n - int (length (left t1)) +
+          int (length (left t2)))) = left t2 ! n"
+      unfolding tape_nth_aux_def using a4 a1 by simp
+    note a3 [unfolded tape_nth_def, where i="int n - int (length (left t1))",
+             unfolded 1 2, simplified]
+    thus "left t1 ! n = left t2 ! n" using a1 a4 by auto
+  qed
+  from a1 this show "left t1 = left t2" by (rule nth_equalityI)
+next
+  assume a1: "length (left t1) = length (left t2)" and
+         a2: "length (right t1) = length (right t2)" and
+         a3: "\<And>i. - int (length (left t1)) \<le> i \<Longrightarrow>
+              i \<le> int (length (right t1)) \<Longrightarrow> t1 !\<^sub>t i = t2 !\<^sub>t i"
+  thus "head t1 = head t2" by (metis add_0 int_eq_iff less_not_refl negative_zle_0
+        tape_nth_aux_def tape_nth_def)
+next
+  assume a1: "length (left t1) = length (left t2)" and
+         a2: "length (right t1) = length (right t2)" and
+         a3: "\<And>i. - int (length (left t1)) \<le> i \<Longrightarrow>
+              i \<le> int (length (right t1)) \<Longrightarrow> t1 !\<^sub>t i = t2 !\<^sub>t i"
+  have "\<And>n. n < length (right t1) \<Longrightarrow> (right t1) ! n = (right t2) ! n"
+  proof -
+    fix n :: nat
+    have 1: "\<And>t. nat (int n + 1 + int (length (left t))) < length (left t) = False"
+      by simp
+    have 2: "\<And>t. (nat (int n + 1 + int (length (left t))) = length (left t)) = False"
+      by simp
+    have 3 [simp]: "\<And>t. (if int n + 1 \<le> int (length (right t))
+   then if False then left t ! nat (int n + 1 + int (length (left t)))
+        else if False then head t else right t ! n
+   else None) = (if int n + 1 \<le> int (length (right t))
+   then right t ! n else None)" by simp
+    have 4: "\<And>t. nat (int n + 1 + int (length (left t))) - length (left t) - 1 = n"
+      by simp
+    show "n < length (right t1) \<Longrightarrow> right t1 ! n = right t2 ! n"
+      using a3 [unfolded tape_nth_def tape_nth_aux_def, where i="int n + 1",
+                            unfolded 1 2 4, simplified, unfolded a2]
+      by (simp add: a2)
+  qed
+  from a2 this show "right t1 = right t2" by (rule nth_equalityI)
+qed
+
+lemma map_tape_indexed_head [simp]: "head (map_tape_indexed f t) = f 0 (head t)"
+  unfolding map_tape_indexed_def by simp
+
+lemma tape_nth_0 [simp]: "t !T 0 = head t"
+  unfolding tape_nth_def tape_nth_aux_def by simp
 
 subsubsection\<open>Configuration\<close>
-
+                                                  
 text\<open>We define a TM \<^emph>\<open>configuration\<close> as a datatype of:\<close>
 
 datatype ('q, 's) TM_config = TM_config
@@ -624,7 +727,6 @@ lemma wf_config_transferI:
   using \<open>wf_config c\<close>
   by (elim wf_configE) (intro TM.wf_configI q l s)
 
-
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
 
@@ -669,6 +771,8 @@ proof (induction tp)
   qed simp
 qed
 
+lemma shift_left_no_left: "\<exists>h r1 r2. tape_shift Shift_Left \<langle>|h|r1\<rangle> = \<langle>|None|r2\<rangle>"
+  by simp
 
 paragraph\<open>Write Symbols\<close>
 
@@ -716,6 +820,25 @@ lemma tape_action_set: "set_tape (tape_action (s, m) tp) \<subseteq> set_option 
 
 end \<comment> \<open>\<^locale>\<open>TM_abbrevs\<close>\<close>
 
+definition tapes_eq_mod_shift :: "'s tape \<Rightarrow> 's tape \<Rightarrow> bool" (infix "\<simeq>\<^sub>s" 45) where
+  "T1 \<simeq>\<^sub>s T2 \<equiv> (\<exists>n::nat. ((TM_abbrevs.tape_shift Shift_Left) ^^ n) T1 = T2) \<or>
+               (\<exists>n::nat. ((TM_abbrevs.tape_shift Shift_Right) ^^ n) T1 = T2)"
+
+lemma tapes_eq_mod_shift_eqI [intro, simp]: "T \<simeq>\<^sub>s T"
+  unfolding tapes_eq_mod_shift_def by (meson funpow_0)
+
+lemma tapes_eq_mod_shift_leftI [intro]:
+    "((TM_abbrevs.tape_shift Shift_Left) ^^ n) T1 = T2 \<Longrightarrow>
+    T1 \<simeq>\<^sub>s T2" unfolding tapes_eq_mod_shift_def by auto
+
+lemma tapes_eq_mod_shift_rightI [intro]:
+    "((TM_abbrevs.tape_shift Shift_Right) ^^ n) T1 = T2 \<Longrightarrow>
+    T1 \<simeq>\<^sub>s T2" unfolding tapes_eq_mod_shift_def by auto
+
+lemma tapes_eq_mod_shiftE [elim!]: "T1 \<simeq>\<^sub>s T2 \<Longrightarrow>
+    (\<And>n. ((TM_abbrevs.tape_shift Shift_Left) ^^ n) T1 = T2 \<Longrightarrow> P) \<Longrightarrow>
+    (\<And>n. ((TM_abbrevs.tape_shift Shift_Right) ^^ n) T1 = T2 \<Longrightarrow> P) \<Longrightarrow> P"
+  unfolding tapes_eq_mod_shift_def by auto
 
 subsubsection\<open>Steps\<close>
 
@@ -777,6 +900,9 @@ declare (in -) TM.step_simps[simp, intro]
 
 corollary steps_plus[simp]: "steps n2 (steps n1 c) = steps (n1 + n2) c"
   unfolding add.commute[of n1 n2] funpow_add comp_def ..
+
+lemma stepI: "(is_final c \<Longrightarrow> P c) \<Longrightarrow> (\<not>is_final c \<Longrightarrow> P (TM.step_not_final M c)) \<Longrightarrow>
+              P (TM.step M c)" unfolding TM.step_def by auto
 
 
 paragraph\<open>Final Steps\<close>
@@ -868,6 +994,1156 @@ lemma wf_steps: "wf_config c \<Longrightarrow> wf_config (steps n c)" using wf_s
 
 declare (in -) TM.wf_step[intro] TM.wf_steps[intro]
 
+definition symbols_in_config :: "('q, 's) TM_config \<Rightarrow> 's set" where
+  "symbols_in_config c \<equiv> {s. \<exists>t\<in>set (tapes c). s \<in> set_tape t}"
+
+lemma symbols_in_config_after_step:
+  assumes "\<And>s. s \<in> symbols_in_config c \<Longrightarrow> s \<in> symbols" and
+          "state c \<in> states" and
+          "length (heads c) = k" and
+          "s \<in> symbols_in_config (step c)"
+  shows "s \<in> symbols" using assms
+  unfolding step_def apply (cases "state c \<in> F")
+   apply (auto simp add: step_not_final_def Let_def symbols_in_config_def)
+proof (erule in_set_zipE)
+  fix a and b and t
+  assume a1: "\<And>s. \<exists>t\<in>set (tapes c). s \<in> set_tape t \<Longrightarrow> s \<in> \<Sigma>" and
+         a2: "state c \<notin> F" and a3: "s \<in> set_tape (tape_action (a, b) t)" and
+         a4: "(a, b) \<in> set (\<delta>\<^sub>a (state c) (heads c))" and a5: "t \<in> set (tapes c)" and
+         a6: "state c \<in> Q" and a7: "length (tapes c) = k"
+  have 1: "\<And>s t. t\<in>set (tapes c) \<Longrightarrow> s \<in> set_tape t \<Longrightarrow> s \<in> \<Sigma>"
+    using a1 by blast
+  have 2: "length (heads c) = k" using a7 by simp
+  show "s \<in> \<Sigma>" using a2 a3 a4 a5
+    apply (cases a)
+     apply (cases b)
+    apply auto
+    using 1 apply (metis None_in_options Un_iff in_mono set_options_eq
+        tape_action_set)
+      using 1 apply (metis Un_empty_left in_mono set_empty_eq tape_action_set)
+     using 1 apply (metis Un_empty_left in_mono set_empty_eq tape_write_set)
+    apply (cases b)
+      apply auto unfolding next_actions_def next_writes_def apply (erule in_set_zipE)
+       apply auto unfolding tape_action_def apply auto
+   proof -
+     fix x :: nat
+     show "state c \<notin> F \<Longrightarrow>
+           s \<in> set_tape (tape_write (\<delta>\<^sub>w (state c) (heads c) x) t) \<Longrightarrow>
+           t \<in> set (tapes c) \<Longrightarrow>
+           Shift_Left \<in> set (next_moves (state c) (heads c)) \<Longrightarrow> x < k \<Longrightarrow> s \<in> \<Sigma>"
+       apply (cases "Some s = \<delta>\<^sub>w (state c) (heads c) x")
+       using next_write_valid [OF a6 2, of x] apply auto
+        apply (metis Some_options_iff a1 list.set_map subset_eq tapes_heads_valid)
+       by (metis 1 UnE elem_set subsetD tape_write_set)
+   next
+     fix x :: nat
+     show "\<And>aa. state c \<notin> F \<Longrightarrow> s \<in> set_tape (tape_write (Some aa) t) \<Longrightarrow>
+           (Some aa, Shift_Right) \<in> set (zip (map (\<delta>\<^sub>w (state c) (heads c)) [0..<k])
+           (next_moves (state c) (heads c))) \<Longrightarrow> t \<in> set (tapes c) \<Longrightarrow>
+           a = Some aa \<Longrightarrow> b = Shift_Right \<Longrightarrow> s \<in> \<Sigma>"
+       apply (erule in_set_zipE) apply auto
+       apply (cases "Some s = \<delta>\<^sub>w (state c) (heads c) x")
+       using next_write_valid [OF a6 2, of x] apply auto
+        apply (metis (no_types, lifting) 1 2 Un_iff a6 next_write_valid subset_iff
+           tape_symbols_simps tape_write_set tapes_heads_valid)
+       by (metis (no_types, lifting) 1 2 Un_iff a6 next_write_valid subset_iff
+           tape_symbols_simps tape_write_set tapes_heads_valid)
+   next
+     show "\<And>aa. state c \<notin> F \<Longrightarrow> s \<in> set_tape (tape_write (Some aa) t) \<Longrightarrow>
+           (Some aa, No_Shift) \<in> set (zip (map (\<delta>\<^sub>w (state c) (heads c)) [0..<k])
+           (next_moves (state c) (heads c))) \<Longrightarrow> t \<in> set (tapes c) \<Longrightarrow>
+           a = Some aa \<Longrightarrow> b = No_Shift \<Longrightarrow> s \<in> \<Sigma>"
+       apply (erule in_set_zipE) apply auto
+       by (metis (no_types, lifting) 1 2 TM.next_write_valid Un_iff a6 subset_iff
+           tape_symbols_simps tape_write_set tapes_heads_valid)
+   qed
+qed
+
+definition reachable_states_config :: "('q, 's) TM_config \<Rightarrow> nat \<Rightarrow> 'q set" where
+  "reachable_states_config c n \<equiv> {s. \<exists>n'\<le>n. state (steps n' c) = s}"
+
+definition reachable_symbols_config :: "('q, 's) TM_config \<Rightarrow> nat \<Rightarrow> 's set" where
+  "reachable_symbols_config c n \<equiv> {s. \<exists>n'\<le>n. s \<in> (symbols_in_config (steps n' c))}"
+
 end \<comment> \<open>\<^locale>\<open>TM\<close>\<close>
 
+fun symbols_to_extensible :: "'s set \<Rightarrow> 's list set" where
+  "symbols_to_extensible s = Collect (\<lambda>a :: 's list. length a = 1 \<and> (hd a)\<in>s)"
+
+lemma set_ext_eq: "e\<in>s \<longleftrightarrow> [e]\<in>symbols_to_extensible s"
+  by simp
+
+lemma ext_neq:
+  fixes x y :: "'a set"
+  assumes "x \<noteq> y"
+  shows "symbols_to_extensible x \<noteq> symbols_to_extensible y"
+proof -
+  let ?ex = "symbols_to_extensible x"
+  let ?ey = "symbols_to_extensible y"
+  have "\<exists>e. e\<in>x \<and> e\<notin>y \<or> e\<in>y \<and> e\<notin>x" using assms by blast
+  hence "\<exists>e. e\<in>?ex \<and> e\<notin>?ey \<or> e\<in>?ey \<and> e\<notin>?ex" by (meson set_ext_eq)
+  thus ?thesis by auto
+qed
+
+lemma ext_image: "symbols_to_extensible s = image (\<lambda>x. [x]) s"
+  by (auto simp add: length_1_hd_last length_1_last_iff rev_image_eqI)
+
+lemma ext_inj: "inj symbols_to_extensible"
+  using ext_neq inj_altdef by blast
+
+lemma ext_singletons:
+  fixes e :: "'s list" and s :: "'s set"
+  assumes "e\<in>symbols_to_extensible s"
+  shows "length e = 1"
+  using assms by auto
+
+lemma ext_words: "w \<in> ss* \<Longrightarrow> (map (\<lambda>x. [x]) w) \<in> (symbols_to_extensible ss)*"
+  by auto
+
+fun flatten_options :: "'a list option \<Rightarrow> 'a option" where
+  "flatten_options None = None" |
+  "flatten_options (Some []) = None" |
+  "flatten_options (Some l) = Some (hd l)"
+
+lemma flatten_options_simp: "flatten_options (Some (h#t)) = Some h"
+  by simp
+
+lemma flatten_options_elem:
+  fixes l :: "'a list option"
+  assumes "l \<noteq> None" and "length (the l) \<ge> 1"
+  obtains e where "flatten_options l = Some e"
+  by (metis Suc_eq_plus1_left add_diff_cancel_right' assms(1) assms(2) cancel_comm_monoid_add_class.diff_cancel
+      diff_is_0_eq flatten_options.simps(3) length_Cons length_append length_append_singleton list.exhaust_sel
+      not_less_eq_eq option.exhaust option.sel)
+
+lemma symbols_ext_reverse: "x\<in>ss \<Longrightarrow> \<exists>y\<in>options(symbols_to_extensible ss). y \<noteq> None \<and>
+                            the (flatten_options y) = x" apply auto
+  by (smt (verit, del_insts) Some_options_iff flatten_options_simp length_1_hd_iff
+      list.sel(1) mem_Collect_eq option.sel)
+
+lemma flatten_options_surj: "surj flatten_options"
+proof auto
+  fix x :: "'a option"
+  show "x \<in> range flatten_options"
+  proof (cases x)
+    case None
+    then show ?thesis using flatten_options.simps(1) by blast
+  next
+    case (Some a)
+    have "\<exists>b. flatten_options b = Some a" by (metis flatten_options.simps(3) list.sel(1))
+    then show ?thesis by (metis Some rangeI)
+  qed
+qed
+
+lemma flatten_options_inj_on_singletons: "inj_on flatten_options {a. \<exists>b. a = Some b \<and> length b = 1}"
+proof auto
+  have "inj Some" by simp
+  moreover have "inj_on hd {l. length l = 1}"
+  proof auto
+    have "\<And>x y. length x = 1 \<Longrightarrow> length y = 1 \<Longrightarrow> hd x = hd y \<Longrightarrow> x = y"
+    proof -
+      fix x y :: "'x list"
+      assume "length x = 1" and "length y = 1" and "hd x = hd y"
+      have "\<exists>e. [e] = x"
+        by (metis Nil_tl One_nat_def Zero_not_Suc \<open>length x = 1\<close> diff_Suc_1 length_0_conv length_tl)
+      moreover have "\<exists>e. [e] = y"
+        by (metis Nil_tl One_nat_def Zero_not_Suc \<open>length y = 1\<close> diff_Suc_1 length_0_conv length_tl)
+      ultimately obtain ex and ey where "[ex] = x" and "[ey] = y" by blast
+      from \<open>hd x = hd y\<close> have "ex = ey" using \<open>[ex] = x\<close> \<open>[ey] = y\<close> by auto
+      thus "x = y" using \<open>[ex] = x\<close> \<open>[ey] = y\<close> by auto
+    qed
+    thus "inj_on hd {l. length l = Suc 0}" by (metis (mono_tags, lifting) One_nat_def inj_onI mem_Collect_eq)
+  qed
+  ultimately show "inj_on flatten_options {Some b |b. length b = Suc 0}"
+    by (smt (verit) One_nat_def flatten_options.elims injD inj_onD inj_onI mem_Collect_eq option.distinct(1))
+qed
+
+fun tm_to_ext_tm :: "('a, 'b, 'c) TM \<Rightarrow> ('a, 'b list, 'c) TM_record" where
+  "tm_to_ext_tm tm = TM (TM.tape_count tm) (symbols_to_extensible (TM.symbols tm)) (TM.states tm) (TM.initial_state tm)
+                     (TM.final_states tm) (TM.label tm)
+                     (\<lambda>a :: 'a. (\<lambda>b :: 'b list option list. TM.next_state tm a (map flatten_options b)))
+                     (\<lambda>a :: 'a. (\<lambda>b :: 'b list option list.
+                     (\<lambda>n :: nat. map_option (\<lambda>x. [x]) (TM.next_write tm a (map (flatten_options) b) n))))
+                     (\<lambda>a :: 'a. (\<lambda>b :: 'b list option list. TM.next_move tm a (map (flatten_options) b)))"
+
+lemma ext_tape_count: "tape_count (tm_to_ext_tm tm) = TM.tape_count tm" by simp
+lemma ext_symbols: "[s] \<in> (symbols (tm_to_ext_tm tm)) \<longleftrightarrow> s \<in> (TM.symbols tm)" by simp
+lemma ext_states: "states (tm_to_ext_tm tm) = TM.states tm" by simp
+lemma ext_initial_state: "initial_state (tm_to_ext_tm tm) = TM.initial_state tm" by simp
+lemma ext_final_states: "final_states (tm_to_ext_tm tm) = TM.final_states tm" by simp
+lemma ext_label: "label (tm_to_ext_tm tm) = TM.label tm" by simp
+lemma ext_next_state: "next_state (tm_to_ext_tm tm) a b = TM.next_state tm a (map (flatten_options) b)" by simp
+lemma ext_next_write: "next_write (tm_to_ext_tm tm) a b n =
+                              map_option (\<lambda>x. [x]) (TM.next_write tm a (map (flatten_options) b) n)" by simp
+lemma ext_next_move: "next_move (tm_to_ext_tm tm) a b = TM.next_move tm a (map (flatten_options) b)" by simp
+
+lemma ext_symbol_length: "s\<in>symbols (tm_to_ext_tm tm) \<Longrightarrow> length s = 1" by simp
+
+lemma valid_tm_tape_count: "valid_TM tm \<Longrightarrow> TM.tape_count (Abs_TM tm) = tape_count tm"
+  unfolding TM.tape_count_def by (simp add: Abs_TM_inverse)
+lemma valid_tm_symbols: "valid_TM tm \<Longrightarrow> TM.symbols (Abs_TM tm) = symbols tm"
+  unfolding TM.symbols_def by (simp add: Abs_TM_inverse)
+lemma valid_tm_states: "valid_TM tm \<Longrightarrow> TM.states (Abs_TM tm) = states tm"
+  unfolding TM.states_def by (simp add: Abs_TM_inverse)
+lemma valid_tm_initial_state: "valid_TM tm \<Longrightarrow> TM.initial_state (Abs_TM tm) = initial_state tm"
+  unfolding TM.initial_state_def by (simp add: Abs_TM_inverse)
+lemma valid_tm_final_states: "valid_TM tm \<Longrightarrow> TM.final_states (Abs_TM tm) = final_states tm"
+  unfolding TM.final_states_def by (simp add: Abs_TM_inverse)
+lemma valid_tm_label: "valid_TM tm \<Longrightarrow> TM.label (Abs_TM tm) = label tm"
+  unfolding TM.label_def by (simp add: Abs_TM_inverse)
+lemma valid_tm_next_state: "valid_TM tm \<Longrightarrow> TM.next_state (Abs_TM tm) = next_state tm"
+  unfolding TM.next_state_def by (simp add: Abs_TM_inverse)
+lemma valid_tm_next_write: "valid_TM tm \<Longrightarrow> TM.next_write (Abs_TM tm) = next_write tm"
+  unfolding TM.next_write_def by (simp add: Abs_TM_inverse)
+lemma valid_tm_next_move: "valid_TM tm \<Longrightarrow> TM.next_move (Abs_TM tm) = next_move tm"
+  unfolding TM.next_move_def by (simp add: Abs_TM_inverse)
+
+lemma ext_tm_valid: "valid_TM (tm_to_ext_tm tm)"
+proof
+  show "0 < tape_count (tm_to_ext_tm tm)" by simp
+next
+  show "finite (symbols (tm_to_ext_tm tm))"
+  proof auto
+    let ?list_set = "{a. (hd a) \<in> TM.TM.symbols tm \<and> length a = 1}"
+    have "finite (TM.TM.symbols tm)" by simp
+    moreover have "\<exists>f. bij_betw f (TM.TM.symbols tm) ?list_set"
+    proof -
+      define f :: "'b \<Rightarrow> 'b list" where "f \<equiv> \<lambda>b. [b]"
+      have "\<And>x. hd (f x) = x" by (simp add: \<open>f \<equiv> \<lambda>b. [b]\<close>)
+      hence "inj f" by (metis injI)
+      have "\<And>x. f (hd x) = [hd x]" by (simp add: \<open>f \<equiv> \<lambda>b. [b]\<close>)
+      have "\<And>x. length x = 1 \<longleftrightarrow> (\<exists>y. x = [y])" by (metis One_nat_def Suc_length_conv length_0_conv)
+      hence "\<And>y. y\<in>?list_set \<Longrightarrow> f (hd y) = y"
+        by (metis (mono_tags, lifting) \<open>f \<equiv> \<lambda>b. [b]\<close> hd_Cons_tl list.distinct(1) mem_Collect_eq tl_Nil)
+      hence "bij_betw f (TM.TM.symbols tm) ?list_set"
+        by (smt (verit, best) \<open>\<And>x. (length x = 1) = (\<exists>y. x = [y])\<close> \<open>\<And>x. hd (f x) = x\<close> \<open>f \<equiv> \<lambda>b. [b]\<close> bij_betwI' mem_Collect_eq)
+      thus "\<exists>f. bij_betw f (TM.TM.symbols tm) ?list_set" by auto
+    qed
+    ultimately show "finite {a. length a = Suc 0 \<and> hd a \<in> TM.TM.symbols tm}"
+      by (metis (no_types, lifting) Collect_cong One_nat_def bij_betw_finite)
+  qed
+next
+  have "TM.symbols tm \<noteq> {}" by simp
+  thus "symbols (tm_to_ext_tm tm) \<noteq> {}"
+  proof auto
+    obtain x where "x\<in>TM.TM.symbols tm" by fastforce
+    let ?y = "[x]"
+    have "length ?y = 1" by simp
+    moreover have "hd ?y \<in> TM.TM.symbols tm" by (simp add: \<open>x \<in> TM.TM.symbols tm\<close>)
+    ultimately show "\<exists>x. length x = Suc 0 \<and> hd x \<in> TM.TM.symbols tm" by (metis One_nat_def)
+  qed
+next
+  show "finite (states (tm_to_ext_tm tm))" by simp
+next
+  show "initial_state (tm_to_ext_tm tm) \<in> states (tm_to_ext_tm tm)" by simp
+next
+  show "final_states (tm_to_ext_tm tm) \<subseteq> states (tm_to_ext_tm tm)" by simp
+next
+  fix q hds
+  show "q \<in> states (tm_to_ext_tm tm) \<Longrightarrow>
+       wf_hds_rec (tm_to_ext_tm tm) hds \<Longrightarrow> next_state (tm_to_ext_tm tm) q hds \<in> states (tm_to_ext_tm tm)"
+  proof auto
+    let ?list_set = "{a. length a = Suc 0 \<and> (hd a) \<in> TM.TM.symbols tm}"
+    assume "q \<in> TM.TM.states tm" and "length hds = TM.TM.tape_count tm"
+    and "set hds \<subseteq> options ?list_set"
+    have "\<And>s. None\<in>options s" ..
+    moreover have "\<And>x. x\<in>set hds \<Longrightarrow> x\<in>options (symbols_to_extensible (TM.TM.symbols tm))"
+      using \<open>set hds \<subseteq> options ?list_set\<close> by auto
+    moreover have "\<And>x. x\<in>set(map flatten_options hds) \<Longrightarrow> x \<noteq> None \<Longrightarrow> Some [the x]\<in>set hds"
+    proof auto
+      fix xa y
+      assume "xa \<in> set hds" and "flatten_options xa = Some y"
+      obtain sxa where "xa = Some sxa"
+        using \<open>flatten_options xa = Some y\<close> by fastforce
+      have "length sxa = 1"
+        using \<open>xa = Some sxa\<close> \<open>xa \<in> set hds\<close> calculation(2) by fastforce
+      hence "[hd sxa] = sxa"
+        by (metis diff_is_0_eq' le_numeral_extra(4) length_0_conv length_greater_0_conv length_tl less_one
+             list.distinct(1) list.expand list.sel(1) list.sel(3))
+      thus "Some [y] \<in> set hds"
+        by (metis \<open>flatten_options xa = Some y\<close> \<open>xa = Some sxa\<close> \<open>xa \<in> set hds\<close> flatten_options.simps(3) option.inject)
+    qed
+    ultimately have "\<And>x. x\<in>set(map flatten_options hds) \<Longrightarrow> x\<in>options(TM.symbols tm)"
+      by (metis Some_options_iff option.collapse set_ext_eq)
+    hence "set (map flatten_options hds) \<subseteq> options (TM.symbols tm)" by auto
+    thus "TM.TM.next_state tm q (map flatten_options hds) \<in> TM.TM.states tm"
+      by (simp add: \<open>length hds = TM.TM.tape_count tm\<close> \<open>q \<in> TM.TM.states tm\<close>)
+  qed
+next
+  fix q hds i
+  show "q \<in> states (tm_to_ext_tm tm) \<Longrightarrow>
+       wf_hds_rec (tm_to_ext_tm tm) hds \<Longrightarrow>
+       i < tape_count (tm_to_ext_tm tm) \<Longrightarrow> next_write (tm_to_ext_tm tm) q hds i \<in> tape_symbols_rec (tm_to_ext_tm tm)"
+  proof auto
+    let ?list_set = "{a. length a = Suc 0 \<and> hd a \<in> TM.TM.symbols tm}"
+    assume 1: "q \<in> TM.TM.states tm" and 2: "i < TM.TM.tape_count tm" and 3: "length hds = TM.TM.tape_count tm"
+    and 4: "set hds \<subseteq> options ?list_set"
+    have "\<And>s. None\<in>options s" ..
+    moreover have "(TM.TM.next_write tm q (map flatten_options hds) i) \<noteq> None \<Longrightarrow>
+    the (TM.TM.next_write tm q (map flatten_options hds) i) \<in> TM.TM.symbols tm"
+    proof auto
+      fix y
+      assume 5: "TM.TM.next_write tm q (map flatten_options hds) i = Some y"
+      moreover have "\<And>x. Some x\<in>options ?list_set \<Longrightarrow> Some (hd x)\<in>options (TM.TM.symbols tm)" by simp
+      moreover have "set (map flatten_options hds) \<subseteq> options (TM.TM.symbols tm)"
+      proof -
+         have "\<And>s. None\<in>options s" ..
+    moreover have "\<And>x. x\<in>set hds \<Longrightarrow> x\<in>options (symbols_to_extensible (TM.TM.symbols tm))"
+      using \<open>set hds \<subseteq> options ?list_set\<close> by auto
+    moreover have "\<And>x. x\<in>set(map flatten_options hds) \<Longrightarrow> x \<noteq> None \<Longrightarrow> Some [the x]\<in>set hds"
+      proof auto
+        fix xa y
+        assume "xa \<in> set hds" and "flatten_options xa = Some y"
+        obtain sxa where "xa = Some sxa"
+          using \<open>flatten_options xa = Some y\<close> by fastforce
+        have "length sxa = 1"
+          using \<open>xa = Some sxa\<close> \<open>xa \<in> set hds\<close> calculation(2) by fastforce
+        hence "[hd sxa] = sxa"
+          by (metis diff_is_0_eq' le_numeral_extra(4) length_0_conv length_greater_0_conv length_tl less_one
+             list.distinct(1) list.expand list.sel(1) list.sel(3))
+        thus "Some [y] \<in> set hds"
+          by (metis \<open>flatten_options xa = Some y\<close> \<open>xa = Some sxa\<close> \<open>xa \<in> set hds\<close> flatten_options.simps(3) option.inject)
+      qed
+    ultimately have "\<And>x. x\<in>set(map flatten_options hds) \<Longrightarrow> x\<in>options(TM.symbols tm)"
+      by (metis Some_options_iff option.collapse set_ext_eq)
+    thus "set (map flatten_options hds) \<subseteq> options (TM.TM.symbols tm)" by auto
+      qed
+      ultimately show "y \<in> TM.TM.symbols tm"
+        by (metis (no_types, lifting) 1 2 3 Some_options_iff TM.next_write_valid length_map)
+    qed
+    moreover have "\<And>a. a = None \<or> (\<exists>x. a = Some x)" by auto
+    moreover have "\<And>a s. a\<in>s \<Longrightarrow> (map_option (\<lambda>x. [x]) (Some a)) \<in> options (symbols_to_extensible s)" by simp
+    moreover have "?list_set = symbols_to_extensible (TM.TM.symbols tm)" by simp
+    ultimately show "map_option (\<lambda>x. [x]) (TM.TM.next_write tm q (map flatten_options hds) i) \<in> options ?list_set"
+      by (smt (verit, best) None_eq_map_option_iff option.collapse)
+  qed
+qed
+
+fun tm_tape_ext :: "'s tape \<Rightarrow> 's list tape" where
+  "tm_tape_ext (Tape l h r) = Tape (map (\<lambda>x. (map_option (\<lambda>xo. [xo]) x)) l) (map_option (\<lambda>xo. [xo]) h)
+    (map (\<lambda>x. (map_option (\<lambda>xo. [xo]) x)) r)"
+
+lemma head_always_length_1 [intro, simp]:
+    "head (tm_tape_ext t) \<noteq> None \<Longrightarrow> length (the (head (tm_tape_ext t))) = 1"
+  by (induction t) auto
+
+lemma tape_shift_ext: "tm_tape_ext (TM_abbrevs.tape_shift a tp) = TM_abbrevs.tape_shift a (tm_tape_ext tp)"
+proof (cases a; auto)
+  case Shift_Left
+  show "tm_tape_ext (TM_abbrevs.tape_shift Shift_Left tp) = TM_abbrevs.tape_shift Shift_Left (tm_tape_ext tp)"
+    by (metis TM_abbrevs.tape_shift_map tape.exhaust_sel tape.map tm_tape_ext.simps)
+next
+  case Shift_Right
+  show "tm_tape_ext (TM_abbrevs.tape_shift Shift_Right tp) = TM_abbrevs.tape_shift Shift_Right (tm_tape_ext tp)"
+    by (metis TM_abbrevs.tape_shift_map tape.exhaust_sel tape.map tm_tape_ext.simps)
+next
+  case No_Shift
+  then show "tm_tape_ext (TM_abbrevs.tape_shift No_Shift tp) = TM_abbrevs.tape_shift No_Shift (tm_tape_ext tp)"
+    by (simp add: TM_abbrevs.tape_shift.simps(5))
+qed
+
+lemma tape_write_ext: "tm_tape_ext (TM_abbrevs.tape_write a tp) =
+                       TM_abbrevs.tape_write (map_option (\<lambda>x. [x]) a) (tm_tape_ext tp)"
+  by (metis TM_abbrevs.map_tape_def TM_abbrevs.tape_write_map tape.exhaust_sel tm_tape_ext.simps)
+
+lemma next_writes_ext: "map (\<lambda>x. (map_option (\<lambda>y. [y])) x) (TM.next_writes tm q (map (flatten_options) hds)) =
+                        TM.next_writes (Abs_TM (tm_to_ext_tm tm)) q hds"
+  apply (unfold TM.next_writes_def)
+proof -
+  have "\<And>n. map_option (\<lambda>y. [y]) (TM.TM.next_write tm q (map flatten_options hds) n) =
+        TM.TM.next_write (Abs_TM (tm_to_ext_tm tm)) q hds n"
+    by (metis ext_next_write ext_tm_valid valid_tm_next_write)
+  moreover have "[0..<TM.TM.tape_count tm] = [0..<TM.TM.tape_count (Abs_TM (tm_to_ext_tm tm))]"
+    by (metis ext_tape_count ext_tm_valid valid_tm_tape_count)
+  ultimately show "map (map_option (\<lambda>y. [y])) (map (TM.TM.next_write tm q (map flatten_options hds))
+    [0..<TM.TM.tape_count tm]) =
+    map (TM.TM.next_write (Abs_TM (tm_to_ext_tm tm)) q hds) [0..<TM.TM.tape_count (Abs_TM (tm_to_ext_tm tm))]"
+      by simp
+  qed
+
+lemma flatten_unflatten_id [simp]: "flatten_options \<circ> map_option (\<lambda>y. [y]) = (\<lambda>x. x)"
+proof
+  have 1: "(flatten_options \<circ> map_option (\<lambda>y. [y])) None = None" by simp
+  moreover have 2: "\<And>x. (flatten_options \<circ> map_option (\<lambda>y. [y])) (Some x) = (Some x)" by simp
+  ultimately show "\<And>x. (flatten_options \<circ> map_option (\<lambda>y. [y])) x = x"
+    apply (insert 1 2) apply (erule option.induct) by simp
+qed
+
+lemma tm_ext_step_state [simp]:
+  fixes tm :: "('a, 'b, 'c) TM" and tmc :: "('a, 'b) TM_config" and tmc_ext :: "('a, 'b list) TM_config"
+  assumes "state tmc_ext = state tmc" and "tapes tmc_ext = map tm_tape_ext (tapes tmc)"
+  shows "state (TM.step (Abs_TM (tm_to_ext_tm tm)) tmc_ext) = state (TM.step tm tmc)"
+proof -
+  let ?tm_ext = "tm_to_ext_tm tm"
+  have "\<And>l. map (flatten_options) (map (\<lambda>x. map_option (\<lambda>y. [y]) x) l) = l" by auto
+  moreover have "next_state ?tm_ext (state tmc_ext) (heads tmc_ext) =
+                 TM.next_state tm (state tmc) (map (flatten_options) (heads tmc_ext))"
+    using assms(1) by fastforce
+  ultimately have "\<And>s b. TM.TM.next_state tm s b = next_state ?tm_ext s (map (\<lambda>x. map_option (\<lambda>y. [y]) x) b)" by simp
+  have 6:"\<And>q tm tmc. q = state tmc \<Longrightarrow> q\<in>TM.F tm \<Longrightarrow> state (TM.step tm tmc) = state tmc" by (simp add: TM.step_def)
+  moreover have "\<And>q tm. q = state tmc_ext \<Longrightarrow> q\<in>TM.F tm \<Longrightarrow> state (TM.step (Abs_TM (tm_to_ext_tm tm)) tmc_ext) = state tmc_ext"
+  proof safe
+    have "\<And>tm q. q \<in> TM.F tm \<longleftrightarrow> q \<in> final_states (tm_to_ext_tm tm)" by simp
+    hence "\<And>tm q. q \<in> TM.F tm \<longleftrightarrow> q \<in> TM.F (Abs_TM (tm_to_ext_tm tm))"
+      by (metis ext_tm_valid valid_tm_final_states)
+    thus "\<And>tm. state tmc_ext \<in> TM.F tm \<Longrightarrow> state (TM.step (Abs_TM (tm_to_ext_tm tm)) tmc_ext) = state tmc_ext"
+      by (metis calculation)
+  qed
+  ultimately have 7: "\<And>q tm. q = state tmc \<Longrightarrow> q\<in>TM.F tm \<Longrightarrow> state (TM.step tm tmc) =
+                  state (TM.step (Abs_TM (tm_to_ext_tm tm)) tmc_ext)" by (metis assms(1))
+  have "\<And>tm. TM.next_state tm (state tmc) (heads tmc) = next_state (tm_to_ext_tm tm) (state tmc_ext) (heads tmc_ext)"
+  proof auto
+    have "\<And>t. (head \<circ> tm_tape_ext) t = ((map_option (\<lambda>x. [x])) \<circ> head) t"
+      by (metis TM_abbrevs.map_tape_def comp_apply tape.collapse tape.map_sel(2) tm_tape_ext.simps)
+    hence "map (flatten_options \<circ> (head \<circ> tm_tape_ext)) (tapes tmc) =
+          map (flatten_options \<circ> (map_option (\<lambda>x. [x]) \<circ> head)) (tapes tmc)" by metis
+    also have "... = map (flatten_options \<circ> (map_option (\<lambda>x. [x])) \<circ> head) (tapes tmc)"
+      by (metis comp_assoc)
+    ultimately have "map (flatten_options \<circ> head \<circ> tm_tape_ext) (tapes tmc) = heads tmc" by simp
+    hence "map (flatten_options \<circ> head) (tapes tmc_ext) = heads tmc"
+      by (simp add: assms(2))
+    thus "\<And>tm. TM.TM.next_state tm (state tmc) (heads tmc) =
+          TM.TM.next_state tm (state tmc_ext) (map (flatten_options \<circ> head) (tapes tmc_ext))"
+      by (simp add: assms(1))
+  qed
+  hence 8: "\<And>tm. state tmc \<notin> TM.F tm \<Longrightarrow>
+          state (TM.step_not_final tm tmc) = state (TM.step_not_final (Abs_TM (tm_to_ext_tm tm)) tmc_ext)"
+    by (metis Abs_TM_inverse TM.TM.next_state_def TM.step_not_final_simps(1) ext_tm_valid mem_Collect_eq)
+  hence "state tmc \<notin> TM.F tm \<Longrightarrow> state (TM.step tm tmc) =
+                  state (TM.step (Abs_TM (tm_to_ext_tm tm)) tmc_ext)"
+  proof -
+    assume "state tmc \<notin> TM.F tm"
+    have "TM.F tm = final_states (tm_to_ext_tm tm)" by simp
+    hence "TM.F tm = TM.F (Abs_TM (tm_to_ext_tm tm))"
+      by (metis ext_tm_valid valid_tm_final_states)
+    hence "state tmc_ext \<notin> TM.F (Abs_TM (tm_to_ext_tm tm))"
+      by (simp add: \<open>state tmc \<notin> TM.TM.final_states tm\<close> assms(1))
+    hence "state (TM.step tm tmc) = state (TM.step_not_final tm tmc)"
+      by (simp add: TM.step_def \<open>state tmc \<notin> TM.F tm\<close>)
+    also have "... = state (TM.step_not_final (Abs_TM (tm_to_ext_tm tm)) tmc_ext)"
+      using 8 \<open>state tmc \<notin> TM.F tm\<close> by auto
+    also have "... = state (TM.step (Abs_TM (tm_to_ext_tm tm)) tmc_ext)"
+      by (metis TM.step_def \<open>state tmc_ext \<notin> TM.TM.final_states (Abs_TM (tm_to_ext_tm tm))\<close>)
+    ultimately show "state (TM.step tm tmc) = state (TM.step (Abs_TM (tm_to_ext_tm tm)) tmc_ext)" by simp
+  qed
+  from 7 this show ?thesis by metis
+qed
+
+lemma tm_ext_step_tapes:
+  fixes tm :: "('a, 'b, 'c) TM" and tmc :: "('a, 'b) TM_config" and tmc_ext :: "('a, 'b list) TM_config"
+  assumes "state tmc_ext = state tmc" and "tapes tmc_ext = map tm_tape_ext (tapes tmc)"
+  shows "tapes (TM.step (Abs_TM (tm_to_ext_tm tm)) tmc_ext) = map tm_tape_ext (tapes (TM.step tm tmc))"
+proof -
+  have "\<And>tm tmc. state tmc \<in> TM.F tm \<Longrightarrow> TM.step tm tmc = tmc" by auto
+  hence "state tmc \<in> TM.F tm \<Longrightarrow> tapes (TM.step (Abs_TM (tm_to_ext_tm tm)) tmc_ext) = map tm_tape_ext (tapes (TM.step tm tmc))"
+  proof -
+    assume a1: "state tmc \<in> TM.TM.final_states tm" and
+    a2: "\<And>tmc tm. state tmc \<in> TM.TM.final_states tm \<Longrightarrow> TM.step tm tmc = tmc"
+    hence "TM.step tm tmc = tmc" by auto
+    have "state tmc_ext \<in> TM.TM.final_states (Abs_TM (tm_to_ext_tm tm))"
+      by (metis a1 assms(1) ext_final_states ext_tm_valid valid_tm_final_states)
+    hence "TM.step (Abs_TM (tm_to_ext_tm tm)) tmc_ext = tmc_ext" by auto
+    thus "tapes (TM.step (Abs_TM (tm_to_ext_tm tm)) tmc_ext) = map tm_tape_ext (tapes (TM.step tm tmc))"
+      using \<open>TM.step tm tmc = tmc\<close> assms(2) by presburger
+  qed
+  moreover have "state tmc \<notin> TM.F tm \<Longrightarrow>
+      tapes (TM.step (Abs_TM (tm_to_ext_tm tm)) tmc_ext) = map tm_tape_ext (tapes (TM.step tm tmc))"
+  proof -
+    assume "state tmc \<notin> TM.F tm"
+    have 1: "[0..<TM.TM.tape_count (Abs_TM (tm_to_ext_tm tm))] = [0..<TM.TM.tape_count tm]"
+      by (metis ext_tape_count ext_tm_valid valid_tm_tape_count)
+    have "tapes (TM.step_not_final (Abs_TM (tm_to_ext_tm tm)) tmc_ext) =
+          map tm_tape_ext (tapes (TM.step_not_final tm tmc))" apply (simp add: assms del: tm_to_ext_tm.simps)
+      apply (unfold TM.next_actions_def)
+    proof -
+      have 2: "map (head \<circ> tm_tape_ext) (tapes tmc) = map (\<lambda>x. map_option (\<lambda>y. [y]) x) (heads tmc)"
+        by auto (metis TM_abbrevs.tape_write_hd TM_abbrevs.tape_write_id tape_write_ext)
+      moreover have "\<And>x. x \<noteq> None \<Longrightarrow> \<exists>e. Some [e] = map_option (\<lambda>y. [y]) x" by auto
+      hence 3: "map flatten_options (map (\<lambda>x. map_option (\<lambda>y. [y]) x) (heads tmc)) = heads tmc"
+        by auto (metis (full_types) flatten_options.simps(1) flatten_options_simp
+            not_Some_eq option.simps(8) option.simps(9))
+      ultimately have "TM.next_writes (Abs_TM (tm_to_ext_tm tm)) (state tmc) (map (head \<circ> tm_tape_ext) (tapes tmc)) =
+            map (\<lambda>x. map_option (\<lambda>y. [y]) x) (TM.next_writes tm (state tmc) (heads tmc))"
+        by (metis next_writes_ext)
+      moreover have 4: "TM.next_moves (Abs_TM (tm_to_ext_tm tm)) (state tmc) (map (head \<circ> tm_tape_ext) (tapes tmc)) =
+                     TM.next_moves tm (state tmc) (heads tmc)"
+        by (metis TM.next_moves_def 1 2 3 ext_next_move ext_tm_valid valid_tm_next_move)
+      ultimately show "map2 TM_abbrevs.tape_action
+     (zip (TM.next_writes (Abs_TM (tm_to_ext_tm tm)) (state tmc) (map (head \<circ> tm_tape_ext) (tapes tmc)))
+       (TM.next_moves (Abs_TM (tm_to_ext_tm tm)) (state tmc) (map (head \<circ> tm_tape_ext) (tapes tmc))))
+     (map tm_tape_ext (tapes tmc)) =
+    map (tm_tape_ext \<circ> (\<lambda>(x, y). TM_abbrevs.tape_action x y))
+     (zip (zip (TM.next_writes tm (state tmc) (heads tmc)) (TM.next_moves tm (state tmc) (heads tmc))) (tapes tmc))"
+         apply (simp add: 4 del: tm_to_ext_tm.simps)
+      proof -
+        have 5: "map (tm_tape_ext \<circ> (\<lambda>(x, y). TM_abbrevs.tape_action x y))
+     (zip (zip (TM.next_writes tm (state tmc) (heads tmc)) (TM.next_moves tm (state tmc) (heads tmc))) (tapes tmc)) =
+              map tm_tape_ext (map2 TM_abbrevs.tape_action
+      (zip (TM.next_writes tm (state tmc) (heads tmc)) (TM.next_moves tm (state tmc) (heads tmc))) (tapes tmc))"
+          by simp
+        moreover have "map2 TM_abbrevs.tape_action
+     (zip (map (map_option (\<lambda>y. [y])) (TM.next_writes tm (state tmc) (heads tmc)))
+       (TM.next_moves tm (state tmc) (heads tmc)))
+     (map tm_tape_ext (tapes tmc)) = map tm_tape_ext (map2 TM_abbrevs.tape_action
+      (zip (TM.next_writes tm (state tmc) (heads tmc)) (TM.next_moves tm (state tmc) (heads tmc))) (tapes tmc))"
+          apply (unfold TM_abbrevs.tape_action_def)
+        proof auto
+          have "map (tm_tape_ext \<circ> (\<lambda>(x, y). TM_abbrevs.tape_shift (snd x) (TM_abbrevs.tape_write (fst x) y)))
+     (zip (zip (TM.next_writes tm (state tmc) (heads tmc)) (TM.next_moves tm (state tmc) (heads tmc))) (tapes tmc)) =
+                map (\<lambda>(x, y). TM_abbrevs.tape_shift (snd x) (tm_tape_ext (TM_abbrevs.tape_write (fst x) y)))
+     (zip (zip (TM.next_writes tm (state tmc) (heads tmc)) (TM.next_moves tm (state tmc) (heads tmc))) (tapes tmc))"
+            by (simp add: case_prod_unfold tape_shift_ext)
+          also have "... = map (\<lambda>(x, y). TM_abbrevs.tape_shift (snd x) (TM_abbrevs.tape_write (map_option (\<lambda>x. [x]) (fst x)) (tm_tape_ext y)))
+     (zip (zip (TM.next_writes tm (state tmc) (heads tmc)) (TM.next_moves tm (state tmc) (heads tmc))) (tapes tmc))"
+            by (simp add: tape_write_ext)
+          also have "... = map (\<lambda>(x, y). TM_abbrevs.tape_shift (snd x) (TM_abbrevs.tape_write (map_option (\<lambda>x. [x]) (fst x)) y))
+     (zip (zip (TM.next_writes tm (state tmc) (heads tmc)) (TM.next_moves tm (state tmc) (heads tmc))) (map tm_tape_ext (tapes tmc)))"
+            by (metis (no_types, lifting) case_prod_conv map2_cong map_zip_map2)
+          also have "... = map (\<lambda>((x1, x2), y). TM_abbrevs.tape_shift (snd ((map_option (\<lambda>x. [x]) x1), x2)) (TM_abbrevs.tape_write (fst ((map_option (\<lambda>x. [x]) x1), x2)) y))
+     (zip (zip (TM.next_writes tm (state tmc) (heads tmc)) (TM.next_moves tm (state tmc) (heads tmc))) (map tm_tape_ext (tapes tmc)))"
+            by auto
+          also have "... = map (\<lambda>(x, y). TM_abbrevs.tape_shift (snd x) (TM_abbrevs.tape_write (fst x) y))
+     (map (\<lambda>((x11, x12), x2). ((map_option (\<lambda>y. [y]) x11, x12), x2)) (zip (zip (TM.next_writes tm (state tmc) (heads tmc))
+       (TM.next_moves tm (state tmc) (heads tmc)))
+     (map tm_tape_ext (tapes tmc))))" by auto
+          also have "... = map (\<lambda>(x, y). TM_abbrevs.tape_shift (snd x) (TM_abbrevs.tape_write (fst x) y))
+     (zip (map (\<lambda>(x1, x2). (map_option (\<lambda>y. [y]) x1, x2)) (zip (TM.next_writes tm (state tmc) (heads tmc))
+       (TM.next_moves tm (state tmc) (heads tmc))))
+     (map tm_tape_ext (tapes tmc)))"
+            by (smt (verit, ccfv_SIG) cond_case_prod_eta old.prod.case zip_map1)
+          also have "... = map (\<lambda>(x, y). TM_abbrevs.tape_shift (snd x) (TM_abbrevs.tape_write (fst x) y))
+     (zip (zip (map (map_option (\<lambda>y. [y])) (TM.next_writes tm (state tmc) (heads tmc)))
+       (TM.next_moves tm (state tmc) (heads tmc)))
+     (map tm_tape_ext (tapes tmc)))"
+            by (simp add: zip_map1)
+          finally show "map2 (\<lambda>x y. TM_abbrevs.tape_shift (snd x) (TM_abbrevs.tape_write (fst x) y))
+     (zip (map (map_option (\<lambda>y. [y])) (TM.next_writes tm (state tmc) (heads tmc)))
+       (TM.next_moves tm (state tmc) (heads tmc)))
+     (map tm_tape_ext (tapes tmc)) =
+    map (tm_tape_ext \<circ> (\<lambda>(x, y). TM_abbrevs.tape_shift (snd x) (TM_abbrevs.tape_write (fst x) y)))
+     (zip (zip (TM.next_writes tm (state tmc) (heads tmc)) (TM.next_moves tm (state tmc) (heads tmc))) (tapes tmc))"
+            by auto
+        qed
+        ultimately show "map2 TM_abbrevs.tape_action
+     (zip (map (map_option (\<lambda>y. [y])) (TM.next_writes tm (state tmc) (heads tmc)))
+       (TM.next_moves tm (state tmc) (heads tmc)))
+     (map tm_tape_ext (tapes tmc)) =
+    map (tm_tape_ext \<circ> (\<lambda>(x, y). TM_abbrevs.tape_action x y))
+     (zip (zip (TM.next_writes tm (state tmc) (heads tmc)) (TM.next_moves tm (state tmc) (heads tmc))) (tapes tmc))"
+          by simp
+      qed
+    qed
+    thus "tapes (TM.step (Abs_TM (tm_to_ext_tm tm)) tmc_ext) = map tm_tape_ext (tapes (TM.step tm tmc))"
+      apply (unfold TM.step_def)
+      using \<open>state tmc \<notin> TM.TM.final_states tm\<close> assms(1) ext_tm_valid valid_tm_final_states by force
+  qed
+  ultimately show ?thesis by auto
+qed
+
+lemma tm_ext_steps_eq:
+  fixes tm :: "('a, 'b, 'c) TM" and tmc :: "('a, 'b) TM_config" and tmc_ext :: "('a, 'b list) TM_config"
+  assumes "state tmc_ext = state tmc" and "tapes tmc_ext = map tm_tape_ext (tapes tmc)"
+  shows "state (TM.steps (Abs_TM (tm_to_ext_tm tm)) n tmc_ext) = state (TM.steps tm n tmc)"
+        (is "state ?c1 = state ?c2") and
+    "tapes (TM.steps (Abs_TM (tm_to_ext_tm tm)) n tmc_ext) = map tm_tape_ext (tapes (TM.steps tm n tmc))"
+    (is "tapes ?c1 = map ?f (tapes ?c2)")
+proof -
+  have "state ?c1 = state ?c2 \<and> tapes ?c1 = map ?f (tapes ?c2)"
+  proof (induct n)
+    case 0
+    then show ?case by (simp add: assms)
+  next
+    case (Suc n)
+    have f1 [simp]: "state ((TM.step (Abs_TM (tm_to_ext_tm tm)) ^^ n) tmc_ext) = state ((TM.step tm ^^ n) tmc)" using Suc by blast
+    have f2: "tapes ((TM.step (Abs_TM (tm_to_ext_tm tm)) ^^ n) tmc_ext) = map tm_tape_ext (tapes ((TM.step tm ^^ n) tmc))"
+      using Suc by blast
+    have "state (TM.step (Abs_TM (tm_to_ext_tm tm)) ((TM.step (Abs_TM (tm_to_ext_tm tm)) ^^ n) tmc_ext)) =
+          state (TM.step tm ((TM.step tm ^^ n) tmc))" using f1 f2 tm_ext_step_state by blast
+    moreover have "tapes (TM.step (Abs_TM (tm_to_ext_tm tm)) ((TM.step (Abs_TM (tm_to_ext_tm tm)) ^^ n) tmc_ext)) =
+          map tm_tape_ext (tapes (TM.step tm ((TM.step tm ^^ n) tmc)))" using f1 f2 tm_ext_step_tapes by blast
+    ultimately have "state ((TM.step (Abs_TM (tm_to_ext_tm tm)) ^^ Suc n) tmc_ext) = state ((TM.step tm ^^ Suc n) tmc)"
+      and "tapes ((TM.step (Abs_TM (tm_to_ext_tm tm)) ^^ Suc n) tmc_ext) =
+          map tm_tape_ext (tapes ((TM.step tm ^^ Suc n) tmc))" by simp_all
+    then show ?case ..
+  qed
+  thus "state ?c1 = state ?c2" and "tapes ?c1 = map ?f (tapes ?c2)" by simp_all
+qed
+
+lemma no_shift_tape_symbol: "TM.next_move tm (state c) (heads c) n = No_Shift \<Longrightarrow>
+                 state c \<notin> TM.F tm \<Longrightarrow> n < TM.tape_count tm \<Longrightarrow> n < length (tapes c) \<Longrightarrow>
+                 head ((tapes (TM.step tm c)) ! n) =
+                 TM.next_write tm (state c) (heads c) n"
+proof (induct c)
+  case (TM_config s t)
+  then show ?case unfolding TM.step_def apply auto
+  proof (rule map2_subst)
+    assume "n < TM.TM.tape_count tm" and "n < length t"
+    thus "n < length (TM.next_actions tm s (map head t))"
+      by (simp add: TM.next_actions_simps(2))
+  next
+    show "n < length t \<Longrightarrow> n < length t" .
+  next
+    assume a1: "TM.TM.next_move tm s (map head t) n = No_Shift" and
+           "s \<notin> TM.TM.final_states tm" and
+           "n < TM.TM.tape_count tm" and "n < length t"
+    thus "head (TM_abbrevs.tape_action (TM.next_actions tm s (map head t)!n) (t!n)) =
+    TM.TM.next_write tm s (map head t) n" unfolding TM.next_actions_def
+      TM.next_writes_def TM.next_moves_def TM_abbrevs.tape_action_def apply auto
+      unfolding a1
+      by (simp add: TM_abbrevs.tape_shift.simps(5) TM_abbrevs.tape_write_hd)
+  qed
+qed
+
+lemma tape_count_step_equal: "TM.tape_count tm \<ge> length (tapes tmc) \<Longrightarrow>
+       length (tapes (((TM.step tm) ^^ n) tmc)) = length (tapes tmc)"
+proof (induct n)
+  case 0
+  then show ?case by simp
+next
+  case (Suc n)
+  moreover have "\<And>tmc. TM.tape_count tm \<ge> length (tapes tmc) \<Longrightarrow>
+                 length (tapes ((TM.step tm tmc))) = length (tapes tmc)"
+    unfolding TM.step_def TM.step_not_final_def
+  proof (auto, unfold Let_def)
+    fix tmc :: "('b, 'a) TM_config"
+    assume "state tmc \<notin> TM.TM.final_states tm" and
+      "length (tapes tmc) \<le> TM.TM.tape_count tm"
+    thus "length
+            (tapes
+              (TM_config (TM.TM.next_state tm (state tmc) (heads tmc))
+               (map2 TM_abbrevs.tape_action (TM.next_actions tm (state tmc) (heads tmc))
+                  (tapes tmc)))) = length (tapes tmc)"
+      unfolding TM_abbrevs.tape_action_def TM.next_actions_def
+        TM.next_writes_def TM.next_moves_def by auto
+  qed
+  ultimately show ?case by simp
+qed
+
+lemma no_move_same_write_same_tps: "TM.next_move tm (state c) (heads c) n = No_Shift \<Longrightarrow>
+       TM.next_write tm (state c) (heads c) n = (heads c) ! n \<Longrightarrow>
+       n < TM.tape_count tm \<Longrightarrow> n < length (tapes c) \<Longrightarrow>
+       tapes (TM.step tm c) ! n = tapes c ! n"
+  unfolding TM.step_def by (simp add: TM.next_actions_simps(1)
+      TM.next_actions_simps(2) TM_abbrevs.tape_action_no_move TM_abbrevs.tape_write_id)
+
+lemma no_move_same_right: "TM.next_move tm (state c) (heads c) n = No_Shift \<Longrightarrow>
+                           n < TM.tape_count tm \<Longrightarrow> n < length (tapes c) \<Longrightarrow>
+                           right (tapes (TM.step tm c) ! n) = right (tapes c ! n)"
+  unfolding TM.step_def apply auto unfolding TM.next_actions_def
+    TM_abbrevs.tape_action_def TM.next_moves_def apply (rule map2_subst)
+  apply auto
+   apply (simp add: TM.next_writes_simps(2))
+proof -
+  assume a1: "TM.TM.next_move tm (state c) (heads c) n = No_Shift" and
+         "n < TM.TM.tape_count tm" and "n < length (tapes c)" and
+         "state c \<notin> TM.TM.final_states tm"
+  hence 1: "snd (zip (TM.next_writes tm (state c) (heads c))
+              (map (TM.TM.next_move tm (state c) (heads c)) [0..<TM.TM.tape_count tm]) !
+             n) =
+        (TM.TM.next_move tm (state c) (heads c)) n"
+    by (simp add: TM.next_writes_simps(2))
+    have 2: "fst (zip (TM.next_writes tm (state c) (heads c))
+                (map (TM.TM.next_move tm (state c) (heads c)) [0..<TM.TM.tape_count tm]) !
+               n) = TM.next_write tm (state c) (heads c) n"
+      by (metis TM.next_actions_def TM.next_actions_simps(1) TM.next_moves_def
+          \<open>n < TM.TM.tape_count tm\<close> fstI)
+  show "right (TM_abbrevs.tape_shift (snd (zip (TM.next_writes tm (state c) (heads c))
+        (map (TM.TM.next_move tm (state c) (heads c)) [0..<TM.TM.tape_count tm]) ! n))
+       (TM_abbrevs.tape_write
+         (fst (zip (TM.next_writes tm (state c) (heads c))
+          (map (TM.TM.next_move tm (state c) (heads c)) [0..<TM.TM.tape_count tm]) ! n))
+         (tapes c ! n))) = right (tapes c ! n)" unfolding 1 2 a1
+    by (simp add: TM_abbrevs.tape_shift.simps(5) TM_abbrevs.tape_write_def)
+qed
+
+lemma no_move_same_left: "TM.next_move tm (state c) (heads c) n = No_Shift \<Longrightarrow>
+                           n < TM.tape_count tm \<Longrightarrow> n < length (tapes c) \<Longrightarrow>
+                           left (tapes (TM.step tm c) ! n) = left (tapes c ! n)"
+unfolding TM.step_def apply auto unfolding TM.next_actions_def
+    TM_abbrevs.tape_action_def TM.next_moves_def apply (rule map2_subst)
+  apply auto
+   apply (simp add: TM.next_writes_simps(2))
+proof -
+  assume a1: "TM.TM.next_move tm (state c) (heads c) n = No_Shift" and
+         "n < TM.TM.tape_count tm" and "n < length (tapes c)" and
+         "state c \<notin> TM.TM.final_states tm"
+  hence 1: "snd (zip (TM.next_writes tm (state c) (heads c))
+              (map (TM.TM.next_move tm (state c) (heads c)) [0..<TM.TM.tape_count tm]) !
+             n) =
+        (TM.TM.next_move tm (state c) (heads c)) n"
+    by (simp add: TM.next_writes_simps(2))
+    have 2: "fst (zip (TM.next_writes tm (state c) (heads c))
+                (map (TM.TM.next_move tm (state c) (heads c)) [0..<TM.TM.tape_count tm]) !
+               n) = TM.next_write tm (state c) (heads c) n"
+      by (metis TM.next_actions_def TM.next_actions_simps(1) TM.next_moves_def
+          \<open>n < TM.TM.tape_count tm\<close> fstI)
+  show "left (TM_abbrevs.tape_shift (snd (zip (TM.next_writes tm (state c) (heads c))
+        (map (TM.TM.next_move tm (state c) (heads c)) [0..<TM.TM.tape_count tm]) ! n))
+       (TM_abbrevs.tape_write
+         (fst (zip (TM.next_writes tm (state c) (heads c))
+          (map (TM.TM.next_move tm (state c) (heads c)) [0..<TM.TM.tape_count tm]) ! n))
+         (tapes c ! n))) = left (tapes c ! n)" unfolding 1 2 a1
+    by (simp add: TM_abbrevs.tape_shift.simps(5) TM_abbrevs.tape_write_def)
+qed
+
+lemma tapes_step_left_not_empty:
+  fixes tm :: "('q, 's, 'l) TM" and tmc :: "('q, 's) TM_config" and n :: nat and
+        s :: "'s option"
+  assumes "TM.next_write tm (state tmc) (heads tmc) n = s" and
+          "TM.next_move tm (state tmc) (heads tmc) n = Shift_Left" and
+          "\<not>TM.is_final tm tmc" and "n < TM.tape_count tm" and "n < length (tapes tmc)"
+          and "left (tapes tmc ! n) \<noteq> []"
+        shows "tapes (TM.step tm tmc) ! n =
+               Tape (tl (left (tapes tmc ! n))) (hd (left (tapes tmc ! n)))
+               (s#(right (tapes tmc ! n)))"
+  using assms(3) unfolding TM.step_def TM.is_final_def TM.step_not_final_def
+    TM.next_actions_def TM.next_writes_def Let_def apply auto
+    apply (rule map2_subst) using assms(4, 5)
+    apply (auto simp add: TM.next_moves_simps(2)) unfolding TM_abbrevs.tape_action_def
+  TM.next_moves_def TM.next_writes_def assms(1) apply auto unfolding assms(2)
+proof -
+  have 1: "\<And>t. TM_abbrevs.tape_write s t = Tape (left t) s (right t)"
+    using TM_abbrevs.tape_write_def .
+  show "TM_abbrevs.tape_shift Shift_Left (TM_abbrevs.tape_write s (tapes tmc ! n)) =
+    Tape (tl (left (tapes tmc ! n))) (hd (left (tapes tmc ! n)))
+     (s # right (tapes tmc ! n))" unfolding 1 using assms(6)
+    by (metis TM_abbrevs.tape_shift.simps(2) list.collapse)
+qed
+
+lemma tapes_step_left_empty:
+  fixes tm :: "('q, 's, 'l) TM" and tmc :: "('q, 's) TM_config" and n :: nat and
+        s :: "'s option" and l r :: "'s option list"
+  assumes "TM.next_write tm (state tmc) (heads tmc) n = s" and
+          "TM.next_move tm (state tmc) (heads tmc) n = Shift_Left" and
+          "\<not>TM.is_final tm tmc" and "n < TM.tape_count tm" and "n < length (tapes tmc)"
+          and "left (tapes tmc ! n) = []" and "l = tl (left (tapes tmc ! n))" and
+          "r = s#(right (tapes tmc ! n))"
+        shows "tapes (TM.step tm tmc) ! n =
+               Tape l None r"
+  using assms(3) unfolding TM.step_def TM.is_final_def TM.step_not_final_def
+    TM.next_actions_def TM.next_writes_def Let_def apply auto
+    apply (rule map2_subst) using assms(4, 5)
+    apply (auto simp add: TM.next_moves_simps(2)) unfolding TM_abbrevs.tape_action_def
+  TM.next_moves_def TM.next_writes_def assms(1) apply auto unfolding assms(2)
+proof -
+  have 1: "\<And>t. TM_abbrevs.tape_write s t = Tape (left t) s (right t)"
+    using TM_abbrevs.tape_write_def .
+  show "TM_abbrevs.tape_shift Shift_Left (TM_abbrevs.tape_write s (tapes tmc ! n)) =
+    Tape l None r" unfolding 1 using assms
+    by (simp add: TM_abbrevs.tape_shift.simps(1))
+qed
+
+lemma same_tps_shift_write:
+  fixes tm1 tm2 :: "('a, 'b, 'c) TM" and tmc1 tmc2 :: "('a, 'b) TM_config"
+  assumes "tapes tmc1 = tapes tmc2" and
+          "\<And>k. TM.next_write tm1 (state tmc1) (heads tmc1) k =
+                TM.next_write tm2 (state tmc2) (heads tmc2) k" and
+          "\<And>k. TM.next_move tm1 (state tmc1) (heads tmc1) k =
+                TM.next_move tm2 (state tmc2) (heads tmc2) k" and
+          "TM.is_final tm1 tmc1 \<longleftrightarrow> TM.is_final tm2 tmc2" and
+          "TM.TM.tape_count tm1 = TM.TM.tape_count tm2" and
+          "TM.TM.tape_count tm1 = length (tapes tmc1)"
+  shows "tapes (TM.step tm1 tmc1) = tapes (TM.step tm2 tmc2)"
+proof -
+  have "TM.is_final tm1 tmc1 \<Longrightarrow> tapes (TM.step tm1 tmc1) = tapes (TM.step tm2 tmc2)"
+    using assms(1, 4) unfolding TM.step_def by auto
+  moreover have "\<not>TM.is_final tm1 tmc1 \<Longrightarrow>
+                 tapes (TM.step tm1 tmc1) = tapes (TM.step tm2 tmc2)"
+    using assms(4) unfolding TM.step_def apply auto
+    unfolding TM_abbrevs.tape_action_def TM.next_actions_def TM.next_writes_def
+              TM.next_moves_def unfolding assms(2, 3, 5, 6) unfolding assms(1) ..
+  ultimately show ?thesis by blast
+qed
+
+lemma same_tps_shift_write2:
+  fixes tm1 tm2 :: "('a, 'b, 'c) TM" and tmc1 tmc2 :: "('a, 'b) TM_config"
+  assumes "tapes tmc1 = tapes tmc2" and
+          "\<And>k. k < TM.TM.tape_count tm1 \<Longrightarrow>
+                TM.next_write tm1 (state tmc1) (heads tmc1) k =
+                TM.next_write tm2 (state tmc2) (heads tmc2) k" and
+          "\<And>k. k < TM.TM.tape_count tm2 \<Longrightarrow>
+                TM.next_move tm1 (state tmc1) (heads tmc1) k =
+                TM.next_move tm2 (state tmc2) (heads tmc2) k" and
+          "TM.is_final tm1 tmc1 \<longleftrightarrow> TM.is_final tm2 tmc2" and
+          "TM.TM.tape_count tm1 = TM.TM.tape_count tm2" and
+          "TM.TM.tape_count tm1 = length (tapes tmc1)"
+  shows "tapes (TM.step tm1 tmc1) = tapes (TM.step tm2 tmc2)"
+proof -
+  have 1: "map (TM.TM.next_write tm1 (state tmc1) (heads tmc1))
+           [0..<TM.tape_count tm2] =
+           map (TM.TM.next_write tm2 (state tmc2) (heads tmc2)) [0..<TM.tape_count tm2]"
+    by (simp add: assms(2, 5))
+  have 2: "map (TM.TM.next_move tm1 (state tmc1) (heads tmc1))
+           [0..<TM.TM.tape_count tm2] =
+           map (TM.TM.next_move tm2 (state tmc2) (heads tmc2))
+           [0..<TM.TM.tape_count tm2]" by (simp add: assms(3))
+  have "TM.is_final tm1 tmc1 \<Longrightarrow> tapes (TM.step tm1 tmc1) = tapes (TM.step tm2 tmc2)"
+    using assms(1, 4) unfolding TM.step_def by auto
+  moreover have "\<not>TM.is_final tm1 tmc1 \<Longrightarrow>
+                 tapes (TM.step tm1 tmc1) = tapes (TM.step tm2 tmc2)"
+    using assms(4) unfolding TM.step_def apply auto
+    unfolding TM_abbrevs.tape_action_def TM.next_actions_def TM.next_writes_def
+              TM.next_moves_def unfolding assms(5, 6) 1 2 unfolding assms(1) ..
+  ultimately show ?thesis by blast
+qed
+
+lemma tape_shift_id_right [simp]:
+      "(TM_abbrevs.tape_shift shift) \<circ> (TM_abbrevs.tape_shift No_Shift) =
+       (TM_abbrevs.tape_shift shift)"
+  by (metis TM_abbrevs.tape_shift.simps(5) comp_id eq_id_iff)
+
+lemma tape_shift_id_left [simp]:
+      "(TM_abbrevs.tape_shift No_Shift) \<circ> (TM_abbrevs.tape_shift shift) =
+       (TM_abbrevs.tape_shift shift)"
+  by (simp add: TM_abbrevs.tape_shift.simps(5) fun.map_ident_strong)
+                              
+lemma tps_same_write_left_no_shift:
+  fixes tm1 tm2 :: "('a, 'b, 'c) TM" and tmc1 tmc2 :: "('a, 'b) TM_config"
+  assumes "tapes tmc1 = tapes tmc2" and
+          "\<And>k. TM.next_write tm1 (state tmc1) (heads tmc1) k =
+                TM.next_write tm2 (state tmc2) (heads tmc2) k" and
+          "\<And>k. TM.next_move tm1 (state tmc1) (heads tmc1) k = Shift_Left" and
+          "\<And>k. TM.next_move tm2 (state tmc2) (heads tmc2) k = No_Shift"
+          "\<not>TM.is_final tm1 tmc1" and "\<not>TM.is_final tm2 tmc2"
+          "TM.TM.tape_count tm1 = TM.TM.tape_count tm2" and
+          "TM.TM.tape_count tm1 = length (tapes tmc1)"
+        shows "tapes (TM.step tm1 tmc1) =
+               (map (TM_abbrevs.tape_shift Shift_Left) (tapes (TM.step tm2 tmc2)))"
+  unfolding TM.step_def using assms(5, 6) unfolding TM.is_final_def apply auto
+  unfolding TM_abbrevs.tape_action_def TM.next_actions_def TM.next_writes_def
+    TM.next_moves_def assms(2, 3, 4) assms(7) [symmetric] assms(8)
+    map_replicate_trivial unfolding assms(1)
+proof -
+  have 1: "\<And>shift. map (\<lambda>(a, tp). TM_abbrevs.tape_shift (snd a)
+                (TM_abbrevs.tape_write (fst a) tp))
+                (zip (zip (map (TM.TM.next_write tm2 (state tmc2) (heads tmc2))
+           [0..<length (tapes tmc2)]) (shift \<up> length (tapes tmc2))) (tapes tmc2)) =
+    map (\<lambda>(a, tp). TM_abbrevs.tape_shift shift (TM_abbrevs.tape_write (fst a) tp))
+                (zip (zip (map (TM.TM.next_write tm2 (state tmc2) (heads tmc2))
+           [0..<length (tapes tmc2)]) (shift \<up> length (tapes tmc2))) (tapes tmc2))"
+    apply auto by (metis in_set_replicate in_set_zipE)
+  have 2: "map (TM_abbrevs.tape_shift Shift_Left \<circ>
+         (\<lambda>(a, tp). TM_abbrevs.tape_shift (snd a) (TM_abbrevs.tape_write (fst a) tp)))
+     (zip (zip (map (TM.TM.next_write tm2 (state tmc2) (heads tmc2))
+                 [0..<length (tapes tmc2)])
+            (No_Shift \<up> length (tapes tmc2)))
+       (tapes tmc2)) = map (TM_abbrevs.tape_shift Shift_Left)
+      (map (\<lambda>(a, tp). TM_abbrevs.tape_shift (snd a) (TM_abbrevs.tape_write (fst a) tp))
+     (zip (zip (map (TM.TM.next_write tm2 (state tmc2) (heads tmc2))
+                 [0..<length (tapes tmc2)])
+            (No_Shift \<up> length (tapes tmc2))) (tapes tmc2)))" by simp
+  have 3: "map (TM_abbrevs.tape_shift Shift_Left \<circ>
+         (\<lambda>(a, tp). TM_abbrevs.tape_shift (snd a) (TM_abbrevs.tape_write (fst a) tp)))
+     (zip (zip (map (TM.TM.next_write tm2 (state tmc2) (heads tmc2))
+                 [0..<length (tapes tmc2)])
+            (No_Shift \<up> length (tapes tmc2)))
+       (tapes tmc2)) = map (\<lambda>(a, tp). ((TM_abbrevs.tape_shift Shift_Left) \<circ>
+      (TM_abbrevs.tape_shift No_Shift))
+       (TM_abbrevs.tape_write (fst a) tp))
+                (zip (zip (map (TM.TM.next_write tm2 (state tmc2) (heads tmc2))
+           [0..<length (tapes tmc2)]) (No_Shift \<up> length (tapes tmc2))) (tapes tmc2))"
+    apply (subst (2) assms(1) [symmetric])
+    by (smt (verit, best) 1 assms(1) case_prod_unfold comp_def map_equality_iff)
+  show "map2 (\<lambda>x y. TM_abbrevs.tape_shift (snd x) (TM_abbrevs.tape_write (fst x) y))
+   (zip (map (TM.TM.next_write tm2 (state tmc2) (heads tmc2)) [0..<length (tapes tmc2)])
+       (Shift_Left \<up> length (tapes tmc2)))
+     (tapes tmc2) =
+    map (TM_abbrevs.tape_shift Shift_Left \<circ>
+         (\<lambda>(a, tp). TM_abbrevs.tape_shift (snd a) (TM_abbrevs.tape_write (fst a) tp)))
+     (zip (zip (map (TM.TM.next_write tm2 (state tmc2) (heads tmc2))
+                 [0..<length (tapes tmc2)])
+            (No_Shift \<up> length (tapes tmc2)))
+       (tapes tmc2))" unfolding 3 assms(1) 1 by (auto simp add: map_equality_iff)
+qed
+
+lemma tps_same_write_left_no_shift2:
+  fixes tm1 tm2 :: "('a, 'b, 'c) TM" and tmc1 tmc2 :: "('a, 'b) TM_config"
+  assumes "tapes tmc1 = tapes tmc2" and
+          "\<And>k. k < TM.tape_count tm1 \<Longrightarrow> TM.next_write tm1 (state tmc1) (heads tmc1) k =
+                TM.next_write tm2 (state tmc2) (heads tmc2) k" and
+          "\<And>k. k < TM.tape_count tm2 \<Longrightarrow> TM.next_move tm1 (state tmc1) (heads tmc1) k =
+           Shift_Left" and
+          "\<And>k. TM.next_move tm2 (state tmc2) (heads tmc2) k = No_Shift"
+          "\<not>TM.is_final tm1 tmc1" and "\<not>TM.is_final tm2 tmc2"
+          "TM.TM.tape_count tm1 = TM.TM.tape_count tm2" and
+          "TM.TM.tape_count tm1 = length (tapes tmc1)"
+        shows "tapes (TM.step tm1 tmc1) =
+               (map (TM_abbrevs.tape_shift Shift_Left) (tapes (TM.step tm2 tmc2)))"
+  unfolding TM.step_def using assms(5, 6) unfolding TM.is_final_def apply auto
+  unfolding TM_abbrevs.tape_action_def TM.next_actions_def TM.next_writes_def
+    TM.next_moves_def assms(4) assms(7) [symmetric] assms(8)
+    map_replicate_trivial unfolding assms(1)
+proof -
+  have next_write_eq: "map (TM.TM.next_write tm1 (state tmc1) (heads tmc2))
+                       [0..<length (tapes tmc2)] =
+                       map (TM.TM.next_write tm2 (state tmc2) (heads tmc2))
+                       [0..<length (tapes tmc2)]"
+    using assms(1) assms(2) assms(8) by auto
+  have next_move_1_left: "map (TM.TM.next_move tm1 (state tmc1) (heads tmc2))
+                          [0..<length (tapes tmc2)] =
+                          replicate (length (tapes tmc2)) Shift_Left"
+    by (metis assms(1) assms(3) assms(7) assms(8) length_replicate map_nthI
+        nth_replicate)
+  have 1: "\<And>shift. map (\<lambda>(a, tp). TM_abbrevs.tape_shift (snd a)
+                (TM_abbrevs.tape_write (fst a) tp))
+                (zip (zip (map (TM.TM.next_write tm2 (state tmc2) (heads tmc2))
+           [0..<length (tapes tmc2)]) (shift \<up> length (tapes tmc2))) (tapes tmc2)) =
+    map (\<lambda>(a, tp). TM_abbrevs.tape_shift shift (TM_abbrevs.tape_write (fst a) tp))
+                (zip (zip (map (TM.TM.next_write tm2 (state tmc2) (heads tmc2))
+           [0..<length (tapes tmc2)]) (shift \<up> length (tapes tmc2))) (tapes tmc2))"
+    apply auto by (metis in_set_replicate in_set_zipE)
+  have 2: "map (TM_abbrevs.tape_shift Shift_Left \<circ>
+         (\<lambda>(a, tp). TM_abbrevs.tape_shift (snd a) (TM_abbrevs.tape_write (fst a) tp)))
+     (zip (zip (map (TM.TM.next_write tm2 (state tmc2) (heads tmc2))
+                 [0..<length (tapes tmc2)])
+            (No_Shift \<up> length (tapes tmc2)))
+       (tapes tmc2)) = map (TM_abbrevs.tape_shift Shift_Left)
+      (map (\<lambda>(a, tp). TM_abbrevs.tape_shift (snd a) (TM_abbrevs.tape_write (fst a) tp))
+     (zip (zip (map (TM.TM.next_write tm2 (state tmc2) (heads tmc2))
+                 [0..<length (tapes tmc2)])
+            (No_Shift \<up> length (tapes tmc2))) (tapes tmc2)))" by simp
+  show "map2 (\<lambda>x y. TM_abbrevs.tape_shift (snd x) (TM_abbrevs.tape_write (fst x) y))
+   (zip (map (TM.TM.next_write tm1 (state tmc1) (heads tmc2)) [0..<length (tapes tmc2)])
+       (map (TM.TM.next_move tm1 (state tmc1) (heads tmc2)) [0..<length (tapes tmc2)]))
+     (tapes tmc2) =
+    map (TM_abbrevs.tape_shift Shift_Left \<circ>
+         (\<lambda>(a, tp). TM_abbrevs.tape_shift (snd a) (TM_abbrevs.tape_write (fst a) tp)))
+     (zip (zip (map (TM.TM.next_write tm2 (state tmc2) (heads tmc2))
+                 [0..<length (tapes tmc2)])
+            (No_Shift \<up> length (tapes tmc2)))
+       (tapes tmc2))" unfolding next_write_eq next_move_1_left 1 2
+    by (simp add: TM_abbrevs.tape_shift.simps(5) map_equality_iff)
+qed
+
+lemma head_in_left_tape [dest]: "left tape \<noteq> [] \<Longrightarrow>
+       head (TM_abbrevs.tape_shift Shift_Left tape) \<in> set (left tape)"
+  by (metis TM_abbrevs.tape_shift.simps(2) list.set_intros(1) neq_Nil_conv
+      tape.exhaust tape.sel(1) tape.sel(2))
+
+lemma head_in_right_tape [dest]: "right tape \<noteq> [] \<Longrightarrow>
+      head (TM_abbrevs.tape_shift Shift_Right tape) \<in> set (right tape)"
+  by (metis TM_abbrevs.tape_shift.simps(4) list.set_intros(1) neq_Nil_conv tape.sel(2)
+      tape.sel(3) tm_tape_ext.cases)
+
+lemma head_left_empty [simp]: "left tape = [] \<Longrightarrow>
+      head (TM_abbrevs.tape_shift Shift_Left tape) = None"
+  by (metis TM_abbrevs.tape_shift.simps(1) tape.exhaust_sel tape.sel(2))
+
+lemma head_right_empty [simp]: "right tape = [] \<Longrightarrow>
+      head (TM_abbrevs.tape_shift Shift_Right tape) = None"
+  by (metis TM_abbrevs.tape_shift.simps(3) tape.collapse tape.sel(2))
+
+lemma length_left_Shift_Left: "i < TM.tape_count M \<Longrightarrow> i < length (tapes c) \<Longrightarrow>
+       TM.next_move M (state c) (heads c) i = Shift_Left \<Longrightarrow> \<not>TM.is_final M c \<Longrightarrow>
+       length (left (tapes (TM.step M c) ! i)) = length (left (tapes c ! i)) - 1"
+  by (metis (no_types, lifting) length_tl tape.sel(1) tapes_step_left_empty
+      tapes_step_left_not_empty)
+
+lemma length_right_Shift_Left: "i < TM.tape_count M \<Longrightarrow> i < length (tapes c) \<Longrightarrow>
+       TM.next_move M (state c) (heads c) i = Shift_Left \<Longrightarrow> \<not>TM.is_final M c \<Longrightarrow>
+       length (right (tapes (TM.step M c) ! i)) = length (right (tapes c ! i)) + 1"
+  by (metis (no_types, lifting) One_nat_def list.size(4) tape.sel(3)
+      tapes_step_left_empty tapes_step_left_not_empty)
+
+lemma length_left_Shift_Right: "i < TM.tape_count M \<Longrightarrow> i < length (tapes c) \<Longrightarrow>
+       TM.next_move M (state c) (heads c) i = Shift_Right \<Longrightarrow> \<not>TM.is_final M c \<Longrightarrow>
+       length (left (tapes (TM.step M c) ! i)) = length (left (tapes c ! i)) + 1"
+  unfolding TM.step_def apply auto apply (rule nth_map2 [THEN ssubst])
+    apply (auto simp add: TM.next_actions_simps(2))
+  unfolding TM.next_actions_def TM.next_moves_def TM.next_writes_def apply auto
+  unfolding TM_abbrevs.tape_action_def apply auto
+  apply (cases "TM_abbrevs.tape_write (TM.TM.next_write M (state c) (heads c) i)
+           (tapes c ! i)")
+proof auto
+  fix x1 x3 and x2
+  show "i < TM.TM.tape_count M \<Longrightarrow>
+       i < length (tapes c) \<Longrightarrow>
+       TM.TM.next_move M (state c) (heads c) i = Shift_Right \<Longrightarrow>
+       \<not> TM.is_final M c \<Longrightarrow>
+       state c \<notin> TM.TM.final_states M \<Longrightarrow>
+       TM_abbrevs.tape_write (TM.TM.next_write M (state c) (heads c) i) (tapes c ! i) =
+       Tape x1 x2 x3 \<Longrightarrow>
+       length (left (TM_abbrevs.tape_shift Shift_Right (Tape x1 x2 x3))) =
+       Suc (length (left (tapes c ! i)))" apply (cases x3)
+     apply auto
+     apply (rule TM_abbrevs.tape_shift.simps(3) [where ls=x1 and h=x2, THEN ssubst])
+     apply (simp add: TM_abbrevs.tape_write_def)
+    apply (rule TM_abbrevs.tape_shift.simps(4) [where ls=x1 and h=x2, THEN ssubst])
+    by (simp add: TM_abbrevs.tape_write_def)
+qed
+
+lemma length_right_Shift_Right: "i < TM.tape_count M \<Longrightarrow> i < length (tapes c) \<Longrightarrow>
+       TM.next_move M (state c) (heads c) i = Shift_Right \<Longrightarrow> \<not>TM.is_final M c \<Longrightarrow>
+       length (right (tapes (TM.step M c) ! i)) = length (right (tapes c ! i)) - 1"
+  unfolding TM.step_def apply auto apply (rule nth_map2 [THEN ssubst])
+    apply (auto simp add: TM.next_actions_simps(2))
+  unfolding TM.next_actions_def TM.next_moves_def TM.next_writes_def apply auto
+  unfolding TM_abbrevs.tape_action_def apply auto
+  apply (cases "TM_abbrevs.tape_write (TM.TM.next_write M (state c) (heads c) i)
+           (tapes c ! i)")
+proof auto
+  fix x1 x3 and x2
+  show "i < TM.TM.tape_count M \<Longrightarrow>
+       i < length (tapes c) \<Longrightarrow>
+       TM.TM.next_move M (state c) (heads c) i = Shift_Right \<Longrightarrow>
+       \<not> TM.is_final M c \<Longrightarrow>
+       state c \<notin> TM.TM.final_states M \<Longrightarrow>
+       TM_abbrevs.tape_write (TM.TM.next_write M (state c) (heads c) i) (tapes c ! i) =
+       Tape x1 x2 x3 \<Longrightarrow>
+       length (right (TM_abbrevs.tape_shift Shift_Right (Tape x1 x2 x3))) =
+       length (right (tapes c ! i)) - Suc 0" apply (cases x3)
+    by (auto simp add: TM_abbrevs.tape_shift.simps(3) TM_abbrevs.tape_write_def
+        TM_abbrevs.tape_shift.simps(4))
+qed
+
+lemma no_final_states_step_not_final: "TM.final_states M = {} \<Longrightarrow>
+  TM.step M c = TM.step_not_final M c"
+  by blast
+
+lemma heads_of_next_step_Right: "k < length (tapes c) \<Longrightarrow> k < TM.tape_count M \<Longrightarrow>
+       right (tapes c ! k) \<noteq> [] \<Longrightarrow>
+       TM.next_move M (state c) (heads c) k = Shift_Right \<Longrightarrow> \<not>TM.is_final M c \<Longrightarrow>
+       heads (TM.step M c) ! k = right (tapes c ! k) ! 0"
+  unfolding TM.step_def apply auto unfolding TM.next_actions_def TM.next_writes_def
+    TM.next_moves_def apply auto unfolding TM_abbrevs.tape_action_def apply auto
+  apply (cases "TM_abbrevs.tape_write (TM.TM.next_write M (state c) (heads c) k)
+    (tapes c ! k)") apply auto
+  by (metis TM_abbrevs.tape_shift.simps(4) TM_abbrevs.tape_write_def list.exhaust_sel
+      nth_Cons_0 tape.sel(2))
+
+lemma heads_of_next_step_Left: "k < length (tapes c) \<Longrightarrow> k < TM.tape_count M \<Longrightarrow>
+       left (tapes c ! k) \<noteq> [] \<Longrightarrow>
+       TM.next_move M (state c) (heads c) k = Shift_Left \<Longrightarrow> \<not>TM.is_final M c \<Longrightarrow>
+       heads (TM.step M c) ! k = left (tapes c ! k) ! 0"
+  unfolding TM.step_def apply auto unfolding TM.next_actions_def TM.next_writes_def
+    TM.next_moves_def apply auto unfolding TM_abbrevs.tape_action_def apply auto
+  apply (cases "TM_abbrevs.tape_write (TM.TM.next_write M (state c) (heads c) k)
+    (tapes c ! k)") apply auto
+  by (metis TM_abbrevs.tape_shift.simps(2) TM_abbrevs.tape_write_def list.exhaust
+      nth_Cons_0 tape.sel(2))
+
+lemma Shift_Right_is_right_not_empty: "right t \<noteq> [] \<Longrightarrow>
+    head (TM_abbrevs.tape_shift Shift_Right t) = hd (right t)"
+  apply (cases t)
+  apply auto
+  by (metis TM_abbrevs.tape_shift.simps(4) starts_with_hd tape.sel(2))
+
+lemma Shift_Left_is_left_not_empty: "left t \<noteq> [] \<Longrightarrow>
+    head (TM_abbrevs.tape_shift Shift_Left t) = hd (left t)"
+  apply (cases t)
+  apply auto
+  by (metis TM_abbrevs.tape_shift.simps(2) starts_with_hd tape.sel(2))
+
+lemma left_after_write [simp]: "left (TM_abbrevs.tape_write w t) = left t"
+  by (simp add: TM_abbrevs.tape_write_def)
+
+lemma right_after_write [simp]: "right (TM_abbrevs.tape_write w t) = right t"
+  by (simp add: TM_abbrevs.tape_write_def)
+
+lemma right_Shift_Right [simp]: "right (TM_abbrevs.tape_shift Shift_Right t) =
+                                 tl (right t)"
+  apply (cases t)
+  apply auto
+  by (metis TM_abbrevs.tape_shift.simps(3,4) list.exhaust list.sel(2,3) tape.sel(3))
+
+lemma right_Shift_Left [simp]: "right (TM_abbrevs.tape_shift Shift_Left t) =
+                                (head t)#right t"
+  apply (cases t)
+proof auto
+  fix x1 x3 :: "'a option list" and x2 :: "'a option"
+  show "right (TM_abbrevs.tape_shift Shift_Left (Tape x1 x2 x3)) = x2 # x3"
+    apply (cases x3)
+    apply auto
+    by (metis TM_abbrevs.tape_shift.simps(1) TM_abbrevs.tape_shift.simps(2)
+        neq_Nil_conv tape.sel(3))+
+qed
+
+lemma left_Shift_Right [simp]: "left (TM_abbrevs.tape_shift Shift_Right t) =
+                                (head t)#left t"
+  apply (cases t)
+proof auto
+  fix x1 x3 :: "'a option list" and x2 :: "'a option"
+  show "left (TM_abbrevs.tape_shift Shift_Right (Tape x1 x2 x3)) = x2 # x1"
+    apply (induction x3)
+     apply (cases x1)
+    apply (simp_all add: TM_abbrevs.tape_shift.simps(3))
+    by (simp add: TM_abbrevs.tape_shift.simps(4))
+qed
+
+lemma left_Shift_Left [simp]: "left (TM_abbrevs.tape_shift Shift_Left t) =
+                               tl (left t)"
+  apply (cases t)
+  apply auto
+  by (metis TM_abbrevs.tape_shift.simps(1) TM_abbrevs.tape_shift.simps(2)
+      list.sel(3) neq_Nil_conv tape.sel(1) tl_Nil)
+
+lemma right_empty_after_Shift_Right: "i < length (tapes c) \<Longrightarrow> i < TM.tape_count M \<Longrightarrow>
+       right (tapes c ! i) = [] \<Longrightarrow> TM.next_move M (state c) (heads c) i =
+       Shift_Right \<Longrightarrow> right (tapes (TM.step M c) ! i) = []"
+  unfolding TM.step_def apply auto apply (rule nth_map2 [THEN ssubst]) apply auto
+  unfolding TM.next_actions_def TM.next_moves_def TM.next_writes_def apply auto
+  unfolding TM_abbrevs.tape_action_def by simp
+
+lemma right_empty_after_Shift_Left: "i < length (tapes c) \<Longrightarrow> i < TM.tape_count M \<Longrightarrow>
+       left (tapes c ! i) = [] \<Longrightarrow> TM.next_move M (state c) (heads c) i =
+       Shift_Left \<Longrightarrow> left (tapes (TM.step M c) ! i) = []"
+  unfolding TM.step_def apply auto apply (rule nth_map2 [THEN ssubst]) apply auto
+  unfolding TM.next_actions_def TM.next_moves_def TM.next_writes_def apply auto
+  unfolding TM_abbrevs.tape_action_def by simp
+
+lemma length_left_upper_bound:
+  assumes "length (tapes c) = TM.tape_count M" and
+          "i < TM.tape_count M"
+        shows "length (left (tapes (TM.steps M n c) ! i)) \<le> length (left (tapes c ! i)) + n"
+proof (induction n)
+  case 0
+  then show ?case by simp
+next
+  case (Suc n)
+  then show ?case apply simp
+    apply (subst TM.step_def)
+    apply auto
+    apply (rule map2_subst)
+    using assms apply (simp add: TM.next_actions_simps(2))
+    using assms apply (simp add: TM.steps_l_tps)
+    unfolding TM_abbrevs.tape_action_def TM.next_actions_def TM.next_moves_def
+    apply (rule zip_subst)
+    using assms apply (simp_all add: TM.next_writes_simps(2))
+    apply (cases "TM.TM.next_move M (state ((TM.step M ^^ n) c))
+                  (heads ((TM.step M ^^ n) c)) i")
+      apply auto
+    by (simp add: TM_abbrevs.tape_shift.simps(5))
+qed
+
+lemma length_left_lower_bound:
+  assumes "length (tapes c) = TM.tape_count M" and
+          "i < TM.tape_count M"
+        shows "length (left (tapes (TM.steps M n c) ! i)) \<ge> length (left (tapes c ! i)) - n"
+proof (induction n)
+  case 0
+  then show ?case by simp
+next
+  case (Suc n)
+  then show ?case apply simp
+    apply (subst TM.step_def)
+    apply auto
+    apply (rule map2_subst)
+    using assms apply (simp add: TM.next_actions_simps(2))
+    using assms apply (simp add: TM.steps_l_tps)
+    unfolding TM_abbrevs.tape_action_def TM.next_actions_def TM.next_moves_def
+    apply (rule zip_subst)
+    using assms apply (simp_all add: TM.next_writes_simps(2))
+    apply (cases "TM.TM.next_move M (state ((TM.step M ^^ n) c))
+                  (heads ((TM.step M ^^ n) c)) i")
+      apply auto
+    by (simp add: TM_abbrevs.tape_shift.simps(5))
+qed
+
+lemma head_shift_left_SomeD: "head (TM_abbrevs.tape_shift Shift_Left t) = Some y \<Longrightarrow>
+                              left t \<noteq> []"
+  by auto
+
+lemma head_shift_right_SomeD: "head (TM_abbrevs.tape_shift Shift_Right t) = Some y \<Longrightarrow>
+                               right t \<noteq> []"
+  by auto
 end

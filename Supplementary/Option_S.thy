@@ -2,11 +2,9 @@ theory Option_S
   imports HOL.Option Main
 begin
 
-
 (* Showing \<open>not_None_helper\<close> directly only works with \<open>meson\<close> and \<open>metis\<close>;
  * but when substituting \<open>y := None\<close>, many methods solve it instantly. *)
 lemma not_None_helper[dest]: "None \<notin> A \<Longrightarrow> x \<in> A \<Longrightarrow> x \<noteq> None" by meson
-
 
 lemma the_map_option_image: "None \<notin> A \<Longrightarrow> the ` map_option f ` A = f ` the ` A"
 proof -
@@ -125,5 +123,18 @@ lemma options_subset_mono[iff]: "options A \<subseteq> options B \<longleftright
 
 lemma finite_options[iff]: "finite (options A) \<longleftrightarrow> finite A" by (simp add: options_def finite_image_iff)
 
+lemma options_pred: "(\<forall>x\<in>s. P x) \<Longrightarrow> y\<in>options s \<Longrightarrow> y = Some z \<Longrightarrow> P z" by simp
 
+lemma options_union: "options (a \<union> b) = (options a) \<union> (options b)"
+  by (simp add: image_Un options_altdef)
+
+lemma options_intersection: "options (a \<inter> b) = (options a) \<inter> (options b)"
+  by (simp add: image_Int options_def)
+
+lemma options_minus: "options (a - b) = insert None (options a - options b)"
+  by (metis Diff_insert2 Diff_insert_absorb None_notin_image_Some image_set_diff
+      inj_Some options_def)
+
+lemma subset_optionsD [dest]: "s \<subseteq> options s' \<Longrightarrow> Some x \<in> s \<Longrightarrow> x \<in> s'"
+  unfolding options_def by auto
 end

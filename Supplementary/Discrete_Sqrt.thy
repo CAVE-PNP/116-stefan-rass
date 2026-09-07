@@ -1,17 +1,17 @@
 subsection\<open>Discrete Square Root\<close>
 
 theory Discrete_Sqrt
-  imports "HOL-Library.Discrete"
+  imports "HOL-Library.Discrete_Functions"
 begin
 
 
-text\<open>Helpful lemmas centered around \<^const>\<open>Discrete.sqrt\<close>.\<close>
+text\<open>Helpful lemmas centered around \<^const>\<open>Discrete_Functions.floor_sqrt\<close>.\<close>
 
 abbreviation (input) is_square :: "nat \<Rightarrow> bool" where
   "is_square n \<equiv> (\<exists>m. n = m\<^sup>2)"
 
 abbreviation dsqrt :: "nat \<Rightarrow> nat" \<comment> \<open>\<open>\<lfloor>\<surd>n\<rfloor>\<close> over the natural numbers.\<close>
-  where "dsqrt \<equiv> Discrete.sqrt"
+  where "dsqrt \<equiv> Discrete_Functions.floor_sqrt"
 
 
 lemma sqrt_altdef_nat: "dsqrt n = nat \<lfloor>sqrt n\<rfloor>"
@@ -22,7 +22,8 @@ proof -
   then have "(dsqrt n)\<^sup>2 \<le> (sqrt n)\<^sup>2" unfolding * by simp
   then have upper: "dsqrt n \<le> sqrt n" by (simp add: real_le_rsqrt)
 
-  have "n < (dsqrt n + 1)\<^sup>2" using Suc_sqrt_power2_gt by simp
+  have "n < (dsqrt n + 1)\<^sup>2"
+    using Suc_eq_plus1 Suc_floor_sqrt_power2_gt by presburger
   then have "(sqrt n)\<^sup>2 < real ( (dsqrt n + 1)\<^sup>2 )" unfolding * by (rule less_imp_of_nat_less)
   then have "(sqrt n)\<^sup>2 < ( real (dsqrt n + 1) )\<^sup>2" by simp
   then have lower: "sqrt n < dsqrt n + 1" using power2_less_imp_less[of "sqrt n"] by force
@@ -39,7 +40,7 @@ lemma sqrt_ceil_floor:
 proof -
   have h0: "Suc (n - 1) = n" using \<open>n > 0\<close> by simp
   have h1: "dsqrt n = (if is_square n then dsqrt (n - 1) + 1 else dsqrt (n - 1))"
-    using sqrt_Suc[of "n - 1"] unfolding h0 unfolding Suc_eq_plus1 .
+    using floor_sqrt_Suc[of "n - 1"] unfolding h0 unfolding Suc_eq_plus1 .
 
   have "\<lfloor>sqrt (n - 1)\<rfloor> + 1 - 1 = \<lfloor>sqrt (n - 1)\<rfloor>" by simp
   also have "... \<le> sqrt (n - 1)" by simp
@@ -83,7 +84,7 @@ definition next_square :: "nat \<Rightarrow> nat" \<comment> \<open>\<open>\<lce
 
 corollary prev_sq_correct: "is_square (prev_square n)" by blast
 
-text\<open>\<^term>\<open>prev_square n \<le> n\<close> is proven in @{thm Discrete.sqrt_power2_le}.\<close>
+text\<open>\<^term>\<open>prev_square n \<le> n\<close> is proven in @{thm Discrete_Functions.floor_sqrt_power2_le}.\<close>
 
 corollary next_sq_correct1: "is_square (next_square n)" by simp
 
@@ -92,7 +93,7 @@ lemma next_sq_gt0: "next_square n > 0" by simp
 lemma next_sq_eq: "n > 0 \<Longrightarrow> is_square n \<Longrightarrow> next_square n = n"
 proof -
   assume "n > 0" and "is_square n"
-  with sqrt_Suc[of "n - 1"] have *: "dsqrt n = dsqrt (n - 1) + 1" by simp
+  with floor_sqrt_Suc[of "n - 1"] have *: "dsqrt n = dsqrt (n - 1) + 1" by simp
 
   from \<open>is_square n\<close> have "n = (dsqrt n)\<^sup>2" by fastforce
   then have "n = (dsqrt (n - 1) + 1)\<^sup>2" by (unfold *)
@@ -102,9 +103,9 @@ qed
 lemma next_sq_gt: "\<not> is_square n \<Longrightarrow> n < next_square n"
 proof (cases "n > 0")
   assume "n > 0" and "\<not> is_square n"
-  with sqrt_Suc[of "n - 1"] have *: "dsqrt n = dsqrt (n - 1)" by force
+  with floor_sqrt_Suc[of "n - 1"] have *: "dsqrt n = dsqrt (n - 1)" by force
 
-  from Suc_sqrt_power2_gt have "n < (dsqrt n + 1)\<^sup>2" by simp
+  from Suc_floor_sqrt_power2_gt have "n < (dsqrt n + 1)\<^sup>2" by simp
   then have "n < (dsqrt (n - 1) + 1)\<^sup>2" by (unfold *)
   then show ?thesis by simp
 qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
@@ -122,12 +123,12 @@ proof (cases "n > 0")
 qed \<comment> \<open>case \<open>n = 0\<close> by\<close> simp
 
 corollary prev_sq_le_next_sq: "prev_square n \<le> next_square n"
-  using le_trans and sqrt_power2_le and next_sq_correct2 .
+  using le_trans and floor_sqrt_power2_le and next_sq_correct2 .
 
 corollary prev_next_sq_eq: "prev_square n = next_square n \<longleftrightarrow> n = next_square n"
 proof (intro iffI)
   assume sqs: "prev_square n = next_square n"
-  show "n = next_square n" using sqrt_power2_le[of n] next_sq_correct2[of n]
+  show "n = next_square n" using floor_sqrt_power2_le[of n] next_sq_correct2[of n]
     unfolding sqs by (intro le_antisym)
 next
   assume nsq: "n = next_square n"
@@ -138,7 +139,7 @@ next
 qed
 
 lemma next_sq_le_greater_sq: "next_square n \<le> (dsqrt n + 1)\<^sup>2"
-  unfolding next_sq_def using mono_sqrt' and power_mono by simp
+  unfolding next_sq_def using mono_floor_sqrt' and power_mono by simp
 
 lemma adj_sq_real: "(x + 1)\<^sup>2 - x\<^sup>2 = 2 * x + 1" for x :: real by algebra
 lemma adj_sq_nat: "(x + 1)\<^sup>2 - x\<^sup>2 = 2 * x + 1" for x :: nat
@@ -155,7 +156,7 @@ qed
 
 corollary next_sq_diff: "next_square n - n \<le> 2 * (dsqrt n) + 1"
 proof -
-  have "next_square n - n \<le> next_square n - prev_square n" using sqrt_power2_le by (rule diff_le_mono2)
+  have "next_square n - n \<le> next_square n - prev_square n" using floor_sqrt_power2_le by (rule diff_le_mono2)
   also have "... \<le> 2 * (dsqrt n) + 1" by (rule next_prev_sq_diff)
   finally show ?thesis .
 qed
@@ -163,5 +164,11 @@ qed
 lemma next_sq_correct3: "n > 0 \<Longrightarrow> next_square n = \<lceil>sqrt n\<rceil>\<^sup>2"
   using sqrt_ceil_floor sqrt_altdef by simp
 
+lemma next_square_eq_iff: "n > 0 \<Longrightarrow> next_square n = n \<longleftrightarrow> (\<exists>x. x\<^sup>2 = n)"
+  apply auto
+  by (metis Suc_pred floor_sqrt_Suc floor_sqrt_inverse_power2 zero_less_power)
 
+lemma next_square_mono: "n \<le> m \<Longrightarrow> next_square n \<le> next_square m"
+  apply simp
+  using diff_le_mono mono_floor_sqrt' by presburger
 end
