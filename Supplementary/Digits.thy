@@ -70,7 +70,8 @@ next
   from \<open>n > 0\<close> have "length (digits b n) = length (digits b (n div b)) + 1"
     unfolding digits_def[OF \<open>b > 1\<close>, of n] by fastforce
   also from \<open>n div b > 0\<close> have "... = nat_log b (n div b) + 1 + 1" unfolding add_right_cancel by (fact div.IH)
-  also have "... = nat_log b n + 1" unfolding add_right_cancel nat_log_def[OF \<open>n \<ge> b\<close>] by presburger
+  also have "... = nat_log b n + 1"
+    by (metis Discrete_Log.nat_log_def Suc_eq_plus1 div.hyps valid_base)
   finally show ?case .
 qed
 

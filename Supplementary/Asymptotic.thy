@@ -40,10 +40,9 @@ syntax
   "_Alm_ball" :: "pttrn \<Rightarrow> 's set \<Rightarrow> bool \<Rightarrow> bool"   ("(3\<forall>\<^sub>\<infinity>_/\<in>_./ _)" [0, 0, 10] 10)
 translations
   "\<forall>\<^sub>\<infinity>x\<in>A. P" \<rightleftharpoons> "CONST Alm_ball A (\<lambda>x. P)"
-print_translation\<open>[
-  Syntax_Trans.preserve_binder_abs2_tr' \<^const_syntax>\<open>Alm_ball\<close> \<^syntax_const>\<open>_Alm_ball\<close>
-]\<close> \<comment> \<open>to avoid eta-contraction of body (otherwise, \<^term>\<open>\<forall>\<^sub>\<infinity>x\<in>A. P x\<close> will be printed as \<^term>\<open>Alm_ball A P\<close>)\<close>
-
+typed_print_translation \<open>
+ [(\<^const_syntax>\<open>Alm_ball\<close>, Syntax_Trans.preserve_binder_abs2_tr' \<^syntax_const>\<open>_Alm_ball\<close>)]
+\<close> \<comment> \<open>to avoid eta-contraction of body (otherwise, \<^term>\<open>\<forall>\<^sub>\<infinity>x\<in>A. P x\<close> will be printed as \<^term>\<open>Alm_ball A P\<close>)\<close>
 
 subsubsection\<open>Over the Naturals: For Sufficiently Large \<open>n\<close>\<close>
 
@@ -422,11 +421,7 @@ proof (intro iffI allI; elim allE; ae_nat_elim)
 
   from \<open>c > 0\<close> have "c * of_nat (C * n) \<le> c * of_nat (?C * n)" by simp
   also have "... \<le> of_nat (nat \<lceil>c\<rceil>) * of_nat (?C * n)"
-  proof (subst mult_le_cancel_iff1)
-    from \<open>c > 0\<close> and \<open>n \<ge> 1\<close> show "(0::'b) < of_nat (Suc C * n)"
-      unfolding of_nat_0_less_iff by simp
-    show "c \<le> of_nat (nat \<lceil>c\<rceil>)" by (fact of_nat_ceiling)
-  qed
+    by (simp add: mult_mono of_nat_ceiling)
   also have "... \<le> of_nat (nat \<lceil>c\<rceil> * ?C * n)" unfolding of_nat_mult mult.assoc ..
   also assume "of_nat (nat \<lceil>c\<rceil> * ?C * n) \<le> c * f (of_nat n)"
   finally show "of_nat (C * n) \<le> f (of_nat n)" using \<open>c > 0\<close> by simp
@@ -444,10 +439,51 @@ next
     finally show  "c * of_nat d \<ge> 1" .
   qed simp
   also have "c * of_nat d * of_nat (C * n) = c * of_nat (d * C * n)" unfolding of_nat_mult mult.assoc ..
-  also from asm and \<open>c > 0\<close> have "... \<le> c * f (of_nat n)" by (subst mult_le_cancel_iff2)
+  also from asm and \<open>c > 0\<close> have "... \<le> c * f (of_nat n)" by simp
   finally show "of_nat (C * n) \<le> c * f (of_nat n)" .
 qed
 
+
+lemma superlinear_div[simp]:
+  fixes f :: "'a :: {linorder,semiring_1} \<Rightarrow> 'b :: floor_ceiling"
+  assumes "c > 0"
+  shows "superlinear (\<lambda>x. f x / c) \<longleftrightarrow> superlinear f"
+proof -
+  have "superlinear (\<lambda>x. f x * inverse c) \<longleftrightarrow> superlinear f"
+    using assms superlinear_factor by (simp add: mult.commute)
+  thus ?thesis by (simp add: divide_inverse_commute mult.commute)
+qed
+
+lemma superlinear_factor_nat[simp]:
+  fixes f :: "nat \<Rightarrow> nat" and c :: nat
+  assumes "c > 0"
+  shows "superlinear (\<lambda>x. c * f x) \<longleftrightarrow> superlinear f"
+  unfolding superlinear_def
+proof auto
+  fix C :: nat
+  assume "\<forall>C. \<forall>\<^sub>\<infinity>n. C * n \<le> c * f n"
+  hence "\<forall>\<^sub>\<infinity>n. (C * c) * n \<le> c * f n" by blast
+  thus "\<forall>\<^sub>\<infinity>n. C * n \<le> f n" by (simp add: assms)
+next
+  fix C :: nat
+  assume "\<forall>C. \<forall>\<^sub>\<infinity>n. C * n \<le> f n"
+  hence "\<forall>\<^sub>\<infinity>n. ((C div c) + 1) * n \<le> f n" by blast
+  hence "\<forall>\<^sub>\<infinity>n. c * ((C div c) + 1) * n \<le> c * f n" 
+    by (smt (verit, best) dual_order.refl eventually_mono mult.assoc
+        mult_mono zero_le)
+  moreover have "\<forall>\<^sub>\<infinity>n. c * ((C div c) + 1) \<ge> C"
+    by (metis Suc_eq_plus1 assms dividend_less_div_times eventuallyI mult.commute
+        mult_Suc order_less_le)
+  hence "\<forall>\<^sub>\<infinity>n. c * ((C div c) + 1) * n \<ge> C * n" by auto
+  ultimately show "\<forall>\<^sub>\<infinity>n. C * n \<le> c * f n"
+  proof -
+    have "\<exists>fa. (\<forall>\<^sub>\<infinity>n. fa n \<le> c * f n) \<and> (\<forall>\<^sub>\<infinity>n. C * n \<le> fa n)"
+      using \<open>\<forall>\<^sub>\<infinity>n. C * n \<le> c * (C div c + 1) * n\<close>
+        \<open>\<forall>\<^sub>\<infinity>n. c * (C div c + 1) * n \<le> c * f n\<close> by blast
+    then show ?thesis
+      by force
+  qed
+qed
 
 lemma superlinear_ae_mono:
   fixes f g
@@ -464,6 +500,46 @@ proof -
   qed
 qed
 
+lemma superlinear_div_nat[simp]:
+  fixes f :: "nat \<Rightarrow> nat" and c :: nat
+  assumes "c > 0"
+  shows "superlinear (\<lambda>x. f x div c) \<longleftrightarrow> superlinear f"
+  unfolding superlinear_def
+proof auto
+  fix C :: nat
+  have 1: "\<And>n. ((C div c) + 1) * n \<le> f n div c \<Longrightarrow>
+           c * ((C div c) + 1) * n \<le> c * f n div c"
+    by (metis assms div_mult_self1_is_m less_eq_div_iff_mult_less_eq mult.assoc
+        mult_commute_abs)
+  assume "\<forall>C. \<forall>\<^sub>\<infinity>n. C * n \<le> f n div c"
+  hence "\<forall>\<^sub>\<infinity>n. ((C div c) + 1) * n \<le> f n div c" by blast
+  then obtain n\<^sub>0 :: nat where
+    n\<^sub>0_def: "\<And>n. n \<ge> n\<^sub>0 \<Longrightarrow> ((C div c) + 1) * n \<le> f n div c" by auto
+  have "\<forall>\<^sub>\<infinity>n. c * ((C div c) + 1) * n \<le> c * f n div c"
+  proof
+    have "\<And>n. n \<ge> n\<^sub>0 \<Longrightarrow> c * ((C div c) + 1) * n \<le> c * f n div c"
+      by (rule 1) (rule n\<^sub>0_def)
+    thus "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. c * ((C div c) + 1) * n \<le> c * f n div c" by blast
+  qed
+  moreover have "\<forall>\<^sub>\<infinity>n. c * ((C div c) + 1) \<ge> C"
+    by (metis Suc_eq_plus1 assms dividend_less_div_times eventuallyI mult_Suc_right
+        mult_commute_abs order_less_le)
+  hence "\<forall>\<^sub>\<infinity>n. c * ((C div c) + 1) * n \<ge> C * n" by auto
+  moreover have "\<forall>\<^sub>\<infinity>n. c * f n div c \<le> f n" by simp
+  ultimately show "\<forall>\<^sub>\<infinity>n. C * n \<le> f n"
+  proof -
+    have "\<forall>\<^sub>\<infinity>n. c * (C div c + 1) * n \<le> f n"
+      using \<open>\<forall>\<^sub>\<infinity>n. c * (C div c + 1) * n \<le> c * f n div c\<close> by auto
+    then show ?thesis
+      using \<open>\<forall>\<^sub>\<infinity>n. C * n \<le> c * (C div c + 1) * n\<close> eventually_le_le by blast
+  qed
+next
+  fix C :: nat
+  assume "\<forall>C. \<forall>\<^sub>\<infinity>n. C * n \<le> f n"
+  hence "\<forall>\<^sub>\<infinity>n. (C * c) * n \<le> f n" by blast
+  thus "\<forall>\<^sub>\<infinity>n. C * n \<le> f n div c"
+    by (simp add: assms less_eq_div_iff_mult_less_eq mult.commute mult.left_commute)
+qed
 
 lemma superlinear_poly_powr:
   fixes c :: real
@@ -482,8 +558,10 @@ proof (intro allI)
       then have "n \<ge> 2" by (rule max.boundedE)
 
       have "ln C / (c - 1) = ln C * (1 / (c-1))" by simp
-      also have "... = ln (C powr (1 / (c-1)))" by (simp add: ln_powr)
-      also from asm have "... \<le> ln n" by force
+      also have "... = ln (C powr (1 / (c-1)))" by simp
+      also from asm have "... \<le> ln n"
+        by (metis \<open>C \<noteq> 0\<close> ln_mono max.boundedE nat_ceiling_le_eq of_nat_eq_0_iff
+            powr_gt_zero)
       finally have "ln C / (c - 1) \<le> ln n" .
       with \<open>c > 1\<close> have "ln C \<le> ln n * (c - 1)" by (simp add: pos_divide_le_eq)
       then have *: "exp (ln C) \<le> exp (ln n * (c - 1))" ..
@@ -529,4 +607,58 @@ proof -
   qed
 qed
 
+lemma funcomp_superlinearI: "\<forall>\<^sub>\<infinity>n::nat. g n \<ge> n \<Longrightarrow> superlinear (f::nat \<Rightarrow> nat) \<Longrightarrow> mono f \<Longrightarrow> superlinear (f \<circ> g)"
+  apply (rule superlinear_ae_mono)
+   apply assumption
+  apply (rule Alm_all_natI)
+  apply auto
+  apply (erule Alm_all_natE')
+  unfolding superlinear_altdef_nat apply (drule spec [where x=1])
+  apply simp
+  apply (erule Alm_all_natE')
+proof -
+  fix n\<^sub>0 n\<^sub>0' :: nat
+  assume a1: "\<And>n. n\<^sub>0' \<le> n \<Longrightarrow> n \<le> f n" and a2: "\<And>n. n\<^sub>0 \<le> n \<Longrightarrow> n \<le> g n" and a3: "mono f"
+  show "\<exists>n\<^sub>0. \<forall>n\<ge>n\<^sub>0. f n \<le> f (g n)"
+  proof (rule exI, auto)
+    fix n :: nat
+    assume a4: "max n\<^sub>0 n\<^sub>0' \<le> n"
+    have 1: "n\<^sub>0 \<le> n" using a4 by simp
+    note 2 = a2 [OF 1]
+    show "f n \<le> f (g n)" using a3 2 by (rule monotoneD)
+  qed
+qed
+
+lemma superlinear_nat_addI: "superlinear (f::nat\<Rightarrow>nat) \<Longrightarrow> superlinear (\<lambda>n. f n + f2 n)"
+  unfolding superlinear_altdef_nat apply auto
+  apply (drule spec)
+  apply (rule Alm_all_natI)
+  apply (drule Alm_all_natD)
+  apply auto
+proof
+  fix C n0 :: nat
+  assume "\<forall>n\<ge>n0. C * n \<le> f n"
+  thus "\<forall>n\<ge>n0. C * n \<le> f n + f2 n" by auto
+qed
+
+lemma superlinear_nat_addI': "superlinear (f::nat\<Rightarrow>nat) \<or> superlinear f2 \<Longrightarrow> superlinear (\<lambda>n. f n + f2 n)"
+  apply (erule disjE)
+   apply (erule superlinear_nat_addI)
+  apply (subst add.commute)
+  by (rule superlinear_nat_addI)
+
+lemma ae_list_lengthD [dest]: "\<forall>\<^sub>\<infinity>l::'a list. P l \<Longrightarrow> \<exists>n. \<forall>l. length l \<ge> n \<longrightarrow> P l"
+  by (metis eventually_cofinite infinite_lists mem_Collect_eq)
+
+lemma ae_list_lengthE [elim]: "\<forall>\<^sub>\<infinity>l::'a list. P l \<Longrightarrow>
+    (\<And>n. (\<And>l. length l \<ge> n \<Longrightarrow> P l) \<Longrightarrow> Q) \<Longrightarrow> Q"
+  by blast
+
+lemma ae_list_lengthE': "\<forall>\<^sub>\<infinity>l::'a list. P l \<Longrightarrow>
+    (\<And>n. n > 0 \<Longrightarrow> (\<And>l. length l \<ge> n \<Longrightarrow> P l) \<Longrightarrow> Q) \<Longrightarrow> Q"
+  by (metis Suc_leD ae_list_lengthD zero_less_Suc)
+
+lemma ae_list_least_lengthE [elim]: "\<forall>\<^sub>\<infinity>l::'a list. P l \<Longrightarrow> (\<And>l. P l \<Longrightarrow> Q) \<Longrightarrow>
+    (\<And>l' n. (\<And>l. length l \<ge> n \<Longrightarrow> P l) \<Longrightarrow> length l' = n - 1 \<Longrightarrow> \<not>P l' \<Longrightarrow> Q) \<Longrightarrow> Q"
+  by (meson ae_list_lengthD take_or_length)
 end
